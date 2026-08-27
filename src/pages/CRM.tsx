@@ -11,12 +11,17 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Search, Loader2, Plus, ThumbsDown, TrendingDown, BarChart3, CalendarDays,
-  ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, RotateCcw, Trash2,
-  MoreHorizontal, FileText, Eye, Kanban, List,
+  RotateCcw, Trash2, MoreHorizontal, FileText, Eye, Kanban, List,
 } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { SortableTableHead, SortDirection } from '@/components/crm/SortableTableHead';
+import { LeadTablePagination } from '@/components/crm/LeadTablePagination';
+import {
+  StandByStatsCards, StandByTable, useStandByLeads,
+  STAND_BY_FILTER_OPTIONS, StandByFilter,
+} from '@/components/crm/StandByView';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -32,16 +37,29 @@ import CRMStats from '@/components/crm/CRMStats';
 import { resolveLeadEstimatedValue } from '@/lib/leadValue';
 import { formatCurrency, formatDate, formatShortDate } from '@/lib/formatters';
 import {
-  ARCHIVE_REASONS, CRM_LEAD_COLUMNS, LeadWithBudget, SERVICE_LINE_LABELS, SERVICE_LINE_OPTIONS,
-  getLossReasonLabel, getStageColor, getStageLabel,
+  ARCHIVE_REASONS, CRM_FUNNEL_STAGES, CRM_STAGE_META, LeadWithBudget,
+  SERVICE_LINE_LABELS, SERVICE_LINE_OPTIONS,
+  getLossReasonLabel, getStageColor, getStageLabel, isInStandBy,
 } from '@/types/lead';
 import { BudgetStatusBadge } from '@/components/budgets/BudgetStatusBadge';
 import { BudgetStatus } from '@/types/budget';
 import { cn } from '@/lib/utils';
 
 type SortKey = 'name' | 'lost_at' | 'estimated_value' | 'created_at';
-type SortDir = 'asc' | 'desc';
-const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+type SortDir = SortDirection;
+type PipelineTab = 'active' | 'stand_by' | 'lost';
+
+/**
+ * Etapas oferecidas no filtro da Lista. Só o funil: Stand By virou aba própria e
+ * não aparece mais entre os Ativos, então oferecê-lo aqui daria sempre vazio.
+ */
+const LIST_STAGE_OPTIONS = CRM_FUNNEL_STAGES.map((stage) => CRM_STAGE_META[stage]);
+
+const SEARCH_PLACEHOLDERS: Record<PipelineTab, string> = {
+  active: 'Buscar oportunidades...',
+  stand_by: 'Buscar em Stand By...',
+  lost: 'Buscar perdas...',
+};
 
 /**
  * Data em que a oportunidade foi perdida. `lost_at` é o carimbo canônico; caímos
@@ -52,34 +70,13 @@ function lostAtTime(lead: LeadWithBudget): number {
   return stamp ? new Date(stamp).getTime() : 0;
 }
 
-function SortableHead({ label, sortKey, currentKey, currentDir, onSort, className }: {
-  label: string; sortKey: SortKey; currentKey: SortKey; currentDir: SortDir; onSort: (k: SortKey) => void; className?: string;
-}) {
-  const active = currentKey === sortKey;
-  return (
-    <TableHead
-      className={`cursor-pointer select-none hover:bg-muted/50 transition-colors ${className || ''}`}
-      onClick={() => onSort(sortKey)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {active ? (
-          currentDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5 text-foreground" /> : <ArrowDown className="h-3.5 w-3.5 text-foreground" />
-        ) : (
-          <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
-        )}
-      </div>
-    </TableHead>
-  );
-}
-
 export default function CRM() {
   const navigate = useNavigate();
   const { employee } = useAuth();
   const isManager = employee?.is_gerente || employee?.isAdmin;
   const isAdmin = employee?.isAdmin;
 
-  const [activeTab, setActiveTab] = useState<'active' | 'lost'>('active');
+  const [activeTab, setActiveTab] = useState<PipelineTab>('active');
   const [displayMode, setDisplayMode] = useState<'kanban' | 'list'>('kanban');
   const [searchTerm, setSearchTerm] = useState('');
   const [newLeadOpen, setNewLeadOpen] = useState(false);
@@ -109,6 +106,14 @@ export default function CRM() {
   const cancelledSet = useMemo(() => new Set(cancelledLeadIds), [cancelledLeadIds]);
   const activeLeads = useMemo(() => rawActiveLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawActiveLeads, cancelledSet]);
   const lostLeads = useMemo(() => rawLostLeads.filter((l: any) => !cancelledSet.has(l.id)), [rawLostLeads, cancelledSet]);
+
+  // O Stand By saiu da grade do Kanban e virou aba própria: as duas visões de
+  // "Ativos" (Kanban e Lista) passam a mostrar só o funil.
+  const funnelLeads = useMemo(() => activeLeads.filter((l) => !isInStandBy(l.crm_stage)), [activeLeads]);
+  const standByLeads = useMemo(() => activeLeads.filter((l) => isInStandBy(l.crm_stage)), [activeLeads]);
+
+  // Estado da visão de Stand By
+  const [standByFilter, setStandByFilter] = useState<StandByFilter>('all');
 
   // Estado da visão de Perdas
   const [reasonFilter, setReasonFilter] = useState<string>('all');
@@ -147,10 +152,13 @@ export default function CRM() {
 
   const isLoading = activeTab === 'lost' ? loadingLost : loadingActive;
 
+  const standBy = useStandByLeads(standByLeads, searchTerm, standByFilter);
+
   // Reset search and filters when switching primary tab
   useEffect(() => {
     setSearchTerm('');
     setReasonFilter('all');
+    setStandByFilter('all');
     setListStageFilter('all');
     setListServiceFilter('all');
     setListBudgetFilter('all');
@@ -203,7 +211,7 @@ export default function CRM() {
   }, [lostLeads, reasonFilter, searchTerm, sortKey, sortDir]);
 
   const filteredActiveList = useMemo(() => {
-    let result = [...activeLeads];
+    let result = [...funnelLeads];
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       result = result.filter(l =>
@@ -233,7 +241,7 @@ export default function CRM() {
       }
     });
     return result;
-  }, [activeLeads, searchTerm, listStageFilter, listServiceFilter, listBudgetFilter, listSortKey, listSortDir]);
+  }, [funnelLeads, searchTerm, listStageFilter, listServiceFilter, listBudgetFilter, listSortKey, listSortDir]);
 
   // Estatísticas de perda: TODA oportunidade em "Perdas" conta como perda.
   const lostStats = useMemo(() => {
@@ -254,7 +262,6 @@ export default function CRM() {
     return { total: lostLeads.length, lostValue, topReason, thisMonth };
   }, [lostLeads]);
 
-  const totalPages = Math.ceil(filteredLost.length / pageSize);
   const paginatedData = useMemo(() => {
     const start = currentPage * pageSize;
     return filteredLost.slice(start, start + pageSize);
@@ -275,8 +282,10 @@ export default function CRM() {
         }
       >
         {/* Stats */}
-        {activeTab !== 'lost' ? (
+        {activeTab === 'active' ? (
           <CRMStats leads={activeLeads} />
+        ) : activeTab === 'stand_by' ? (
+          <StandByStatsCards stats={standBy.stats} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
@@ -332,7 +341,7 @@ export default function CRM() {
           <div className="relative flex-1 min-w-[280px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={activeTab === 'lost' ? 'Buscar perdas...' : 'Buscar oportunidades...'}
+              placeholder={SEARCH_PLACEHOLDERS[activeTab]}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 w-full"
@@ -343,6 +352,7 @@ export default function CRM() {
           <div className="flex items-center rounded-lg border bg-muted/50 p-0.5 shrink-0">
             <button
               onClick={() => setActiveTab('active')}
+              aria-pressed={activeTab === 'active'}
               className={cn(
                 'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
                 activeTab === 'active'
@@ -353,7 +363,20 @@ export default function CRM() {
               Ativos
             </button>
             <button
+              onClick={() => setActiveTab('stand_by')}
+              aria-pressed={activeTab === 'stand_by'}
+              className={cn(
+                'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+                activeTab === 'stand_by'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              Stand By
+            </button>
+            <button
               onClick={() => setActiveTab('lost')}
+              aria-pressed={activeTab === 'lost'}
               className={cn(
                 'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
                 activeTab === 'lost'
@@ -374,7 +397,7 @@ export default function CRM() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as etapas</SelectItem>
-                  {CRM_LEAD_COLUMNS.map((col) => (
+                  {LIST_STAGE_OPTIONS.map((col) => (
                     <SelectItem key={col.id} value={col.id}>{col.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -403,6 +426,20 @@ export default function CRM() {
                 </SelectContent>
               </Select>
             </>
+          )}
+
+          {/* Filtro de retorno — visão de Stand By */}
+          {activeTab === 'stand_by' && (
+            <Select value={standByFilter} onValueChange={(v) => setStandByFilter(v as StandByFilter)}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Filtrar por retorno" />
+              </SelectTrigger>
+              <SelectContent>
+                {STAND_BY_FILTER_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
 
           {/* Filtro de motivo — visão de Perdas */}
@@ -448,22 +485,28 @@ export default function CRM() {
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
+        ) : activeTab === 'stand_by' ? (
+          <StandByTable
+            leads={standBy.filtered}
+            followUpsByLead={standBy.followUpsByLead}
+            onSelectLead={setSelectedActiveLead}
+          />
         ) : activeTab === 'active' && displayMode === 'kanban' ? (
-          <LeadKanbanBoard leads={activeLeads} searchTerm={searchTerm} />
+          <LeadKanbanBoard leads={funnelLeads} searchTerm={searchTerm} />
         ) : activeTab === 'active' ? (
           <div className="overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <SortableHead label="Nome" sortKey="name" currentKey={listSortKey} currentDir={listSortDir} onSort={handleListSort} />
+                  <SortableTableHead label="Nome" sortKey="name" currentKey={listSortKey} currentDir={listSortDir} onSort={handleListSort} />
                   <TableHead>Empresa</TableHead>
                   <TableHead>Etapa</TableHead>
                   <TableHead>Linha de Serviço</TableHead>
                   <TableHead>Responsável</TableHead>
                   <TableHead>Nº Orçamento</TableHead>
-                  <SortableHead label="Valor" sortKey="estimated_value" currentKey={listSortKey} currentDir={listSortDir} onSort={handleListSort} className="text-right" />
+                  <SortableTableHead label="Valor" sortKey="estimated_value" currentKey={listSortKey} currentDir={listSortDir} onSort={handleListSort} className="text-right" />
                   <TableHead>Status Orçamento</TableHead>
-                  <SortableHead label="Criado em" sortKey="created_at" currentKey={listSortKey} currentDir={listSortDir} onSort={handleListSort} />
+                  <SortableTableHead label="Criado em" sortKey="created_at" currentKey={listSortKey} currentDir={listSortDir} onSort={handleListSort} />
                   <TableHead className="w-[60px]" />
                 </TableRow>
               </TableHeader>
@@ -551,12 +594,12 @@ export default function CRM() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <SortableHead label="Nome" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableTableHead label="Nome" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <TableHead>Empresa</TableHead>
                     <TableHead>Etapa</TableHead>
                     <TableHead>Motivo</TableHead>
-                    <SortableHead label="Data da Perda" sortKey="lost_at" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-                    <SortableHead label="Valor" sortKey="estimated_value" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-right" />
+                    <SortableTableHead label="Data da Perda" sortKey="lost_at" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableTableHead label="Valor" sortKey="estimated_value" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-right" />
                     {isManager && <TableHead className="w-[100px]">Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -637,33 +680,13 @@ export default function CRM() {
             </div>
 
             {showPagination && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-                <p className="text-sm text-muted-foreground">
-                  Mostrando {currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, filteredLost.length)} de {filteredLost.length} oportunidade{filteredLost.length !== 1 ? 's' : ''}
-                </p>
-                <div className="flex items-center gap-4">
-                  <div className="hidden sm:flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Por página:</span>
-                    <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(0); }}>
-                      <SelectTrigger className="h-8 w-[70px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {PAGE_SIZE_OPTIONS.map(s => (
-                          <SelectItem key={s} value={String(s)}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage === 0} onClick={() => setCurrentPage(p => p - 1)}>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm px-2">{currentPage + 1} / {totalPages || 1}</span>
-                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage >= totalPages - 1} onClick={() => setCurrentPage(p => p + 1)}>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <LeadTablePagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={filteredLost.length}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(0); }}
+              />
             )}
           </div>
         )}

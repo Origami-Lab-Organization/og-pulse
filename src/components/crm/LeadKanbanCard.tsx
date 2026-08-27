@@ -3,11 +3,11 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building2, Clock, Compass, DollarSign, Lock, FileText, User, CalendarClock, AlertTriangle, Undo2 } from 'lucide-react';
+import { Building2, Compass, DollarSign, Lock, FileText, User, CalendarClock, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
 import {
   LeadWithBudget, CRMStage, LEAD_SOURCE_OPTIONS, LEAD_SOURCE_LABELS,
-  getStageStallDays, isInStandBy, isRecentlyRestored,
+  isInStandBy, isRecentlyRestored,
 } from '@/types/lead';
 import { resolveLeadEstimatedValue } from '@/lib/leadValue';
 import { Service, BillingType, BILLING_TYPE_LABELS } from '@/types/service';
@@ -32,31 +32,8 @@ const TYPE_BADGE_CLASSES: Record<BillingType, string> = {
 };
 import { useNavigate } from 'react-router-dom';
 
-function formatElapsedTime(createdAt: string, endDate?: string | null): string {
-  const diffMs = Math.max(0, (endDate ? new Date(endDate).getTime() : Date.now()) - new Date(createdAt).getTime());
-  const minutes = Math.floor(diffMs / 60000);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  const weeks = Math.floor(days / 7);
-  const months = Math.floor(days / 30);
-  const years = Math.floor(days / 365);
-
-  if (years >= 1) return `${years}a`;
-  if (months >= 1) return `${months}m`;
-  if (weeks >= 1) return `${weeks}sem`;
-  if (days >= 1) return `${days}d`;
-  if (hours >= 1) return `${hours}h`;
-  return `${Math.max(1, minutes)}min`;
-}
-
 function formatReturnDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-}
-
-function getDaysInStage(createdAt: string, endDate?: string | null): number {
-  const start = new Date(createdAt).getTime();
-  const end = endDate ? new Date(endDate).getTime() : Date.now();
-  return Math.floor(Math.max(0, end - start) / 86400000);
 }
 
 interface LeadKanbanCardProps {
@@ -66,13 +43,11 @@ interface LeadKanbanCardProps {
   services?: Service[];
   leadServices?: LeadServiceRow[];
   pendingFollowUps?: LeadFollowUp[];
-  /** Presente apenas na coluna de Stand By — devolve a oportunidade ao funil. */
-  onResume?: () => void;
 }
 
 const BILLING_TYPES: BillingType[] = ['fixed_scope', 'recurring', 'success_fee', 'no_revenue'];
 
-export function LeadKanbanCard({ lead, currentStage, onClick, services = [], leadServices = [], pendingFollowUps = [], onResume }: LeadKanbanCardProps) {
+export function LeadKanbanCard({ lead, currentStage, onClick, services = [], leadServices = [], pendingFollowUps = [] }: LeadKanbanCardProps) {
   const navigate = useNavigate();
   const updateLead = useUpdateLead();
   const isWon = currentStage === 'closed';
@@ -93,19 +68,6 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
     disabled: isLocked || lead.archived,
   });
 
-  const getEndDate = () => {
-    if (isWon) return lead.closed_at || lead.updated_at;
-    if (isLost) return lead.lost_at || lead.updated_at;
-    if (lead.archived) return lead.archived_at;
-    return null;
-  };
-  const elapsedTime = formatElapsedTime(lead.created_at, getEndDate());
-
-  const daysInStage = getDaysInStage(lead.created_at, getEndDate());
-  // `stallDays: null` desliga o badge "Parado" — é o caso do Follow Up, em que
-  // ficar parado é o comportamento esperado e o sinal útil é o retorno vencido.
-  const stallDays = getStageStallDays(currentStage);
-  const isStuck = !isLocked && stallDays !== null && daysInStage > stallDays;
   const reactivated = isRecentlyRestored(lead);
 
   const linkedServices = leadServices
@@ -151,23 +113,19 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
       {...listeners}
       {...attributes}
       className={cn(
-        'transition-all hover:shadow-md border-l-4 cursor-grab active:cursor-grabbing',
+        'transition-all hover:shadow-md cursor-grab active:cursor-grabbing',
         isLocked && 'cursor-default',
         isWon
-          ? 'border-l-chart-2 bg-chart-2/10'
+          ? 'bg-chart-2/10'
           : isLost
-          ? 'border-l-destructive bg-destructive/10'
+          ? 'bg-destructive/10'
           : missingReturnDate
-          ? 'border-l-destructive bg-destructive/5'
-          : inStandBy
-          ? 'border-l-sky-400'
-          : isStuck
-          ? 'border-l-amber-400'
-          : 'border-l-primary',
+          ? 'bg-destructive/5'
+          : undefined,
       )}
     >
       <CardContent className="p-3 space-y-2">
-        {/* Header: name + elapsed time + lock */}
+        {/* Header: name + follow-up indicator + lock */}
         <div className="flex items-center justify-between gap-1">
           <h4 className="font-medium text-sm line-clamp-1 flex-1">{lead.name}</h4>
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -180,10 +138,6 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
                 )}
               />
             )}
-            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              {elapsedTime}
-            </span>
             {isLocked && <Lock className={cn('h-3.5 w-3.5', isLost ? 'text-destructive' : 'text-chart-2')} />}
           </div>
         </div>
@@ -291,21 +245,6 @@ export function LeadKanbanCard({ lead, currentStage, onClick, services = [], lea
             <span>~ {formatCurrency(estimatedValue)}</span>
           </div>
         ) : null}
-
-        {/* Retomar — única saída do Stand By, para voltar à etapa de origem e
-            não à coluna vizinha de um arraste. */}
-        {inStandBy && onResume && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full text-xs h-7"
-            onClick={(e) => { e.stopPropagation(); onResume(); }}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <Undo2 className="h-3 w-3 mr-1" />
-            Retomar no Pipeline
-          </Button>
-        )}
 
         {/* Create budget button */}
         {canCreateBudget && (

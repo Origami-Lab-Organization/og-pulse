@@ -7,12 +7,10 @@ import { LeadKanbanColumn } from './LeadKanbanColumn';
 import { LeadKanbanCard } from './LeadKanbanCard';
 import { LeadDetailDialog } from './LeadDetailDialog';
 import { CloseBusinessDialog } from './CloseBusinessDialog';
-import { MoveToStandByDialog } from './MoveToStandByDialog';
 import {
-  LeadWithBudget, CRMStage, CRM_FUNNEL_STAGES, CRM_STAGE_META, getStageLabel, isInStandBy,
+  LeadWithBudget, CRMStage, CRM_FUNNEL_STAGES, CRM_STAGE_META, getStageLabel,
 } from '@/types/lead';
-import { useUpdateLeadStage, useResumeLeadFromStandBy } from '@/hooks/useLeads';
-import { resolveStandByReturnStage } from '@/services/leadService';
+import { useUpdateLeadStage } from '@/hooks/useLeads';
 import { resolveLeadEstimatedValue } from '@/lib/leadValue';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
 import { useBudget } from '@/hooks/useBudgets';
@@ -23,13 +21,14 @@ import { useToast } from '@/hooks/use-toast';
 import type { CloseBusinessInstallment } from '@/lib/closeBusinessFinancials';
 
 /**
- * Colunas do board: o funil, mais a coluna de Stand By, renderizada à parte.
+ * Colunas do board: só o funil.
  *
- * `closed_lost` não entra — a perda é dada de dentro do card e arquiva a
- * oportunidade na aba "Perdas". Follow Up é coluna, mas fora da sequência: a
- * régua de adjacência abaixo só considera o funil.
+ * Nem `closed_lost` nem `stand_by` são coluna — os dois são estados laterais,
+ * dados de dentro do card, e vivem em abas próprias ("Perdas" e "Stand By").
+ * Tirar o Stand By da grade devolve a largura das 5 colunas do funil, que é o
+ * que a tela precisa mostrar bem.
  */
-const BOARD_STAGES: CRMStage[] = [...CRM_FUNNEL_STAGES, 'stand_by'];
+const BOARD_STAGES: CRMStage[] = [...CRM_FUNNEL_STAGES];
 const FUNNEL_INDEX: Record<string, number> = Object.fromEntries(
   CRM_FUNNEL_STAGES.map((stage, index) => [stage, index])
 );
@@ -44,13 +43,10 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
   const [selectedLead, setSelectedLead] = useState<LeadWithBudget | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [leadToClose, setLeadToClose] = useState<LeadWithBudget | null>(null);
-  const [standByDialogOpen, setStandByDialogOpen] = useState(false);
-  const [leadToStandBy, setLeadToStandBy] = useState<LeadWithBudget | null>(null);
   const [activeLead, setActiveLead] = useState<LeadWithBudget | null>(null);
   const [highlightField, setHighlightField] = useState<'service_line' | 'budget_id' | null>(null);
 
   const updateStage = useUpdateLeadStage();
-  const resumeFromStandBy = useResumeLeadFromStandBy();
   const closeBusinessDeal = useCloseBusinessDeal();
   const { data: services = [] } = useServices();
   const leadServicesMap = useLeadServicesMap();
@@ -109,23 +105,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     if (newStage === 'closed') {
       setLeadToClose(lead);
       setCloseDialogOpen(true);
-      return;
-    }
-
-    // Entrar em Follow Up exige data de retorno — nunca grava direto no arraste.
-    if (isInStandBy(newStage)) {
-      setLeadToStandBy(lead);
-      setStandByDialogOpen(true);
-      return;
-    }
-
-    // Sair do Follow Up é sempre pelo botão "Retomar", que devolve a
-    // oportunidade à etapa de origem em vez da coluna vizinha do arraste.
-    if (isInStandBy(lead.crm_stage)) {
-      toast({
-        title: 'Use "Retomar"',
-        description: 'Oportunidades em Stand By voltam ao Pipeline pelo botão Retomar, na etapa em que estavam.',
-      });
       return;
     }
 
@@ -206,13 +185,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     return grouped;
   }, [filteredLeads]);
 
-  const handleResume = (lead: LeadWithBudget) => {
-    resumeFromStandBy.mutate({
-      id: lead.id,
-      targetStage: resolveStandByReturnStage(lead.stand_by_return_stage),
-    });
-  };
-
   const handleCardClick = (lead: LeadWithBudget) => {
     setSelectedLead(lead);
     setDetailDialogOpen(true);
@@ -261,9 +233,8 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
     <>
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto pb-2">
-        {/* Funil (5 colunas) + separador + Stand By. O separador é o que impede
-            o Stand By de ser lido como "o passo depois de Fechado - Ganho". */}
-        <div className="grid grid-cols-[repeat(5,minmax(220px,1fr))_auto_minmax(220px,1fr)] gap-3 h-[calc(100vh-220px)]">
+        {/* Só o funil: 5 colunas dividindo toda a largura. */}
+        <div className="grid grid-cols-[repeat(5,minmax(220px,1fr))] gap-3 h-[calc(100vh-220px)]">
           {CRM_FUNNEL_STAGES.map((stage) => (
             <LeadKanbanColumn
               key={stage}
@@ -275,21 +246,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
               followUpsByLead={followUpsByLead}
             />
           ))}
-
-          <div className="flex items-stretch" aria-hidden="true">
-            <div className="w-px bg-border" />
-          </div>
-
-          <LeadKanbanColumn
-            column={CRM_STAGE_META.stand_by}
-            leads={leadsByStage.stand_by || []}
-            onCardClick={handleCardClick}
-            services={services}
-            leadServicesMap={leadServicesMap}
-            followUpsByLead={followUpsByLead}
-            emptyLabel="Arraste aqui o que precisa esfriar sem virar perda"
-            onResume={handleResume}
-          />
         </div>
         </div>
 
@@ -321,13 +277,6 @@ export function LeadKanbanBoard({ leads, searchTerm }: LeadKanbanBoardProps) {
         onConfirm={handleCloseBusinessConfirm}
         isSubmitting={closeBusinessDeal.isPending}
         services={services}
-      />
-
-      <MoveToStandByDialog
-        open={standByDialogOpen}
-        onOpenChange={(open) => { setStandByDialogOpen(open); if (!open) setLeadToStandBy(null); }}
-        lead={leadToStandBy}
-        fromStage={leadToStandBy?.crm_stage ?? null}
       />
     </>
   );

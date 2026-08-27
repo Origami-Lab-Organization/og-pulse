@@ -24,12 +24,11 @@ interface LeadKanbanColumnProps {
   followUpsByLead: Record<string, LeadFollowUp[]>;
   /** Texto exibido quando a coluna está vazia. */
   emptyLabel?: string;
-  onResume?: (lead: LeadWithBudget) => void;
 }
 
 export function LeadKanbanColumn({
   column, leads, onCardClick, services, leadServicesMap, followUpsByLead,
-  emptyLabel = 'Nenhuma oportunidade', onResume,
+  emptyLabel = 'Nenhuma oportunidade',
 }: LeadKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
@@ -73,7 +72,6 @@ export function LeadKanbanColumn({
               services={services}
               leadServices={leadServicesMap[lead.id] ?? []}
               pendingFollowUps={followUpsByLead[lead.id] ?? []}
-              onResume={onResume ? () => onResume(lead) : undefined}
             />
           ))}
           {leads.length === 0 && (
