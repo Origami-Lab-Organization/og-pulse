@@ -1,0 +1,16 @@
+# Esteira de segurança da Origami Lab — fonte e docs: Origami-Lab-Organization/kami-devops
+# No PR: gitleaks só nos commits do PR; Semgrep só em finding novo (baseline).
+# No cron semanal: varredura completa (alarme de inventário).
+name: security
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 12 * * 1" # segunda-feira 9h BRT — varredura completa
+
+permissions:
+  contents: read
+
+jobs:
+  seguranca:
+    uses: Origami-Lab-Organization/kami-devops/.github/workflows/seguranca.yml@v1 # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
