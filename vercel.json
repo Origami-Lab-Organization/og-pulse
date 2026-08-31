@@ -1,5 +1,6 @@
 {
   "installCommand": "npm install",
+  "buildCommand": "bash scripts/vercel-build.sh",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

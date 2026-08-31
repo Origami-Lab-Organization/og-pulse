@@ -9,12 +9,13 @@ sources:
   - supabase/migrations/20260622130000_installment_nf_alert_cron.sql
   - supabase/migrations/20260717120000_time_tracking_reminders_cron.sql
   - supabase/migrations/20260810150000_lead_follow_up_reminder_cron.sql
+  - supabase/migrations/20260831120000_realtime_publication_and_cron_via_vault.sql
   - apps/mcp-activities/src/index.ts
 ---
 
 # Mapa de Integrações
 
-> Derivado do código em 2026-08-11. Quem chama quem, com que credencial.
+> Derivado do código em 2026-08-31. Quem chama quem, com que credencial.
 
 ## Visão geral
 
@@ -39,7 +40,7 @@ flowchart LR
 
     EXT1[Resend<br/>email transacional]
     EXT2[Anthropic<br/>análise de mercado]
-    EXT3[Lovable AI Gateway → Gemini<br/>parse Cartão CNPJ]
+    EXT3[Anthropic<br/>parse Cartão CNPJ]
 
     SPA -->|"JWT anon (RLS)"| REST
     SPA -->|functions.invoke| EF
@@ -65,7 +66,7 @@ flowchart LR
 | Microsoft Graph — OneDrive | Browser (`microsoftGraphService.ts:962-1075`) | Seletor de pasta raiz do projeto: `/me/drive/root`, `/drives/{id}/items/{id}/children`, `/me/drive/sharedWithMe` e `/shares/u!{b64}/driveItem`. Escopo `Files.ReadWrite.All` **em conjunto separado** (`FILES_SCOPES`, `:962`) | Bearer MSAL adquirido por consentimento incremental (`msalClient.ts:219`), só ao abrir o seletor |
 | Resend | `send-invite-email/index.ts:135`, `send-candidate-hired-email/index.ts:126` | Email transacional (ver divergência 2) | `RESEND_API_KEY` |
 | Anthropic | `market-analysis-start/index.ts:317` (Opus 4), `market-analysis-refine/index.ts:37` (Sonnet 4) | Relatórios de análise de mercado | `ANTHROPIC_API_KEY` |
-| Lovable AI Gateway (Gemini 2.5 Flash) | `parse-cnpj-card/index.ts:35-42` | Extração estruturada de Cartão CNPJ (PDF); usado por `ClientForm` e `SupplierFormDialog` | `LOVABLE_API_KEY` |
+| Anthropic (Opus 5) | `parse-cnpj-card/index.ts:70-89` | Extração de Cartão CNPJ (PDF em base64 via bloco `document`), com schema Zod em `output_config` — o modelo é obrigado ao formato, sem pós-processamento de markdown; usado por `ClientForm` e `SupplierFormDialog` | `ANTHROPIC_API_KEY` |
 | Reconhecimento facial | `src/lib/faceRecognition.ts:1-12` | **100% local no browser** (`@vladmandic/face-api`), threshold 0.6; só os pesos vêm da CDN jsDelivr | — |
 | SMTP do Supabase Auth | `create-employee-user`, `resend-employee-invite`, `request-first-access` | Convites e recovery links (substituiu Resend nessas funções) | interno Supabase |
 
@@ -117,9 +118,13 @@ fallback hardcoded (`src/integrations/microsoft/config.ts:19-25`).
 
 Edge Functions: `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT_ID`,
-`ANTHROPIC_API_KEY`, `LOVABLE_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`,
-`SEED_*`. pg_cron usa os settings `app.supabase_url` e `app.service_role_key`
-(`20260622130000_*.sql:27-31`).
+`ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`,
+`SEED_*`. A `LOVABLE_API_KEY` deixou de existir com a migração para Supabase
+próprio — nenhuma function depende mais do gateway do Lovable.
+pg_cron lê os segredos do Vault via `public.cron_secret()`
+(`20260831120000_realtime_publication_and_cron_via_vault.sql`); o desenho
+anterior usava os settings `app.supabase_url` e `app.service_role_key`, que
+nunca foram aplicados e deixaram os três jobs falhando desde 22/06.
 
 ## Pontos de atenção (código, preexistentes — candidatos a TD/correção)
 

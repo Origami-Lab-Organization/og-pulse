@@ -1,0 +1,62 @@
+# Aplica as migrations pendentes no Supabase de produção.
+#
+# Contexto (ADR-0026): até 31/08/2026 o backend era gerenciado pelo Lovable
+# Cloud, que aplicava migrations por fora do repo. O histórico em
+# supabase_migrations.schema_migrations foi reconstruído no cutover — as 349
+# migrations existentes estão marcadas como aplicadas, então este workflow só
+# aplica o que for realmente novo.
+#
+# Pré-requisito: os três secrets abaixo configurados no repositório.
+#
+# ATENÇÃO: este workflow é MANUAL. O caminho normal é o build da Vercel.
+
+name: Migrations do Supabase (manual)
+
+# SEM gatilho automático de propósito. A aplicação normal acontece no build da
+# Vercel (scripts/vercel-build.sh), que é onde a ordem migration→deploy fica
+# garantida. Este workflow existe como saída de emergência: aplicar migration
+# sem publicar frontend, ou rodar de novo depois de um build interrompido.
+on:
+  workflow_dispatch: {}
+
+# Duas execuções simultâneas aplicando migration no mesmo banco é corrida.
+# `cancel-in-progress: false` porque cancelar no meio de um push é pior.
+concurrency:
+  group: supabase-migrations-producao
+  cancel-in-progress: false
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    environment: producao
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Conectar ao projeto
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}"
+
+      - name: O que está pendente
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase migration list --linked
+
+      - name: Aplicar
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push --linked
+
+      - name: Estado final
+        if: always()
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase migration list --linked
