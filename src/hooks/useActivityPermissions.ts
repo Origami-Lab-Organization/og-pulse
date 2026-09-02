@@ -1,43 +1,47 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { ProjectWithRelations } from '@/types/project';
+import { isProjectManager, isProjectTeamMember } from '@/lib/access/projectRelation';
 
-const PM_ROLES = ['pm', 'gerente', 'project manager'];
-
+/**
+ * O que a pessoa pode fazer no quadro de atividades deste projeto (PUL-205).
+ *
+ * As relações vêm de `src/lib/access/projectRelation`, que espelha os predicados da RLS.
+ * Antes eram recalculadas aqui, e o cálculo divergia do banco num ponto que importava:
+ *
+ *   isPM = manager_id OU membro com role em ['pm','gerente','project manager']
+ *
+ * `project_members.role` é TEXT livre, e `can_manage_project` — o predicado que a policy
+ * de `project_activity_settings` usa para escrita — só reconhece `projects.manager_id`.
+ * Então a segunda metade daquele OR concedia na interface um poder que o banco recusa: a
+ * aba de configurações do quadro abria e a gravação falhava. É o caso que o ADR-0027
+ * proíbe no ponto 5 — capacidade mais permissiva que a RLS faz o usuário ver erro em vez
+ * de ausência.
+ *
+ * A heurística também errava para o outro lado: um cargo cadastrado como "Gerente de
+ * Projetos" não casava com a lista, então nem esse falso-positivo era consistente.
+ */
 export function useActivityPermissions(project: ProjectWithRelations) {
   const { employee } = useAuth();
 
   const isAdmin = employee?.isAdmin ?? false;
+  const isPM = isProjectManager(project, employee?.id);
+  const isMember = isProjectTeamMember(project, employee?.id);
 
-  // Project manager: the canonical PM defined on the project record.
-  const isProjectManager = project.manager_id === employee?.id;
-
-  // PM check: project manager OR a project member with a PM-level role.
-  const isPM =
-    isProjectManager ||
-    (project.members?.some(
-      (m) =>
-        m.employee_id === employee?.id &&
-        PM_ROLES.includes(m.role?.toLowerCase() ?? '')
-    ) ?? false);
-
-  const isMember = project.members?.some((m) => m.employee_id === employee?.id) ?? false;
-
-  // isEmployee: member with no elevated role on this project
+  /** Membro sem poder elevado neste projeto — mexe apenas no que é seu. */
   const isEmployee = isMember && !isAdmin && !isPM;
-
-  const canCreateCard      = isAdmin || isPM || isMember;
-  const canAccessSettings  = isAdmin || isPM;
-  const canMoveToProductBacklog = isAdmin || isPM || isMember;
-  const canMoveFromDone         = isAdmin || isPM || isMember;
 
   return {
     isAdmin,
     isPM,
     isMember,
     isEmployee,
-    canCreateCard,
-    canAccessSettings,
-    canMoveToProductBacklog,
-    canMoveFromDone,
+    // Qualquer pessoa do time cria e move card: a policy de project_activity_cards é
+    // tenant-wide, então restringir mais aqui esconderia o que o banco permite.
+    canCreateCard: isAdmin || isPM || isMember,
+    canMoveToProductBacklog: isAdmin || isPM || isMember,
+    canMoveFromDone: isAdmin || isPM || isMember,
+    // Configuração do quadro escreve em project_activity_settings, cuja policy usa
+    // can_manage_project — admin ou o gerente responsável, e mais ninguém.
+    canAccessSettings: isAdmin || isPM,
   };
 }
