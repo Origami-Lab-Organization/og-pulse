@@ -41,14 +41,17 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
+  useAssignRole,
   useCapabilities,
   useCapabilityGroups,
   useCreateTenantRole,
   useDeleteTenantRole,
+  usePeopleWithRole,
   useRoleCapabilities,
   useSaveRoleProfile,
   useTenantRoles,
 } from '@/hooks/useAccessProfiles';
+import { useAuth } from '@/contexts/AuthContext';
 import { PROFILE_ADMIN_CAPABILITY, type TenantRoleWithUsage } from '@/types/accessProfile';
 import { AccessProfileDrawer } from './AccessProfileDrawer';
 
@@ -56,8 +59,11 @@ export function AccessProfilesSettings() {
   const { data: capabilities = [], isLoading: loadingCaps } = useCapabilities();
   const { data: roles = [], isLoading: loadingRoles } = useTenantRoles();
   const { data: cells = [], isLoading: loadingCells } = useRoleCapabilities();
+  const { data: people = [] } = usePeopleWithRole();
+  const { user } = useAuth();
 
   const groups = useCapabilityGroups(capabilities);
+  const assignRole = useAssignRole();
   const saveProfile = useSaveRoleProfile();
   const createRole = useCreateTenantRole();
   const deleteRole = useDeleteTenantRole();
@@ -207,7 +213,11 @@ export function AccessProfilesSettings() {
         groups={groups}
         enabledKeys={openRoleEnabled}
         profileAdminRoleCount={profileAdminRoleCount}
+        people={people}
+        currentUserId={user?.id ?? null}
         saving={saveProfile.isPending}
+        assigning={assignRole.isPending}
+        onAssign={(userId, roleId) => assignRole.mutate({ userId, roleId })}
         onClose={() => setOpenRoleId(null)}
         onSave={(input) => {
           if (!openRole) return;

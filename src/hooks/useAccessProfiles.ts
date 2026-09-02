@@ -32,7 +32,7 @@ function humanizeError(error: unknown): string {
     return 'Há pessoas com este papel. Mova-as para outro papel antes de removê-lo.';
   }
   if (message.includes('row-level security')) {
-    return 'Você não tem permissão para esta alteração. Só admin do tenant altera perfis, e ninguém altera o próprio.';
+    return 'Você não tem permissão para esta alteração. Só admin do tenant altera perfis — e ninguém altera o próprio, nem sendo admin.';
   }
   if (message.includes('duplicate key') || message.includes('tenant_roles_tenant_id_name_key')) {
     return 'Já existe um papel com esse nome neste tenant.';
@@ -147,6 +147,44 @@ export function useSaveRoleProfile() {
       queryClient.invalidateQueries({ queryKey: ['tenant-roles'] });
       queryClient.invalidateQueries({ queryKey: ['role-capabilities'] });
       toast({ title: 'Não foi possível salvar', description: humanizeError(error), variant: 'destructive' });
+    },
+  });
+}
+
+export function usePeopleWithRole() {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['people-with-role', tenantId],
+    queryFn: () => accessProfileService.getPeopleWithRole(tenantId!),
+    enabled: !!tenantId,
+  });
+}
+
+/**
+ * Move uma pessoa para um perfil.
+ *
+ * Não existe "remover do perfil": a PK garante um perfil por pessoa, e ficar sem nenhum
+ * deixaria a pessoa sem acesso a nada quando a virada de PUL-201 acontecer. Tirar de um
+ * perfil é sempre mover para outro — normalmente o padrão do tenant.
+ */
+export function useAssignRole() {
+  const queryClient = useQueryClient();
+  const { employee, user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ userId, roleId }: { userId: string; roleId: string }) =>
+      accessProfileService.assignRole(userId, employee!.tenant_id, roleId, user?.id ?? null),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['people-with-role'] });
+      queryClient.invalidateQueries({ queryKey: ['tenant-roles'] });
+      toast({ title: 'Perfil da pessoa atualizado' });
+    },
+    onError: (error) => {
+      queryClient.invalidateQueries({ queryKey: ['people-with-role'] });
+      toast({ title: 'Não foi possível mover', description: humanizeError(error), variant: 'destructive' });
     },
   });
 }

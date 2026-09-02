@@ -13,6 +13,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type {
   CapabilityDB,
+  PersonWithRole,
   RoleCapabilityDB,
   TenantRoleDB,
   TenantRoleWithUsage,
@@ -112,6 +113,65 @@ export const accessProfileService = {
         updated_by: actorId,
       })),
       { onConflict: 'role_id,capability' },
+    );
+    if (error) throw error;
+  },
+
+  /**
+   * Pessoas do tenant e o perfil de cada uma.
+   *
+   * Sai de `employees` porque é lá que estão nome e cargo; o vínculo mora em
+   * `user_tenant_roles`, chaveado por `auth_id`. Quem não tem conta (`auth_id` nulo) não
+   * pode ter perfil — não consegue entrar — então fica fora da lista.
+   */
+  async getPeopleWithRole(tenantId: string): Promise<PersonWithRole[]> {
+    const { data, error } = await db
+      .from('employees')
+      .select('id, nome, cargo, auth_id, status')
+      .eq('tenant_id', tenantId)
+      .not('auth_id', 'is', null)
+      .order('nome');
+    if (error) throw error;
+
+    const { data: links, error: linkError } = await db
+      .from('user_tenant_roles')
+      .select('user_id, role_id')
+      .eq('tenant_id', tenantId);
+    if (linkError) throw linkError;
+
+    const roleByUser = new Map<string, string>(
+      ((links ?? []) as { user_id: string; role_id: string }[]).map((l) => [l.user_id, l.role_id]),
+    );
+
+    return ((data ?? []) as { id: string; nome: string; cargo: string; auth_id: string; status: string }[]).map(
+      (e) => ({
+        employeeId: e.id,
+        userId: e.auth_id,
+        nome: e.nome,
+        cargo: e.cargo,
+        status: e.status,
+        roleId: roleByUser.get(e.auth_id) ?? null,
+      }),
+    );
+  },
+
+  /**
+   * Move uma pessoa para um perfil.
+   *
+   * A PK (user_id, tenant_id) garante um perfil por pessoa, então o upsert substitui o
+   * vínculo anterior — não há como acumular. O banco recusa se o alvo for a própria pessoa
+   * (policy) ou se a mudança deixar o tenant sem quem gere perfis (invariante).
+   */
+  async assignRole(userId: string, tenantId: string, roleId: string, actorId: string | null): Promise<void> {
+    const { error } = await db.from('user_tenant_roles').upsert(
+      {
+        user_id: userId,
+        tenant_id: tenantId,
+        role_id: roleId,
+        updated_at: new Date().toISOString(),
+        updated_by: actorId,
+      },
+      { onConflict: 'user_id,tenant_id' },
     );
     if (error) throw error;
   },

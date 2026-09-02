@@ -70,3 +70,14 @@ export const DOMAIN_LABELS: Record<string, string> = {
 
 /** A capacidade que a invariante do banco protege — ver 20260902170000. */
 export const PROFILE_ADMIN_CAPABILITY = 'pessoa:editar-papel';
+
+/** Uma pessoa do tenant e o perfil que ela tem hoje. */
+export interface PersonWithRole {
+  employeeId: string;
+  /** `employees.auth_id` — é a chave do vínculo, porque perfil é de conta, não de cadastro. */
+  userId: string;
+  nome: string;
+  cargo: string;
+  status: string;
+  roleId: string | null;
+}
