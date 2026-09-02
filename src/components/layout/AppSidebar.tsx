@@ -13,6 +13,7 @@ import {
   Database,
   Timer,
   Users,
+  Settings,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
@@ -132,6 +133,10 @@ const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Configurações', url: '/jornada/configuracoes', requiresAdmin: true },
     ],
   },
+  // O Portal do Admin concentra 7 abas de configuração (perfis de acesso, tabela de
+  // preços, financeiro, encargos, feriados, atividades, lembretes) e só era alcançável
+  // pelo menu do avatar — dois cliques, sem nada no menu lateral sugerindo que existisse.
+  { kind: 'link', title: 'Configurações', url: '/admin', icon: Settings, requiresAdmin: true },
 ];
 
 function isChildActive(url: string, pathname: string) {
