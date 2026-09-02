@@ -2,6 +2,26 @@
 
 ## Aberto
 
+- TD-0011 (PUL-198, ADR-0027; issue: PUL-207): policy `Recruiters can read curriculos`
+  (20260817230000) checa `user_roles.role IN ('admin','manager','rh')` **sem
+  `tenant_id`** e sem restricao de path no bucket. Admin/gerente/RH de um tenant le
+  curriculo de candidato de qualquer outro tenant. Viola boundaries.md ("nao expor
+  dados entre tenants"). Todas as policies vizinhas da mesma migration tem o predicado
+  com tenant — parece omissao, nao decisao. Correcao independe da matriz de capacidades
+  e nao deveria esperar a onda. Divergencia D6 em .harness/capability-matrix.md.
+- TD-0012 (PUL-198, ADR-0027; issue: PUL-206): remover `employees.is_gerente` e
+  `employees.system_role`, hoje fontes de papel concorrentes com `user_roles`.
+  Consumidores vivos: policies de reembolso (20260319150000, modulo removido do produto
+  por ADR-0007, tabela nunca dropada) e trigger `notify_managers_new_job_application`
+  (20260325130000) — este ultimo produz defeito observavel: usuario `manager` em
+  `user_roles` com `is_gerente = false` nao e notificado de nova candidatura.
+  `system_role` tem CHECK sem `rh`, ou seja nao representa o enum atual. Divergencia D3.
+- TD-0013 (PUL-198, ADR-0027; issue: PUL-208): consolidar `is_manager_in_tenant` e
+  `is_admin_or_manager` — corpos identicos desde 20260331013008
+  (`user_roles.role IN ('admin','manager')`). O nome `is_manager_in_tenant` sugere
+  recorte que a funcao nao faz, e a policy de `employees` que a usa foi escrita quando
+  o corpo era `employees.is_gerente = true`. Divergencia D2.
+
 - Preencher discovery completo do Harness com time, cliente, compliance e restricoes reais.
 - Revisar migrations Supabase antigas para identificar decisoes arquiteturais que merecem ADR.
 - Confirmar padrao oficial de lock/aprovacao de timesheets e documentar em pattern dedicado se necessario.

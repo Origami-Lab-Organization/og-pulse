@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{color-scheme:light dark}
+  body{margin:0;font:14px/1.5 system-ui,sans-serif}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>Quem vê o quê no og-pulse</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,600;1,6..72,400&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#F6F8F7; --surface:#FFFFFF; --surface-2:#EFF3F2;
+  --ink:#141D1C; --ink-2:#33403E; --muted:#5C6A68; --hairline:#D5DEDC;
+  --accent:#0E5D59; --accent-soft:#E2EEED;
+  --allow:#1C7346; --allow-bg:#E4F0E9;
+  --scope:#8A5512; --scope-bg:#F7EDDD;
+  --diverge:#A33028; --diverge-bg:#F8E6E4;
+  --shadow:0 1px 2px rgba(20,29,28,.05), 0 8px 24px -16px rgba(20,29,28,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1514; --surface:#161E1D; --surface-2:#1D2726;
+    --ink:#E4EAE9; --ink-2:#BCC7C5; --muted:#8B9998; --hairline:#2A3634;
+    --accent:#54B7B1; --accent-soft:#16302F;
+    --allow:#6BC492; --allow-bg:#14291F;
+    --scope:#D9A55C; --scope-bg:#2B2216;
+    --diverge:#E58A80; --diverge-bg:#2E1A18;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1514; --surface:#161E1D; --surface-2:#1D2726;
+  --ink:#E4EAE9; --ink-2:#BCC7C5; --muted:#8B9998; --hairline:#2A3634;
+  --accent:#54B7B1; --accent-soft:#16302F;
+  --allow:#6BC492; --allow-bg:#14291F;
+  --scope:#D9A55C; --scope-bg:#2B2216;
+  --diverge:#E58A80; --diverge-bg:#2E1A18;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"Public Sans","Helvetica Neue",Arial,sans-serif;
+  font-size:16px; line-height:1.6; margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:0 24px 96px}
+.prose{max-width:64ch}
+a{color:var(--accent)}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:2px}
+
+/* ---------- header ---------- */
+header{
+  border-bottom:1px solid var(--hairline);
+  padding:56px 0 32px; margin-bottom:40px;
+}
+.eyebrow{
+  font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--muted); margin:0 0 18px;
+}
+h1{
+  font-family:Newsreader,Georgia,serif; font-weight:600;
+  font-size:clamp(34px,5.2vw,54px); line-height:1.06; letter-spacing:-.015em;
+  margin:0 0 18px; text-wrap:balance; max-width:22ch;
+}
+.lede{font-size:18px; color:var(--ink-2); margin:0; max-width:60ch}
+.status{
+  display:inline-flex; align-items:center; gap:9px;
+  margin-top:26px; padding:7px 14px 7px 12px;
+  background:var(--scope-bg); color:var(--scope);
+  border:1px solid color-mix(in srgb, var(--scope) 32%, transparent);
+  border-radius:2px; font-size:13px; font-weight:600;
+}
+.status::before{content:""; width:7px; height:7px; border-radius:50%; background:currentColor; flex:none}
+
+.stats{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1px; margin-top:40px; background:var(--hairline);
+  border:1px solid var(--hairline);
+}
+.stat{background:var(--surface); padding:18px 20px}
+.stat dt{
+  font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:10.5px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--muted); margin:0 0 6px;
+}
+.stat dd{
+  margin:0; font-family:Newsreader,Georgia,serif; font-size:30px;
+  line-height:1; font-variant-numeric:tabular-nums;
+}
+.stat.warn dd{color:var(--diverge)}
+.stat.open dd{color:var(--scope)}
+
+/* ---------- sections ---------- */
+section{margin-top:68px; scroll-margin-top:20px}
+h2{
+  font-family:Newsreader,Georgia,serif; font-weight:600;
+  font-size:29px; line-height:1.15; letter-spacing:-.01em;
+  margin:0 0 8px; text-wrap:balance;
+}
+h2 .num{
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:13px;
+  color:var(--muted); font-weight:400; margin-right:12px; letter-spacing:.06em;
+  vertical-align:2px;
+}
+h3{font-size:15px; font-weight:600; margin:34px 0 12px; letter-spacing:.005em}
+.sub{color:var(--muted); font-size:15px; margin:0 0 24px; max-width:64ch}
+p{margin:0 0 16px}
+
+/* ---------- legend ---------- */
+.legend{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(232px,1fr));
+  gap:1px; background:var(--hairline); border:1px solid var(--hairline);
+}
+.lg{background:var(--surface); padding:15px 18px; display:flex; gap:13px; align-items:flex-start}
+.lg-txt{font-size:13.5px; line-height:1.45; color:var(--ink-2)}
+.lg-txt b{display:block; color:var(--ink); font-weight:600; margin-bottom:2px}
+
+/* ---------- chips ---------- */
+.chip{
+  display:inline-flex; align-items:center; justify-content:center;
+  font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:11px; font-weight:500; letter-spacing:.03em;
+  white-space:nowrap; border-radius:2px; flex:none;
+}
+.yes{width:26px; height:22px; background:var(--allow-bg); color:var(--allow);
+     border:1px solid color-mix(in srgb, var(--allow) 40%, transparent)}
+.no{width:26px; height:22px; background:transparent; color:var(--muted);
+    border:1px dashed var(--hairline)}
+.sc{min-width:26px; height:22px; padding:0 7px; background:var(--scope-bg); color:var(--scope);
+    border:1px solid color-mix(in srgb, var(--scope) 38%, transparent)}
+.bang{
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-weight:500;
+  font-size:11px; color:var(--diverge); text-decoration:none;
+  margin-left:5px; padding:1px 4px; border-radius:2px;
+  background:var(--diverge-bg); vertical-align:1px;
+}
+.bang:hover{text-decoration:underline}
+
+/* ---------- matrix table ---------- */
+.scroller{overflow-x:auto; border:1px solid var(--hairline); background:var(--surface)}
+table{border-collapse:collapse; width:100%; min-width:760px}
+thead th{
+  position:sticky; top:0; z-index:2; background:var(--surface-2);
+  font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); font-weight:400; text-align:left;
+  padding:11px 14px; border-bottom:1px solid var(--hairline); white-space:nowrap;
+}
+thead th.role{text-align:center; width:74px}
+tbody td{
+  padding:12px 14px; border-bottom:1px solid var(--hairline);
+  vertical-align:top; font-size:14px;
+}
+tbody tr:last-child td{border-bottom:0}
+tbody td.role{text-align:center; white-space:nowrap}
+.cap{font-weight:500; color:var(--ink)}
+.cap code{
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12.5px;
+  color:var(--accent); background:var(--accent-soft);
+  padding:1px 5px; border-radius:2px;
+}
+.cap .desc{display:block; color:var(--muted); font-size:12.5px; margin-top:4px; font-weight:400}
+td.pred{
+  font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:11.5px; line-height:1.5; color:var(--muted); min-width:200px;
+}
+
+/* ---------- answers ---------- */
+.qa{display:grid; gap:1px; background:var(--hairline); border:1px solid var(--hairline)}
+.qa-row{background:var(--surface); padding:20px 22px}
+.qa-q{
+  font-family:Newsreader,Georgia,serif; font-size:20px; line-height:1.3;
+  margin:0 0 10px; text-wrap:balance;
+}
+.verdict{
+  display:inline-block; font-weight:600; font-size:13px; letter-spacing:.02em;
+  padding:3px 9px; border-radius:2px; margin-right:9px; vertical-align:1px;
+}
+.v-yes{background:var(--allow-bg); color:var(--allow)}
+.v-no{background:var(--surface-2); color:var(--ink-2)}
+.v-warn{background:var(--diverge-bg); color:var(--diverge)}
+.qa-a{margin:0; font-size:14.5px; color:var(--ink-2); line-height:1.55}
+
+/* ---------- divergences ---------- */
+.divs{display:grid; gap:14px}
+.dv{
+  background:var(--surface); border:1px solid var(--hairline);
+  border-left:3px solid var(--muted); padding:18px 22px; scroll-margin-top:20px;
+}
+.dv.high{border-left-color:var(--diverge)}
+.dv.med{border-left-color:var(--scope)}
+.dv.low{border-left-color:var(--hairline)}
+.dv-head{display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:10px}
+.dv-id{
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px;
+  font-weight:500; color:var(--muted); letter-spacing:.06em;
+}
+.dv-title{font-weight:600; font-size:15.5px; flex:1 1 260px; min-width:0}
+.sev{
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px;
+  letter-spacing:.1em; text-transform:uppercase; padding:3px 7px; border-radius:2px;
+}
+.sev-high{background:var(--diverge-bg); color:var(--diverge)}
+.sev-med{background:var(--scope-bg); color:var(--scope)}
+.sev-low{background:var(--surface-2); color:var(--muted)}
+.dv p{font-size:14px; color:var(--ink-2); margin:0 0 11px; line-height:1.6}
+.dv p:last-child{margin-bottom:0}
+.dv code, .inl{
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12.5px;
+  background:var(--surface-2); padding:1px 5px; border-radius:2px; color:var(--ink);
+}
+.fix{
+  display:block; margin-top:12px; padding:11px 14px;
+  background:var(--accent-soft); border-left:2px solid var(--accent);
+  font-size:13.5px; color:var(--ink-2);
+}
+.fix b{color:var(--accent)}
+
+/* ---------- decisions ---------- */
+.dec{display:grid; gap:1px; background:var(--hairline); border:1px solid var(--hairline)}
+.dec-row{background:var(--surface); padding:20px 22px; display:grid; grid-template-columns:46px 1fr; gap:18px}
+.dec-id{
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:15px; font-weight:500;
+  color:var(--accent);
+}
+.dec-q{font-weight:600; font-size:15.5px; margin:0 0 8px; line-height:1.4}
+.dec-i{margin:0; font-size:13.5px; color:var(--muted); line-height:1.55}
+.dec-i b{color:var(--ink-2); font-weight:500}
+
+/* ---------- evidence ---------- */
+.ev{overflow-x:auto; border:1px solid var(--hairline); background:var(--surface)}
+.ev table{min-width:640px}
+.tag{
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px;
+  letter-spacing:.09em; padding:3px 7px; border-radius:2px; white-space:nowrap;
+}
+.t-proved{background:var(--allow-bg); color:var(--allow)}
+.t-decided{background:var(--accent-soft); color:var(--accent)}
+.t-pending{background:var(--scope-bg); color:var(--scope)}
+
+footer{
+  margin-top:76px; padding-top:26px; border-top:1px solid var(--hairline);
+  font-size:13px; color:var(--muted);
+}
+footer code{font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12.5px}
+@media (max-width:640px){
+  .wrap{padding:0 18px 72px}
+  header{padding-top:40px}
+  .dec-row{grid-template-columns:1fr; gap:8px}
+}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Épico PUL-198 · og-pulse · 2 de setembro de 2026</p>
+  <h1>Quem vê o quê no og&#8209;pulse</h1>
+  <p class="lede">A resposta canônica para “quem vê custo?”, “quem vê salário?”, “quem edita catálogo?”. Hoje essa resposta está espalhada em 373 checagens de papel dentro de 97 arquivos. Esta tabela passa a responder antes do código.</p>
+  <p class="status">Proposta — aguarda revisão do negócio</p>
+
+  <dl class="stats">
+    <div class="stat"><dt>Perfis de sistema</dt><dd>4</dd></div>
+    <div class="stat"><dt>Capacidades</dt><dd>47</dd></div>
+    <div class="stat warn"><dt>Divergências</dt><dd>10</dd></div>
+    <div class="stat open"><dt>Decisões pendentes</dt><dd>6</dd></div>
+  </dl>
+</header>
+
+<section id="ler">
+  <h2><span class="num">01</span>Como ler</h2>
+  <p class="sub">Se esta tabela e o código divergirem, um dos dois está errado — e a divergência já está listada na seção 04. Nenhuma delas se resolve sozinha.</p>
+
+  <h3>Perfis</h3>
+  <div class="legend">
+    <div class="lg"><span class="chip sc">admin</span><span class="lg-txt"><b>Admin</b>Responde pela operação e pelos números da empresa</span></div>
+    <div class="lg"><span class="chip sc">manager</span><span class="lg-txt"><b>Gerente</b>Conduz projetos e time; vê o portfólio inteiro</span></div>
+    <div class="lg"><span class="chip sc">rh</span><span class="lg-txt"><b>RH</b>Recrutamento, ponto e pessoas</span></div>
+    <div class="lg"><span class="chip sc">user</span><span class="lg-txt"><b>Colaborador</b>Sem perfil de gestão</span></div>
+  </div>
+  <p class="sub" style="margin-top:16px"><b>PM não é coluna.</b> PM é relação com o registro (<span class="inl">projects.manager_id</span>), não perfil de sistema. Onde o PM muda a resposta, ele aparece como escopo dentro da célula — ver decisão <a href="#p2">P2</a>.</p>
+
+  <h3>Escopos</h3>
+  <div class="legend">
+    <div class="lg"><span class="chip yes">✓</span><span class="lg-txt"><b>Sim</b>No tenant inteiro</span></div>
+    <div class="lg"><span class="chip no">—</span><span class="lg-txt"><b>Não</b>Sem acesso</span></div>
+    <div class="lg"><span class="chip sc">próprio</span><span class="lg-txt"><b>Próprio</b>Apenas o próprio registro</span></div>
+    <div class="lg"><span class="chip sc">PM</span><span class="lg-txt"><b>PM</b>Só projetos onde é o responsável</span></div>
+    <div class="lg"><span class="chip sc">alocado</span><span class="lg-txt"><b>Alocado</b>Só projetos onde está alocado</span></div>
+    <div class="lg"><span class="bang" style="margin-left:0">!</span><span class="lg-txt"><b>Divergência</b>A matriz e a policy vigente não concordam</span></div>
+  </div>
+</section>
+
+<section id="respostas">
+  <h2><span class="num">02</span>Respostas diretas</h2>
+  <p class="sub">As quatro perguntas que motivaram o levantamento, respondidas sem abrir código ou migration.</p>
+  <div class="qa">
+    <div class="qa-row">
+      <p class="qa-q">Gerente vê margem de projeto que não é dele?</p>
+      <p class="qa-a"><span class="verdict v-yes">Sim</span>Decisão registrada em ADR-0022: restringir a leitura ao PM faria os analytics financeiros sub-reportarem em silêncio para gerentes que não são PM de tudo — erro de número financeiro, pior que o problema original. Gerente <b>lê</b> o portfólio inteiro e <b>edita</b> apenas onde é PM.</p>
+    </div>
+    <div class="qa-row">
+      <p class="qa-q">Gerente vê salário de um colega?</p>
+      <p class="qa-a"><span class="verdict v-warn">Hoje sim, pela API</span>E isso não é decisão — é a divergência <a href="#d1">D1</a>. A interface trata folha como exclusiva de admin, mas a policy de <span class="inl">employees</span> aprova a linha inteira, com salário, pró-labore, dividendos, CPF e dados bancários. Precisa da resposta de <a href="#p3">P3</a>.</p>
+    </div>
+    <div class="qa-row">
+      <p class="qa-q">Colaborador abre um projeto e vê custo?</p>
+      <p class="qa-a"><span class="verdict v-no">Não</span>Ele lê o projeto — a rota não tem guarda de perfil — e o financeiro volta vazio, sem erro. Foi o que ADR-0022 corrigiu.</p>
+    </div>
+    <div class="qa-row">
+      <p class="qa-q">RH edita ficha de funcionário?</p>
+      <p class="qa-a"><span class="verdict v-no">Não</span>RH tem recrutamento e ponto — não pessoas nem folha. As telas de ficha, desligamento e férias são <span class="inl">requireManager</span>, e a policy de <span class="inl">employees</span> só concede a admin e gerente. É decisão implícita que ninguém escreveu: ver <a href="#d4">D4</a> e <a href="#p5">P5</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section id="matriz">
+  <h2><span class="num">03</span>A matriz</h2>
+  <p class="sub">Cada linha é uma capacidade em vocabulário de negócio. A última coluna mostra o predicado que hoje decide de fato, para o confronto com as policies.</p>
+
+  <h3>Financeiro de projeto</h3>
+  <div class="scroller"><table>
+    <thead><tr><th>Capacidade</th><th class="role">Admin</th><th class="role">Gerente</th><th class="role">RH</th><th class="role">Colab.</th><th>Predicado vigente</th></tr></thead>
+    <tbody>
+      <tr><td class="cap"><code>financeiro:ler</code><span class="desc">Custo, comissão, parcela, fornecedor</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">is_admin_or_manager<br>ADR-0022</td></tr>
+      <tr><td class="cap"><code>financeiro:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip sc">PM</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">can_manage_project<br>ADR-0002</td></tr>
+      <tr><td class="cap"><code>margem:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">derivado de financeiro:ler</td></tr>
+      <tr><td class="cap"><code>margem:ler-detalhe-mao-de-obra</code><span class="desc">Abertura de custo de pessoas na aba de custos</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip sc">PM</span><a class="bang" href="#d8">!</a></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">UI: canSeeLaborBreakdown<br>RLS libera qualquer gerente</td></tr>
+      <tr><td class="cap"><code>horas-projeto:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip sc">alocado</span></td>
+        <td class="pred">can_read_project_hours</td></tr>
+      <tr><td class="cap"><code>custo-hora:ler</code><span class="desc">Tabelas role_rates e financial_settings</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span><a class="bang" href="#p6">!</a></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">is_admin_or_manager<br>desvio deliberado do PUL-165</td></tr>
+      <tr><td class="cap"><code>custo-hora:ler</code><span class="desc">Tela /analises/custo-hora</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">rota requireAdmin</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Folha e remuneração</h3>
+  <div class="scroller"><table>
+    <thead><tr><th>Capacidade</th><th class="role">Admin</th><th class="role">Gerente</th><th class="role">RH</th><th class="role">Colab.</th><th>Predicado vigente</th></tr></thead>
+    <tbody>
+      <tr><td class="cap"><code>folha:ler</code><span class="desc">Tela /analises/folha-pagamento</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">rota requireAdmin</td></tr>
+      <tr><td class="cap"><code>remuneracao-pessoa:ler</code><span class="desc">salario_mensal, pro_labore, dividendos</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span><a class="bang" href="#d1">!</a></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip sc">próprio</span></td>
+        <td class="pred">policy de linha em employees<br>ver P3</td></tr>
+      <tr><td class="cap"><code>remuneracao-pessoa:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span><a class="bang" href="#d1">!</a></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">has_role('admin')<br>OR is_manager_in_tenant</td></tr>
+      <tr><td class="cap"><code>parametro-folha:ler</code><span class="desc">payroll_profiles</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span><a class="bang" href="#p6">!</a></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">is_admin_or_manager</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Pessoas</h3>
+  <div class="scroller"><table>
+    <thead><tr><th>Capacidade</th><th class="role">Admin</th><th class="role">Gerente</th><th class="role">RH</th><th class="role">Colab.</th><th>Predicado vigente</th></tr></thead>
+    <tbody>
+      <tr><td class="cap"><code>pessoa:ler-identidade</code><span class="desc">Nome, cargo, foto</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td>
+        <td class="pred">get_employee_directory()<br>ADR-0020</td></tr>
+      <tr><td class="cap"><code>pessoa:ler-ficha-completa</code><span class="desc">CPF, nascimento, banco e PIX</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span><a class="bang" href="#d1">!</a></td><td class="role"><span class="chip no">—</span><a class="bang" href="#d4">!</a></td><td class="role"><span class="chip sc">próprio</span></td>
+        <td class="pred">policy de linha em employees</td></tr>
+      <tr><td class="cap"><code>pessoa:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span><a class="bang" href="#d4">!</a></td><td class="role"><span class="chip sc">próprio</span></td>
+        <td class="pred">colaborador: só campos seguros<br>trigger anti-escalação</td></tr>
+      <tr><td class="cap"><code>pessoa:editar-papel</code><span class="desc">system_role, user_roles</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">prevent_employee_self_escalation</td></tr>
+      <tr><td class="cap"><code>pessoa:editar-elegibilidade-alocacao</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">enforce_aloca_em_projetos_admin_only<br>ADR-0010</td></tr>
+      <tr><td class="cap"><code>desligamento:executar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span><a class="bang" href="#d4">!</a></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">rota requireManager</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Pipeline e comercial</h3>
+  <div class="scroller"><table>
+    <thead><tr><th>Capacidade</th><th class="role">Admin</th><th class="role">Gerente</th><th class="role">RH</th><th class="role">Colab.</th><th>Predicado vigente</th></tr></thead>
+    <tbody>
+      <tr><td class="cap"><code>pipeline:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">is_admin_or_manager · ADR-0023</td></tr>
+      <tr><td class="cap"><code>pipeline:editar</code><span class="desc">Follow-up, interação, serviço da oportunidade</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">is_admin_or_manager · ADR-0023</td></tr>
+      <tr><td class="cap"><code>orcamento:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">is_admin_or_manager · ADR-0023</td></tr>
+      <tr><td class="cap"><code>orcamento:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">is_admin_or_manager · ADR-0023</td></tr>
+      <tr><td class="cap"><code>catalogo:ler</code><span class="desc">Serviços e linhas de serviço</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td>
+        <td class="pred">tenant-wide de propósito:<br>é preciso para apontar horas</td></tr>
+      <tr><td class="cap"><code>catalogo:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">is_admin_or_manager · ADR-0023</td></tr>
+      <tr><td class="cap"><code>cliente:ler</code> · <code>cliente:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">rota requireManager</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Projeto, portfólio e alocação</h3>
+  <div class="scroller"><table>
+    <thead><tr><th>Capacidade</th><th class="role">Admin</th><th class="role">Gerente</th><th class="role">RH</th><th class="role">Colab.</th><th>Predicado vigente</th></tr></thead>
+    <tbody>
+      <tr><td class="cap"><code>projeto:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip sc">alocado</span><a class="bang" href="#d7">!</a></td>
+        <td class="pred">/projects/:id sem guarda de perfil</td></tr>
+      <tr><td class="cap"><code>projeto:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip sc">PM</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">can_manage_project · ADR-0002</td></tr>
+      <tr><td class="cap"><code>portfolio:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">rota requireManager · ADR-0002</td></tr>
+      <tr><td class="cap"><code>alocacao:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip sc">próprio</span></td>
+        <td class="pred">rota requireManager</td></tr>
+      <tr><td class="cap"><code>alocacao:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip sc">PM</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">can_manage_project · ADR-0003</td></tr>
+      <tr><td class="cap"><code>arquivo-projeto:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip sc">alocado</span></td>
+        <td class="pred">can_view_project_document</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Timesheet, ponto e férias</h3>
+  <div class="scroller"><table>
+    <thead><tr><th>Capacidade</th><th class="role">Admin</th><th class="role">Gerente</th><th class="role">RH</th><th class="role">Colab.</th><th>Predicado vigente</th></tr></thead>
+    <tbody>
+      <tr><td class="cap"><code>timesheet-proprio:apontar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td>
+        <td class="pred">/my-timesheet sem guarda</td></tr>
+      <tr><td class="cap"><code>timesheet-terceiro:ler</code><span class="desc">Tela /analises/meu-time</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">rota requireManager</td></tr>
+      <tr><td class="cap"><code>ponto:ler-proprio</code><span class="desc">Marcação, resumo diário, banco de horas</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip sc">próprio</span></td>
+        <td class="pred">e.auth_id = auth.uid()</td></tr>
+      <tr><td class="cap"><code>ponto:ler-terceiro</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">has_role('admin') OR has_role('rh')<br>gerente não entra</td></tr>
+      <tr><td class="cap"><code>ponto:aprovar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">rota requireAdmin</td></tr>
+      <tr><td class="cap"><code>ponto:relatorio:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">rota requireRH + RLS concede a rh</td></tr>
+      <tr><td class="cap"><code>ponto:auditar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">time_tracking_audit_log_select_admin_rh</td></tr>
+      <tr><td class="cap"><code>ponto:configurar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">time_tracking_settings_write_admin</td></tr>
+      <tr><td class="cap"><code>ferias:solicitar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td>
+        <td class="pred">próprio registro</td></tr>
+      <tr><td class="cap"><code>ferias:aprovar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip sc">designado</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">is_vacation_approver</td></tr>
+      <tr><td class="cap"><code>ferias:gerir</code><span class="desc">Tela /rh/ferias</span></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span><a class="bang" href="#d4">!</a></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">rota requireManager</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Recrutamento</h3>
+  <div class="scroller"><table>
+    <thead><tr><th>Capacidade</th><th class="role">Admin</th><th class="role">Gerente</th><th class="role">RH</th><th class="role">Colab.</th><th>Predicado vigente</th></tr></thead>
+    <tbody>
+      <tr><td class="cap"><code>vaga:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span><a class="bang" href="#d5">!</a></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">RLS concede a rh<br>rota /rh/vagas é requireManager</td></tr>
+      <tr><td class="cap"><code>candidatura:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span><a class="bang" href="#d5">!</a></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">RLS concede a rh<br>rota /rh/candidatos é requireManager</td></tr>
+      <tr><td class="cap"><code>curriculo:ler</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">policy sem filtro de tenant<a class="bang" href="#d6">!</a></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Estratégia</h3>
+  <div class="scroller"><table>
+    <thead><tr><th>Capacidade</th><th class="role">Admin</th><th class="role">Gerente</th><th class="role">RH</th><th class="role">Colab.</th><th>Predicado vigente</th></tr></thead>
+    <tbody>
+      <tr><td class="cap"><code>okr:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">canManageOkrs = isAdmin</td></tr>
+      <tr><td class="cap"><code>iniciativa:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">canManageInitiatives · ADR-0001</td></tr>
+      <tr><td class="cap"><code>guardrail-estrategia:editar</code></td>
+        <td class="role"><span class="chip yes">✓</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td><td class="role"><span class="chip no">—</span></td>
+        <td class="pred">strategy_guardrails_*_admin · ADR-0023</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="divergencias">
+  <h2><span class="num">04</span>Divergências com a RLS vigente</h2>
+  <p class="sub">Confronto da matriz com as policies em vigor. Cada item vira ajuste de policy ou correção da matriz — nenhum fica em aberto como “o código é assim”.</p>
+
+  <div class="divs">
+    <article class="dv high" id="d1">
+      <div class="dv-head"><span class="dv-id">D1</span><span class="dv-title">Gerente lê remuneração e dado pessoal de qualquer pessoa</span><span class="sev sev-high">alta</span></div>
+      <p>A policy <code>Admins and managers can view all employees in tenant</code> aprova a <b>linha inteira</b> de <code>employees</code>. RLS é row-level: aprovado o <code>USING</code>, toda coluna fica legível — <code>salario_mensal</code>, <code>salario_liquido</code>, <code>pro_labore</code>, <code>dividendos</code>, <code>total_monthly_cost_estimated</code>, <code>cpf</code>, <code>data_nascimento</code>, dados bancários e PIX.</p>
+      <p>A interface diz o contrário: <code>/analises/folha-pagamento</code> e <code>/analises/custo-hora</code> são <code>requireAdmin</code>, e o item “Folha de Pagamento” do menu é <code>requiresAdmin</code>. ADR-0020 fechou o vazamento para colega de projeto e registrou de forma explícita que admin e gerente continuam lendo a linha inteira.</p>
+      <span class="fix"><b>Caminho:</b> se a resposta de <a href="#p3">P3</a> for “gerente não vê salário”, o mecanismo já existe no projeto — projeção fixa por função <code>SECURITY DEFINER</code>, como <code>get_employee_directory()</code>. Policy de linha não sabe limitar coluna.</span>
+    </article>
+
+    <article class="dv high" id="d3">
+      <div class="dv-head"><span class="dv-id">D3</span><span class="dv-title">Três fontes de papel concorrentes, sem sincronia provada</span><span class="sev sev-high">alta</span></div>
+      <p><code>user_roles.role</code> tem <code>admin</code>, <code>manager</code>, <code>rh</code>, <code>user</code>. <code>employees.system_role</code> tem um CHECK que aceita só <code>admin</code>, <code>manager</code>, <code>user</code> — <b>sem <code>rh</code></b>. E <code>employees.is_gerente</code> é um booleano ainda lido inline por policies de reembolso e pelo gatilho de nova candidatura.</p>
+      <p>Defeito observável: um usuário <code>manager</code> em <code>user_roles</code> com <code>is_gerente = false</code> <b>não é notificado</b> de nova candidatura.</p>
+      <span class="fix"><b>Caminho:</b> é a flag ad-hoc que compete com o papel, e ela já existe. O ADR-0027 a substitui por capacidade configurável por papel, com override estruturado e auditável no lugar — e registra o plano de remoção.</span>
+    </article>
+
+    <article class="dv med" id="d4">
+      <div class="dv-head"><span class="dv-id">D4</span><span class="dv-title">RH não existe na RLS de pessoas nem de folha</span><span class="sev sev-med">média</span></div>
+      <p>O perfil <code>rh</code> existe em duas áreas, e ambas <b>conferem</b> com a interface: <b>recrutamento</b> (vagas, candidaturas, currículos) e <b>ponto eletrônico</b> — <code>time_entries</code>, <code>time_daily_summary</code>, <code>time_bank_ledger</code> e <code>time_tracking_audit_log</code> concedem a <code>rh</code> explicitamente. As telas <code>requireRH</code> funcionam para RH sem perfil de gerente.</p>
+      <p>O que falta a <code>rh</code> é acesso a <code>employees</code> e a folha. A interface acompanha: <code>/rh/desligamentos</code>, <code>/rh/ferias</code> e <code>/employees/*</code> são <code>requireManager</code>, não <code>requireRH</code>. Hoje, <b>RH não gere pessoas</b> — gere recrutamento e ponto.</p>
+      <p><b>Achado colateral, mais relevante que a divergência:</b> gerente não lê o ponto de ninguém além do próprio. <code>manager</code> não aparece em nenhuma policy de ponto. É o único domínio onde RH é primeiro-classe e gerente não entra.</p>
+      <span class="fix"><b>Caminho:</b> é decisão implícita, não defeito. <a href="#p5">P5</a> precisa escrevê-la: RH segue fora de pessoas e folha? Gerente segue fora de ponto?</span>
+    </article>
+
+    <article class="dv high" id="d6">
+      <div class="dv-head"><span class="dv-id">D6</span><span class="dv-title">Policy de currículos não filtra tenant</span><span class="sev sev-high">alta · boundary</span></div>
+      <p><code>Recruiters can read curriculos</code> checa <code>user_roles.role IN ('admin','manager','rh')</code> <b>sem <code>tenant_id</code></b> e sem restrição de caminho no bucket. Admin, gerente ou RH de uma empresa lê o currículo de candidato de <b>qualquer outra</b>. Todas as policies vizinhas da mesma migration carregam o predicado com tenant — parece omissão, não decisão.</p>
+      <span class="fix"><b>Caminho:</b> viola <code>boundaries.md</code> (“não expor dados entre tenants”). A correção não depende da matriz e não deveria esperar a onda. Registrada como TD-0011.</span>
+    </article>
+
+    <article class="dv med" id="d2">
+      <div class="dv-head"><span class="dv-id">D2</span><span class="dv-title"><code>is_manager_in_tenant</code> não é o que o nome diz</span><span class="sev sev-med">média</span></div>
+      <p>Seu corpo é <b>idêntico</b> ao de <code>is_admin_or_manager</code>: <code>user_roles.role IN ('admin','manager')</code>. Quando a policy de <code>employees</code> foi escrita, o corpo era <code>employees.is_gerente = true</code>. O predicado mudou por baixo da policy, sem a policy mudar de nome.</p>
+      <span class="fix"><b>Caminho:</b> consolidar em um nome só. Duas funções com o mesmo corpo e nomes que sugerem recortes diferentes é armadilha de leitura para a onda inteira. Registrada como TD-0013.</span>
+    </article>
+
+    <article class="dv med" id="d5">
+      <div class="dv-head"><span class="dv-id">D5</span><span class="dv-title">Rotas de recrutamento bloqueiam RH</span><span class="sev sev-med">média</span></div>
+      <p><code>/rh/candidatos</code> e <code>/rh/vagas</code> são <code>requireManager</code>, enquanto a RLS de candidaturas e vagas concede a <code>rh</code>. RH sem perfil de gerente tem permissão no banco e é barrado na tela — o inverso do problema usual.</p>
+    </article>
+
+    <article class="dv low" id="d7">
+      <div class="dv-head"><span class="dv-id">D7</span><span class="dv-title"><code>/projects/:id</code> não tem guarda de perfil</span><span class="sev sev-low">baixa · decidido</span></div>
+      <p>A rota usa <code>ProtectedRoute</code> puro. A proteção do financeiro é a RLS (ADR-0022) mais condicional de componente. Consistente com a decisão, mas a matriz precisa registrar que <code>projeto:ler</code> para colaborador é “sim, com financeiro vazio” — não “não”.</p>
+    </article>
+
+    <article class="dv low" id="d8">
+      <div class="dv-head"><span class="dv-id">D8</span><span class="dv-title">A tela de custo é mais restritiva que a RLS</span><span class="sev sev-low">baixa · intencional</span></div>
+      <p><code>ProjectCostsTab</code> esconde o detalhe de mão de obra com <code>isAdmin || project.manager_id === employee?.id</code>, enquanto a RLS libera a qualquer gerente do tenant.</p>
+      <span class="fix"><b>Por que fica na matriz:</b> é aceitável como UX, mas precisa estar declarado. Sem isso, a próxima história “corrige” a tela achando que é bug.</span>
+    </article>
+
+    <article class="dv low" id="d9">
+      <div class="dv-head"><span class="dv-id">D9</span><span class="dv-title">PM é papel de projeto, não perfil</span><span class="sev sev-low">estrutural</span></div>
+      <p><code>can_manage_project</code> decide por <code>projects.manager_id</code>; <code>is_project_team_member</code> decide por <code>project_role_allocations</code>. Nenhum dos dois passa por <code>user_roles</code>. Se <a href="#p2">P2</a> virar “PM é perfil global”, o recorte da onda inteira muda.</p>
+    </article>
+
+    <article class="dv low" id="d10">
+      <div class="dv-head"><span class="dv-id">D10</span><span class="dv-title">Reembolso: policies vivas para módulo removido</span><span class="sev sev-low">baixa</span></div>
+      <p>ADR-0007 removeu reembolsos do produto, mas não existe <code>DROP TABLE</code>. As policies seguem no ar lendo <code>employees.is_gerente</code>. Por isso não há linha de reembolso nesta matriz — o débito é remover a tabela.</p>
+    </article>
+  </div>
+</section>
+
+<section id="decisoes">
+  <h2><span class="num">05</span>O que precisamos do negócio</h2>
+  <p class="sub">Sem estas respostas, as próximas histórias implementam um vocabulário chutado. Aprovar a matriz com elas em branco congela o comportamento de hoje como se fosse decisão — inclusive “gerente vê salário de colega”.</p>
+  <div class="dec">
+    <div class="dec-row" id="p1">
+      <span class="dec-id">P1</span>
+      <div><p class="dec-q">Os quatro perfis bastam, ou é preciso separar diretor, comercial e financeiro?</p>
+      <p class="dec-i"><b>Impacto:</b> define as colunas da matriz. Muda o enum <span class="inl">app_role</span> e toda policy que hoje usa <span class="inl">is_admin_or_manager</span>.</p></div>
+    </div>
+    <div class="dec-row" id="p2">
+      <span class="dec-id">P2</span>
+      <div><p class="dec-q">PM continua papel de projeto, ou passa a perfil global?</p>
+      <p class="dec-i"><b>Impacto:</b> hoje PM é relação com o registro. Virar perfil muda o recorte da onda inteira — ver <a href="#d9">D9</a>.</p></div>
+    </div>
+    <div class="dec-row" id="p3">
+      <span class="dec-id">P3</span>
+      <div><p class="dec-q">Gerente vê o salário individual de um colega?</p>
+      <p class="dec-i"><b>Impacto:</b> <a href="#d1">D1</a>. Se a resposta for não, exige projeção por coluna — não é ajuste de policy.</p></div>
+    </div>
+    <div class="dec-row" id="p4">
+      <span class="dec-id">P4</span>
+      <div><p class="dec-q">Confirmam que gerente lê o financeiro do portfólio inteiro e edita só onde é PM?</p>
+      <p class="dec-i"><b>Impacto:</b> confirma ou derruba ADR-0002 e ADR-0022.</p></div>
+    </div>
+    <div class="dec-row" id="p5">
+      <span class="dec-id">P5</span>
+      <div><p class="dec-q">RH segue fora de pessoas e folha? E gerente segue fora do ponto?</p>
+      <p class="dec-i"><b>Impacto:</b> <a href="#d4">D4</a> e <a href="#d5">D5</a>. Hoje as duas coisas são verdade no banco, mas nenhuma foi decidida por escrito.</p></div>
+    </div>
+    <div class="dec-row" id="p6">
+      <span class="dec-id">P6</span>
+      <div><p class="dec-q">Parâmetros de folha e de custo-hora seguem legíveis por gerente, não só por admin?</p>
+      <p class="dec-i"><b>Impacto:</b> o desvio foi deliberado no PUL-165, porque restringir a admin quebraria telas de gerente que calculam custo e margem. A matriz confirma ou corrige.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="metodo">
+  <h2><span class="num">06</span>Método e limite de confiança</h2>
+  <p class="sub">O grau de certeza de cada célula não é uniforme. Isso precisa estar claro antes da aprovação.</p>
+  <div class="prose">
+    <p>A coluna “predicado vigente” foi reconstruída por <b>leitura das migrations</b> — para cada tabela, a última das 349 migrations que cria ou substitui a policy. Não houve consulta ao catálogo do banco.</p>
+    <p>Isso deixa uma classe de erro em aberto: <b>policies sobrepostas que se somam por OR</b>. Duas migrations podem deixar duas policies ativas na mesma tabela, e a mais permissiva anula a restritiva sem que a leitura sequencial perceba. Não é hipotético — a migration de agosto documenta exatamente isso em <span class="inl">lead_activity_log</span> e <span class="inl">strategy_guardrails</span>, onde policies antigas anulavam as restritivas e precisaram ser removidas.</p>
+    <p>Portanto: as células são <b>provadas quanto à intenção da migration</b> e <b>inferidas quanto ao estado efetivo do banco</b>. Fechar a lacuna exige uma query contra o banco alvo, antes da aprovação — a segunda delas é a que confirma ou derruba as células de leitura:</p>
+  </div>
+  <div class="scroller" style="padding:18px 20px">
+    <pre style="margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;line-height:1.65;color:var(--ink-2)">SELECT tablename, count(*) AS policies_select, array_agg(policyname)
+FROM pg_policies
+WHERE schemaname = 'public' AND cmd IN ('SELECT','ALL')
+GROUP BY tablename
+HAVING count(*) &gt; 1
+ORDER BY 2 DESC;</pre>
+  </div>
+  <p class="sub" style="margin-top:18px">Enquanto ela não rodar, esta página é a <b>intenção documentada</b> — não o comportamento medido.</p>
+</section>
+
+<section id="evidencias">
+  <h2><span class="num">07</span>Evidências</h2>
+  <p class="sub">Nada nesta página vem de suposição. Cada afirmação está classificada e tem fonte no repositório.</p>
+  <div class="ev"><table>
+    <thead><tr><th>Afirmação</th><th>Classificação</th><th>Fonte</th></tr></thead>
+    <tbody>
+      <tr><td>Enum <span class="inl">app_role</span> = admin, user, manager, rh</td><td><span class="tag t-proved">PROVADO</span></td><td class="pred">20260121002930 · 20260121005324 · 20260716120000</td></tr>
+      <tr><td><span class="inl">is_admin_or_manager</span> e <span class="inl">is_manager_in_tenant</span> têm corpo idêntico</td><td><span class="tag t-proved">PROVADO</span></td><td class="pred">20260331013008</td></tr>
+      <tr><td>Gerente lê a linha inteira de <span class="inl">employees</span></td><td><span class="tag t-proved">PROVADO</span></td><td class="pred">20260301031026 · 20260817200000</td></tr>
+      <tr><td>Financeiro de projeto: leitura usa o mesmo predicado da escrita</td><td><span class="tag t-decided">DECIDIDO</span></td><td class="pred">ADR-0022 · 20260817220000</td></tr>
+      <tr><td>Gerente edita apenas o projeto onde é PM</td><td><span class="tag t-decided">DECIDIDO</span></td><td class="pred">ADR-0002 · can_manage_project</td></tr>
+      <tr><td>Policy de currículos sem filtro de tenant</td><td><span class="tag t-proved">PROVADO</span></td><td class="pred">20260817230000</td></tr>
+      <tr><td><span class="inl">employees.system_role</span> não aceita <span class="inl">rh</span></td><td><span class="tag t-proved">PROVADO</span></td><td class="pred">20260202231437</td></tr>
+      <tr><td><span class="inl">is_gerente</span> vivo em policy de reembolso e gatilho de candidatura</td><td><span class="tag t-proved">PROVADO</span></td><td class="pred">20260319150000 · 20260325130000</td></tr>
+      <tr><td>373 checagens de papel em 97 arquivos de <span class="inl">src/</span></td><td><span class="tag t-proved">PROVADO</span></td><td class="pred">grep sobre isAdmin, isRH, isManager, is_gerente, hasRole</td></tr>
+      <tr><td>RLS de ponto concede a <span class="inl">rh</span>; <span class="inl">manager</span> fica fora</td><td><span class="tag t-proved">PROVADO</span></td><td class="pred">20260716120100 · policies time_*</td></tr>
+      <tr><td>RH sem acesso a <span class="inl">employees</span> e a folha</td><td><span class="tag t-proved">PROVADO</span></td><td class="pred">20260301031026</td></tr>
+      <tr><td>Necessidade de perfis diretor, comercial e financeiro</td><td><span class="tag t-pending">PENDENTE</span></td><td class="pred">decisão de negócio · P1</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>
+  Fonte de verdade versionada: <code>.harness/capability-matrix.md</code> · Decisão de arquitetura: <code>.harness/adr/0027-capacidade-derivada-de-papel.md</code> · Débitos abertos: TD-0011 (PUL-207), TD-0012 (PUL-206), TD-0013 (PUL-208).
+  <br>Fora do escopo desta história: implementar as capacidades.
+</footer>
+
+</div>
+
+</body>
+</html>
