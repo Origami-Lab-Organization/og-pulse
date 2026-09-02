@@ -309,7 +309,14 @@ WITH CHECK (
 
 -- 9. Vocabulário inicial --------------------------------------------------------
 --
--- As 46 capacidades levantadas em .harness/capability-matrix.md. Este INSERT é o que
+-- As capacidades levantadas em .harness/capability-matrix.md, com duas correcoes que a
+-- transcricao para dado exigiu:
+--   * `custo-hora:ler` aparecia DUAS vezes na matriz com respostas diferentes — o dado
+--     (role_rates/financial_settings, admin+gerente) e a tela /analises/custo-hora (so
+--     admin). Uma chave nao pode ter duas respostas, entao a tela virou
+--     `custo-hora:ler-relatorio`.
+--   * `ponto:relatorio:ler` estava com tres segmentos, fora do padrao dominio:acao, e por
+--     isso escapou do levantamento inicial. Normalizada para `ponto:ler-relatorio`. Este INSERT é o que
 -- torna real a regra "capacidade nova exige deploy": a tabela não aceita escrita por
 -- usuário nenhum, então o vocabulário só cresce por migration.
 --
@@ -323,6 +330,7 @@ INSERT INTO public.capabilities (key, domain, label, is_sensitive) VALUES
   ('margem:ler',                         'financeiro',   'Ver margem',                                       true),
   ('margem:ler-detalhe-mao-de-obra',     'financeiro',   'Ver detalhe de mão de obra na margem',             true),
   ('custo-hora:ler',                     'financeiro',   'Ver tarifa/hora e parâmetros de precificação',     true),
+  ('custo-hora:ler-relatorio',           'financeiro',   'Ver o relatório consolidado de custo/hora',        true),
   ('horas-projeto:ler',                  'projeto',      'Ver horas do projeto',                             false),
   ('folha:ler',                          'folha',        'Ver folha de pagamento',                           true),
   ('remuneracao-pessoa:ler',             'folha',        'Ver remuneração individual',                       true),
@@ -353,6 +361,7 @@ INSERT INTO public.capabilities (key, domain, label, is_sensitive) VALUES
   ('ponto:ler-proprio',                  'ponto',        'Ver o próprio ponto e banco de horas',             false),
   ('ponto:ler-terceiro',                 'ponto',        'Ver ponto de terceiros',                           true),
   ('ponto:aprovar',                      'ponto',        'Aprovar ponto',                                    false),
+  ('ponto:ler-relatorio',                'ponto',        'Ver relatórios de ponto',                          true),
   ('ponto:auditar',                      'ponto',        'Auditar ponto',                                    true),
   ('ponto:configurar',                   'ponto',        'Configurar regras de ponto',                       false),
   ('ferias:solicitar',                   'pessoas',      'Solicitar férias',                                 false),
