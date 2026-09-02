@@ -1,6 +1,9 @@
 # AI Review Checklist
 
 - A mudanca respeita RLS, tenant e roles?
+- Feature, tela ou rota nova: a capacidade que governa quem acessa foi declarada em
+  `capabilities` (migration) e mapeada em `.harness/capability-matrix.md`, no mesmo
+  commit? Nao existe entrega sem resposta para "quem acessa isto?" (ADR-0027).
 - A autorizacao confere com `.harness/capability-matrix.md`? Se a mudanca cria ou altera
   uma capacidade, a matriz foi atualizada no mesmo commit? (ADR-0027)
 - Toda capacidade que esconde dado sensivel tem policy de RLS equivalente ou mais

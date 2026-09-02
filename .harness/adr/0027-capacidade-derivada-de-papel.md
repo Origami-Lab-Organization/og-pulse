@@ -154,7 +154,22 @@ Corolario de implementacao: `has_capability` entra em predicado avaliado linha a
 Exige `STABLE` e indice, com medicao antes e depois — um toggle que funciona e derruba a
 performance da lista nao e uma entrega.
 
-### 4. Capacidade nunca e a unica barreira de dado sensivel
+### 4. Feature nova nasce com a capacidade que a governa
+
+Regra permanente, valida a partir deste ADR: **nenhuma feature, tela ou rota entra sem
+resposta para "quem acessa isto?"**. No mesmo commit da entrega:
+
+- a capacidade existe em `capabilities` (via migration — vocabulario e codigo);
+- a celula correspondente esta em `.harness/capability-matrix.md`, com o escopo;
+- se expoe dado financeiro, de folha ou pessoal, a policy de RLS equivalente ou mais
+  restritiva foi escrita junto (ver ponto 5).
+
+Sem isso a feature nasce num dos dois estados ruins: aberta a quem nao deveria — o defeito
+que PUL-161 passou uma onda inteira corrigindo — ou invisivel para quem deveria, o que
+aparece como bug de produto. A regra esta em `boundaries.md` (manutencao) e no
+`ai-review-checklist.md`, para ser verificada antes do PR e nao depois do incidente.
+
+### 5. Capacidade nunca e a unica barreira de dado sensivel
 
 > **Capacidade decide o que a interface mostra. RLS decide o que o banco entrega.**
 
@@ -170,7 +185,7 @@ obrigatoria:
 - a capacidade **nunca** pode ser mais permissiva que a RLS. Se for, a tela oferece
   controle que o banco recusa, e o usuario ve erro em vez de ausencia.
 
-### 5. RLS de linha nao limita coluna
+### 6. RLS de linha nao limita coluna
 
 `employees` guarda identidade, remuneracao e dado pessoal na mesma linha. Policy de linha
 aprova a linha inteira. Quando uma capacidade recorta **coluna** e nao linha, o mecanismo e
@@ -178,7 +193,7 @@ projecao fixa via funcao `SECURITY DEFINER` com tenant derivado de `auth.uid()` 
 de `get_employee_directory()` (ADR-0020) e `assert_tenant_access` (ADR-0021). E o caso da
 divergencia D1: "gerente nao ve salario" nao se resolve com policy, se resolve com projecao.
 
-### 6. Escopo por registro e isolamento de tenant nunca sao configuraveis
+### 7. Escopo por registro e isolamento de tenant nunca sao configuraveis
 
 Esta e a fronteira do que o toggle alcanca:
 
@@ -189,7 +204,7 @@ Esta e a fronteira do que o toggle alcanca:
   `curriculos` sem `tenant_id`) mostra o que acontece quando o predicado de tenant sai de
   uma policy: some em silencio e ninguem percebe.
 
-### 7. A migracao carrega o estado atual; a correcao vem depois, visivel
+### 8. A migracao carrega o estado atual; a correcao vem depois, visivel
 
 O modelo novo nasce ao lado do antigo e so o substitui contra prova de equivalencia
 (expand/contract):
