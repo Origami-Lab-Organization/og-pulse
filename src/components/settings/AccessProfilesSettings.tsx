@@ -14,7 +14,7 @@
  * desabilita, é para evitar erro previsível, não para proteger.
  */
 import { useMemo, useState } from 'react';
-import { Loader2, Plus, Shield, ShieldAlert, Users } from 'lucide-react';
+import { Loader2, Plus, RefreshCw, Shield, ShieldAlert, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,9 +56,24 @@ import { PROFILE_ADMIN_CAPABILITY, type TenantRoleWithUsage } from '@/types/acce
 import { AccessProfileDrawer } from './AccessProfileDrawer';
 
 export function AccessProfilesSettings() {
-  const { data: capabilities = [], isLoading: loadingCaps } = useCapabilities();
-  const { data: roles = [], isLoading: loadingRoles } = useTenantRoles();
-  const { data: cells = [], isLoading: loadingCells } = useRoleCapabilities();
+  const {
+    data: capabilities = [],
+    isLoading: loadingCaps,
+    isError: errorCaps,
+    refetch: refetchCaps,
+  } = useCapabilities();
+  const {
+    data: roles = [],
+    isLoading: loadingRoles,
+    isError: errorRoles,
+    refetch: refetchRoles,
+  } = useTenantRoles();
+  const {
+    data: cells = [],
+    isLoading: loadingCells,
+    isError: errorCells,
+    refetch: refetchCells,
+  } = useRoleCapabilities();
   const { data: people = [] } = usePeopleWithRole();
   const { user } = useAuth();
 
@@ -97,6 +112,41 @@ export function AccessProfilesSettings() {
   );
 
   const isLoading = loadingCaps || loadingRoles || loadingCells;
+  const isError = errorCaps || errorRoles || errorCells;
+
+  /**
+   * Erro precisa ser distinto de vazio. Sem isso, uma consulta recusada renderiza
+   * "nenhum perfil cadastrado" — o que é falso, e levaria o admin a criar de novo perfis
+   * que já existem.
+   */
+  if (isError) {
+    return (
+      <Card>
+        <CardHeader className="space-y-1.5">
+          <CardTitle>Perfis de acesso</CardTitle>
+          <CardDescription>Não foi possível carregar os perfis deste tenant.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Isso costuma ser conexão ou sessão expirada. Se persistir, verifique se sua conta
+            ainda tem perfil de administrador — a leitura dos perfis exige isso.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void refetchCaps();
+              void refetchRoles();
+              void refetchCells();
+            }}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Tentar de novo
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
