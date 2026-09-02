@@ -1,0 +1,166 @@
+/**
+ * Perfis de acesso: papéis do tenant e a matriz papel × capacidade (ADR-0027).
+ *
+ * A tela que consome estes hooks configura DADO, não código: ligar uma capacidade para um
+ * papel passa a valer no banco, porque a mesma linha é lida por `has_capability` nas
+ * policies. Ver `.harness/capability-matrix.md` para o que cada capacidade significa.
+ */
+import { useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { accessProfileService } from '@/services/accessProfileService';
+import {
+  DOMAIN_LABELS,
+  type CapabilityGroup,
+  type CapabilityDB,
+} from '@/types/accessProfile';
+
+/**
+ * O banco recusa por dois caminhos com mensagens de naturezas diferentes: a invariante do
+ * último administrador devolve um texto já acionável, e vale mostrar como está; a RLS
+ * devolve jargão ("new row violates row-level security policy"), que não diz nada a quem
+ * está na tela.
+ */
+function humanizeError(error: unknown): string {
+  const message = (error as { message?: string })?.message ?? '';
+
+  if (message.includes('sem ninguem capaz de gerir perfis') || message.includes('sem ninguém capaz de gerir perfis')) {
+    return 'Esta é a última fonte da capacidade de gerir perfis no tenant. Conceda-a a outro papel ou pessoa antes de removê-la daqui.';
+  }
+  if (message.includes('violates foreign key') && message.includes('user_tenant_roles')) {
+    return 'Há pessoas com este papel. Mova-as para outro papel antes de removê-lo.';
+  }
+  if (message.includes('row-level security')) {
+    return 'Você não tem permissão para esta alteração. Só admin do tenant altera perfis, e ninguém altera o próprio.';
+  }
+  if (message.includes('duplicate key') || message.includes('tenant_roles_tenant_id_name_key')) {
+    return 'Já existe um papel com esse nome neste tenant.';
+  }
+  return message || 'Não foi possível concluir a alteração.';
+}
+
+export function useCapabilities() {
+  return useQuery({
+    queryKey: ['capabilities'],
+    queryFn: () => accessProfileService.getCapabilities(),
+    // Vocabulário é imutável em runtime (só migration muda): não precisa refetch.
+    staleTime: Infinity,
+  });
+}
+
+export function useTenantRoles() {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['tenant-roles', tenantId],
+    queryFn: () => accessProfileService.getRoles(tenantId!),
+    enabled: !!tenantId,
+  });
+}
+
+export function useRoleCapabilities() {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['role-capabilities', tenantId],
+    queryFn: () => accessProfileService.getRoleCapabilities(tenantId!),
+    enabled: !!tenantId,
+  });
+}
+
+/** Capacidades agrupadas por domínio — 48 linhas soltas não são legíveis. */
+export function useCapabilityGroups(capabilities: CapabilityDB[]): CapabilityGroup[] {
+  return useMemo(() => {
+    const byDomain = new Map<string, CapabilityDB[]>();
+    for (const c of capabilities) {
+      const list = byDomain.get(c.domain) ?? [];
+      list.push(c);
+      byDomain.set(c.domain, list);
+    }
+    return [...byDomain.entries()]
+      .map(([domain, caps]) => ({ domain, capabilities: caps }))
+      .sort((a, b) =>
+        (DOMAIN_LABELS[a.domain] ?? a.domain).localeCompare(DOMAIN_LABELS[b.domain] ?? b.domain, 'pt-BR'),
+      );
+  }, [capabilities]);
+}
+
+export function useSetRoleCapability() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ roleId, capability, enabled }: { roleId: string; capability: string; enabled: boolean }) =>
+      accessProfileService.setRoleCapability(roleId, capability, enabled, user?.id ?? null),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['role-capabilities'] });
+    },
+    onError: (error) => {
+      // Reverte o otimismo da tela: o estado real é o do banco.
+      queryClient.invalidateQueries({ queryKey: ['role-capabilities'] });
+      toast({
+        title: 'Alteração não aplicada',
+        description: humanizeError(error),
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useCreateTenantRole() {
+  const queryClient = useQueryClient();
+  const { employee } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (name: string) => accessProfileService.createRole(employee!.tenant_id, name),
+    onSuccess: (role) => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-roles'] });
+      toast({
+        title: 'Papel criado',
+        description: `"${role.name}" começa sem nenhuma capacidade. Ligue as que ele deve ter na grade abaixo.`,
+      });
+    },
+    onError: (error) => {
+      toast({ title: 'Não foi possível criar o papel', description: humanizeError(error), variant: 'destructive' });
+    },
+  });
+}
+
+export function useRenameTenantRole() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ roleId, name }: { roleId: string; name: string }) =>
+      accessProfileService.renameRole(roleId, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-roles'] });
+      toast({ title: 'Papel renomeado' });
+    },
+    onError: (error) => {
+      toast({ title: 'Não foi possível renomear', description: humanizeError(error), variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteTenantRole() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (roleId: string) => accessProfileService.deleteRole(roleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-roles'] });
+      queryClient.invalidateQueries({ queryKey: ['role-capabilities'] });
+      toast({ title: 'Papel removido' });
+    },
+    onError: (error) => {
+      toast({ title: 'Não foi possível remover o papel', description: humanizeError(error), variant: 'destructive' });
+    },
+  });
+}

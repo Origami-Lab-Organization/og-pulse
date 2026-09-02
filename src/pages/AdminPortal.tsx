@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity, Bell } from 'lucide-react';
+import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity, Bell, ShieldCheck } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { FinancialSettingsForm } from '@/components/settings/FinancialSettingsFo
 import { PayrollProfileSettingsForm } from '@/components/settings/PayrollProfileSettingsForm';
 import { HolidaysSettingsForm } from '@/components/settings/HolidaysSettingsForm';
 import { ActivityTypesSettings } from '@/components/settings/ActivityTypesSettings';
+import { AccessProfilesSettings } from '@/components/settings/AccessProfilesSettings';
 import { TimesheetReminderSettings } from '@/components/admin/TimesheetReminderSettings';
 import { RoleRatesTable } from '@/components/pricing/RoleRatesTable';
 import { RoleRateFormDialog } from '@/components/pricing/RoleRateFormDialog';
@@ -120,6 +121,10 @@ export default function AdminPortal() {
     >
       <Tabs defaultValue="pricing" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="profiles" className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            Perfis de Acesso
+          </TabsTrigger>
           <TabsTrigger value="pricing" className="flex items-center gap-2">
             <Tag className="h-4 w-4" />
             Tabela de Preços
@@ -147,6 +152,10 @@ export default function AdminPortal() {
         </TabsList>
 
         {/* Tabela de Preços */}
+        <TabsContent value="profiles" className="space-y-4">
+          <AccessProfilesSettings />
+        </TabsContent>
+
         <TabsContent value="pricing" className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
