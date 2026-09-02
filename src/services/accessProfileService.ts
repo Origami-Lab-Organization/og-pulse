@@ -86,6 +86,36 @@ export const accessProfileService = {
     if (error) throw error;
   },
 
+  /**
+   * Grava a matriz de um papel inteiro numa chamada.
+   *
+   * A tela edita em rascunho e salva de uma vez — não a cada toggle. Além de ser o que a
+   * pessoa espera de um formulário, isso evita um estado intermediário perigoso: salvando
+   * por toggle, desligar `pessoa:editar-papel` para depois ligar em outro papel passaria
+   * por um instante sem nenhum administrador, e a invariante do banco recusaria a
+   * primeira metade da operação.
+   */
+  async setRoleCapabilities(
+    roleId: string,
+    entries: { capability: string; enabled: boolean }[],
+    actorId: string | null,
+  ): Promise<void> {
+    if (entries.length === 0) return;
+
+    const now = new Date().toISOString();
+    const { error } = await db.from('role_capabilities').upsert(
+      entries.map((e) => ({
+        role_id: roleId,
+        capability: e.capability,
+        enabled: e.enabled,
+        updated_at: now,
+        updated_by: actorId,
+      })),
+      { onConflict: 'role_id,capability' },
+    );
+    if (error) throw error;
+  },
+
   async createRole(tenantId: string, name: string): Promise<TenantRoleDB> {
     const { data, error } = await db
       .from('tenant_roles')

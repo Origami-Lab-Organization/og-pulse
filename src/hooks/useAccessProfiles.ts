@@ -111,6 +111,46 @@ export function useSetRoleCapability() {
   });
 }
 
+/**
+ * Salva nome e capacidades de um papel numa operação, como o formulário sugere.
+ *
+ * A ordem importa: o nome primeiro, as capacidades depois. Se a gravação das capacidades
+ * for recusada pela invariante do último administrador, o rename já aplicado é inofensivo
+ * — o inverso deixaria o papel com as capacidades novas e o nome antigo.
+ */
+export function useSaveRoleProfile() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      roleId,
+      name,
+      nameChanged,
+      entries,
+    }: {
+      roleId: string;
+      name: string;
+      nameChanged: boolean;
+      entries: { capability: string; enabled: boolean }[];
+    }) => {
+      if (nameChanged) await accessProfileService.renameRole(roleId, name);
+      await accessProfileService.setRoleCapabilities(roleId, entries, user?.id ?? null);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-roles'] });
+      queryClient.invalidateQueries({ queryKey: ['role-capabilities'] });
+      toast({ title: 'Perfil salvo' });
+    },
+    onError: (error) => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-roles'] });
+      queryClient.invalidateQueries({ queryKey: ['role-capabilities'] });
+      toast({ title: 'Não foi possível salvar', description: humanizeError(error), variant: 'destructive' });
+    },
+  });
+}
+
 export function useCreateTenantRole() {
   const queryClient = useQueryClient();
   const { employee } = useAuth();
