@@ -47,10 +47,24 @@ cp .env.example .env
 
 ```env
 SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJhbGciOi...  # service_role key — nunca exponha no frontend
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...   # a mesma chave do bundle do frontend
+PULSE_EMAIL=voce@origamilab.com.br            # credenciais de quem opera o MCP
+PULSE_PASSWORD=...
 ```
 
-> **Atenção:** A service role key bypassa o RLS do Supabase. Use somente em contexto server-side seguro.
+> **Este servidor opera SOB A RLS.** Ele entra com as credenciais da própria pessoa, então
+> enxerga e altera exatamente o que ela enxergaria e alteraria no Pulse — nada além.
+>
+> Antes usava `SUPABASE_SERVICE_KEY`, que bypassa a RLS e, com ela, o `tenant_id`: um LLM
+> no volante conseguia ler e escrever o kanban de **qualquer** tenant, e nenhuma capacidade
+> do ADR-0027 o alcançava, porque a RLS é a barreira. Ver TD-0015.
+>
+> Consequência para quem usa: `tenant_id` e autoria (`created_by`, `changed_by`,
+> `archived_by`) **não são mais parâmetros das tools**. Vinham do modelo, que podia apontar
+> outro tenant ou atribuir a mudança a outra pessoa. Agora derivam da sessão.
+>
+> A senha é lida do ambiente uma vez e nunca passa pelo contexto do modelo. A sessão fica
+> em `~/.og-pulse/activities-session.json`, com permissão 0600.
 
 ## Build e execução
 
@@ -79,7 +93,9 @@ Adicione em `~/Library/Application Support/Claude/claude_desktop_config.json`:
       "args": ["/caminho/para/og-pulse/apps/mcp-activities/dist/index.js"],
       "env": {
         "SUPABASE_URL": "https://xxxx.supabase.co",
-        "SUPABASE_SERVICE_KEY": "eyJhbGciOi..."
+        "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_...",
+        "PULSE_EMAIL": "voce@origamilab.com.br",
+        "PULSE_PASSWORD": "..."
       }
     }
   }
@@ -96,7 +112,9 @@ Para desenvolvimento com tsx (sem build):
       "args": ["tsx", "/caminho/para/og-pulse/apps/mcp-activities/src/index.ts"],
       "env": {
         "SUPABASE_URL": "https://xxxx.supabase.co",
-        "SUPABASE_SERVICE_KEY": "eyJhbGciOi..."
+        "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_...",
+        "PULSE_EMAIL": "voce@origamilab.com.br",
+        "PULSE_PASSWORD": "..."
       }
     }
   }
