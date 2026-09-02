@@ -2,18 +2,50 @@
 
 ## Aberto
 
-- TD-0014 (achado em PUL-200/PUL-208): o historico de migrations **nao aplica do zero**.
-  `supabase start` falha em `20260311214619_89e6694c-...` com `relation "activity_types"
-  already exists`: duas migrations criam a mesma tabela sem `IF NOT EXISTS` —
-  `20260311085525_activity_types.sql` e `20260311214619_89e6694c-...`. Resquicio da
-  migracao Lovable -> Supabase proprio (ADR-0026), que renomeou migrations em massa.
-  Impacto: nao existe ambiente reproduzivel para provar paridade (PUL-209) nem para
-  validar migration antes do deploy — e o deploy aplica migration no build de **producao**
-  (scripts/vercel-build.sh, ADR-0026). Contorno usado em PUL-200: harness em Postgres puro
-  com stub das dependencias, suficiente para sintaxe, paridade das policies tocadas e
-  logica de has_capability; insuficiente para paridade sobre dados reais. Proximo passo:
-  decidir entre tornar a segunda migration idempotente (altera historico ja aplicado em
-  producao) ou registrar um baseline/squash do schema.
+- TD-0014 (achado em PUL-200/PUL-208): o historico de migrations **nao aplica do zero**, e
+  ha **dois trilhos de migration sobrepostos** no mesmo diretorio — um com nomes de UUID
+  (Lovable) e um com nomes descritivos (manual), unidos pela migracao do ADR-0026.
+  `supabase start` falha em `20260311214619` com `relation "activity_types" already
+  exists`. Sete grupos de tabela falhariam do zero: activity_types, activity_type_employees,
+  activity_timesheets, subscriptions, budget_subscriptions, project_subscriptions e
+  strategy_guardrails. Ha tambem `CREATE TYPE time_entry_type` duplicado, 15 nomes de
+  policy criados 2-3x e 8 nomes de trigger duplicados.
+
+  **DECISAO (02/09): nao reaplicar o historico antigo.** Corrigir a duplicacao foi
+  avaliado e descartado — nenhum ambiente reaplica o historico, entao o conflito e inerte
+  na pratica. Consequencias aceitas:
+
+  1. **Nao existe ambiente reproduzivel.** A prova de paridade da PUL-209, que e o gate
+     para virar as policies em PUL-201, so pode ser feita contra o banco real. O contorno
+     usado em PUL-200 — harness em Postgres puro com stub das dependencias — cobre
+     sintaxe, paridade das policies tocadas e logica de has_capability, mas nao paridade
+     sobre dados reais.
+  2. **Migration nova e validada primeiro em producao**, porque o deploy aplica no build
+     de Production (scripts/vercel-build.sh, ADR-0026).
+
+  **Incerteza que a decisao NAO resolve** — os pares nao sao todos duplicatas identicas, e
+  qual trilho o banco aplicou muda o schema efetivo:
+
+  - `subscriptions` (20260320022644 vs 20260320120000/1/2): a versao UUID tem
+    `CHECK (category IN (...))`, `CHECK (billing_cycle IN (...))` e `NOT NULL DEFAULT`; a
+    descritiva tem as mesmas colunas nullable e sem CHECK.
+  - `strategy_guardrails` (20260428000000 vs 20260428124325): a descritiva tem
+    `tenant_id UUID NOT NULL REFERENCES tenants(id)`; a versao UUID nao tem a foreign key.
+  - `activity_types` e as duas tabelas irmas: semanticamente identicas (so formatacao).
+
+  Ou seja: pode nao haver CHECK em `subscriptions` nem FK de tenant em
+  `strategy_guardrails`, e nao se sabe sem olhar o catalogo. Proximo passo, quando houver
+  acesso de leitura ao banco: `SELECT ... FROM pg_constraint` nessas duas tabelas, e
+  `pg_policies` para fechar tambem a lacuna INFERIDA de .harness/capability-matrix.md.
+- TD-0015 (achado em PUL-209, inventario de consumidores): `apps/mcp-activities` cria o
+  cliente com `SUPABASE_SERVICE_KEY`, que **bypassa RLS — e portanto bypassa `tenant_id`**.
+  Um LLM com esse MCP le e escreve `project_activity_cards`, `_tasks`, `_sprints`,
+  `_settings` e `_history` de qualquer tenant, e nenhuma capacidade de ADR-0027 o alcanca:
+  RLS e a barreira, e ele nao passa por ela. O padrao correto ja existe no proprio repo —
+  `apps/mcp-drive/src/supabase.ts` usa a chave publicavel e entra com as credenciais da
+  propria pessoa, com o comentario "aqui um LLM esta no volante", justamente contrastando
+  com o mcp-activities. Proximo passo: migrar mcp-activities para o padrao do mcp-drive.
+  Enquanto nao migrar, `has_capability` nao governa o kanban de atividades.
 - TD-0011 (PUL-198, ADR-0027; issue: PUL-207): policy `Recruiters can read curriculos`
   (20260817230000) checa `user_roles.role IN ('admin','manager','rh')` **sem
   `tenant_id`** e sem restricao de path no bucket. Admin/gerente/RH de um tenant le
