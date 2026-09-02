@@ -175,12 +175,19 @@ export function AccessProfileDrawer({
 
                     return (
                       <div key={cap.key} className="flex items-start justify-between gap-4">
-                        <div className="min-w-0 space-y-0.5">
-                          <p className="text-sm text-foreground">{cap.label}</p>
-                          {cap.is_sensitive && (
-                            <Badge variant="outline" className="text-xs font-normal">
-                              dado sensível
-                            </Badge>
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm text-foreground">{cap.label}</p>
+                            {cap.is_sensitive && (
+                              <Badge variant="outline" className="text-xs font-normal">
+                                dado sensível
+                              </Badge>
+                            )}
+                          </div>
+                          {cap.description && (
+                            <p className="text-xs leading-relaxed text-muted-foreground">
+                              {cap.description}
+                            </p>
                           )}
                         </div>
 

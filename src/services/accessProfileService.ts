@@ -26,7 +26,7 @@ export const accessProfileService = {
   async getCapabilities(): Promise<CapabilityDB[]> {
     const { data, error } = await db
       .from('capabilities')
-      .select('key, domain, label, is_sensitive')
+      .select('key, domain, label, description, is_sensitive')
       .order('domain')
       .order('key');
     if (error) throw error;

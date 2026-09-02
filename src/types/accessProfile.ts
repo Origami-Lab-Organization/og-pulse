@@ -11,6 +11,8 @@ export interface CapabilityDB {
   key: string;
   domain: string;
   label: string;
+  /** Escopo em uma frase: o que inclui e, onde confunde, o que não inclui. */
+  description: string | null;
   is_sensitive: boolean;
 }
 
