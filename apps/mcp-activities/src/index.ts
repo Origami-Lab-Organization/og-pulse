@@ -4,29 +4,26 @@
  * Permite gerenciar o kanban de atividades do Origami Pulse conversacionalmente
  * via Claude Desktop ou qualquer cliente MCP compatível.
  *
+ * Entra com as credenciais da própria pessoa e opera SOB A RLS — igual ao
+ * `apps/mcp-drive`. Antes usava `SUPABASE_SERVICE_KEY`, que bypassa RLS e com ela
+ * o `tenant_id`: um LLM no volante conseguia ler e escrever o kanban de qualquer
+ * tenant, e nenhuma capacidade do ADR-0027 o alcançava. Ver TD-0015.
+ *
+ * Consequência de desenho: `tenant_id` e autoria (`created_by`, `changed_by`,
+ * `archived_by`) deixaram de ser parâmetro de tool. Vinham do modelo, que podia
+ * apontar outro tenant ou atribuir a mudança a outra pessoa. Agora derivam da
+ * sessão, e a RLS confere de novo do outro lado.
+ *
  * Variáveis de ambiente requeridas:
- *   SUPABASE_URL       — URL do projeto Supabase
- *   SUPABASE_SERVICE_KEY — Service role key (bypassa RLS)
+ *   SUPABASE_URL              — URL do projeto Supabase
+ *   SUPABASE_PUBLISHABLE_KEY  — chave publicável (a mesma do bundle)
+ *   PULSE_EMAIL / PULSE_PASSWORD — credenciais da pessoa que opera o MCP
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
-
-// ── Supabase client ───────────────────────────────────────────────────────────
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error('Erro: SUPABASE_URL e SUPABASE_SERVICE_KEY são obrigatórios.');
-  process.exit(1);
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-  auth: { persistSession: false },
-});
+import { currentEmployee, getSupabase } from './supabase.js';
 
 // ── Domain constants ──────────────────────────────────────────────────────────
 
@@ -116,6 +113,7 @@ server.tool(
     is_blocked: z.boolean().optional().describe('true para mostrar apenas bloqueados'),
   },
   async ({ project_id, column, sprint_id, card_type, assignee_id, is_blocked }) => {
+    const supabase = await getSupabase();
     let query = (
       supabase
         .from('project_activity_cards')
@@ -177,6 +175,7 @@ server.tool(
     card_id: z.string().uuid(),
   },
   async ({ card_id }) => {
+    const supabase = await getSupabase();
     const [cardRes, historyRes, tasksRes] = await Promise.all([
       supabase
         .from('project_activity_cards')
@@ -263,8 +262,6 @@ server.tool(
   'Cria um novo card no kanban de atividades de um projeto.',
   {
     project_id: z.string().uuid(),
-    tenant_id: z.string().uuid(),
-    created_by: z.string().uuid().describe('UUID do employee que está criando o card'),
     title: z.string().min(1, 'O título é obrigatório'),
     card_type: z
       .enum(['story', 'bug', 'tech_debt', 'task'])
@@ -282,8 +279,6 @@ server.tool(
   },
   async ({
     project_id,
-    tenant_id,
-    created_by,
     title,
     card_type,
     points,
@@ -293,12 +288,15 @@ server.tool(
     column_name,
     sprint_id,
   }) => {
+    const supabase = await getSupabase();
+    const { employeeId, tenantId } = await currentEmployee();
+
     const { data, error } = await supabase
       .from('project_activity_cards')
       .insert({
         project_id,
-        tenant_id,
-        created_by,
+        tenant_id: tenantId,
+        created_by: employeeId,
         title: title.trim(),
         card_type,
         points: points ?? null,
@@ -342,6 +340,7 @@ server.tool(
     sprint_id: z.string().uuid().nullable().optional(),
   },
   async (args) => {
+    const supabase = await getSupabase();
     const { card_id, ...fields } = args;
 
     const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -390,6 +389,7 @@ server.tool(
     direction: z.enum(['forward', 'backward']).describe('"forward" avança para a próxima coluna, "backward" retrocede'),
   },
   async ({ card_id, direction }) => {
+    const supabase = await getSupabase();
     // 1. Fetch card
     const { data: card, error: cardErr } = await supabase
       .from('project_activity_cards')
@@ -504,10 +504,9 @@ server.tool(
   {
     card_id: z.string().uuid(),
     reason: z.string().min(1, 'O motivo do bloqueio é obrigatório'),
-    changed_by: z.string().uuid().describe('UUID do employee que está registrando o bloqueio'),
-    tenant_id: z.string().uuid(),
   },
-  async ({ card_id, reason, changed_by, tenant_id }) => {
+  async ({ card_id, reason }) => {
+    const supabase = await getSupabase();
     const { data: card, error: cardErr } = await supabase
       .from('project_activity_cards')
       .select('id, card_number, title, is_blocked')
@@ -530,10 +529,11 @@ server.tool(
       .eq('id', card_id);
     if (updateErr) return fail(updateErr.message);
 
+    const { employeeId, tenantId } = await currentEmployee();
     await supabase.from('project_activity_card_history').insert({
       card_id,
-      tenant_id,
-      changed_by,
+      tenant_id: tenantId,
+      changed_by: employeeId,
       field: 'blocked',
       old_value: 'false',
       new_value: `true: ${reason.trim()}`,
@@ -552,10 +552,9 @@ server.tool(
   'Remove o bloqueio de um card, liberando-o para avançar no kanban.',
   {
     card_id: z.string().uuid(),
-    changed_by: z.string().uuid().describe('UUID do employee que está desbloqueando'),
-    tenant_id: z.string().uuid(),
   },
-  async ({ card_id, changed_by, tenant_id }) => {
+  async ({ card_id }) => {
+    const supabase = await getSupabase();
     const { data: card, error: cardErr } = await supabase
       .from('project_activity_cards')
       .select('id, card_number, title, is_blocked, blocked_reason')
@@ -580,10 +579,11 @@ server.tool(
       .eq('id', card_id);
     if (updateErr) return fail(updateErr.message);
 
+    const { employeeId, tenantId } = await currentEmployee();
     await supabase.from('project_activity_card_history').insert({
       card_id,
-      tenant_id,
-      changed_by,
+      tenant_id: tenantId,
+      changed_by: employeeId,
       field: 'blocked',
       old_value: `true: ${previousReason}`,
       new_value: 'false',
@@ -602,10 +602,11 @@ server.tool(
   'Arquiva um card (soft delete). O card pode ser restaurado pelo painel de cards arquivados.',
   {
     card_id: z.string().uuid(),
-    archived_by: z.string().uuid().describe('UUID do employee que está arquivando'),
-    tenant_id: z.string().uuid(),
   },
-  async ({ card_id, archived_by, tenant_id }) => {
+  async ({ card_id }) => {
+    const supabase = await getSupabase();
+    const { employeeId, tenantId } = await currentEmployee();
+
     const { data: card, error: cardErr } = await supabase
       .from('project_activity_cards')
       .select('id, card_number, title, is_archived')
@@ -619,14 +620,14 @@ server.tool(
     const now = new Date().toISOString();
     const { error: updateErr } = await supabase
       .from('project_activity_cards')
-      .update({ is_archived: true, archived_at: now, archived_by, updated_at: now })
+      .update({ is_archived: true, archived_at: now, archived_by: employeeId, updated_at: now })
       .eq('id', card_id);
     if (updateErr) return fail(updateErr.message);
 
     await supabase.from('project_activity_card_history').insert({
       card_id,
-      tenant_id,
-      changed_by: archived_by,
+      tenant_id: tenantId,
+      changed_by: employeeId,
       field: 'archived',
       old_value: 'false',
       new_value: 'true',
@@ -647,6 +648,7 @@ server.tool(
     project_id: z.string().uuid(),
   },
   async ({ project_id }) => {
+    const supabase = await getSupabase();
     // Fetch active sprint (most recent if multiple — shouldn't happen)
     const { data: sprint, error: sprintErr } = await supabase
       .from('project_activity_sprints')
@@ -742,6 +744,7 @@ server.tool(
     status: z.enum(['planned', 'active', 'completed']).optional().describe('Filtrar por status'),
   },
   async ({ project_id, status }) => {
+    const supabase = await getSupabase();
     let query = supabase
       .from('project_activity_sprints')
       .select('id, name, number, start_date, end_date, goal, status')
@@ -786,6 +789,7 @@ server.tool(
     sprint_id: z.string().uuid().nullable().describe('UUID da sprint, ou null para desassociar'),
   },
   async ({ card_id, sprint_id }) => {
+    const supabase = await getSupabase();
     const { data: card, error: cardErr } = await supabase
       .from('project_activity_cards')
       .select('id, card_number, title')

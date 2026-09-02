@@ -37,15 +37,15 @@
   `strategy_guardrails`, e nao se sabe sem olhar o catalogo. Proximo passo, quando houver
   acesso de leitura ao banco: `SELECT ... FROM pg_constraint` nessas duas tabelas, e
   `pg_policies` para fechar tambem a lacuna INFERIDA de .harness/capability-matrix.md.
-- TD-0015 (achado em PUL-209, inventario de consumidores): `apps/mcp-activities` cria o
-  cliente com `SUPABASE_SERVICE_KEY`, que **bypassa RLS — e portanto bypassa `tenant_id`**.
-  Um LLM com esse MCP le e escreve `project_activity_cards`, `_tasks`, `_sprints`,
-  `_settings` e `_history` de qualquer tenant, e nenhuma capacidade de ADR-0027 o alcanca:
-  RLS e a barreira, e ele nao passa por ela. O padrao correto ja existe no proprio repo —
-  `apps/mcp-drive/src/supabase.ts` usa a chave publicavel e entra com as credenciais da
-  propria pessoa, com o comentario "aqui um LLM esta no volante", justamente contrastando
-  com o mcp-activities. Proximo passo: migrar mcp-activities para o padrao do mcp-drive.
-  Enquanto nao migrar, `has_capability` nao governa o kanban de atividades.
+- TD-0015 — RESOLVIDO em 02/09. `apps/mcp-activities` usava `SUPABASE_SERVICE_KEY`, que
+  bypassa RLS e com ela o `tenant_id`: um LLM lia e escrevia o kanban de qualquer tenant, e
+  nenhuma capacidade do ADR-0027 o alcancava. Migrado para o padrao de
+  `apps/mcp-drive/src/supabase.ts` — chave publicavel mais login com as credenciais da
+  propria pessoa, sessao 0600 em arquivo proprio. Junto com isso, `tenant_id` e autoria
+  (`created_by`, `changed_by`, `archived_by`) deixaram de ser parametro de tool: vinham do
+  modelo, que podia apontar outro tenant ou atribuir a mudanca a outra pessoa, e agora
+  derivam da sessao. Regra registrada em .harness/docs/architecture/integrations.md: MCP
+  nunca usa service_role.
 - TD-0011 (PUL-198, ADR-0027; issue: PUL-207): policy `Recruiters can read curriculos`
   (20260817230000) checa `user_roles.role IN ('admin','manager','rh')` **sem
   `tenant_id`** e sem restricao de path no bucket. Admin/gerente/RH de um tenant le

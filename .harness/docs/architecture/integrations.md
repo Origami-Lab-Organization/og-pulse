@@ -106,8 +106,18 @@ Crons só-SQL (sem edge function): ativação de versões de employee `0 3 * * *
 **Seed** — `seed-admin` (protegido por `SEED_SECRET_TOKEN` — `index.ts:17`),
 `seed-demo-tenant` (ver ponto de atenção 1).
 
-**MCP** — `apps/mcp-activities` é um servidor MCP de saída que lê o Supabase
-com `SUPABASE_SERVICE_KEY` (`src/index.ts:19-20`), para uso via Claude.
+**MCP** — dois servidores MCP de saída, ambos operando **sob a RLS**: entram com as
+credenciais da própria pessoa usando a chave publicável, então enxergam só o que ela
+enxerga. `apps/mcp-drive` (arquivos e leitura de projeto) e `apps/mcp-activities`
+(kanban de atividades), cada um com sessão em arquivo próprio sob `~/.og-pulse/`,
+0600 — o supabase-js rotaciona o refresh token, e um arquivo compartilhado faria os
+dois processos se derrubarem.
+
+`mcp-activities` usava `SUPABASE_SERVICE_KEY` até 02/09, o que bypassava a RLS e com
+ela o `tenant_id`. Regra que fica: **MCP nunca usa service_role.** A RLS é a barreira
+do produto, e um LLM no volante é exatamente o consumidor que não deve contorná-la —
+capacidade nenhuma (ADR-0027) alcança quem não passa pela policy. Corolário: `tenant_id`
+e autoria não são parâmetros de tool; derivam da sessão.
 
 ## Variáveis de ambiente
 
