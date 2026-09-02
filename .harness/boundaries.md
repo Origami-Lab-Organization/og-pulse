@@ -18,6 +18,12 @@
 ## Regras de manutencao
 
 - Preferir padroes existentes em `src/components`, `src/hooks`, `src/integrations` e migrations.
+- Toda feature, tela ou rota nova nasce com a capacidade que governa seu acesso — nao
+  existe entrega sem resposta para "quem acessa isto?". Concretamente, no mesmo commit:
+  valor em `capabilities` (via migration), linha em `.harness/capability-matrix.md` e,
+  quando expoe dado financeiro/folha/pessoal, a policy de RLS equivalente ou mais
+  restritiva. Feature sem capacidade declarada nasce aberta a quem nao deveria, ou
+  invisivel para quem deveria (ADR-0027).
 - Mudancas em permissoes, roles, aprovacao, valores monetarios e notificacoes exigem leitura da migration relevante e teste do fluxo.
 - Edge Functions devem validar entrada, autenticar quando aplicavel e retornar erros estruturados.
 - Componentes devem manter acessibilidade de Radix/shadcn e estados de loading/empty/error.

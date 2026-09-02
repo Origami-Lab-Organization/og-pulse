@@ -2,6 +2,18 @@
 
 ## Aberto
 
+- TD-0014 (achado em PUL-200/PUL-208): o historico de migrations **nao aplica do zero**.
+  `supabase start` falha em `20260311214619_89e6694c-...` com `relation "activity_types"
+  already exists`: duas migrations criam a mesma tabela sem `IF NOT EXISTS` —
+  `20260311085525_activity_types.sql` e `20260311214619_89e6694c-...`. Resquicio da
+  migracao Lovable -> Supabase proprio (ADR-0026), que renomeou migrations em massa.
+  Impacto: nao existe ambiente reproduzivel para provar paridade (PUL-209) nem para
+  validar migration antes do deploy — e o deploy aplica migration no build de **producao**
+  (scripts/vercel-build.sh, ADR-0026). Contorno usado em PUL-200: harness em Postgres puro
+  com stub das dependencias, suficiente para sintaxe, paridade das policies tocadas e
+  logica de has_capability; insuficiente para paridade sobre dados reais. Proximo passo:
+  decidir entre tornar a segunda migration idempotente (altera historico ja aplicado em
+  producao) ou registrar um baseline/squash do schema.
 - TD-0011 (PUL-198, ADR-0027; issue: PUL-207): policy `Recruiters can read curriculos`
   (20260817230000) checa `user_roles.role IN ('admin','manager','rh')` **sem
   `tenant_id`** e sem restricao de path no bucket. Admin/gerente/RH de um tenant le
