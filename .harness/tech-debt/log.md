@@ -11,8 +11,14 @@
   service_revenue_models; tenants UPDATE; timesheet_submissions DELETE. Tambem fora:
   time_tracking_period_locks (admin OR rh — nenhuma capacidade de ponto tem esse conjunto com
   semantica de "travar periodo"); vacation_requests (has_role(admin) sem capacidade so-admin
-  de ferias); strategy_* DELETE (aom, mas okr:editar e so-admin no seed); storage
-  company-logos (Admin+Gerente escrevem logo do TENANT, nao de cliente). Proposta: duas
+  de ferias); strategy_cycles/objectives/key_results/checkins DELETE (admin OU gerente
+  hoje; `okr:editar` e so-admin no seed — virar daria ou tiraria acesso sem decisao; o DELETE
+  de `strategy_initiatives` virou no grupo 4d com `iniciativa:editar`, que e Admin+Gerente);
+  `project_team_rows`/`project_team_row_months` SELECT (termo `has_role(admin)` isolado ao
+  lado de `can_manage_project` OR membro — `alocacao:ler` e Admin+Gerente e mudaria o que
+  gerente ve); storage company-logos (Admin+Gerente escrevem logo do TENANT, nao de
+  cliente). Medido em producao em 2026-09-03, apos o grupo 4d: **57 policies** ainda
+  decidem por papel, 178 por capacidade. Proposta: duas
   capacidades novas — `configuracao:editar` (parametros e cadastros-base do tenant, so Admin;
   o projete.app tem EDITAR_CONFIGURACOES) e `pessoa:administrar` (criar, remover, encerrar
   vinculo; so Admin) — e `ponto:travar-periodo` (Admin+RH). Decisao de vocabulario: entra na
