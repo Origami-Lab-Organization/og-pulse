@@ -2,6 +2,27 @@
 
 ## Aberto
 
+- TD-0016 (achado no catalogo de producao, PUL-209): `strategy_guardrails.tenant_id` **nao tem
+  foreign key** para `tenants`. Dos dois trilhos de migration duplicados (TD-0014), o aplicado
+  em producao foi o sem FK (20260428124325). Coluna de isolamento de tenant sem integridade
+  referencial: nada impede guardrail apontando para tenant inexistente. Correcao: migration
+  nova com `ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY (tenant_id) REFERENCES tenants(id)`,
+  precedida de `SELECT` que confirme zero orfaos — se houver, decidir destino antes.
+- TD-0017 (achado em PUL-201 grupo 2): o SELECT de `budget_materials`, `budget_roles` e
+  `budget_role_months` usa `user_belongs_to_tenant` via EXISTS em `budgets`, enquanto o pai
+  exige `is_admin_or_manager` (hoje `has_capability('orcamento:ler')`). NAO vaza — subquery
+  em policy respeita a RLS do pai, provado em harness (colaborador le 0). Mas o predicado e
+  redundante e FRAGIL: afrouxar `budgets` abre as filhas, que carregam `hourly_rate`, `hours`
+  e `value`, suficientes para reconstruir o valor do orcamento. Alinhar as filhas ao pai
+  (`orcamento:ler`) e correcao de politica, separada da virada de mecanismo.
+- TD-0018 (registrado em PUL-201 grupo 3, DECISAO DE PRODUTO pendente): a matriz diz que
+  gerente edita projeto e financeiro "apenas onde e o gerente responsavel" (escopo PM), mas
+  as policies VIGENTES de `projects`, `project_costs`, `project_commissions` etc. usam
+  qualquer-gerente. A virada preservou o vigente (dia 1 = dia 0). Estreitar para PM e toggle
+  de politica, nao mecanismo — exige decisao (P4 da matriz) e mudanca de policy para
+  `has_capability(...) AND can_manage_project(...)`. Enquanto nao decidir, a descricao de
+  `projeto:editar` na tela diz "apenas onde a pessoa e o gerente responsavel" e o banco NAO
+  aplica isso — a descricao promete mais restricao do que existe.
 - TD-0014 (achado em PUL-200/PUL-208): o historico de migrations **nao aplica do zero**, e
   ha **dois trilhos de migration sobrepostos** no mesmo diretorio — um com nomes de UUID
   (Lovable) e um com nomes descritivos (manual), unidos pela migracao do ADR-0026.
