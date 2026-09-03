@@ -248,7 +248,13 @@ Excecao unica: a divergencia **D6**, que e violacao de boundary e segue em trilh
   trilha troca revisao de codigo por clique anonimo, e ai o custo nao tem compensacao
   nenhuma.
 - `has_capability` em predicado avaliado por linha custa mais que um booleano compilado na
-  policy. Exige `STABLE`, indice e medicao.
+  policy. Exige `STABLE`, indice e medicao. **Medido em producao (2026-09-03), com 117
+  policies ja viradas:** `has_capability` isolada custa 0,42 ms; em `project_timesheets`
+  (5.427 linhas, a maior tabela virada) a policy nova roda em 3,4–5,0 ms contra 4,5 ms do
+  predicado antigo na mesma tabela — mesma ordem, porque o planner avalia a funcao como
+  *hashed SubPlan* uma vez por projeto (39) e nao por linha. O custo dominante e o scan da
+  tabela, nao a funcao. Nao ha risco de performance no volume atual; remedir quando alguma
+  tabela virada passar de ~100 mil linhas.
 - A migracao e cirurgia em sistema em producao: exige paridade provada e rollback testado
   antes de qualquer virada.
 - Duas camadas para cada dado sensivel: capacidade e policy.
@@ -297,6 +303,8 @@ reintroduzir o defeito que `is_gerente` demonstra.
   `UsuarioPermissaoOverride`), `src/lib/permissoes.ts` (`calcularPermissoes`,
   `requirePermissao`), `prisma/migrations/20260721010000_portfolio_flag_e_permissao`
 - `supabase/migrations/20260121002930` — `CREATE TYPE app_role`, `employees.is_gerente`
+- Medicao de performance (2026-09-03, producao, `EXPLAIN (ANALYZE, BUFFERS)` como admin
+  real via `SET LOCAL ROLE authenticated` + `request.jwt.claims`): ver Custos acima
 - `supabase/migrations/20260202231437` — `employees.system_role` (CHECK sem `rh`)
 - `supabase/migrations/20260331013008` — `is_admin_or_manager` e `is_manager_in_tenant`
   migradas para `user_roles`, com corpos identicos
