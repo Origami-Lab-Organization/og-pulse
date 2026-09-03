@@ -2,6 +2,21 @@
 
 ## Aberto
 
+- TD-0019 (PUL-201, lacuna de VOCABULARIO): a matriz tem capacidades de LEITURA bem definidas
+  e quase nenhuma de ESCRITA so-admin. ~35 policies `has_role(admin)` de escrita ficaram fora da
+  virada porque trocar por `pessoa:editar` ou `catalogo:editar` (Admin+Gerente) daria a gerente
+  o que hoje e so admin: employees INSERT/DELETE; employee_benefits/tools/versions escrita;
+  employee_terminations/payroll_adjustments/termination_documents ALL; payroll_profiles,
+  role_rates, financial_settings escrita; benefits, tools, company_holidays,
+  service_revenue_models; tenants UPDATE; timesheet_submissions DELETE. Tambem fora:
+  time_tracking_period_locks (admin OR rh — nenhuma capacidade de ponto tem esse conjunto com
+  semantica de "travar periodo"); vacation_requests (has_role(admin) sem capacidade so-admin
+  de ferias); strategy_* DELETE (aom, mas okr:editar e so-admin no seed); storage
+  company-logos (Admin+Gerente escrevem logo do TENANT, nao de cliente). Proposta: duas
+  capacidades novas — `configuracao:editar` (parametros e cadastros-base do tenant, so Admin;
+  o projete.app tem EDITAR_CONFIGURACOES) e `pessoa:administrar` (criar, remover, encerrar
+  vinculo; so Admin) — e `ponto:travar-periodo` (Admin+RH). Decisao de vocabulario: entra na
+  matriz e vira migration de capacidade + virada dessas ~35.
 - TD-0016 (achado no catalogo de producao, PUL-209): `strategy_guardrails.tenant_id` **nao tem
   foreign key** para `tenants`. Dos dois trilhos de migration duplicados (TD-0014), o aplicado
   em producao foi o sem FK (20260428124325). Coluna de isolamento de tenant sem integridade
