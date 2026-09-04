@@ -149,7 +149,7 @@ const App = () => (
               <Route
                 path="/admin-dashboard"
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireCapability="configuracao:editar">
                     <AdminDashboard />
                   </RoleProtectedRoute>
                 }
@@ -430,7 +430,7 @@ const App = () => (
               <Route 
                 path="/admin" 
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireCapability="configuracao:editar">
                     <AdminPortal />
                   </RoleProtectedRoute>
                 } 
@@ -459,7 +459,7 @@ const App = () => (
               <Route path="/trabalhe-conosco/:tenantId" element={<JobApplication />} />
               <Route path="/trabalhe-conosco/:tenantId/:vagaId" element={<JobApplicationVaga />} />
               <Route path="/estrategia" element={<RoleProtectedRoute requireCapability="iniciativa:editar"><Strategy /></RoleProtectedRoute>} />
-              <Route path="/rh/ferramentas-beneficios" element={<RoleProtectedRoute requireAdmin><BenefitsAndTools /></RoleProtectedRoute>} />
+              <Route path="/rh/ferramentas-beneficios" element={<RoleProtectedRoute requireCapability="configuracao:editar"><BenefitsAndTools /></RoleProtectedRoute>} />
               <Route path="/rh/ferias" element={<RoleProtectedRoute requireCapability="ferias:gerir"><VacationManagement /></RoleProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

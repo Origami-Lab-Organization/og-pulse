@@ -18,16 +18,15 @@ import { NAV_SECTIONS, isSectionActive, isSectionVisible, visibleTabs, type NavS
 export function AppNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { employee, can } = useAuth();
+  const { can } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isStandalone } = usePwaEnvironment();
 
-  const isAdmin = employee?.isAdmin ?? false;
 
   // Mesmo destino de "/" (HomeRedirect) e do logo do sidebar: gerente também vai
   // para /dashboard. Antes o navbar mandava gerente para /inbox, divergindo dos
   // outros dois pontos de entrada (PUL-169).
-  const homeRoute = isAdmin ? '/admin-dashboard' : '/dashboard';
+  const homeRoute = can('configuracao:editar') ? '/admin-dashboard' : '/dashboard';
 
   const isVisible = (section: NavSection): boolean => {
     if (isStandalone && section.label !== "Início") return false;

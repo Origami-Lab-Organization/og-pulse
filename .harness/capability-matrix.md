@@ -84,6 +84,7 @@ decisao pendente **P2**.
 | `pessoa:editar` | sim | sim | — `!` | proprio (campos seguros) | **D4** |
 | `pessoa:editar-papel` — `system_role`, `user_roles` | sim | — | — | — | trigger `prevent_employee_self_escalation` |
 | `pessoa:editar-elegibilidade-alocacao` | sim | — | — | — | trigger `enforce_aloca_em_projetos_admin_only` (ADR-0010) |
+| `pessoa:administrar` — admitir, excluir, beneficio/ferramenta da pessoa, versao, desligar | sim | — | — | — | `has_role('admin')` em `employees` I/D, `employee_benefits`, `employee_tools`, `employee_versions`, `employee_terminations`, `payroll_adjustments`, `termination_documents` — capacidade criada no grupo 5b (TD-0019) |
 | `desligamento:executar` — `/rh/desligamentos` | sim | sim | — `!` | — | rota `requireManager` — **D4** |
 
 ## 4. Pipeline e comercial
@@ -121,6 +122,7 @@ decisao pendente **P2**.
 | `ponto:relatorio:ler` | sim | — | sim | — | rota `requireRH` + RLS concede a `rh` |
 | `ponto:auditar` | sim | — | sim | — | `time_tracking_audit_log_select_admin_rh` |
 | `ponto:configurar` | sim | — | — | — | `time_tracking_settings_write_admin` |
+| `ponto:travar-periodo` — fechar e reabrir competencia | sim | — | sim | — | `time_tracking_period_locks_write_admin_rh` — capacidade criada no grupo 5c (TD-0019) |
 | `ferias:solicitar` | sim | sim | sim | sim | proprio registro |
 | `ferias:aprovar` | sim | gestor designado | — | — | `is_vacation_approver` (ADR-0003 vacation) |
 | `ferias:gerir` — `/rh/ferias` | sim | sim | — `!` | — | rota `requireManager` — **D4** |
@@ -140,6 +142,24 @@ decisao pendente **P2**.
 | `okr:editar` | sim | — | — | — | `canManageOkrs = isAdmin` |
 | `iniciativa:editar` | sim | sim | — | — | `canManageInitiatives` (ADR-0001) |
 | `guardrail-estrategia:editar` | sim | — | — | — | `strategy_guardrails_*_admin` (ADR-0023) |
+
+## 9. Configuracao da empresa
+
+Dominio criado no grupo 5 da virada (PUL-201 / TD-0019). A matriz nasceu forte em LEITURA
+e quase muda em ESCRITA: 37 policies `has_role('admin')` nao tinham capacidade que as
+representasse sem alargar acesso, porque `pessoa:editar` e `catalogo:editar` sao
+Admin + Gerente. Faltava vocabulario, nao mecanismo.
+
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `configuracao:editar` — encargos e perfil de folha, tabela de precos por cargo, config. financeira, feriados, beneficios e ferramentas do catalogo, modelos de receita, dados da empresa | sim | — | — | — | `has_role('admin')` em `payroll_profiles`, `role_rates`, `financial_settings`, `company_holidays`, `benefits`, `tools`, `service_revenue_models`, `tenants` UPDATE |
+
+Nao entra aqui, de proposito: **governanca do proprio mecanismo** (`tenant_roles`,
+`role_capabilities`, `user_tenant_roles`, `user_capability_overrides`, `user_roles`)
+continua em `has_role('admin')`. Quem administra o mecanismo de capacidade nao deve ser
+decidido pelo proprio mecanismo — configuracao ruim trancaria o tenant fora da propria
+administracao, e a invariante do ultimo administrador cobre so `pessoa:editar-papel`. E o
+mesmo raciocinio do ponto 7 do ADR-0027 (escopo e tenant nunca sao configuraveis).
 
 ---
 

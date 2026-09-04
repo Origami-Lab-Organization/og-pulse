@@ -38,15 +38,12 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const navigate = useNavigate();
-  const { employee, can } = useAuth();
+  const { can } = useAuth();
 
-  const isAdmin = employee?.isAdmin ?? false;
-
-  const homeRoute = isAdmin ? '/admin-dashboard' : '/dashboard';
-
-  // O que aparece decide-se por capacidade (ADR-0027); `isAdmin` sobra só para a home e as
-  // entradas de configuração do tenant, que ainda não têm capacidade (TD-0019).
-  const visibility = { can, isAdmin, isDev: import.meta.env.DEV };
+  // Tudo aqui decide por capacidade, home inclusive: quem configura a empresa cai no
+  // painel de admin (ADR-0027). Nenhuma checagem de papel sobrou nesta camada.
+  const homeRoute = can('configuracao:editar') ? '/admin-dashboard' : '/dashboard';
+  const visibility = { can, isDev: import.meta.env.DEV };
   const visibleItems = NAV_ITEMS.filter((item) => isNavItemVisible(item, visibility));
 
   // Controlled open state for group collapsibles — initialized from current route
