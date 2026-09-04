@@ -222,6 +222,17 @@ recortes diferentes e armadilha de leitura para a onda inteira.
 → Esta e exatamente a flag booleana por usuario que o ADR-0027 recusa. Ela ja existe:
 o ADR precisa registrar o plano de remocao, nao apenas a proibicao.
 
+
+**Atualizacao 2026-09-04 (PUL-203):** duas das tres fontes deixaram de ser graváveis de
+forma independente. `employees.system_role` e `employees.is_gerente` passaram a ser
+DERIVADAS de `user_roles` por trigger, com precedencia admin > manager > user, e escrita
+direta nessas colunas e ignorada por desenho — inclusive por script ou SQL na mao. A
+reconciliacao corrigiu a divergencia que existia em producao (uma pessoa exibida como
+`manager` com `admin` em `user_roles`) e normalizou cadastro sem conta que aparecia como
+`admin`. Resta UMA fonte gravavel (`user_roles`), que a fase de contracao (PUL-206)
+substitui por `user_tenant_roles`. O bug de notificacao de candidatura descrito abaixo
+deixa de ser possivel: `is_gerente` nao pode mais ficar `false` para quem e `manager`.
+
 ### D4 — RH nao existe na RLS de pessoas nem de folha (severidade: media)
 
 `rh` aparece em **duas** areas, ambas coerentes com a UI:

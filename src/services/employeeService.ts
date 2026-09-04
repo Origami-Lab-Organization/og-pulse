@@ -211,10 +211,11 @@ export const employeeService = {
     if (updates.cpf !== undefined) dbUpdates.cpf = updates.cpf;
     if (updates.dataAdmissao !== undefined)
       dbUpdates.data_admissao = updates.dataAdmissao;
-    if (updates.isGerente !== undefined)
-      dbUpdates.is_gerente = updates.isGerente;
-    if (updates.systemRole !== undefined)
-      dbUpdates.system_role = updates.systemRole;
+    // `system_role` e `is_gerente` NAO sao mais gravados aqui: o banco os deriva de
+    // `user_roles` (PUL-203). Enviá-los seria escrita silenciosamente ignorada pelo
+    // trigger `enforce_employee_display_role`, e a ilusão de que a tela manda no papel é
+    // exatamente o que causava a divergência entre exibição e RLS. Quem muda papel muda
+    // `user_roles`, logo abaixo.
     if (updates.alocaEmProjetos !== undefined)
       dbUpdates.aloca_em_projetos = updates.alocaEmProjetos;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
@@ -387,8 +388,8 @@ export const employeeService = {
 
     const updatedEmployee = data as EmployeeDB;
 
-    // system_role on employees is display data — user_roles is what RLS's
-    // has_role() actually checks, so it must be kept in sync on every change.
+    // `user_roles` é a fonte de verdade do papel: é o que a RLS checa e é de onde o banco
+    // deriva a exibição (PUL-203). Esta é a única escrita de papel que a aplicação faz.
     if (updates.systemRole !== undefined && updatedEmployee.auth_id) {
       const { error: roleDeleteError } = await supabase
         .from("user_roles")
