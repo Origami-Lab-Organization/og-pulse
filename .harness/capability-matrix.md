@@ -105,6 +105,7 @@ decisao pendente **P2**.
 |---|---|---|---|---|---|
 | `projeto:ler` | sim | sim | — | alocado `!` | `/projects/:id` sem guard de perfil — **D7** |
 | `projeto:editar` | sim | PM | — | — | `can_manage_project` (ADR-0002) |
+| `projeto:gerir-qualquer` — alcanca projeto que a pessoa nao gerencia | sim | — | — | — | criada em 04/09; substituiu `has_role(admin)` dentro de `can_manage_project` |
 | `portfolio:ler` | sim | sim | — | — | rota `requireManager` (ADR-0002) |
 | `alocacao:ler` | sim | sim | — | proprio | rota `requireManager` |
 | `alocacao:editar` | sim | PM | — | — | `can_manage_project` (ADR-0003) |
@@ -276,6 +277,18 @@ e nao deveria esperar a onda.
 Rota usa `ProtectedRoute` puro. A protecao do financeiro e a RLS (ADR-0022) mais
 condicional de componente. Consistente com a decisao, mas a matriz precisa registrar
 que `projeto:ler` para colaborador e "sim, com financeiro vazio" — nao "nao".
+
+### P4 — DECIDIDA em 04/09: gerente edita apenas o projeto que gerencia
+
+O negocio decidiu o escopo restrito. Aplicado em 20260904220000: `projeto:editar` passou a
+exigir tambem relacao com o projeto (ser o gerente responsavel, ou ter
+`projeto:gerir-qualquer`, que e so-admin). A descricao que a tela ja exibia passou a ser
+verdade — antes era a descricao certa com o banco errado.
+
+Impacto medido em producao antes de aplicar: de 174 pares pessoa x projeto que podiam
+editar, 147 seguem podendo e 27 deixam de poder, afetando 2 pessoas — uma que gerencia 12
+projetos e perde 3, e uma que nao gerencia nenhum e perde os 24. Quem precisar de alcance
+amplo recebe `projeto:gerir-qualquer` por excecao, com motivo registrado.
 
 ### D8 — UI de custo e mais restritiva que a RLS (severidade: baixa — intencional)
 

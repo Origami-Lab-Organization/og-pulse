@@ -55,6 +55,7 @@ export const CAPABILITY_KEYS = [
   'ponto:travar-periodo',
   'portfolio:ler',
   'projeto:editar',
+  'projeto:gerir-qualquer',
   'projeto:ler',
   'remuneracao-pessoa:editar',
   'remuneracao-pessoa:ler',
