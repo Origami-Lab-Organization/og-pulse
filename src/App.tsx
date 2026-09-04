@@ -9,6 +9,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
 import HomeRedirect from "@/components/auth/HomeRedirect";
 import Index from "./pages/Index";
+import Ajuda from "./pages/Ajuda";
 import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -154,6 +155,9 @@ const App = () => (
                   </RoleProtectedRoute>
                 }
               />
+              {/* Ajuda é para todo mundo autenticado: o conteúdo já se filtra por
+                  capacidade dentro da própria tela (ADR-0027). */}
+              <Route path="/ajuda" element={<ProtectedRoute><Ajuda /></ProtectedRoute>} />
               <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
               <Route path="/minha-agenda" element={<ProtectedRoute><MinhaAgenda /></ProtectedRoute>} />
               <Route path="/meus-emails" element={<ProtectedRoute><MeusEmails /></ProtectedRoute>} />
