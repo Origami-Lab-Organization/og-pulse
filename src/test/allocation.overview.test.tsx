@@ -14,6 +14,9 @@ const mockEmployee = vi.hoisted(() => ({
   isAdmin: true,
   is_gerente: true,
 }));
+// Ver alocação passou a ser capacidade, não papel (ADR-0027): o mock precisa responder
+// `can` do mesmo jeito que o AuthContext responde.
+const mockCapabilities = vi.hoisted(() => ({ keys: ['alocacao:ler'] as string[] }));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -25,6 +28,10 @@ vi.mock('@/integrations/supabase/client', () => ({
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
     employee: mockEmployee,
+    can: (required: string | readonly string[]) => {
+      const list = typeof required === 'string' ? [required] : required;
+      return list.some((key) => mockCapabilities.keys.includes(key));
+    },
   }),
 }));
 

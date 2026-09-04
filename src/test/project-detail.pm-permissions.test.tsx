@@ -15,10 +15,17 @@ const authState = vi.hoisted(() => ({
     isAdmin: boolean;
     is_gerente: boolean;
   },
+  // A tela pergunta capacidade, não papel (ADR-0027). Gerente sem `projeto:gerir-qualquer`
+  // vê o detalhe completo e só escreve no projeto que gerencia.
+  capabilities: ['projeto:editar'] as string[],
 }));
 
 const projectState = vi.hoisted(() => ({
   project: undefined as ReturnType<typeof makeProject> | undefined,
+}));
+
+const allocationState = vi.hoisted(() => ({
+  allocations: [] as { employeeId: string }[],
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -32,7 +39,14 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ employee: authState.employee, loading: false }),
+  useAuth: () => ({
+    employee: authState.employee,
+    loading: false,
+    can: (required: string | readonly string[]) => {
+      const list = typeof required === 'string' ? [required] : required;
+      return list.some((key) => authState.capabilities.includes(key));
+    },
+  }),
 }));
 
 vi.mock('@/contexts/HideValuesContext', () => ({
@@ -112,21 +126,9 @@ vi.mock('@/components/projects/detail/ProjectExpectedResultTab', () => ({
   ProjectExpectedResultTab: () => <div>Resultado esperado</div>,
 }));
 
-vi.mock('@/components/projects/detail/ProjectCommissionsTab', () => ({
-  ProjectCommissionsTab: ({ isReadOnly }: { isReadOnly: boolean }) => (
-    <div data-testid="commissions-readonly">{String(isReadOnly)}</div>
-  ),
-}));
-
 vi.mock('@/components/projects/detail/ProjectActivitiesTab', () => ({
   ProjectActivitiesTab: ({ isReadOnly }: { isReadOnly: boolean }) => (
     <div data-testid="activities-readonly">{String(isReadOnly)}</div>
-  ),
-}));
-
-vi.mock('@/components/projects/detail/ProjectValueBookUpload', () => ({
-  ProjectValueBookUpload: ({ isReadOnly }: { isReadOnly: boolean }) => (
-    <div data-testid="valuebook-readonly">{String(isReadOnly)}</div>
   ),
 }));
 
@@ -136,6 +138,30 @@ vi.mock('@/components/projects/ProjectFormDialog', () => ({
 
 vi.mock('@/components/projects/ProjectRemoveDialog', () => ({
   ProjectRemoveDialog: () => null,
+}));
+
+// A tela lê a equipe alocada para saber se quem abriu é membro (ADR-0006): o detalhe
+// completo é de admin/gerente, mas Atividades e Arquivos também são de quem está no time.
+vi.mock('@/components/projects/detail/ProjectRoadmapTab', () => ({
+  ProjectRoadmapTab: ({ isReadOnly }: { isReadOnly: boolean }) => (
+    <div data-testid="roadmap-readonly">{String(isReadOnly)}</div>
+  ),
+}));
+
+vi.mock('@/components/projects/detail/EquipeTab', () => ({
+  EquipeTab: ({ isReadOnly }: { isReadOnly: boolean }) => (
+    <div data-testid="equipe-readonly">{String(isReadOnly)}</div>
+  ),
+}));
+
+vi.mock('@/components/projects/detail/ProjectFilesTab', () => ({
+  ProjectFilesTab: ({ isReadOnly }: { isReadOnly: boolean }) => (
+    <div data-testid="files-readonly">{String(isReadOnly)}</div>
+  ),
+}));
+
+vi.mock('@/hooks/useProjectRoles', () => ({
+  useProjectAllocations: () => ({ data: allocationState.allocations, isLoading: false }),
 }));
 
 vi.mock('@/hooks/useProjects', () => ({
@@ -170,6 +196,8 @@ describe('ProjectDetail PM permissions', () => {
       isAdmin: false,
       is_gerente: true,
     };
+    authState.capabilities = ['projeto:editar'];
+    allocationState.allocations = [];
     projectState.project = makeProject('manager-2');
   });
 
@@ -179,6 +207,29 @@ describe('ProjectDetail PM permissions', () => {
     expect(screen.queryByText('Editar')).not.toBeInTheDocument();
     expect(screen.getByTestId('okrs-readonly')).toHaveTextContent('true');
     expect(screen.getByTestId('activities-readonly')).toHaveTextContent('true');
+  });
+
+  // Regressão do incidente do deploy de PUL-206: sem capacidade confirmada, a tela
+  // mostrava só Atividades e Arquivos para quem era admin. O conjunto de abas é
+  // consequência da capacidade, então o teste fixa as duas pontas.
+  it('quem tem capacidade de projeto ve o detalhe completo', () => {
+    render(<ProjectDetail />);
+
+    expect(screen.getByText('Visão Geral')).toBeInTheDocument();
+    expect(screen.getByText('Financeiro')).toBeInTheDocument();
+    expect(screen.getByText('Atividades')).toBeInTheDocument();
+  });
+
+  it('sem capacidade de projeto, quem esta alocado ve apenas Atividades e Arquivos', () => {
+    authState.capabilities = [];
+    allocationState.allocations = [{ employeeId: 'manager-1' }];
+
+    render(<ProjectDetail />);
+
+    expect(screen.queryByText('Visão Geral')).not.toBeInTheDocument();
+    expect(screen.queryByText('Financeiro')).not.toBeInTheDocument();
+    expect(screen.getByText('Atividades')).toBeInTheDocument();
+    expect(screen.getByText('Arquivos')).toBeInTheDocument();
   });
 
   it('permite edicao para o PM do projeto ainda nao concluido', () => {

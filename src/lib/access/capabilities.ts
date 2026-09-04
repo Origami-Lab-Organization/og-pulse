@@ -88,3 +88,53 @@ export function hasAnyCapability(
   const list = typeof required === 'string' ? [required] : required;
   return list.some((key) => set.has(key));
 }
+
+/**
+ * As três conveniências de leitura que sobreviveram ao mecanismo antigo de papel
+ * (PUL-206), cada uma atrelada à capacidade que era equivalente ao papel: gerir
+ * perfis era o que só admin fazia, editar projeto era admin ou gerente, e ler
+ * candidatura era admin ou RH.
+ */
+export const LEGACY_ROLE_CAPABILITY = {
+  isAdmin: 'pessoa:editar-papel',
+  isManager: 'projeto:editar',
+  isRH: 'candidatura:ler',
+} as const;
+
+export type LegacyRoleFlags = { isAdmin: boolean; isManager: boolean; isRH: boolean };
+
+export function deriveLegacyRoleFlags(granted: readonly string[]): LegacyRoleFlags {
+  const set = new Set(granted);
+  return {
+    isAdmin: set.has(LEGACY_ROLE_CAPABILITY.isAdmin),
+    isManager: set.has(LEGACY_ROLE_CAPABILITY.isManager),
+    isRH: set.has(LEGACY_ROLE_CAPABILITY.isRH),
+  };
+}
+
+export type CapabilityResolution = {
+  capabilities: string[];
+  /**
+   * `true` = o conjunto veio do banco agora. `false` = não deu para confirmar, e o
+   * que está aqui é o último conjunto conhecido (ou nada).
+   */
+  confirmed: boolean;
+};
+
+/**
+ * Uma consulta que falha NÃO é a mesma coisa que uma pessoa sem capacidade.
+ *
+ * Tratar as duas como iguais foi o que fez o deploy de PUL-206 esconder as abas de
+ * quem era admin: o front antigo perdeu a fonte de papel no meio do build e a
+ * interface leu o silêncio como "essa pessoa não pode nada". Sem confirmação, vale
+ * o último conjunto conhecido — a RLS continua sendo a barreira de verdade, então o
+ * pior caso é mostrar uma aba que o banco vai negar, e não sumir com o sistema.
+ */
+export function resolveCapabilities(
+  fetched: readonly string[] | null,
+  lastKnown?: readonly string[] | null,
+): CapabilityResolution {
+  if (fetched !== null) return { capabilities: [...fetched], confirmed: true };
+  if (lastKnown && lastKnown.length > 0) return { capabilities: [...lastKnown], confirmed: false };
+  return { capabilities: [], confirmed: false };
+}

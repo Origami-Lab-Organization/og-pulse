@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
 import { OfflineBanner } from '@/components/pwa/OfflineBanner';
+import { CapabilitiesUnavailableBanner } from '@/components/access/CapabilitiesUnavailableBanner';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 
 // The shadcn SidebarProvider writes this cookie on every state change but never reads it.
@@ -61,6 +62,7 @@ export function AppLayout({
         </header>
 
         <OfflineBanner />
+        <CapabilitiesUnavailableBanner />
 
         {/* Page Header */}
         {!hideHeader && (

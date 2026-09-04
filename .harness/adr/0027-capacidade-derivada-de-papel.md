@@ -296,6 +296,27 @@ Reverter a decisao como um todo significa voltar a predicado fixo na policy, o q
 o problema 4. A recusa da flag ad-hoc por usuario (alternativa **a**) nao e reversivel sem
 reintroduzir o defeito que `is_gerente` demonstra.
 
+### Incidente da contracao (2026-09-04)
+
+A remocao de `user_roles` foi junto, no mesmo deploy, com o frontend que parou de le-la.
+Nesta topologia a migration roda dentro do build da Vercel (ADR-0026), antes de o frontend
+novo ser publicado, entao existe uma janela — a duracao do build, mais toda aba ja aberta —
+em que o frontend ANTIGO conversa com o schema NOVO. Durante essa janela `isAdmin` e
+`is_gerente` viraram falso para todo mundo, e um admin abriu projeto vendo duas abas em vez
+de dez.
+
+Duas correcoes sairam disso:
+
+1. **Ordem de deploy.** Migration que remove algo lido pelo frontend vai num deploy
+   POSTERIOR ao frontend que parou de ler. Expandir num deploy, contrair no seguinte. Vale
+   como regra de review (`.harness/ai-review-checklist.md`), nao como recomendacao.
+2. **Falha de consulta nao e ausencia de permissao.** `fetchMyCapabilities` devolvia `[]`
+   nos dois casos, o que fazia a interface tratar erro como restricao. Agora devolve `null`
+   na falha (depois de duas tentativas), `resolveCapabilities` cai no ultimo conjunto
+   conhecido, o snapshot local nao guarda estado degradado e um aviso oferece retentativa.
+   A RLS continua sendo a barreira, entao o pior caso passou a ser mostrar uma aba que o
+   banco nega — e nao esconder o sistema de quem o administra.
+
 ## Evidencias
 
 - `.harness/capability-matrix.md` — matriz, as 10 divergencias e as 6 decisoes pendentes
@@ -313,7 +334,10 @@ reintroduzir o defeito que `is_gerente` demonstra.
 - `supabase/migrations/20260817230000` — leitura e escrita por perfil (ADR-0023)
 - `supabase/migrations/20260319150000`, `20260325130000` — consumidores vivos de
   `is_gerente`
-- `src/contexts/AuthContext.tsx:132` — `roleSet` reduzido a tres booleanos
+- `src/contexts/AuthContext.tsx` — `roleSet` reduzido a tres booleanos, e depois a
+  `deriveLegacyRoleFlags` sobre capacidade confirmada
+- `src/lib/access/capabilities.ts` — `resolveCapabilities`, a distincao entre falha e
+  ausencia; `src/test/capability-resolution.test.ts` fixa a regra
 - `src/services/employeeService.ts:390-410` — sincronia manual de `system_role` e
   cardinalidade 1 imposta em codigo
 - Jira: PUL-198 (epico), PUL-199 (matriz), PUL-200 (esquema), PUL-201 (virada),
