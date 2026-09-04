@@ -71,6 +71,35 @@ export const DOMAIN_LABELS: Record<string, string> = {
 /** A capacidade que a invariante do banco protege — ver 20260902170000. */
 export const PROFILE_ADMIN_CAPABILITY = 'pessoa:editar-papel';
 
+/**
+ * Uma exceção por pessoa, já com o nome de quem ela afeta e o rótulo da capacidade — a
+ * listagem existe para tornar a exceção visível, e id cru não torna nada visível.
+ */
+export interface OverrideWithPerson extends UserCapabilityOverrideDB {
+  nome: string;
+  cargo: string;
+  /** Nome do papel da pessoa, para a linha dizer de que perfil a exceção está desviando. */
+  roleName: string | null;
+  /** O papel da pessoa já concede esta capacidade? Define se a exceção é redundante. */
+  grantedByRole: boolean;
+}
+
+/** Exceções de uma mesma capacidade. Muitas na mesma linha são sinal de perfil faltando. */
+export interface OverrideGroup {
+  capability: string;
+  label: string;
+  domain: string;
+  is_sensitive: boolean;
+  overrides: OverrideWithPerson[];
+}
+
+/**
+ * A partir de quantas pessoas com a mesma exceção o ADR-0027 considera que falta um perfil
+ * ("papéis que diferem em uma única capacidade provavelmente eram um papel mais um
+ * override" — e o inverso também vale).
+ */
+export const OVERRIDE_CROWD_THRESHOLD = 3;
+
 /** Uma pessoa do tenant e o perfil que ela tem hoje. */
 export interface PersonWithRole {
   employeeId: string;

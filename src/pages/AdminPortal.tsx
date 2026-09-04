@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity, Bell, ShieldCheck } from 'lucide-react';
+import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity, Bell, ShieldCheck, UserCog } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { PayrollProfileSettingsForm } from '@/components/settings/PayrollProfile
 import { HolidaysSettingsForm } from '@/components/settings/HolidaysSettingsForm';
 import { ActivityTypesSettings } from '@/components/settings/ActivityTypesSettings';
 import { AccessProfilesSettings } from '@/components/settings/AccessProfilesSettings';
+import { CapabilityOverridesSettings } from '@/components/settings/CapabilityOverridesSettings';
 import { TimesheetReminderSettings } from '@/components/admin/TimesheetReminderSettings';
 import { RoleRatesTable } from '@/components/pricing/RoleRatesTable';
 import { RoleRateFormDialog } from '@/components/pricing/RoleRateFormDialog';
@@ -125,6 +126,10 @@ export default function AdminPortal() {
             <ShieldCheck className="h-4 w-4" />
             Perfis de Acesso
           </TabsTrigger>
+          <TabsTrigger value="overrides" className="flex items-center gap-2">
+            <UserCog className="h-4 w-4" />
+            Exceções
+          </TabsTrigger>
           <TabsTrigger value="pricing" className="flex items-center gap-2">
             <Tag className="h-4 w-4" />
             Tabela de Preços
@@ -151,9 +156,14 @@ export default function AdminPortal() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tabela de Preços */}
         <TabsContent value="profiles" className="space-y-4">
           <AccessProfilesSettings />
+        </TabsContent>
+
+        {/* Exceção pertence à pessoa, não ao perfil — por isso é aba própria, e não uma
+            seção dentro do drawer de perfil (PUL-210). */}
+        <TabsContent value="overrides" className="space-y-4">
+          <CapabilityOverridesSettings />
         </TabsContent>
 
         <TabsContent value="pricing" className="space-y-4">

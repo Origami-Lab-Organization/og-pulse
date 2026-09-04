@@ -14,6 +14,8 @@ import {
   DOMAIN_LABELS,
   type CapabilityGroup,
   type CapabilityDB,
+  type OverrideGroup,
+  type OverrideWithPerson,
 } from '@/types/accessProfile';
 
 /**
@@ -36,6 +38,9 @@ function humanizeError(error: unknown): string {
   }
   if (message.includes('duplicate key') || message.includes('tenant_roles_tenant_id_name_key')) {
     return 'Já existe um papel com esse nome neste tenant.';
+  }
+  if (message.includes('user_capability_overrides') && message.includes('foreign key')) {
+    return 'Esta capacidade não existe no vocabulário. Capacidade nova exige migration (ADR-0027).';
   }
   return message || 'Não foi possível concluir a alteração.';
 }
@@ -239,6 +244,99 @@ export function useDeleteTenantRole() {
     },
     onError: (error) => {
       toast({ title: 'Não foi possível remover o papel', description: humanizeError(error), variant: 'destructive' });
+    },
+  });
+}
+
+/** Exceções por pessoa do tenant (PUL-210). */
+export function useCapabilityOverrides() {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['capability-overrides', tenantId],
+    queryFn: () => accessProfileService.getOverrides(tenantId!),
+    enabled: !!tenantId,
+  });
+}
+
+/**
+ * Exceções agrupadas por capacidade, e não por pessoa.
+ *
+ * O agrupamento é a resposta à pergunta que o ADR-0027 manda vigiar: se a mesma capacidade
+ * aparece como exceção para várias pessoas, o que falta é um perfil, não mais exceções.
+ */
+export function useOverrideGroups(
+  overrides: OverrideWithPerson[],
+  capabilities: CapabilityDB[],
+): OverrideGroup[] {
+  return useMemo(() => {
+    const meta = new Map(capabilities.map((c) => [c.key, c]));
+    const byCapability = new Map<string, OverrideWithPerson[]>();
+    for (const o of overrides) {
+      const list = byCapability.get(o.capability) ?? [];
+      list.push(o);
+      byCapability.set(o.capability, list);
+    }
+    return [...byCapability.entries()]
+      .map(([capability, list]) => ({
+        capability,
+        label: meta.get(capability)?.label ?? capability,
+        domain: meta.get(capability)?.domain ?? '',
+        is_sensitive: meta.get(capability)?.is_sensitive ?? false,
+        overrides: [...list].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+      }))
+      .sort((a, b) => b.overrides.length - a.overrides.length || a.label.localeCompare(b.label, 'pt-BR'));
+  }, [overrides, capabilities]);
+}
+
+export function useSaveOverride() {
+  const queryClient = useQueryClient();
+  const { employee, user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (input: { userId: string; capability: string; enabled: boolean; reason: string }) =>
+      accessProfileService.setOverride({
+        ...input,
+        tenantId: employee!.tenant_id,
+        actorId: user?.id ?? null,
+      }),
+    onSuccess: (_data, input) => {
+      queryClient.invalidateQueries({ queryKey: ['capability-overrides'] });
+      toast({
+        title: input.enabled ? 'Exceção concedida' : 'Exceção registrada',
+        description: input.enabled
+          ? 'A pessoa passa a ter a capacidade, mesmo que o perfil dela não conceda.'
+          : 'A pessoa perde a capacidade, mesmo que o perfil dela conceda.',
+      });
+    },
+    onError: (error) => {
+      queryClient.invalidateQueries({ queryKey: ['capability-overrides'] });
+      toast({
+        title: 'Exceção não registrada',
+        description: humanizeError(error),
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useDeleteOverride() {
+  const queryClient = useQueryClient();
+  const { employee } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ userId, capability }: { userId: string; capability: string }) =>
+      accessProfileService.deleteOverride(userId, employee!.tenant_id, capability),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['capability-overrides'] });
+      toast({ title: 'Exceção removida', description: 'A pessoa volta a seguir o perfil dela.' });
+    },
+    onError: (error) => {
+      queryClient.invalidateQueries({ queryKey: ['capability-overrides'] });
+      toast({ title: 'Não foi possível remover', description: humanizeError(error), variant: 'destructive' });
     },
   });
 }
