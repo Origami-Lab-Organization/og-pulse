@@ -77,10 +77,12 @@ function SummaryCard({
 
 export default function MyProjects() {
   const navigate = useNavigate();
-  const { employee } = useAuth();
-  const isManager = employee?.is_gerente ?? false;
-  const isAdmin = employee?.isAdmin ?? false;
-  const isEmployeeOnly = !isManager && !isAdmin;
+  const { employee, can } = useAuth();
+  // Mesma decisão do widget do dashboard: quem enxerga o portfólio abre a tela completa,
+  // quem não, a visão de execução — e é o consultor que recebe o aviso de projeto em
+  // planejamento (CA-01). Governado pela capacidade do portfólio (ADR-0027).
+  const canSeePortfolio = can('portfolio:ler');
+  const isEmployeeOnly = !canSeePortfolio;
   const { data: projects = [], isLoading } = useMyProjects();
 
   const handleOpenDetail = (project: MyProjectSummary) => {
@@ -91,7 +93,7 @@ export default function MyProjects() {
       );
       return;
     }
-    if (isAdmin || isManager) {
+    if (canSeePortfolio) {
       navigate(`/projects/${project.id}`);
     } else {
       navigate(`/my-projects/${project.id}`);
