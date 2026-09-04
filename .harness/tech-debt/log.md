@@ -1,6 +1,19 @@
 # Log de Divida Tecnica
 
+> **Duas series de numeracao convivem neste arquivo.** A serie antiga (agosto, itens de
+> alocacao e telas) e a serie da onda de perfis (PUL-198, setembro) reiniciaram a contagem,
+> entao existe mais de um `TD-0011`, `TD-0016`, `TD-0017` e `TD-0018`. Referencia por
+> numero sozinho e ambigua: citar sempre a origem, como "TD-0017 (serie PUL-198)". Unificar
+> a numeracao e divida deste proprio log, e esta registrada abaixo como TD-0021.
+
 ## Aberto
+
+- TD-0021 (deste log, aberto em 04/09): a numeracao colidiu entre a serie de agosto e a da
+  onda de perfis, e ha ID repetido com significados diferentes. Enquanto nao for unificada,
+  toda citacao precisa dizer a serie. Correcao: renumerar uma das series em ordem
+  cronologica, atualizando as referencias em ADRs, checklist e mensagens de commit que
+  citam TD por numero.
+
 
 - TD-0020 (PUL-211, achados na correcao do bucket `employee-photos`): dois residuos que a
   correcao de tenant NAO resolve. (a) **28 objetos na raiz do bucket**, nenhum com pasta de
@@ -42,22 +55,6 @@
      projeto e timesheet; encaixa-las em `configuracao:editar` seria mentir sobre o escopo.
      Provavelmente pedem uma capacidade tipo `lancamento:desfazer`, e isso e decisao de
      vocabulario que vale discutir junto de P1–P6 (PUL-199).
-- TD-0016 — RESOLVIDO em 04/09 (migration 20260904180000). `strategy_guardrails.tenant_id`
-  era a unica coluna de isolamento de tenant do dominio de estrategia sem foreign key para
-  `tenants`; as cinco irmas tinham, com `ON DELETE CASCADE`. Verificado antes de aplicar:
-  3 linhas, nenhum orfao, nenhum nulo, e a coluna ja era `NOT NULL` — faltava so a
-  integridade referencial, agora com o mesmo `CASCADE` das irmas. Provado no harness:
-  antes, `INSERT` com tenant inexistente era aceito; depois, recusado.
-- TD-0017 — RESOLVIDO em 04/09 (migration 20260904190000). As cinco filhas de orcamento
-  (`budget_materials`, `budget_roles`, `budget_role_months`, `budget_subscriptions`,
-  `budget_suppliers`) liam por `user_belongs_to_tenant` enquanto o pai exige
-  `orcamento:ler`; agora leem pelo mesmo predicado do pai. **Nenhuma mudanca de acesso
-  hoje** — quem lia continua lendo, quem nao lia continua sem ler — porque a protecao
-  efetiva ja vinha da policy do pai via subquery. O que muda e a fragilidade, e o harness
-  demonstrou o cenario concreto: com uma policy permissiva acrescentada em `budgets` (RLS
-  soma por OR), o predicado ANTIGO abria as filhas para colaborador — 1 cargo, 1 material,
-  com `hourly_rate`, `hours` e `value`, suficientes para reconstruir o valor do orcamento
-  sem ler a tabela pai. Com o predicado NOVO, as filhas seguem fechadas.
 - TD-0018 (registrado em PUL-201 grupo 3, DECISAO DE PRODUTO pendente): a matriz diz que
   gerente edita projeto e financeiro "apenas onde e o gerente responsavel" (escopo PM), mas
   as policies VIGENTES de `projects`, `project_costs`, `project_commissions` etc. usam
@@ -101,22 +98,6 @@
   `strategy_guardrails`, e nao se sabe sem olhar o catalogo. Proximo passo, quando houver
   acesso de leitura ao banco: `SELECT ... FROM pg_constraint` nessas duas tabelas, e
   `pg_policies` para fechar tambem a lacuna INFERIDA de .harness/capability-matrix.md.
-- TD-0015 — RESOLVIDO em 02/09. `apps/mcp-activities` usava `SUPABASE_SERVICE_KEY`, que
-  bypassa RLS e com ela o `tenant_id`: um LLM lia e escrevia o kanban de qualquer tenant, e
-  nenhuma capacidade do ADR-0027 o alcancava. Migrado para o padrao de
-  `apps/mcp-drive/src/supabase.ts` — chave publicavel mais login com as credenciais da
-  propria pessoa, sessao 0600 em arquivo proprio. Junto com isso, `tenant_id` e autoria
-  (`created_by`, `changed_by`, `archived_by`) deixaram de ser parametro de tool: vinham do
-  modelo, que podia apontar outro tenant ou atribuir a mudanca a outra pessoa, e agora
-  derivam da sessao. Regra registrada em .harness/docs/architecture/integrations.md: MCP
-  nunca usa service_role.
-- TD-0011 (PUL-198, ADR-0027; issue: PUL-207): policy `Recruiters can read curriculos`
-  (20260817230000) checa `user_roles.role IN ('admin','manager','rh')` **sem
-  `tenant_id`** e sem restricao de path no bucket. Admin/gerente/RH de um tenant le
-  curriculo de candidato de qualquer outro tenant. Viola boundaries.md ("nao expor
-  dados entre tenants"). Todas as policies vizinhas da mesma migration tem o predicado
-  com tenant — parece omissao, nao decisao. Correcao independe da matriz de capacidades
-  e nao deveria esperar a onda. Divergencia D6 em .harness/capability-matrix.md.
 - TD-0012 (PUL-198, ADR-0027; issue: PUL-206): remover `employees.is_gerente` e
   `employees.system_role`, hoje fontes de papel concorrentes com `user_roles`.
   Consumidores vivos: policies de reembolso (20260319150000, modulo removido do produto
@@ -124,15 +105,11 @@
   (20260325130000) — este ultimo produz defeito observavel: usuario `manager` em
   `user_roles` com `is_gerente = false` nao e notificado de nova candidatura.
   `system_role` tem CHECK sem `rh`, ou seja nao representa o enum atual. Divergencia D3.
-- TD-0013 (PUL-198, ADR-0027; issue: PUL-208): consolidar `is_manager_in_tenant` e
-  `is_admin_or_manager` — corpos identicos desde 20260331013008
-  (`user_roles.role IN ('admin','manager')`). O nome `is_manager_in_tenant` sugere
-  recorte que a funcao nao faz, e a policy de `employees` que a usa foi escrita quando
-  o corpo era `employees.is_gerente = true`. Divergencia D2.
-
-- Preencher discovery completo do Harness com time, cliente, compliance e restricoes reais.
-- Revisar migrations Supabase antigas para identificar decisoes arquiteturais que merecem ADR.
-- Confirmar padrao oficial de lock/aprovacao de timesheets e documentar em pattern dedicado se necessario.
+  **Atualizacao 2026-09-04 (PUL-203):** as duas colunas passaram a ser DERIVADAS de
+  `user_roles` por trigger, e escrita direta nelas e ignorada. O defeito observavel descrito
+  acima deixou de ser possivel — `is_gerente` nao pode mais ficar `false` para quem e
+  `manager`, entao o trigger de candidatura notifica quem deve. O que resta e a REMOCAO das
+  colunas, que e a fase de contracao (PUL-206), mais o descarte da tabela de reembolso.
 - TD-0001: `allocationService.allocateToProject` / `deallocateFromProject` e a regra
   `canEditProject` do EmployeeAllocationPanel ficaram sem teste (testes desativados na
   sessao de 2026-06-19). E logica de negocio + autorizacao por recurso (ADR-0002/0005).
@@ -301,6 +278,72 @@
 
 
 ## Resolvido
+
+### TD-0011 — Leitura de curriculo era cross-tenant (serie PUL-198 / PUL-207)
+- **Status**: resolvido em 2026-09-04
+- **Como**: policy `Recruiters can read curriculos in their tenant` (20260902150000) passou a exigir `ur.tenant_id::text = (storage.foldername(name))[1]`, comparando em texto de proposito. Aplicada em producao; PUL-207 concluida.
+- **Registro original**:
+- TD-0011 (PUL-198, ADR-0027; issue: PUL-207): policy `Recruiters can read curriculos`
+  (20260817230000) checa `user_roles.role IN ('admin','manager','rh')` **sem
+  `tenant_id`** e sem restricao de path no bucket. Admin/gerente/RH de um tenant le
+  curriculo de candidato de qualquer outro tenant. Viola boundaries.md ("nao expor
+  dados entre tenants"). Todas as policies vizinhas da mesma migration tem o predicado
+  com tenant — parece omissao, nao decisao. Correcao independe da matriz de capacidades
+  e nao deveria esperar a onda. Divergencia D6 em .harness/capability-matrix.md.
+
+### TD-0013 — is_manager_in_tenant consolidada (serie PUL-198 / PUL-208)
+- **Status**: resolvido em 2026-09-04
+- **Como**: as duas funcoes de corpo identico foram consolidadas em `is_admin_or_manager` (20260902120000) e as policies dependentes recriadas, sem mudanca de acesso. O inventario resultante alimentou a virada da PUL-201. PUL-208 concluida.
+- **Registro original**:
+- TD-0013 (PUL-198, ADR-0027; issue: PUL-208): consolidar `is_manager_in_tenant` e
+  `is_admin_or_manager` — corpos identicos desde 20260331013008
+  (`user_roles.role IN ('admin','manager')`). O nome `is_manager_in_tenant` sugere
+  recorte que a funcao nao faz, e a policy de `employees` que a usa foi escrita quando
+  o corpo era `employees.is_gerente = true`. Divergencia D2.
+
+- Preencher discovery completo do Harness com time, cliente, compliance e restricoes reais.
+- Revisar migrations Supabase antigas para identificar decisoes arquiteturais que merecem ADR.
+- Confirmar padrao oficial de lock/aprovacao de timesheets e documentar em pattern dedicado se necessario.
+
+### TD-0015 — mcp-activities usava service_role (serie PUL-198)
+- **Status**: resolvido em 2026-09-04
+- **Como**: migrado para chave publicavel + login com credenciais da pessoa, no padrao de `apps/mcp-drive/src/supabase.ts`. O MCP passou a operar sob a RLS, entao capacidade e tenant valem para ele como para o navegador.
+- **Registro original**:
+- TD-0015 — RESOLVIDO em 02/09. `apps/mcp-activities` usava `SUPABASE_SERVICE_KEY`, que
+  bypassa RLS e com ela o `tenant_id`: um LLM lia e escrevia o kanban de qualquer tenant, e
+  nenhuma capacidade do ADR-0027 o alcancava. Migrado para o padrao de
+  `apps/mcp-drive/src/supabase.ts` — chave publicavel mais login com as credenciais da
+  propria pessoa, sessao 0600 em arquivo proprio. Junto com isso, `tenant_id` e autoria
+  (`created_by`, `changed_by`, `archived_by`) deixaram de ser parametro de tool: vinham do
+  modelo, que podia apontar outro tenant ou atribuir a mudanca a outra pessoa, e agora
+  derivam da sessao. Regra registrada em .harness/docs/architecture/integrations.md: MCP
+  nunca usa service_role.
+
+### TD-0016 — strategy_guardrails.tenant_id sem foreign key (serie PUL-198)
+- **Status**: resolvido em 2026-09-04
+- **Como**: FK para `tenants` com `ON DELETE CASCADE`, igual as cinco irmas do dominio (20260904180000). Verificado antes: 3 linhas, nenhum orfao, nenhum nulo.
+- **Registro original**:
+- TD-0016 — RESOLVIDO em 04/09 (migration 20260904180000). `strategy_guardrails.tenant_id`
+  era a unica coluna de isolamento de tenant do dominio de estrategia sem foreign key para
+  `tenants`; as cinco irmas tinham, com `ON DELETE CASCADE`. Verificado antes de aplicar:
+  3 linhas, nenhum orfao, nenhum nulo, e a coluna ja era `NOT NULL` — faltava so a
+  integridade referencial, agora com o mesmo `CASCADE` das irmas. Provado no harness:
+  antes, `INSERT` com tenant inexistente era aceito; depois, recusado.
+
+### TD-0017 — filhas de orcamento liam por predicado mais fraco que o pai (serie PUL-198)
+- **Status**: resolvido em 2026-09-04
+- **Como**: as cinco filhas passaram a ler por `orcamento:ler`, o mesmo predicado do pai (20260904190000). Nenhuma mudanca de acesso; o que saiu foi a fragilidade — o harness mostrou que uma policy permissiva acrescentada em `budgets` abria as filhas com o predicado antigo, e nao abre com o novo.
+- **Registro original**:
+- TD-0017 — RESOLVIDO em 04/09 (migration 20260904190000). As cinco filhas de orcamento
+  (`budget_materials`, `budget_roles`, `budget_role_months`, `budget_subscriptions`,
+  `budget_suppliers`) liam por `user_belongs_to_tenant` enquanto o pai exige
+  `orcamento:ler`; agora leem pelo mesmo predicado do pai. **Nenhuma mudanca de acesso
+  hoje** — quem lia continua lendo, quem nao lia continua sem ler — porque a protecao
+  efetiva ja vinha da policy do pai via subquery. O que muda e a fragilidade, e o harness
+  demonstrou o cenario concreto: com uma policy permissiva acrescentada em `budgets` (RLS
+  soma por OR), o predicado ANTIGO abria as filhas para colaborador — 1 cargo, 1 material,
+  com `hourly_rate`, `hours` e `value`, suficientes para reconstruir o valor do orcamento
+  sem ler a tabela pai. Com o predicado NOVO, as filhas seguem fechadas.
 
 ### TD-0017 — Lente "Projetos" do Meu Time mostrava lançamento numa tela de planejamento
 - **Status**: resolvido em 2026-08-17 (mesma sessão em que foi aberto)
