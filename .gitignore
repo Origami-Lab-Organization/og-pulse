@@ -32,3 +32,8 @@ dist-ssr
 .superpowers/
 .vercel
 .env*
+
+# Servidores de MCP empacotados: gerados no build (scripts/build-mcp-bundles.sh).
+# O install.sh em public/mcp/ é versionado; os .mjs e o manifesto, não.
+public/mcp/*.mjs
+public/mcp/manifest.json

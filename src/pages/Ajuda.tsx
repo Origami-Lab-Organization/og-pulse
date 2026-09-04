@@ -1,14 +1,18 @@
 /**
- * Central de Ajuda.
+ * Central de Ajuda, em abas por assunto.
  *
- * Duas decisões que valem explicar:
+ * Três decisões que valem explicar:
  *
- * 1. **O tópico segue a capacidade da rota** (ADR-0027). Ajuda de tela que a pessoa não abre
- *    não é neutra: ela sugere um acesso que a pessoa não tem e gera pedido de suporte para
- *    algo que o banco vai negar. Então a página mostra o Pulse que a pessoa realmente tem.
- * 2. **Todo tópico fala de MCP**, inclusive quando não existe ferramenta — nesse caso diz por
- *    que não existe. "Não há" documentado vale mais que silêncio, porque silêncio faz a
- *    pessoa procurar.
+ * 1. **Abas por assunto, e a primeira é o chat.** A lista única obrigava rolar um acordeão
+ *    de 20 itens para achar a tela. Com abas, a pessoa escolhe o assunto e vê de 2 a 6
+ *    tópicos. "Pelo chat" vem primeiro porque é a instrução que vale uma vez e destrava
+ *    todas as outras.
+ * 2. **A aba só existe se a pessoa tiver o que ler nela** (ADR-0027): cada tópico é
+ *    governado pela mesma capacidade da rota. Ajuda de tela que a pessoa não abre sugere um
+ *    acesso que ela não tem e gera pedido de suporte para algo que o banco vai negar.
+ * 3. **Busca atravessa as abas.** Quem busca não sabe em qual assunto está a resposta —
+ *    então, com texto na busca, o resultado é uma lista única com o assunto ao lado, e as
+ *    abas saem da frente.
  */
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -23,9 +27,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { HELP_GROUPS, type HelpTopic } from '@/content/helpTopics';
 import { McpSetupCard } from '@/components/help/McpSetupCard';
+
+const ABA_MCP = 'mcp';
 
 const SERVIDOR_LABEL: Record<string, string> = {
   drive: 'og-pulse-drive',
@@ -35,24 +42,12 @@ const SERVIDOR_LABEL: Record<string, string> = {
 function McpBloco({ topic }: { topic: HelpTopic }) {
   const { mcp } = topic;
 
-  if (!mcp.server) {
-    return (
-      <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Terminal className="h-4 w-4 text-muted-foreground" />
-          Pelo chat (MCP)
-        </div>
-        <p className="text-sm text-muted-foreground">{mcp.note}</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">
       <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
         <Terminal className="h-4 w-4 text-muted-foreground" />
-        Pelo chat (MCP)
-        <Badge variant="secondary">{SERVIDOR_LABEL[mcp.server]}</Badge>
+        Pelo chat
+        {mcp.server ? <Badge variant="secondary">{SERVIDOR_LABEL[mcp.server]}</Badge> : null}
       </div>
 
       {mcp.example ? (
@@ -72,7 +67,10 @@ function McpBloco({ topic }: { topic: HelpTopic }) {
           </p>
           <div className="flex flex-wrap gap-1.5">
             {mcp.tools.map((t) => (
-              <code key={t} className="rounded bg-background px-1.5 py-0.5 text-xs border border-border">
+              <code
+                key={t}
+                className="rounded border border-border bg-background px-1.5 py-0.5 text-xs"
+              >
                 {t}
               </code>
             ))}
@@ -112,6 +110,27 @@ function TopicoConteudo({ topic }: { topic: HelpTopic }) {
   );
 }
 
+function ListaDeTopicos({ topics }: { topics: HelpTopic[] }) {
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <Accordion type="multiple" className="w-full">
+          {topics.map((topic) => (
+            <AccordionItem key={topic.id} value={topic.id} className="px-4 last:border-b-0">
+              <AccordionTrigger className="text-left text-sm hover:no-underline">
+                {topic.title}
+              </AccordionTrigger>
+              <AccordionContent>
+                <TopicoConteudo topic={topic} />
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </CardContent>
+    </Card>
+  );
+}
+
 function combina(topic: HelpTopic, termo: string): boolean {
   if (!termo) return true;
   const alvo = [
@@ -130,19 +149,28 @@ function combina(topic: HelpTopic, termo: string): boolean {
 export default function Ajuda() {
   const { can } = useAuth();
   const [busca, setBusca] = useState('');
+  const [aba, setAba] = useState(ABA_MCP);
 
+  /** Os grupos que a pessoa pode ler, já sem os tópicos que o perfil dela não alcança. */
   const grupos = useMemo(
     () =>
       HELP_GROUPS.map((g) => ({
         ...g,
-        topics: g.topics.filter(
-          (t) => (!t.requiresCapability || can(t.requiresCapability)) && combina(t, busca),
-        ),
+        topics: g.topics.filter((t) => !t.requiresCapability || can(t.requiresCapability)),
       })).filter((g) => g.topics.length > 0),
-    [can, busca],
+    [can],
   );
 
-  const total = grupos.reduce((soma, g) => soma + g.topics.length, 0);
+  const buscando = busca.trim().length > 0;
+
+  const resultados = useMemo(() => {
+    if (!buscando) return [];
+    return grupos.flatMap((g) =>
+      g.topics.filter((t) => combina(t, busca)).map((t) => ({ grupo: g.label, topic: t })),
+    );
+  }, [buscando, busca, grupos]);
+
+  const totalTopicos = grupos.reduce((soma, g) => soma + g.topics.length, 0);
 
   return (
     <AppLayout
@@ -150,9 +178,7 @@ export default function Ajuda() {
       description="O que cada tela faz, como você usa e como pedir a mesma coisa pelo chat"
       breadcrumbs={[{ label: 'Ajuda' }]}
     >
-      <div className="max-w-3xl space-y-6">
-        <McpSetupCard />
-
+      <div className="max-w-3xl space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -164,46 +190,61 @@ export default function Ajuda() {
           />
         </div>
 
+        {buscando ? (
+          resultados.length === 0 ? (
+            <Card>
+              <CardHeader className="space-y-1.5">
+                <CardTitle className="text-base">Nada encontrado para “{busca.trim()}”</CardTitle>
+                <CardDescription>
+                  Tente o nome da tela (Pipeline, Portfólio, Timesheet) ou o que você quer fazer
+                  (apontar hora, subir arquivo, mover card).
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {resultados.length} {resultados.length === 1 ? 'resultado' : 'resultados'} em todos
+                os assuntos.
+              </p>
+              {resultados.map(({ grupo, topic }) => (
+                <div key={topic.id} className="space-y-1.5">
+                  <Badge variant="outline">{grupo}</Badge>
+                  <ListaDeTopicos topics={[topic]} />
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
+          <Tabs value={aba} onValueChange={setAba}>
+            <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+              <TabsTrigger value={ABA_MCP}>Pelo chat</TabsTrigger>
+              {grupos.map((g) => (
+                <TabsTrigger key={g.id} value={g.id}>
+                  {g.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <TabsContent value={ABA_MCP} className="mt-4">
+              <McpSetupCard />
+            </TabsContent>
+
+            {grupos.map((g) => (
+              <TabsContent key={g.id} value={g.id} className="mt-4 space-y-3">
+                <ListaDeTopicos topics={g.topics} />
+              </TabsContent>
+            ))}
+          </Tabs>
+        )}
+
         <p className="text-sm text-muted-foreground">
-          Você vê a ajuda das telas que o seu perfil abre. {total}{' '}
-          {total === 1 ? 'tópico disponível' : 'tópicos disponíveis'} para você. Precisa de uma tela
-          que não está aqui? Quem administra o tenant concede o acesso em Configurações → Perfis de
+          Você vê a ajuda das telas que o seu perfil abre: {totalTopicos}{' '}
+          {totalTopicos === 1 ? 'tópico' : 'tópicos'}, em{' '}
+          {grupos.length === 1 ? '1 assunto' : `${grupos.length} assuntos`}. Precisa de uma tela que
+          não está aqui? Quem administra o tenant concede o acesso em Configurações → Perfis de
           Acesso.
         </p>
-
-        {total === 0 ? (
-          <Card>
-            <CardHeader className="space-y-1.5">
-              <CardTitle className="text-base">Nada encontrado para “{busca}”</CardTitle>
-              <CardDescription>
-                Tente o nome da tela (Pipeline, Portfólio, Timesheet) ou o que você quer fazer
-                (apontar hora, subir arquivo, mover card).
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        ) : (
-          grupos.map((grupo) => (
-            <section key={grupo.id} className="space-y-2">
-              <h2 className="text-sm font-semibold text-muted-foreground">{grupo.label}</h2>
-              <Card>
-                <CardContent className="p-0">
-                  <Accordion type="multiple" className="w-full">
-                    {grupo.topics.map((topic) => (
-                      <AccordionItem key={topic.id} value={topic.id} className="px-4 last:border-b-0">
-                        <AccordionTrigger className="text-left text-sm hover:no-underline">
-                          {topic.title}
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <TopicoConteudo topic={topic} />
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                </CardContent>
-              </Card>
-            </section>
-          ))
-        )}
       </div>
     </AppLayout>
   );
