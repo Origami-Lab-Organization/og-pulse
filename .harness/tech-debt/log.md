@@ -82,6 +82,16 @@
      projeto e timesheet; encaixa-las em `configuracao:editar` seria mentir sobre o escopo.
      Provavelmente pedem uma capacidade tipo `lancamento:desfazer`, e isso e decisao de
      vocabulario que vale discutir junto de P1–P6 (PUL-199).
+- TD-0018 — RESOLVIDO em 04/09 (migrations 20260904210000 e 20260904220000), com a decisao
+  P4 respondida pelo negocio: gerente edita apenas o projeto que gerencia. As 20 policies de
+  `projeto:editar` passaram a compor capacidade E relacao; nas filhas o escopo entrou DENTRO
+  do EXISTS que resolve `projects p`, senao valeria para qualquer projeto do tenant. O
+  `has_role(admin)` de dentro de `can_manage_project` saiu, substituido pela capacidade
+  `projeto:gerir-qualquer` (so-admin) — um passo da aposentadoria do mecanismo antigo.
+  Impacto medido antes de aplicar: 27 de 174 pares pessoa x projeto perdem edicao, 2 pessoas
+  afetadas. A descricao de `projeto:editar` na tela deixou de prometer mais do que o banco
+  aplica.
+  **Registro original:**
 - TD-0018 (registrado em PUL-201 grupo 3, DECISAO DE PRODUTO pendente): a matriz diz que
   gerente edita projeto e financeiro "apenas onde e o gerente responsavel" (escopo PM), mas
   as policies VIGENTES de `projects`, `project_costs`, `project_commissions` etc. usam
