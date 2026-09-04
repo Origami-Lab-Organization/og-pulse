@@ -139,8 +139,8 @@ export const useHireCandidate = () => {
           cargo: candidate.vaga_titulo || 'A definir',
           cpf: '',
           data_admissao: today,
-          is_gerente: false,
-          system_role: 'user',
+          // system_role e is_gerente saem derivados de `user_roles` pelo banco (PUL-203);
+          // candidato aprovado entra sem papel nenhum, então derivam para 'user'/false.
           status: 'aguardando_confirmacao',
           tipo_contratacao: 'CLT',
           jornada_mensal: 176,
