@@ -2,6 +2,22 @@
 
 ## Aberto
 
+- TD-0020 (PUL-211, achados na correcao do bucket `employee-photos`): dois residuos que a
+  correcao de tenant NAO resolve. (a) **28 objetos na raiz do bucket**, nenhum com pasta de
+  tenant; 20 estao referenciados por `employees.foto_url` e 8 nao estao referenciados por
+  ninguem. A escrita neles passa a ser negada pela policy nova, o que e inofensivo — o fluxo
+  do produto nunca sobrescreve foto, sobe objeto novo com nome aleatorio e regrava
+  `foto_url`. Limpar os 8 orfaos exige a API de storage, nao SQL: renomear
+  `storage.objects.name` por SQL move o registro sem mover o arquivo, e a foto quebra.
+  (b) **o bucket e publico** (`storage.buckets.public = true`) e a policy de SELECT nao
+  filtra tenant, com `roles = public`. Para bucket publico isso e quase irrelevante na
+  pratica — a leitura por URL publica passa pelo CDN e nao chega a avaliar RLS — mas
+  significa que **qualquer pessoa com a URL ve a foto de qualquer tenant**, e as URLs sao
+  previsiveis o suficiente para constarem em `foto_url`. Fechar de verdade exige tornar o
+  bucket privado e servir por URL assinada, o que muda o carregamento de toda tela que
+  mostra avatar — decisao de produto, nao correcao de policy. Mesma situacao vale para
+  `company-logos`. Registrar e decidir; nao mexer por conta.
+
 - TD-0019 (PUL-201, lacuna de VOCABULARIO): a matriz tem capacidades de LEITURA bem definidas
   e quase nenhuma de ESCRITA so-admin. ~35 policies `has_role(admin)` de escrita ficaram fora da
   virada porque trocar por `pessoa:editar` ou `catalogo:editar` (Admin+Gerente) daria a gerente
