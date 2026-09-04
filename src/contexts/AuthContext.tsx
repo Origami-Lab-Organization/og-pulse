@@ -4,7 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { clearPrivatePwaCaches } from '@/lib/pwa';
 import { acquireMicrosoftIdToken } from '@/integrations/microsoft/msalClient';
 import { fetchMyCapabilities } from '@/services/capabilityService';
-import { hasAnyCapability, type CapabilityRequirement } from '@/lib/access/capabilities';
+import {
+  deriveLegacyRoleFlags,
+  hasAnyCapability,
+  resolveCapabilities,
+  type CapabilityRequirement,
+} from '@/lib/access/capabilities';
 
 interface EmployeeData {
   id: string;
@@ -62,6 +67,10 @@ interface AuthContextType {
   loading: boolean;
   /** Autenticou no Supabase, mas não há funcionário ativo correspondente. */
   accessDenied: boolean;
+  /** As capacidades não puderam ser confirmadas nesta carga — a tela pode estar incompleta. */
+  capabilitiesUnavailable: boolean;
+  /** Recarrega funcionário e capacidades. Usado pelo aviso de capacidades não confirmadas. */
+  refreshEmployee: () => Promise<void>;
   /** A pessoa tem a capacidade (ou qualquer uma da lista)? Decide renderização; a RLS decide acesso. */
   can: (required: CapabilityRequirement) => boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -90,6 +99,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
+  // Não foi possível confirmar as capacidades nesta carga. A interface avisa em vez
+  // de apresentar um sistema menor como se fosse o normal daquela pessoa.
+  const [capabilitiesUnavailable, setCapabilitiesUnavailable] = useState(false);
 
   const fetchEmployeeData = async (userId: string, opts?: { signOutIfInactive?: boolean }) => {
     if (!navigator.onLine) return readEmployeeSnapshot(userId);
@@ -135,15 +147,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Uma consulta só, e nenhuma leitura de papel: o mecanismo antigo foi aposentado
     // (PUL-206). `isAdmin`, `isRH` e `is_gerente` sobreviveram como conveniência de leitura
     // para as telas que ainda os consultam, e agora DERIVAM de capacidade — a mesma fonte
-    // que rotas e menus usam. Cada um está atrelado à capacidade que era equivalente ao
-    // papel: gerir perfis era o que só admin fazia, editar projeto era admin ou gerente, e
-    // ler candidatura era admin ou RH.
-    const capabilities = await fetchMyCapabilities(empData.tenant_id);
-    const has = (key: string) => capabilities.includes(key);
-
-    const isAdmin = has('pessoa:editar-papel');
-    const isManager = has('projeto:editar');
-    const isRH = has('candidatura:ler');
+    // que rotas e menus usam.
+    //
+    // Falha ao confirmar não vira "não pode nada": cai no último conjunto conhecido e
+    // sinaliza para a interface avisar, em vez de esconder o sistema em silêncio.
+    const fetched = await fetchMyCapabilities(empData.tenant_id);
+    const { capabilities, confirmed } = resolveCapabilities(
+      fetched,
+      readEmployeeSnapshot(userId)?.capabilities,
+    );
+    setCapabilitiesUnavailable(!confirmed);
+    const { isAdmin, isManager, isRH } = deriveLegacyRoleFlags(capabilities);
 
     const employeeData = {
       ...empData,
@@ -152,7 +166,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       isRH,
       capabilities,
     } as EmployeeData;
-    saveEmployeeSnapshot(userId, employeeData);
+    // Snapshot só grava conjunto confirmado. Gravar o fallback renovaria o TTL e
+    // deixaria um estado degradado válido por mais 24h.
+    if (confirmed) saveEmployeeSnapshot(userId, employeeData);
     return employeeData;
   };
 
@@ -166,6 +182,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUser(null);
       setSession(null);
     }
+  };
+
+  // Retentativa explícita: o aviso de capacidades não confirmadas oferece um botão em
+  // vez de exigir que a pessoa recarregue a página e perca o que estava fazendo.
+  const refreshEmployee = async () => {
+    const userId = user?.id;
+    if (!userId) return;
+    applyEmployeeResult(await fetchEmployeeData(userId));
   };
 
   useEffect(() => {
@@ -364,6 +388,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       employee,
       loading,
       accessDenied,
+      capabilitiesUnavailable,
+      refreshEmployee,
       can,
       signIn,
       signInWithMicrosoft,

@@ -265,7 +265,9 @@ describe('EmployeeAllocationPanel', () => {
     renderPanel(emptyEmployee);
 
     expect(screen.getByText('0% (Mínimo 40%)')).toBeInTheDocument();
-    expect(screen.getByText('0h / 160h cap.')).toBeInTheDocument();
+    // A cópia passou de "cap." para "capacidade"; o que o teste garante é o par
+    // base/capacidade sem NaN, não a abreviação.
+    expect(screen.getByText('0h / 160h capacidade')).toBeInTheDocument();
     expect(screen.getByText('Sem Atividade Registrada')).toBeInTheDocument();
     expect(screen.getByText('Disponível para novos projetos')).toBeInTheDocument();
     expect(screen.queryByText('NaN')).not.toBeInTheDocument();

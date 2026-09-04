@@ -61,9 +61,11 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { employee, loading: authLoading } = useAuth();
-  const isAdmin = employee?.isAdmin ?? false;
-  const isManager = employee?.is_gerente ?? false;
+  const { employee, can, loading: authLoading } = useAuth();
+  // Direto da capacidade, sem passar pelas conveniências herdadas do papel antigo:
+  // uma fonte só para menu, rota e aba (ADR-0027).
+  const isAdmin = can('pessoa:editar-papel');
+  const isManager = can('projeto:editar');
   const canAccessFullProject = isAdmin || isManager;
   const initialTab = canAccessFullProject
     ? searchParams.get("tab") || "overview"

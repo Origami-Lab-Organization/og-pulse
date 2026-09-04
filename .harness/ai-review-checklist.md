@@ -31,6 +31,24 @@
   trigger `prevent_employee_self_escalation` recusa a mudanca quando `auth.uid()` nao e
   admin, e numa migration `auth.uid()` e nulo.) Alem do stub, migration que toca dado
   existente vale um ensaio contra o schema real dentro de `BEGIN ... ROLLBACK`.
+- Migration REMOVE tabela, coluna ou funcao que o frontend hoje le? Entao ela nao pode
+  ir no mesmo deploy que o frontend que parou de ler. Nesta topologia a migration roda
+  DENTRO do build da Vercel (ADR-0026), antes de o frontend novo ser publicado: durante o
+  build, e em toda aba ja aberta, o frontend ANTIGO conversa com o schema NOVO. Expandir
+  (criar o novo, manter o antigo) num deploy; contrair (remover o antigo) no deploy
+  seguinte, depois de o frontend que nao depende mais dele estar no ar. (Aprendido em
+  PUL-206: `user_roles` foi removida no mesmo deploy que tirou a leitura dela; o front
+  antigo passou a ler zero papel, `isAdmin` e `is_gerente` viraram falso e um admin abriu
+  projeto vendo duas abas de dez.)
+- A tela trata "nao consegui confirmar permissao" diferente de "nao tem permissao"? Falha
+  de consulta que devolve lista vazia rebaixa acesso em silencio e e indistinguivel de
+  restricao legitima. `fetchMyCapabilities` devolve `null` na falha justamente para essa
+  distincao — quem consome cai no ultimo conjunto conhecido e avisa (ADR-0027).
+- Teste de tela mocka `useAuth`? Entao o mock precisa expor `can`, e nao so `employee`.
+  Mock sem `can` derruba o componente com "can is not a function" — e, quando o teste
+  afirma sobre texto de codigo (`readFileSync` do App.tsx), a assercao envelhece a cada
+  troca de mecanismo. Preferir assercao de comportamento sobre a config exportada
+  (`NAV_ITEMS`, `NAV_SECTIONS`, `HELP_GROUPS`).
 - A mudanca EDITA migration que ja foi mergeada? **Nunca.** Migration que saiu do branch e
   imutavel: o Supabase nao reaplica versao ja registrada em `schema_migrations`, entao o
   arquivo passa a mentir sobre o estado do banco e a migration seguinte quebra. Toda

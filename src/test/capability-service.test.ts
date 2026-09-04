@@ -17,9 +17,27 @@ describe('fetchMyCapabilities', () => {
     expect(rpcMock).toHaveBeenCalledWith('my_capabilities', { _tenant_id: 't-1' });
   });
 
-  it('erro do banco vira lista vazia (tela conservadora), com log', async () => {
-    rpcMock.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
+  it('sucesso não retenta', async () => {
+    rpcMock.mockResolvedValue({ data: [], error: null });
     await expect(fetchMyCapabilities('t-1')).resolves.toEqual([]);
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('falha transitória é coberta pela segunda tentativa', async () => {
+    rpcMock
+      .mockResolvedValueOnce({ data: null, error: { message: 'fetch failed' } })
+      .mockResolvedValueOnce({ data: ['financeiro:ler'], error: null });
+    await expect(fetchMyCapabilities('t-1')).resolves.toEqual(['financeiro:ler']);
+    expect(rpcMock).toHaveBeenCalledTimes(2);
+  });
+
+  // `null`, e não `[]`: quem chama precisa distinguir "não consegui confirmar" de
+  // "confirmei que não tem nenhuma". Tratar as duas como iguais foi o que escondeu as
+  // abas de um admin no deploy de PUL-206.
+  it('erro nas duas tentativas devolve null, com log, sem lançar', async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
+    await expect(fetchMyCapabilities('t-1')).resolves.toBeNull();
+    expect(rpcMock).toHaveBeenCalledTimes(2);
     expect(console.error).toHaveBeenCalled();
   });
 
