@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { EmployeeCostSummaryCard } from "@/components/employees/EmployeeCostSummaryCard";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { CostBreakdown } from "@/lib/employeeCostCalculator";
@@ -29,6 +30,7 @@ export function EmployeeSidebar({
   className,
 }: EmployeeSidebarProps) {
   const { toast } = useToast();
+  const { employee: currentEmployee } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
@@ -60,12 +62,23 @@ export function EmployeeSidebar({
   };
 
   const handleCropComplete = async (croppedBlob: Blob) => {
+    if (!currentEmployee?.tenant_id) {
+      toast({
+        title: "Erro",
+        description: "Sessão sem empresa identificada. Entre novamente para enviar a foto.",
+        variant: "destructive",
+      });
+      return;
+    }
     setUploadingPhoto(true);
     try {
-      const fileName = `${Date.now()}-avatar.jpg`;
+      // O tenant é o primeiro segmento do path porque a policy de escrita compara
+      // `(storage.foldername(name))[1]` com o tenant de quem sobe (PUL-211). Sem a pasta,
+      // o upload é negado.
+      const filePath = `${currentEmployee?.tenant_id}/${Date.now()}-avatar.jpg`;
       const { data, error } = await supabase.storage
         .from("employee-photos")
-        .upload(fileName, croppedBlob, { contentType: "image/jpeg" });
+        .upload(filePath, croppedBlob, { contentType: "image/jpeg" });
       if (error) {
         toast({
           title: "Erro",

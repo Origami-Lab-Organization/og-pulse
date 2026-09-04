@@ -482,14 +482,21 @@ const EmployeeFormDialog = ({
 
   // Handle crop complete - upload cropped image
   const handleCropComplete = async (croppedBlob: Blob) => {
+    if (!currentEmployee?.tenant_id) {
+      toast({ title: 'Erro', description: 'Sessão sem empresa identificada. Entre novamente para enviar a foto.', variant: 'destructive' });
+      return;
+    }
     setUploadingPhoto(true);
     
     try {
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.jpg`;
-      
+      // O tenant é o primeiro segmento do path porque a policy de escrita compara
+      // `(storage.foldername(name))[1]` com o tenant de quem sobe (PUL-211). Sem a pasta,
+      // o upload é negado.
+      const filePath = `${currentEmployee?.tenant_id}/${Date.now()}-${Math.random().toString(36).substring(2)}.jpg`;
+
       const { data, error } = await supabase.storage
         .from('employee-photos')
-        .upload(fileName, croppedBlob, { contentType: 'image/jpeg' });
+        .upload(filePath, croppedBlob, { contentType: 'image/jpeg' });
       
       if (error) {
         toast({ title: 'Erro', description: 'Falha ao enviar foto', variant: 'destructive' });
