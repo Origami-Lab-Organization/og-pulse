@@ -200,6 +200,22 @@ export const accessProfileService = {
    * Remove um papel. O banco recusa se houver pessoa atribuída (ON DELETE RESTRICT em
    * `user_tenant_roles.role_id`) ou se for o último com capacidade administrativa.
    */
+  /**
+   * Nome do perfil de uma pessoa. `null` quando ela não tem vínculo, ou quando quem
+   * consulta não pode ler o vínculo — a tela distingue os dois casos pelo estado da query,
+   * e nunca inventa um nome.
+   */
+  async getProfileNameForUser(userId: string, tenantId: string): Promise<string | null> {
+    const { data, error } = await db
+      .from('user_tenant_roles')
+      .select('tenant_roles!inner(name)')
+      .eq('user_id', userId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as { tenant_roles?: { name?: string } } | null)?.tenant_roles?.name ?? null;
+  },
+
   async deleteRole(roleId: string): Promise<void> {
     const { error } = await db.from('tenant_roles').delete().eq('id', roleId);
     if (error) throw error;

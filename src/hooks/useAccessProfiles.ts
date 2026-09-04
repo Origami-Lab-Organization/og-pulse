@@ -340,3 +340,23 @@ export function useDeleteOverride() {
     },
   });
 }
+
+/**
+ * Nome do perfil de acesso de UMA pessoa, para a ficha do colaborador exibir a verdade
+ * (PUL-202).
+ *
+ * `employees.system_role` só sabe dizer admin, manager ou user, então com papel
+ * customizado no tenant ela mente. Aqui o nome vem de `tenant_roles`, seja padrão ou
+ * customizado. Leitura liberada a quem tem `pessoa:ler-ficha-completa`, que é quem abre a
+ * ficha; atribuir perfil continua exigindo admin, na tela de Perfis de Acesso.
+ */
+export function useProfileNameForUser(userId: string | null | undefined) {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+
+  return useQuery({
+    queryKey: ['profile-name-for-user', tenantId, userId],
+    queryFn: () => accessProfileService.getProfileNameForUser(userId!, tenantId!),
+    enabled: !!tenantId && !!userId,
+  });
+}
