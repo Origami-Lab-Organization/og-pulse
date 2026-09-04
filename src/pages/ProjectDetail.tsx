@@ -66,6 +66,8 @@ export default function ProjectDetail() {
   // uma fonte só para menu, rota e aba (ADR-0027).
   const isAdmin = can('pessoa:editar-papel');
   const isManager = can('projeto:editar');
+  /** Alcanca projeto de que nao e o gerente responsavel — metade de `can_manage_project`. */
+  const canManageAnyProject = can('projeto:gerir-qualquer');
   const canAccessFullProject = isAdmin || isManager;
   const initialTab = canAccessFullProject
     ? searchParams.get("tab") || "overview"
@@ -155,7 +157,12 @@ export default function ProjectDetail() {
   const isCompleted = project.portfolio_stage === "completed";
   const isCancelled = project.status === "cancelled";
   const isProjectManager = project.manager_id === employee?.id;
-  const canManageProject = isAdmin || isProjectManager;
+  // Mesma pergunta que a policy de `projects` UPDATE faz:
+  //   has_capability('projeto:editar') AND can_manage_project(uid, id)
+  // e `can_manage_project` e "gerente do projeto OU projeto:gerir-qualquer". Usar `isAdmin`
+  // aqui divergia do banco: desligar `projeto:gerir-qualquer` na tela de perfis passaria a
+  // negar a gravacao sem a interface esconder o botao (PUL-201, TD-0018).
+  const canManageProject = isManager && (canManageAnyProject || isProjectManager);
   // Seguindo .harness/patterns/security.md e OWASP A01: gerente ve o tenant,
   // mas escrita no detalhe depende do projeto especifico.
   const canEdit = canManageProject && (isAdmin || !isCompleted);

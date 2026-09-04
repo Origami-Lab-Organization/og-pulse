@@ -15,10 +15,11 @@
 import type { ProjectWithRelations } from '@/types/project';
 
 /**
- * Espelha `can_manage_project(_user_id, _project_id)`
- * (supabase/migrations/20260619150002_project_contract_files.sql):
+ * Espelha a metade de relação de `can_manage_project(_user_id, _project_id)`
+ * (hoje em supabase/migrations/20260904210000_capability_gerir_qualquer_projeto.sql):
  *
- *   admin do tenant  OR  employees.auth_id = _user_id do employee em projects.manager_id
+ *   has_capability(_user_id, tenant, 'projeto:gerir-qualquer')
+ *   OR employees.auth_id = _user_id do employee em projects.manager_id
  *
  * Ou seja: **o único PM de um projeto é quem está em `projects.manager_id`.** Não existe
  * "PM por cargo" no banco.
@@ -70,15 +71,21 @@ export function isProjectTeamMember(
 }
 
 /**
- * Quem pode administrar o projeto: admin do tenant ou o gerente responsável.
+ * Quem pode administrar o projeto: quem alcança qualquer projeto, ou o gerente responsável.
  *
- * É o predicado completo de `can_manage_project`, incluindo a parte de admin — que os
- * helpers acima deixam de fora de propósito, para que cada um responda uma pergunta só.
+ * É o predicado completo de `can_manage_project`. O terceiro argumento era `isAdmin`, e
+ * isso deixou de espelhar o banco quando o escopo por projeto entrou (PUL-201/TD-0018):
+ * quem alcança projeto alheio é quem tem `projeto:gerir-qualquer`, capacidade configurável
+ * por perfil — não quem administra o sistema. Manter `isAdmin` aqui significaria que
+ * desligar o interruptor na tela de perfis faria o banco negar sem a interface perceber:
+ * o botão continuaria aparecendo e a gravação falharia.
+ *
+ * @param canManageAnyProject resultado de `can('projeto:gerir-qualquer')`.
  */
 export function canManageProject(
   project: Pick<ProjectWithRelations, 'manager_id'>,
   employeeId: string | undefined,
-  isAdmin: boolean,
+  canManageAnyProject: boolean,
 ): boolean {
-  return isAdmin || isProjectManager(project, employeeId);
+  return canManageAnyProject || isProjectManager(project, employeeId);
 }

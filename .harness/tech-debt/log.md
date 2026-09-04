@@ -8,6 +8,29 @@
 
 ## Aberto
 
+- TD-0027 (achado ao investigar "editei projeto que nao gerencia", 04/09): existem DOIS
+  tenants com o nome "Origami Lab". O de 21/01 tem 3 funcionarios, 0 projetos e 5 pessoas com
+  perfil; o de 27/01 tem 20 funcionarios e 24 projetos, e e o real. O primeiro parece residuo
+  da migracao do Lovable. Consequencia pratica: toda consulta agregada por nome de cliente
+  soma dois clientes, e a tela de perfis mostra dois conjuntos de "Admin/Gerente/RH/Colaborador".
+  Nao foi mexido — apagar tenant e destrutivo e precisa de decisao. Verificar antes se as 3
+  pessoas do residuo tem login ativo.
+
+- TD-0026 (achado ao alinhar tela e RLS, 04/09): `project_activity_settings` tem policy
+  `ALL` com apenas isolamento por cliente. Ou seja, qualquer pessoa do cliente escreve a
+  configuracao do quadro de QUALQUER projeto — colunas, WIP, sprints. A interface restringe a
+  quem pode administrar o projeto, entao a direcao e segura hoje, mas a barreira nao existe:
+  quem chamar a API direto passa. Mesma familia do achado dos cartoes de kanban. Correcao:
+  policy por `can_manage_project`, como as irmas `project_activity_tasks` e `project_folders`.
+
+- TD-0025 (achado ao alinhar tela e RLS, 04/09): a escrita de hora planejada em
+  `project_member_months` exige `financeiro:editar` por cliente, sem escopo de projeto. A
+  decisao de escopo do gerente ("edita so o que gerencia") vale para `projects` e para as 20
+  filhas que usam `can_manage_project`, mas NAO para hora planejada: ali um gerente alcanca
+  qualquer projeto do cliente. A tela ja restringe ao projeto proprio, entao ninguem esta
+  fazendo isso pela interface — a policy e que nao acompanha a decisao. Correcao: somar
+  `can_manage_project` ao predicado, medindo o impacto antes.
+
 - TD-0023 (achado ao expor lancamento de hora pelo MCP, 04/09): em `project_timesheets` as
   duas colunas de autoria apontam para tabelas DIFERENTES —
   `created_by` referencia `employees(id)` e `updated_by` referencia `auth.users(id)`. Passar
