@@ -20,6 +20,13 @@
 - Predicado de policy inclui `tenant_id`? Policy de storage tambem (ver TD-0011).
 - Existe risco de vazamento de dados pessoais, financeiros ou comerciais?
 - Regras de negocio alteradas tem teste ou validacao documentada?
+- Migration que escreve em tabela com TRIGGER de protecao foi provada com o trigger
+  presente? Stub que reproduz colunas e policies mas nao triggers prova o comportamento de
+  uma tabela que nao existe. (Aprendido em PUL-203: a reconciliacao passou no harness e
+  quebrou o deploy de producao com "Permission denied: cannot modify system_role" — o
+  trigger `prevent_employee_self_escalation` recusa a mudanca quando `auth.uid()` nao e
+  admin, e numa migration `auth.uid()` e nulo.) Alem do stub, migration que toca dado
+  existente vale um ensaio contra o schema real dentro de `BEGIN ... ROLLBACK`.
 - A mudanca EDITA migration que ja foi mergeada? **Nunca.** Migration que saiu do branch e
   imutavel: o Supabase nao reaplica versao ja registrada em `schema_migrations`, entao o
   arquivo passa a mentir sobre o estado do banco e a migration seguinte quebra. Toda
