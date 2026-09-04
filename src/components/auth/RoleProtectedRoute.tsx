@@ -2,21 +2,29 @@ import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import type { CapabilityRequirement } from '@/lib/access/capabilities';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
-  requireManager?: boolean;
+  /**
+   * Capacidade que governa a rota (ou lista em que qualquer uma basta). Decide só o que a
+   * pessoa VÊ — a policy de RLS decide o que ela acessa (ADR-0027).
+   */
+  requireCapability?: CapabilityRequirement;
+  /**
+   * Resíduo do modelo por papel: só `/admin` e `/admin-dashboard` ainda usam, porque
+   * "configurar o tenant" não tem capacidade no vocabulário (TD-0019, `configuracao:editar`).
+   * Não usar em rota nova — rota nova nasce com `requireCapability`.
+   */
   requireAdmin?: boolean;
-  requireRH?: boolean;
 }
 
 const RoleProtectedRoute = ({
   children,
-  requireManager = false,
+  requireCapability,
   requireAdmin = false,
-  requireRH = false,
 }: RoleProtectedRouteProps) => {
-  const { user, employee, loading } = useAuth();
+  const { user, employee, loading, can } = useAuth();
 
   if (loading) {
     return (
@@ -30,19 +38,11 @@ const RoleProtectedRoute = ({
     return <Navigate to="/login" replace />;
   }
 
-  // Check if user needs admin access
   if (requireAdmin && !employee.isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Check if user has manager/admin access
-  // is_gerente = true means the user is a manager or admin
-  if (requireManager && !employee.is_gerente && !employee.isAdmin) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // Check if user has RH/admin access
-  if (requireRH && !employee.isRH) {
+  if (requireCapability && !can(requireCapability)) {
     return <Navigate to="/dashboard" replace />;
   }
 

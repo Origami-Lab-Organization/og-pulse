@@ -1,24 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Clock,
-  CalendarDays,
-  Mail,
-  BarChart3,
-  Kanban,
-  FolderKanban,
-  FolderOpen,
-  ChevronDown,
-  Database,
-  Timer,
-  Users,
-  Settings,
-} from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
+import { NAV_ITEMS, isNavItemVisible, visibleChildren, type GroupItem } from './sidebar-nav';
 import logo from '@/assets/logo.png';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -37,107 +24,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 
-type LinkItem = {
-  kind: 'link';
-  title: string;
-  url: string;
-  icon: React.ElementType;
-  requiresManager?: boolean;
-  requiresAdmin?: boolean;
-  employeeOnly?: boolean;
-  notForAdmin?: boolean;
-  /** Só aparece rodando local (`npm run dev`) — escondido em produção sem remover o código. */
-  devOnly?: boolean;
-};
-
-type GroupItem = {
-  kind: 'group';
-  title: string;
-  url: string;
-  icon: React.ElementType;
-  requiresManager?: boolean;
-  requiresAdmin?: boolean;
-  /** Só aparece rodando local (`npm run dev`) — escondido em produção sem remover o código. */
-  devOnly?: boolean;
-  children: { title: string; url: string; requiresAdmin?: boolean; requiresRH?: boolean }[];
-};
-
-type SidebarNavItem = LinkItem | GroupItem;
-
-const NAV_ITEMS: SidebarNavItem[] = [
-  { kind: 'link', title: 'Dashboard', url: '/admin-dashboard', icon: LayoutDashboard, requiresAdmin: true },
-  { kind: 'link', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, notForAdmin: true },
-  { kind: 'link', title: 'Timesheet', url: '/my-timesheet', icon: Clock },
-  { kind: 'link', title: 'Agenda', url: '/minha-agenda', icon: CalendarDays, devOnly: true },
-  { kind: 'link', title: 'E-mails', url: '/meus-emails', icon: Mail, devOnly: true },
-  { kind: 'link', title: 'Meus Projetos', url: '/my-projects', icon: FolderOpen, employeeOnly: true },
-  { kind: 'link', title: 'Pipeline', url: '/pipeline', icon: Kanban, requiresManager: true },
-  {
-    kind: 'group',
-    title: 'Projetos',
-    url: '/projetos',
-    icon: FolderKanban,
-    requiresManager: true,
-    children: [
-      { title: 'Portfólio', url: '/projetos' },
-      { title: 'Alocações', url: '/projetos/alocacoes' },
-    ],
-  },
-  {
-    kind: 'group',
-    title: 'Análises',
-    url: '/analises/meu-time',
-    icon: BarChart3,
-    requiresManager: true,
-    children: [
-      { title: 'Meu Time', url: '/analises/meu-time' },
-      { title: 'Financeiro', url: '/analises/financeiro' },
-      { title: 'Comercial', url: '/analises/comercial' },
-      { title: 'Custo x Hora', url: '/analises/custo-hora', requiresAdmin: true },
-    ],
-  },
-  {
-    kind: 'group',
-    title: 'Cadastros',
-    url: '/clients',
-    icon: Database,
-    requiresManager: true,
-    children: [
-      { title: 'Serviços', url: '/comercial/servicos' },
-      { title: 'Clientes', url: '/clients' },
-    ],
-  },
-  {
-    kind: 'group',
-    title: 'Pessoas',
-    url: '/employees',
-    icon: Users,
-    requiresManager: true,
-    children: [
-      { title: 'Funcionários', url: '/employees' },
-      { title: 'Folha de Pagamento', url: '/analises/folha-pagamento', requiresAdmin: true },
-      { title: 'Desligamentos', url: '/rh/desligamentos' },
-    ],
-  },
-  {
-    kind: 'group',
-    title: 'Ponto Eletrônico',
-    url: '/jornada',
-    icon: Timer,
-    devOnly: true,
-    children: [
-      { title: 'Meu Ponto', url: '/jornada' },
-      { title: 'Aprovações', url: '/jornada/aprovacoes', requiresAdmin: true },
-      { title: 'Relatórios', url: '/jornada/relatorios', requiresRH: true },
-      { title: 'Auditoria', url: '/jornada/auditoria', requiresRH: true },
-      { title: 'Configurações', url: '/jornada/configuracoes', requiresAdmin: true },
-    ],
-  },
-  // O Portal do Admin concentra 7 abas de configuração (perfis de acesso, tabela de
-  // preços, financeiro, encargos, feriados, atividades, lembretes) e só era alcançável
-  // pelo menu do avatar — dois cliques, sem nada no menu lateral sugerindo que existisse.
-  { kind: 'link', title: 'Configurações', url: '/admin', icon: Settings, requiresAdmin: true },
-];
 
 function isChildActive(url: string, pathname: string) {
   return pathname === url || pathname.startsWith(url + '/');
@@ -152,24 +38,16 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const navigate = useNavigate();
-  const { employee } = useAuth();
+  const { employee, can } = useAuth();
 
-  const isManager = employee?.is_gerente ?? false;
   const isAdmin = employee?.isAdmin ?? false;
-  const isRH = employee?.isRH ?? false;
 
   const homeRoute = isAdmin ? '/admin-dashboard' : '/dashboard';
 
-  const isVisible = (item: SidebarNavItem): boolean => {
-    if (item.devOnly && !import.meta.env.DEV) return false;
-    if (item.requiresAdmin && !isAdmin) return false;
-    if (item.requiresManager && !isManager && !isAdmin) return false;
-    if (item.kind === 'link' && item.employeeOnly && (isManager || isAdmin)) return false;
-    if (item.kind === 'link' && item.notForAdmin && isAdmin) return false;
-    return true;
-  };
-
-  const visibleItems = NAV_ITEMS.filter(isVisible);
+  // O que aparece decide-se por capacidade (ADR-0027); `isAdmin` sobra só para a home e as
+  // entradas de configuração do tenant, que ainda não têm capacidade (TD-0019).
+  const visibility = { can, isAdmin, isDev: import.meta.env.DEV };
+  const visibleItems = NAV_ITEMS.filter((item) => isNavItemVisible(item, visibility));
 
   // Controlled open state for group collapsibles — initialized from current route
   const [openGroups, setOpenGroups] = useState<string[]>(() =>
@@ -275,10 +153,7 @@ export function AppSidebar() {
                       </CollapsibleTrigger>
                       <CollapsibleContent className="overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up">
                         <SidebarMenuSub>
-                          {item.children
-                            .filter((child) => !child.requiresAdmin || isAdmin)
-                            .filter((child) => !child.requiresRH || isRH)
-                            .map((child) => (
+                          {visibleChildren(item, visibility).map((child) => (
                             <SidebarMenuSubItem key={child.url}>
                               <SidebarMenuSubButton
                                 asChild

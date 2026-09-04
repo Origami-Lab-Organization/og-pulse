@@ -1,11 +1,13 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 import { getActiveTabs } from './nav-config';
 
 export function SubNavTabs() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const tabs = getActiveTabs(pathname);
+  const { can } = useAuth();
+  const tabs = getActiveTabs(pathname, can);
 
   if (!tabs) return null;
 
