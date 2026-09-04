@@ -14,29 +14,35 @@
  *    então, com texto na busca, o resultado é uma lista única com o assunto ao lado, e as
  *    abas saem da frente.
  */
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowUpRight, MessageSquare, Search, Terminal } from 'lucide-react';
-import { AppLayout } from '@/components/layout/AppLayout';
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowUpRight, MessageSquare, Search, Terminal } from "lucide-react";
+import { AppLayout } from "@/components/layout/AppLayout";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
-import { HELP_GROUPS, type HelpTopic } from '@/content/helpTopics';
-import { McpSetupCard } from '@/components/help/McpSetupCard';
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
+import { HELP_GROUPS, type HelpTopic } from "@/content/helpTopics";
+import { McpSetupCard } from "@/components/help/McpSetupCard";
 
-const ABA_MCP = 'mcp';
+const ABA_MCP = "mcp";
 
 const SERVIDOR_LABEL: Record<string, string> = {
-  drive: 'og-pulse-drive',
-  activities: 'og-pulse-activities',
+  drive: "og-pulse-drive",
+  activities: "og-pulse-activities",
 };
 
 function McpBloco({ topic }: { topic: HelpTopic }) {
@@ -47,7 +53,9 @@ function McpBloco({ topic }: { topic: HelpTopic }) {
       <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
         <Terminal className="h-4 w-4 text-muted-foreground" />
         Pelo chat
-        {mcp.server ? <Badge variant="secondary">{SERVIDOR_LABEL[mcp.server]}</Badge> : null}
+        {mcp.server ? (
+          <Badge variant="secondary">{SERVIDOR_LABEL[mcp.server]}</Badge>
+        ) : null}
       </div>
 
       {mcp.example ? (
@@ -57,13 +65,15 @@ function McpBloco({ topic }: { topic: HelpTopic }) {
         </p>
       ) : null}
 
-      {mcp.note ? <p className="text-sm text-muted-foreground">{mcp.note}</p> : null}
+      {mcp.note ? (
+        <p className="text-sm text-muted-foreground">{mcp.note}</p>
+      ) : null}
 
       {mcp.tools?.length ? (
         <div className="space-y-1.5">
           <p className="text-xs text-muted-foreground">
-            Ferramentas que atendem este assunto — você não precisa citá-las, elas são escolhidas
-            pelo pedido:
+            Ferramentas que atendem este assunto — você não precisa citá-las,
+            elas são escolhidas pelo pedido:
           </p>
           <div className="flex flex-wrap gap-1.5">
             {mcp.tools.map((t) => (
@@ -116,7 +126,11 @@ function ListaDeTopicos({ topics }: { topics: HelpTopic[] }) {
       <CardContent className="p-0">
         <Accordion type="multiple" className="w-full">
           {topics.map((topic) => (
-            <AccordionItem key={topic.id} value={topic.id} className="px-4 last:border-b-0">
+            <AccordionItem
+              key={topic.id}
+              value={topic.id}
+              className="px-4 last:border-b-0"
+            >
               <AccordionTrigger className="text-left text-sm hover:no-underline">
                 {topic.title}
               </AccordionTrigger>
@@ -137,18 +151,18 @@ function combina(topic: HelpTopic, termo: string): boolean {
     topic.title,
     topic.what,
     ...topic.how,
-    topic.mcp.example ?? '',
-    topic.mcp.note ?? '',
+    topic.mcp.example ?? "",
+    topic.mcp.note ?? "",
     ...(topic.mcp.tools ?? []),
   ]
-    .join(' ')
+    .join(" ")
     .toLowerCase();
   return alvo.includes(termo.toLowerCase().trim());
 }
 
 export default function Ajuda() {
   const { can } = useAuth();
-  const [busca, setBusca] = useState('');
+  const [busca, setBusca] = useState("");
   const [aba, setAba] = useState(ABA_MCP);
 
   /** Os grupos que a pessoa pode ler, já sem os tópicos que o perfil dela não alcança. */
@@ -156,7 +170,9 @@ export default function Ajuda() {
     () =>
       HELP_GROUPS.map((g) => ({
         ...g,
-        topics: g.topics.filter((t) => !t.requiresCapability || can(t.requiresCapability)),
+        topics: g.topics.filter(
+          (t) => !t.requiresCapability || can(t.requiresCapability),
+        ),
       })).filter((g) => g.topics.length > 0),
     [can],
   );
@@ -166,7 +182,9 @@ export default function Ajuda() {
   const resultados = useMemo(() => {
     if (!buscando) return [];
     return grupos.flatMap((g) =>
-      g.topics.filter((t) => combina(t, busca)).map((t) => ({ grupo: g.label, topic: t })),
+      g.topics
+        .filter((t) => combina(t, busca))
+        .map((t) => ({ grupo: g.label, topic: t })),
     );
   }, [buscando, busca, grupos]);
 
@@ -176,9 +194,12 @@ export default function Ajuda() {
     <AppLayout
       title="Central de Ajuda"
       description="O que cada tela faz, como você usa e como pedir a mesma coisa pelo chat"
-      breadcrumbs={[{ label: 'Ajuda' }]}
+      breadcrumbs={[{ label: "Ajuda" }]}
     >
-      <div className="max-w-3xl space-y-4">
+      {/* Largura toda: a coluna estreita deixava metade da tela vazia e cortava o comando
+          de instalação. Os blocos internos usam grade responsiva para a largura virar duas
+          colunas em telas grandes, em vez de linha de texto longa demais para ler. */}
+      <div className="space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -194,17 +215,20 @@ export default function Ajuda() {
           resultados.length === 0 ? (
             <Card>
               <CardHeader className="space-y-1.5">
-                <CardTitle className="text-base">Nada encontrado para “{busca.trim()}”</CardTitle>
+                <CardTitle className="text-base">
+                  Nada encontrado para “{busca.trim()}”
+                </CardTitle>
                 <CardDescription>
-                  Tente o nome da tela (Pipeline, Portfólio, Timesheet) ou o que você quer fazer
-                  (apontar hora, subir arquivo, mover card).
+                  Tente o nome da tela (Pipeline, Portfólio, Timesheet) ou o que
+                  você quer fazer (apontar hora, subir arquivo, mover card).
                 </CardDescription>
               </CardHeader>
             </Card>
           ) : (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                {resultados.length} {resultados.length === 1 ? 'resultado' : 'resultados'} em todos
+                {resultados.length}{" "}
+                {resultados.length === 1 ? "resultado" : "resultados"} em todos
                 os assuntos.
               </p>
               {resultados.map(({ grupo, topic }) => (
@@ -238,12 +262,12 @@ export default function Ajuda() {
           </Tabs>
         )}
 
-        <p className="text-sm text-muted-foreground">
-          Você vê a ajuda das telas que o seu perfil abre: {totalTopicos}{' '}
-          {totalTopicos === 1 ? 'tópico' : 'tópicos'}, em{' '}
-          {grupos.length === 1 ? '1 assunto' : `${grupos.length} assuntos`}. Precisa de uma tela que
-          não está aqui? Quem administra o tenant concede o acesso em Configurações → Perfis de
-          Acesso.
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          Você vê a ajuda das telas que o seu perfil abre: {totalTopicos}{" "}
+          {totalTopicos === 1 ? "tópico" : "tópicos"}, em{" "}
+          {grupos.length === 1 ? "1 assunto" : `${grupos.length} assuntos`}.
+          Precisa de uma tela que não está aqui? Quem administra o tenant
+          concede o acesso em Configurações → Perfis de Acesso.
         </p>
       </div>
     </AppLayout>

@@ -123,8 +123,16 @@ export const HELP_GROUPS: HelpGroup[] = [
         ],
         mcp: {
           server: 'drive',
-          tools: ['list_opportunities'],
-          example: 'Lista as oportunidades em negociação com valor estimado.',
+          tools: [
+            'list_opportunities',
+            'create_opportunity',
+            'update_opportunity',
+            'move_opportunity_stage',
+          ],
+          example:
+            'Cria uma oportunidade para a Acme, product studio, 80 mil estimados, e move a da Beta para negociação.',
+          note:
+            'Ganho e Perda não passam pelo chat: fechar negócio ativa o orçamento e cria o projeto, e dar perda arquiva e cancela os follow-ups pendentes. As duas ficam na tela, onde o Pulse pergunta o que falta decidir. Criar, editar e mover entre as etapas do funil e o Follow Up funcionam, dentro do que o seu perfil permite.',
         },
       },
       {

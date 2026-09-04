@@ -17,6 +17,10 @@
 - A mudanca le `employees.is_gerente` ou `employees.system_role`? Sao legado em remocao
   (ADR-0027, TD-0012 / PUL-206). Durante a transicao, usar `user_roles`; apos a virada de
   PUL-201, `has_capability`. Capacidade nova exige migration; atribui-la a um papel, nao.
+- A mudanca altera regra de ESCRITA de dominio que o MCP tambem escreve? Hoje Oportunidade
+  tem duas implementacoes — `src/services/leadService.ts` (tela) e
+  `apps/mcp-drive/src/writes.ts` (chat). Mexer em uma sem a outra cria divergencia silenciosa,
+  porque os dois continuam "funcionando" (TD-0022).
 - Predicado de policy inclui `tenant_id`? Policy de storage tambem (ver TD-0011).
 - Existe risco de vazamento de dados pessoais, financeiros ou comerciais?
 - Regras de negocio alteradas tem teste ou validacao documentada?
