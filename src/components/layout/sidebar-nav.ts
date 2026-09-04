@@ -34,14 +34,11 @@ export type LinkItem = {
   icon: LucideIcon;
   requiresCapability?: CapabilityRequirement;
   /**
-   * Resíduo do modelo por papel — só as entradas de configuração do tenant, até existir
-   * `configuracao:editar` (TD-0019). Não usar em item novo.
+   * Esconde de quem TEM a capacidade. Serve aos dois pares de entrada que se excluem:
+   * "Meus Projetos" para quem já vê o Portfólio, e o Dashboard do funcionário para quem
+   * tem o do admin. É identidade de tela, não permissão.
    */
-  requiresAdmin?: boolean;
-  /** Esconde de quem TEM a capacidade (ex.: "Meus Projetos" para quem já vê o Portfólio). */
   hiddenWhenCan?: CapabilityRequirement;
-  /** Home do funcionário; admin tem a própria. Identidade de tela, não permissão. */
-  notForAdmin?: boolean;
   /** Só aparece rodando local (`npm run dev`) — escondido em produção sem remover o código. */
   devOnly?: boolean;
 };
@@ -61,13 +58,12 @@ export type SidebarNavItem = LinkItem | GroupItem;
 
 export interface NavVisibilityContext {
   can: (required: CapabilityRequirement) => boolean;
-  isAdmin: boolean;
   isDev: boolean;
 }
 
 export const NAV_ITEMS: SidebarNavItem[] = [
-  { kind: 'link', title: 'Dashboard', url: '/admin-dashboard', icon: LayoutDashboard, requiresAdmin: true },
-  { kind: 'link', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, notForAdmin: true },
+  { kind: 'link', title: 'Dashboard', url: '/admin-dashboard', icon: LayoutDashboard, requiresCapability: 'configuracao:editar' },
+  { kind: 'link', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, hiddenWhenCan: 'configuracao:editar' },
   { kind: 'link', title: 'Timesheet', url: '/my-timesheet', icon: Clock },
   { kind: 'link', title: 'Agenda', url: '/minha-agenda', icon: CalendarDays, devOnly: true },
   { kind: 'link', title: 'E-mails', url: '/meus-emails', icon: Mail, devOnly: true },
@@ -133,7 +129,7 @@ export const NAV_ITEMS: SidebarNavItem[] = [
   // O Portal do Admin concentra 7 abas de configuração (perfis de acesso, tabela de
   // preços, financeiro, encargos, feriados, atividades, lembretes) e só era alcançável
   // pelo menu do avatar — dois cliques, sem nada no menu lateral sugerindo que existisse.
-  { kind: 'link', title: 'Configurações', url: '/admin', icon: Settings, requiresAdmin: true },
+  { kind: 'link', title: 'Configurações', url: '/admin', icon: Settings, requiresCapability: 'configuracao:editar' },
 ];
 
 export function visibleChildren(item: GroupItem, ctx: NavVisibilityContext): NavChild[] {
@@ -143,9 +139,7 @@ export function visibleChildren(item: GroupItem, ctx: NavVisibilityContext): Nav
 export function isNavItemVisible(item: SidebarNavItem, ctx: NavVisibilityContext): boolean {
   if (item.devOnly && !ctx.isDev) return false;
   if (item.kind === 'group') return visibleChildren(item, ctx).length > 0;
-  if (item.requiresAdmin && !ctx.isAdmin) return false;
   if (item.requiresCapability && !ctx.can(item.requiresCapability)) return false;
   if (item.hiddenWhenCan && ctx.can(item.hiddenWhenCan)) return false;
-  if (item.notForAdmin && ctx.isAdmin) return false;
   return true;
 }

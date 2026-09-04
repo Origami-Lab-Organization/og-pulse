@@ -60,12 +60,17 @@ describe('RoleProtectedRoute por capacidade', () => {
     expect(screen.getByText('conteúdo')).toBeInTheDocument();
   });
 
-  it('requireAdmin residual continua a valer para /admin', () => {
-    const { unmount } = renderAt(<RoleProtectedRoute requireAdmin><div>conteúdo</div></RoleProtectedRoute>);
+  // Desde o grupo 5 da PUL-201 não há escape por papel: as rotas de configuração do
+  // tenant também passam por capacidade, e `isAdmin` não abre nada.
+  it('ser admin não abre rota sem a capacidade que a governa', () => {
+    auth.employee!.isAdmin = true;
+    const { unmount } = renderAt(
+      <RoleProtectedRoute requireCapability="configuracao:editar"><div>conteúdo</div></RoleProtectedRoute>,
+    );
     expect(screen.getByText('dashboard')).toBeInTheDocument();
     unmount();
-    auth.employee!.isAdmin = true;
-    renderAt(<RoleProtectedRoute requireAdmin><div>conteúdo</div></RoleProtectedRoute>);
+    auth.employee!.capabilities = ['configuracao:editar'];
+    renderAt(<RoleProtectedRoute requireCapability="configuracao:editar"><div>conteúdo</div></RoleProtectedRoute>);
     expect(screen.getByText('conteúdo')).toBeInTheDocument();
   });
 

@@ -11,19 +11,9 @@ interface RoleProtectedRouteProps {
    * pessoa VÊ — a policy de RLS decide o que ela acessa (ADR-0027).
    */
   requireCapability?: CapabilityRequirement;
-  /**
-   * Resíduo do modelo por papel: só `/admin` e `/admin-dashboard` ainda usam, porque
-   * "configurar o tenant" não tem capacidade no vocabulário (TD-0019, `configuracao:editar`).
-   * Não usar em rota nova — rota nova nasce com `requireCapability`.
-   */
-  requireAdmin?: boolean;
 }
 
-const RoleProtectedRoute = ({
-  children,
-  requireCapability,
-  requireAdmin = false,
-}: RoleProtectedRouteProps) => {
+const RoleProtectedRoute = ({ children, requireCapability }: RoleProtectedRouteProps) => {
   const { user, employee, loading, can } = useAuth();
 
   if (loading) {
@@ -36,10 +26,6 @@ const RoleProtectedRoute = ({
 
   if (!user || !employee) {
     return <Navigate to="/login" replace />;
-  }
-
-  if (requireAdmin && !employee.isAdmin) {
-    return <Navigate to="/dashboard" replace />;
   }
 
   if (requireCapability && !can(requireCapability)) {

@@ -56,6 +56,7 @@ export interface CapabilityGroup {
 
 /** Rótulos de domínio para exibição. Nomenclatura das jornadas: Oportunidade/Pipeline. */
 export const DOMAIN_LABELS: Record<string, string> = {
+  configuracao: 'Configuração da empresa',
   financeiro: 'Financeiro de projeto',
   folha: 'Folha e remuneração',
   pessoas: 'Pessoas',

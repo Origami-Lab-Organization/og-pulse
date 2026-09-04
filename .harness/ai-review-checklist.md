@@ -11,9 +11,9 @@
 - A capacidade e mais permissiva que a RLS? Se sim, a tela mostra controle que o banco
   recusa — corrigir antes do merge (ADR-0027).
 - Rota nova usa `<RoleProtectedRoute requireCapability=...>` e o item de menu declara
-  `requiresCapability`? `requireAdmin` e `requiresAdmin` sao residuo do modelo por papel —
-  hoje so `/admin`, `/admin-dashboard` e `/rh/ferramentas-beneficios`, que esperam
-  `configuracao:editar` (TD-0019). Rota nova por papel nao passa (PUL-201, Cenario 4).
+  `requiresCapability`? Desde o grupo 5 da PUL-201 **nenhuma** rota e nenhum item de menu
+  decide por papel — `requireAdmin` e `requiresAdmin` nao existem mais nessas pecas. Rota
+  nova por papel nao passa. Capacidade nova exige migration; atribui-la a um papel, nao.
 - A mudanca le `employees.is_gerente` ou `employees.system_role`? Sao legado em remocao
   (ADR-0027, TD-0012 / PUL-206). Durante a transicao, usar `user_roles`; apos a virada de
   PUL-201, `has_capability`. Capacidade nova exige migration; atribui-la a um papel, nao.

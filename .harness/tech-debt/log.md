@@ -18,27 +18,30 @@
   mostra avatar — decisao de produto, nao correcao de policy. Mesma situacao vale para
   `company-logos`. Registrar e decidir; nao mexer por conta.
 
-- TD-0019 (PUL-201, lacuna de VOCABULARIO): a matriz tem capacidades de LEITURA bem definidas
-  e quase nenhuma de ESCRITA so-admin. ~35 policies `has_role(admin)` de escrita ficaram fora da
-  virada porque trocar por `pessoa:editar` ou `catalogo:editar` (Admin+Gerente) daria a gerente
-  o que hoje e so admin: employees INSERT/DELETE; employee_benefits/tools/versions escrita;
-  employee_terminations/payroll_adjustments/termination_documents ALL; payroll_profiles,
-  role_rates, financial_settings escrita; benefits, tools, company_holidays,
-  service_revenue_models; tenants UPDATE; timesheet_submissions DELETE. Tambem fora:
-  time_tracking_period_locks (admin OR rh — nenhuma capacidade de ponto tem esse conjunto com
-  semantica de "travar periodo"); vacation_requests (has_role(admin) sem capacidade so-admin
-  de ferias); strategy_cycles/objectives/key_results/checkins DELETE (admin OU gerente
-  hoje; `okr:editar` e so-admin no seed — virar daria ou tiraria acesso sem decisao; o DELETE
-  de `strategy_initiatives` virou no grupo 4d com `iniciativa:editar`, que e Admin+Gerente);
-  `project_team_rows`/`project_team_row_months` SELECT (termo `has_role(admin)` isolado ao
-  lado de `can_manage_project` OR membro — `alocacao:ler` e Admin+Gerente e mudaria o que
-  gerente ve); storage company-logos (Admin+Gerente escrevem logo do TENANT, nao de
-  cliente). Medido em producao em 2026-09-03, apos o grupo 4d: **57 policies** ainda
-  decidem por papel, 178 por capacidade. Proposta: duas
-  capacidades novas — `configuracao:editar` (parametros e cadastros-base do tenant, so Admin;
-  o projete.app tem EDITAR_CONFIGURACOES) e `pessoa:administrar` (criar, remover, encerrar
-  vinculo; so Admin) — e `ponto:travar-periodo` (Admin+RH). Decisao de vocabulario: entra na
-  matriz e vira migration de capacidade + virada dessas ~35.
+- TD-0019 (PUL-201, lacuna de VOCABULARIO): **resolvido em 2026-09-04 para 37 das 57
+  policies**, pelo grupo 5. Tres capacidades criadas — `configuracao:editar` (parametros e
+  cadastros-base do tenant, so Admin), `pessoa:administrar` (admitir, remover, encerrar
+  vinculo, so Admin) e `ponto:travar-periodo` (Admin + RH) — com seed derivado de quem hoje
+  tem `pessoa:editar-papel` e `ponto:auditar`, para nao depender de nome de papel. Paridade
+  zero no harness. **Continua aberto** para as 20 restantes, em tres grupos com naturezas
+  diferentes:
+  1. **Governanca do proprio mecanismo (7)** — `tenant_roles`, `role_capabilities`,
+     `user_tenant_roles`, `user_capability_overrides`, `user_roles`. Ficam em
+     `has_role('admin')` **por decisao**, nao por falta de vocabulario: quem administra o
+     mecanismo de capacidade nao deve ser decidido pelo proprio mecanismo, senao uma
+     configuracao ruim tranca o tenant fora da administracao, e a invariante do ultimo
+     administrador cobre so `pessoa:editar-papel`. Registrado na secao 9 da matriz.
+  2. **Predicado composto, decisao de politica pendente (9)** — os 4 `DELETE` de
+     `strategy_cycles/objectives/key_results/checkins` (admin OU gerente hoje, mas
+     `okr:editar` e so-admin no seed), `vacation_requests` (I/S/U, misturam admin, proprio
+     registro e aprovador designado) e `project_team_rows`/`project_team_row_months`
+     SELECT (`has_role(admin)` isolado ao lado de `can_manage_project` OR membro).
+  3. **Admin-only ainda sem capacidade que os represente (4)** — `project_edit_logs`
+     INSERT, `project_financials` DELETE, `project_timesheet_submissions` DELETE e
+     `timesheet_submissions` DELETE. Sao valvulas de escape administrativas em dominio de
+     projeto e timesheet; encaixa-las em `configuracao:editar` seria mentir sobre o escopo.
+     Provavelmente pedem uma capacidade tipo `lancamento:desfazer`, e isso e decisao de
+     vocabulario que vale discutir junto de P1–P6 (PUL-199).
 - TD-0016 (achado no catalogo de producao, PUL-209): `strategy_guardrails.tenant_id` **nao tem
   foreign key** para `tenants`. Dos dois trilhos de migration duplicados (TD-0014), o aplicado
   em producao foi o sem FK (20260428124325). Coluna de isolamento de tenant sem integridade
