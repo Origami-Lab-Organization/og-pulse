@@ -36,6 +36,7 @@ export const CAPABILITY_KEYS = [
   'horas-projeto:ler',
   'iniciativa:editar',
   'lancamento:desfazer',
+  'marca:editar',
   'margem:ler',
   'margem:ler-detalhe-mao-de-obra',
   'okr:editar',

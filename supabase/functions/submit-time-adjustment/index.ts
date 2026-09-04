@@ -164,11 +164,9 @@ serve(async (req) => {
     });
 
     // Notifica admins do tenant (aprovação é exclusiva do admin — sem etapa de gestor/RH).
+    // Aprovar ajuste de ponto é `ponto:aprovar`, e é quem deve ser avisado (PUL-206).
     const { data: adminRoles } = await adminClient
-      .from("user_roles")
-      .select("user_id")
-      .eq("tenant_id", employee.tenant_id)
-      .eq("role", "admin");
+      .rpc("users_with_capability", { _tenant_id: employee.tenant_id, _capability: "ponto:aprovar" });
 
     const adminAuthIds = [...new Set((adminRoles ?? []).map((r: { user_id: string }) => r.user_id))];
     if (adminAuthIds.length > 0) {

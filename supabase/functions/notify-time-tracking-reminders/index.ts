@@ -48,11 +48,9 @@ serve(async (req) => {
           .maybeSingle();
 
         if (!lock) {
+          // Ver ponto de terceiro é quem acompanha a jornada do time (PUL-206).
           const { data: roleRows } = await supabase
-            .from("user_roles")
-            .select("user_id")
-            .eq("tenant_id", tenant.id)
-            .in("role", ["admin", "rh"]);
+            .rpc("users_with_capability", { _tenant_id: tenant.id, _capability: "ponto:ler-terceiro" });
 
           const authIds = [...new Set((roleRows ?? []).map((r: { user_id: string }) => r.user_id))];
           if (authIds.length > 0) {
@@ -114,10 +112,7 @@ serve(async (req) => {
 
       if (staleRequests && staleRequests.length > 0) {
         const { data: adminRoles } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .eq("tenant_id", tenant.id)
-          .eq("role", "admin");
+          .rpc("users_with_capability", { _tenant_id: tenant.id, _capability: "ponto:aprovar" });
 
         const adminAuthIds = [...new Set((adminRoles ?? []).map((r: { user_id: string }) => r.user_id))];
         if (adminAuthIds.length > 0) {

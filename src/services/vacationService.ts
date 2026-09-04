@@ -51,14 +51,8 @@ async function fetchActiveProjectManagerIds(employeeId: string): Promise<string[
 }
 
 async function fetchAdminEmployeeIds(tenantId: string): Promise<string[]> {
-  const { data: roles } = await supabase
-    .from('user_roles' as any)
-    .select('user_id')
-    .eq('tenant_id', tenantId)
-    .eq('role', 'admin');
-  const userIds = ((roles || []) as any[]).map((r) => r.user_id);
-  if (userIds.length === 0) return [];
-
+  // A consulta a `user_roles` que existia aqui só servia para saber SE havia admin, e a RPC
+  // abaixo já devolve a lista vazia nesse caso. Mecanismo antigo aposentado (PUL-206).
   // Ids via RPC: mapear auth_id -> employee.id exigia ler employees de terceiros,
   // o que a policy de co-membro concedia (removida em PUL-162) e já falhava
   // quando o admin não compartilhava projeto com o solicitante.

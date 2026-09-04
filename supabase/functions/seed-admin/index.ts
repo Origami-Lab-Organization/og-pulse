@@ -113,13 +113,24 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('Employee created:', employee.id);
 
     // 4. Create admin role
-    const { error: roleError } = await adminClient
-      .from('user_roles')
-      .insert({
-        user_id: authUser.user.id,
-        tenant_id: tenant.id,
-        role: 'admin',
-      });
+    // O papel passa a ser gravado no modelo novo: perfil do tenant, não papel global
+    // (PUL-206). O perfil é resolvido pelo nome, e o tenant nasce com os quatro padrão
+    // (trigger em `tenants`), então a busca sempre encontra.
+    const nomeDoPerfil =
+      'admin' === "admin" ? "Admin" : 'admin' === "manager" ? "Gerente" : 'admin' === "rh" ? "RH" : "Colaborador";
+
+    const { data: perfil } = await adminClient
+      .from("tenant_roles")
+      .select("id")
+      .eq("tenant_id", tenant.id)
+      .eq("name", nomeDoPerfil)
+      .maybeSingle();
+
+    const { error: roleError } = await adminClient.from("user_tenant_roles").insert({
+      user_id: authUser.user.id,
+      tenant_id: tenant.id,
+      role_id: perfil?.id ?? null,
+    });
 
     if (roleError) {
       console.error('Error creating role:', roleError);

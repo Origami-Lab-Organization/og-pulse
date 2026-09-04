@@ -12,7 +12,9 @@ const ALLOWED_TABLES = new Set([
   'activity_timesheets', 'activity_types', 'clients', 'company_holidays', 'employees',
   'personal_kanban_card_tags', 'personal_kanban_cards', 'personal_kanban_columns', 'personal_kanban_tags',
   'project_activity_cards', 'project_members', 'project_timesheets', 'projects',
-  'tenants', 'user_roles',
+  // `user_roles` saiu com a aposentadoria do mecanismo antigo (PUL-206). O que o app lê
+  // agora é o perfil e as capacidades, resolvidos por RPC — que não entram neste cache.
+  'tenants', 'user_tenant_roles',
 ]);
 
 cleanupOutdatedCaches();

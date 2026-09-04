@@ -39,11 +39,10 @@ async function getAlertRecipients(
   tenantId: string,
   employeeId: string,
 ): Promise<string[]> {
+  // Quem recebe aviso de marcação é quem pode ver ponto de terceiro — a capacidade diz
+  // isso melhor que a lista de papéis, e sobrevive a papel customizado (PUL-206).
   const { data: roleRows } = await adminClient
-    .from("user_roles")
-    .select("user_id")
-    .eq("tenant_id", tenantId)
-    .in("role", ["admin", "rh"]);
+    .rpc("users_with_capability", { _tenant_id: tenantId, _capability: "ponto:ler-terceiro" });
 
   const authIds = [...new Set((roleRows ?? []).map((r: { user_id: string }) => r.user_id))];
   if (authIds.length === 0) return [employeeId];

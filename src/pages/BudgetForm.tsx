@@ -316,9 +316,12 @@ export default function BudgetForm() {
 
   const sendMarginApprovalNotifications = async (budgetId: string, budgetTitle: string) => {
     try {
-      const { data: adminRoles } = await supabase
-        .from('user_roles' as any).select('user_id')
-        .eq('tenant_id', employee!.tenant_id).eq('role', 'admin');
+      // Quem aprova margem abaixo do mínimo é quem edita orçamento com alçada de admin —
+      // a capacidade responde isso, e sobrevive a papel customizado (PUL-206).
+      const { data: adminRoles } = await supabase.rpc('users_with_capability' as any, {
+        _tenant_id: employee!.tenant_id,
+        _capability: 'orcamento:editar',
+      } as any);
       if (!adminRoles || (adminRoles as any[]).length === 0) return;
       const adminUserIds = (adminRoles as any[]).map((a: any) => a.user_id);
       const { data: adminEmps } = await supabase

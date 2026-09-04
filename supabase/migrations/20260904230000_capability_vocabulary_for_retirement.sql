@@ -22,6 +22,9 @@ INSERT INTO public.capabilities (key, domain, label, is_sensitive, description) 
   ('lancamento:desfazer', 'financeiro',
    'Desfazer lançamento e submissão', true,
    'Apagar submissão de timesheet, remover lançamento financeiro de projeto e registrar correção no log de edição. É a válvula administrativa para desfazer o que já foi fechado.'),
+  ('marca:editar', 'configuracao',
+   'Trocar logo e identidade visual da empresa', false,
+   'Subir, substituir e apagar o logotipo do tenant. É a identidade visual da própria empresa, não de cliente.'),
   ('alocacao:ler-tudo', 'alocacao',
    'Ver a alocação de qualquer projeto', false,
    'Alcança a planilha de equipe de projeto de que a pessoa não é gerente nem participante. Quem só precisa ver onde atua usa alocacao:ler.')
@@ -39,8 +42,9 @@ WHERE rc.capability = 'pessoa:editar-papel' AND rc.enabled
 ON CONFLICT (role_id, capability) DO NOTHING;
 
 INSERT INTO public.role_capabilities (role_id, capability, enabled)
-SELECT rc.role_id, 'estrategia:editar', true
+SELECT rc.role_id, c.key, true
 FROM public.role_capabilities rc
+CROSS JOIN (VALUES ('estrategia:editar'), ('marca:editar')) AS c(key)
 WHERE rc.capability = 'iniciativa:editar' AND rc.enabled
 ON CONFLICT (role_id, capability) DO NOTHING;
 
@@ -54,7 +58,8 @@ WHERE o.capability = 'pessoa:editar-papel' AND o.enabled
 ON CONFLICT (user_id, tenant_id, capability) DO NOTHING;
 
 INSERT INTO public.user_capability_overrides (user_id, tenant_id, capability, enabled, reason)
-SELECT DISTINCT o.user_id, o.tenant_id, 'estrategia:editar', true, 'espelhamento de user_roles (PUL-209)'
+SELECT DISTINCT o.user_id, o.tenant_id, c.key, true, 'espelhamento de user_roles (PUL-209)'
 FROM public.user_capability_overrides o
+CROSS JOIN (VALUES ('estrategia:editar'), ('marca:editar')) AS c(key)
 WHERE o.capability = 'iniciativa:editar' AND o.enabled
 ON CONFLICT (user_id, tenant_id, capability) DO NOTHING;
