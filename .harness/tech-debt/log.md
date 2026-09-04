@@ -42,19 +42,22 @@
      projeto e timesheet; encaixa-las em `configuracao:editar` seria mentir sobre o escopo.
      Provavelmente pedem uma capacidade tipo `lancamento:desfazer`, e isso e decisao de
      vocabulario que vale discutir junto de P1–P6 (PUL-199).
-- TD-0016 (achado no catalogo de producao, PUL-209): `strategy_guardrails.tenant_id` **nao tem
-  foreign key** para `tenants`. Dos dois trilhos de migration duplicados (TD-0014), o aplicado
-  em producao foi o sem FK (20260428124325). Coluna de isolamento de tenant sem integridade
-  referencial: nada impede guardrail apontando para tenant inexistente. Correcao: migration
-  nova com `ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY (tenant_id) REFERENCES tenants(id)`,
-  precedida de `SELECT` que confirme zero orfaos — se houver, decidir destino antes.
-- TD-0017 (achado em PUL-201 grupo 2): o SELECT de `budget_materials`, `budget_roles` e
-  `budget_role_months` usa `user_belongs_to_tenant` via EXISTS em `budgets`, enquanto o pai
-  exige `is_admin_or_manager` (hoje `has_capability('orcamento:ler')`). NAO vaza — subquery
-  em policy respeita a RLS do pai, provado em harness (colaborador le 0). Mas o predicado e
-  redundante e FRAGIL: afrouxar `budgets` abre as filhas, que carregam `hourly_rate`, `hours`
-  e `value`, suficientes para reconstruir o valor do orcamento. Alinhar as filhas ao pai
-  (`orcamento:ler`) e correcao de politica, separada da virada de mecanismo.
+- TD-0016 — RESOLVIDO em 04/09 (migration 20260904180000). `strategy_guardrails.tenant_id`
+  era a unica coluna de isolamento de tenant do dominio de estrategia sem foreign key para
+  `tenants`; as cinco irmas tinham, com `ON DELETE CASCADE`. Verificado antes de aplicar:
+  3 linhas, nenhum orfao, nenhum nulo, e a coluna ja era `NOT NULL` — faltava so a
+  integridade referencial, agora com o mesmo `CASCADE` das irmas. Provado no harness:
+  antes, `INSERT` com tenant inexistente era aceito; depois, recusado.
+- TD-0017 — RESOLVIDO em 04/09 (migration 20260904190000). As cinco filhas de orcamento
+  (`budget_materials`, `budget_roles`, `budget_role_months`, `budget_subscriptions`,
+  `budget_suppliers`) liam por `user_belongs_to_tenant` enquanto o pai exige
+  `orcamento:ler`; agora leem pelo mesmo predicado do pai. **Nenhuma mudanca de acesso
+  hoje** — quem lia continua lendo, quem nao lia continua sem ler — porque a protecao
+  efetiva ja vinha da policy do pai via subquery. O que muda e a fragilidade, e o harness
+  demonstrou o cenario concreto: com uma policy permissiva acrescentada em `budgets` (RLS
+  soma por OR), o predicado ANTIGO abria as filhas para colaborador — 1 cargo, 1 material,
+  com `hourly_rate`, `hours` e `value`, suficientes para reconstruir o valor do orcamento
+  sem ler a tabela pai. Com o predicado NOVO, as filhas seguem fechadas.
 - TD-0018 (registrado em PUL-201 grupo 3, DECISAO DE PRODUTO pendente): a matriz diz que
   gerente edita projeto e financeiro "apenas onde e o gerente responsavel" (escopo PM), mas
   as policies VIGENTES de `projects`, `project_costs`, `project_commissions` etc. usam
