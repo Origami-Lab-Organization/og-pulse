@@ -388,33 +388,18 @@ export const employeeService = {
 
     const updatedEmployee = data as EmployeeDB;
 
-    // `user_roles` é a fonte de verdade do papel: é o que a RLS checa e é de onde o banco
-    // deriva a exibição (PUL-203). Esta é a única escrita de papel que a aplicação faz.
-    if (updates.systemRole !== undefined && updatedEmployee.auth_id) {
-      const { error: roleDeleteError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", updatedEmployee.auth_id)
-        .eq("tenant_id", updatedEmployee.tenant_id);
-
-      if (roleDeleteError) {
-        console.error("Error clearing previous user role:", roleDeleteError);
-        throw roleDeleteError;
-      }
-
-      const { error: roleInsertError } = await supabase
-        .from("user_roles")
-        .insert({
-          user_id: updatedEmployee.auth_id,
-          tenant_id: updatedEmployee.tenant_id,
-          role: updates.systemRole,
-        });
-
-      if (roleInsertError) {
-        console.error("Error updating user role:", roleInsertError);
-        throw roleInsertError;
-      }
-    }
+    // O PAPEL NÃO É MAIS ESCRITO AQUI (PUL-202).
+    //
+    // Este bloco fazia `DELETE` de todos os papéis da pessoa no tenant e um `INSERT` de um
+    // só, o que impunha cardinalidade 1 no código e destruía acumulação: dar RH a um
+    // gerente tirava o papel de gerente. Pior, depois da PUL-204 ele apagava papel
+    // CUSTOMIZADO — salvar a ficha de alguém com o papel "Gerente de Pessoas" derrubava a
+    // pessoa para "Colaborador" e de 41 capacidades para 11, sem aviso, porque o
+    // espelhamento (PUL-209) recalcula o perfil a partir de `user_roles`.
+    //
+    // Perfil de acesso agora se atribui num lugar só: Configurações → Perfis de Acesso,
+    // aba Pessoas, onde estão todos os papéis do tenant e não apenas os três valores que
+    // `system_role` sabe representar. A ficha exibe o perfil, não o edita.
 
     // Create a new version if requested (for financial/charge changes)
     if (createNewVersion && oldEmployee) {

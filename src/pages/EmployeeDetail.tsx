@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,12 +12,11 @@ import {
   useEmployeeBenefits,
   useEmployeeTools,
 } from "@/hooks/useEmployees";
+import { useProfileNameForUser } from "@/hooks/useAccessProfiles";
 import { CreateEmployeeInput } from "@/services/employeeService";
 import {
   ContractType,
   CONTRACT_TYPE_LABELS,
-  SystemRole,
-  SYSTEM_ROLE_LABELS,
   PixKeyType,
   PIX_KEY_TYPE_LABELS,
   BankAccountType,
@@ -123,8 +122,6 @@ const baseFormSchema = z.object({
   dataAdmissao: z.string().min(1, "Data de admissão é obrigatória"),
   dataNascimento: z.string().min(1, "Data de nascimento é obrigatória"),
   fotoUrl: z.string().optional(),
-  isGerente: z.boolean(),
-  systemRole: z.enum(["admin", "manager", "user"] as const),
   alocaEmProjetos: z.boolean(),
   status: z.enum([
     "ativo",
@@ -258,6 +255,9 @@ const EmployeeDetail = () => {
   const { employee: currentEmployee } = useAuth();
 
   const { data: employee, isLoading: loadingEmployee } = useEmployeeById(id);
+  // O perfil de acesso é do VÍNCULO (conta), não do cadastro — por isso a consulta é por
+  // `authId`. Quem não tem conta não tem perfil, e a ficha diz isso (PUL-202).
+  const profileNameQuery = useProfileNameForUser(employee?.authId);
   const { data: versions = [], isLoading: versionsLoading } =
     useEmployeeVersions(id);
   const { data: payrollProfile } = usePayrollProfile();
@@ -305,8 +305,6 @@ const EmployeeDetail = () => {
       dataAdmissao: todayLocalDateString(),
       dataNascimento: "",
       fotoUrl: "",
-      isGerente: false,
-      systemRole: "user",
       alocaEmProjetos: true,
       status: "aguardando_confirmacao",
       tipoContratacao: "CLT",
@@ -342,21 +340,12 @@ const EmployeeDetail = () => {
   const valorContratoPj = form.watch("valorContratoPj");
   const proLabore = form.watch("proLabore");
   const dividendos = form.watch("dividendos");
-  const systemRole = form.watch("systemRole");
   const dataAdmissao = form.watch("dataAdmissao");
   const contratoExperiencia = form.watch("contratoExperiencia");
   const experienciaPeriodo1Fim = form.watch("experienciaPeriodo1Fim");
   const experienciaProrrogado = form.watch("experienciaProrrogado");
   const experienciaPeriodo2Fim = form.watch("experienciaPeriodo2Fim");
 
-  // Sync isGerente based on systemRole
-  useEffect(() => {
-    if (systemRole === "admin" || systemRole === "manager") {
-      form.setValue("isGerente", true);
-    } else {
-      form.setValue("isGerente", false);
-    }
-  }, [systemRole, form]);
 
   // Populate form when employee loads
   useEffect(() => {
@@ -370,8 +359,6 @@ const EmployeeDetail = () => {
       dataAdmissao: employee.dataAdmissao,
       dataNascimento: employee.dataNascimento || "",
       fotoUrl: employee.fotoUrl || "",
-      isGerente: employee.isGerente,
-      systemRole: employee.systemRole || "user",
       alocaEmProjetos: employee.alocaEmProjetos,
       status: employee.status,
       tipoContratacao: employee.tipoContratacao || "CLT",
@@ -564,8 +551,6 @@ const EmployeeDetail = () => {
       "dataNascimento",
       "dataAdmissao",
       "fotoUrl",
-      "systemRole",
-      "isGerente",
       "pixKeyType",
       "pixKey",
       "bankName",
@@ -742,32 +727,29 @@ const EmployeeDetail = () => {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="systemRole"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Perfil no Sistema *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o perfil" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {(Object.keys(SYSTEM_ROLE_LABELS) as SystemRole[]).map(
-                          (role) => (
-                            <SelectItem key={role} value={role}>
-                              {SYSTEM_ROLE_LABELS[role]}
-                            </SelectItem>
-                          ),
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Perfil de acesso é LEITURA aqui (PUL-202): quem atribui é Configurações →
+                  Perfis de Acesso, onde estão todos os papéis do tenant, inclusive os
+                  customizados. Este campo era um segundo escritor de papel e apagava
+                  acumulação — salvar a ficha derrubava papel composto para "Colaborador". */}
+              <FormItem>
+                <FormLabel>Perfil de acesso</FormLabel>
+                <div className="flex h-10 items-center gap-2 rounded-md border border-input bg-muted/50 px-3">
+                  {profileNameQuery.isLoading ? (
+                    <Skeleton className="h-4 w-28" />
+                  ) : (
+                    <span className="text-sm">
+                      {profileNameQuery.data ?? 'Sem perfil atribuído'}
+                    </span>
+                  )}
+                </div>
+                <FormDescription>
+                  Alterado em{' '}
+                  <Link to="/admin" className="underline underline-offset-2">
+                    Configurações → Perfis de Acesso
+                  </Link>
+                  , na aba Pessoas.
+                </FormDescription>
+              </FormItem>
 
               <FormField
                 control={form.control}
