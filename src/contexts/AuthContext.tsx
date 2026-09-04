@@ -3,6 +3,8 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { clearPrivatePwaCaches } from '@/lib/pwa';
 import { acquireMicrosoftIdToken } from '@/integrations/microsoft/msalClient';
+import { fetchMyCapabilities } from '@/services/capabilityService';
+import { hasAnyCapability, type CapabilityRequirement } from '@/lib/access/capabilities';
 
 interface EmployeeData {
   id: string;
@@ -15,6 +17,8 @@ interface EmployeeData {
   isAdmin: boolean;
   isRH: boolean;
   jornada_diaria: number;
+  /** Capacidades efetivas no tenant (`my_capabilities`). O que as telas consultam para decidir o que mostrar. */
+  capabilities: string[];
 }
 
 const PWA_EMPLOYEE_SNAPSHOT = 'pulse-pwa-employee-snapshot';
@@ -24,7 +28,8 @@ function readEmployeeSnapshot(userId: string): EmployeeData | null {
   try {
     const snapshot = JSON.parse(localStorage.getItem(PWA_EMPLOYEE_SNAPSHOT) || 'null') as { userId: string; savedAt: number; employee: EmployeeData } | null;
     if (!snapshot || snapshot.userId !== userId || Date.now() - snapshot.savedAt >= SNAPSHOT_TTL) return null;
-    return snapshot.employee;
+    // Snapshot gravado antes do campo existir: sem capacidades, a interface fica conservadora.
+    return { ...snapshot.employee, capabilities: snapshot.employee.capabilities ?? [] };
   } catch {
     return null;
   }
@@ -57,6 +62,8 @@ interface AuthContextType {
   loading: boolean;
   /** Autenticou no Supabase, mas não há funcionário ativo correspondente. */
   accessDenied: boolean;
+  /** A pessoa tem a capacidade (ou qualquer uma da lista)? Decide renderização; a RLS decide acesso. */
+  can: (required: CapabilityRequirement) => boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithMicrosoft: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -125,12 +132,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return null;
     }
 
-    // Check user roles (admin and/or manager) from user_roles table
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('tenant_id', empData.tenant_id);
+    // Papel (user_roles) e capacidades (my_capabilities) em paralelo. O papel ainda alimenta
+    // isAdmin/isRH no período de graça (PUL-206); as capacidades são o que rotas e menus
+    // consultam para decidir o que mostrar (ADR-0027, Cenário 4).
+    const [{ data: roles }, capabilities] = await Promise.all([
+      supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('tenant_id', empData.tenant_id),
+      fetchMyCapabilities(empData.tenant_id),
+    ]);
 
     const roleSet = new Set((roles || []).map(r => r.role));
     const isAdmin = roleSet.has('admin');
@@ -142,6 +154,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       is_gerente: isManager, // backward compat — will be removed once all refs migrated
       isAdmin,
       isRH,
+      capabilities,
     } as EmployeeData;
     saveEmployeeSnapshot(userId, employeeData);
     return employeeData;
@@ -345,6 +358,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return { error: null };
   };
 
+  const can = (required: CapabilityRequirement) =>
+    hasAnyCapability(employee?.capabilities ?? [], required);
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -352,6 +368,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       employee,
       loading,
       accessDenied,
+      can,
       signIn,
       signInWithMicrosoft,
       signOut,

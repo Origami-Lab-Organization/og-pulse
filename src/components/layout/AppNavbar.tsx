@@ -13,16 +13,15 @@ import { UserMenu } from "./UserMenu";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
 import { usePwaEnvironment } from "@/hooks/use-pwa-environment";
-import { NAV_SECTIONS, isSectionActive, type NavSection } from "./nav-config";
+import { NAV_SECTIONS, isSectionActive, isSectionVisible, visibleTabs, type NavSection } from "./nav-config";
 
 export function AppNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { employee } = useAuth();
+  const { employee, can } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isStandalone } = usePwaEnvironment();
 
-  const isManager = employee?.is_gerente ?? false;
   const isAdmin = employee?.isAdmin ?? false;
 
   // Mesmo destino de "/" (HomeRedirect) e do logo do sidebar: gerente também vai
@@ -32,9 +31,7 @@ export function AppNavbar() {
 
   const isVisible = (section: NavSection): boolean => {
     if (isStandalone && section.label !== "Início") return false;
-    if (section.requiresAdmin && !isAdmin) return false;
-    if (section.requiresManager && !isManager && !isAdmin) return false;
-    return true;
+    return isSectionVisible(section, can);
   };
 
   const visibleSections = NAV_SECTIONS.filter(isVisible);
@@ -131,7 +128,7 @@ export function AppNavbar() {
                         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 [&[data-state=open]>svg]:rotate-180" />
                       </CollapsibleTrigger>
                       <CollapsibleContent className="pl-3">
-                        {section.tabs.map((tab) => {
+                        {visibleTabs(section, can).map((tab) => {
                           const active =
                             location.pathname === tab.url ||
                             location.pathname.startsWith(tab.url + '/');

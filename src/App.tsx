@@ -187,7 +187,7 @@ const App = () => (
               <Route
                 path="/jornada/configuracoes"
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireCapability="ponto:configurar">
                     <JornadaConfiguracoes />
                   </RoleProtectedRoute>
                 }
@@ -195,7 +195,7 @@ const App = () => (
               <Route
                 path="/jornada/aprovacoes"
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireCapability="ponto:aprovar">
                     <JornadaAprovacoes />
                   </RoleProtectedRoute>
                 }
@@ -203,7 +203,7 @@ const App = () => (
               <Route
                 path="/jornada/relatorios"
                 element={
-                  <RoleProtectedRoute requireRH>
+                  <RoleProtectedRoute requireCapability="ponto:ler-relatorio">
                     <JornadaRelatorios />
                   </RoleProtectedRoute>
                 }
@@ -211,7 +211,7 @@ const App = () => (
               <Route
                 path="/jornada/auditoria"
                 element={
-                  <RoleProtectedRoute requireRH>
+                  <RoleProtectedRoute requireCapability="ponto:auditar">
                     <JornadaAuditoria />
                   </RoleProtectedRoute>
                 }
@@ -220,7 +220,7 @@ const App = () => (
               <Route
                 path="/employees"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="pessoa:ler-ficha-completa">
                     <Index />
                   </RoleProtectedRoute>
                 }
@@ -228,7 +228,7 @@ const App = () => (
               <Route
                 path="/employees/new"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="pessoa:editar">
                     <EmployeeCreate />
                   </RoleProtectedRoute>
                 }
@@ -236,7 +236,7 @@ const App = () => (
               <Route
                 path="/employees/:id"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="pessoa:ler-ficha-completa">
                     <EmployeeDetail />
                   </RoleProtectedRoute>
                 }
@@ -244,7 +244,7 @@ const App = () => (
               <Route
                 path="/clients"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="cliente:ler">
                     <Clients />
                   </RoleProtectedRoute>
                 }
@@ -252,7 +252,7 @@ const App = () => (
               <Route
                 path="/clients/new"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="cliente:editar">
                     <ClientFormPage />
                   </RoleProtectedRoute>
                 }
@@ -260,7 +260,7 @@ const App = () => (
               <Route
                 path="/clients/:id/edit"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="cliente:editar">
                     <ClientFormPage />
                   </RoleProtectedRoute>
                 }
@@ -268,7 +268,7 @@ const App = () => (
               <Route
                 path="/clients/:id"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="cliente:ler">
                     <ClientDetail />
                   </RoleProtectedRoute>
                 }
@@ -276,7 +276,7 @@ const App = () => (
               <Route
                 path="/suppliers"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="catalogo:editar">
                     <Suppliers />
                   </RoleProtectedRoute>
                 } 
@@ -285,7 +285,7 @@ const App = () => (
               <Route
                 path="/projetos"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="portfolio:ler">
                     <Portfolio />
                   </RoleProtectedRoute>
                 }
@@ -302,7 +302,7 @@ const App = () => (
               <Route
                 path="/analises/meu-time"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="timesheet-terceiro:ler">
                     <MinhaEquipeAlocacaoPage />
                   </RoleProtectedRoute>
                 }
@@ -310,7 +310,7 @@ const App = () => (
               <Route
                 path="/projetos/alocacoes"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="alocacao:ler">
                     <AlocacaoPage />
                   </RoleProtectedRoute>
                 }
@@ -318,7 +318,7 @@ const App = () => (
               <Route
                 path="/projetos/alocacoes/pessoa/:employeeId"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="alocacao:ler">
                     <EmployeeAllocationDetailPage />
                   </RoleProtectedRoute>
                 }
@@ -326,7 +326,7 @@ const App = () => (
               <Route
                 path="/projetos/alocacoes/:employeeId"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="alocacao:ler">
                     <EmployeeTimesheetPage />
                   </RoleProtectedRoute>
                 }
@@ -334,7 +334,7 @@ const App = () => (
               <Route
                 path="/analises/financeiro"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="financeiro:ler">
                     <Analytics />
                   </RoleProtectedRoute>
                 }
@@ -342,7 +342,7 @@ const App = () => (
               <Route
                 path="/analises/comercial"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="pipeline:ler">
                     <CommercialDashboard />
                   </RoleProtectedRoute>
                 }
@@ -350,7 +350,7 @@ const App = () => (
               <Route
                 path="/analises/folha-pagamento"
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireCapability="folha:ler">
                     <PayrollAnalysis />
                   </RoleProtectedRoute>
                 }
@@ -358,7 +358,7 @@ const App = () => (
               <Route
                 path="/analises/custo-hora"
                 element={
-                  <RoleProtectedRoute requireAdmin>
+                  <RoleProtectedRoute requireCapability="custo-hora:ler-relatorio">
                     <CostPerHourAnalysis />
                   </RoleProtectedRoute>
                 }
@@ -367,7 +367,7 @@ const App = () => (
               <Route
                 path="/pipeline"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="pipeline:ler">
                     <CRM />
                   </RoleProtectedRoute>
                 }
@@ -378,7 +378,7 @@ const App = () => (
               <Route
                 path="/comercial/servicos"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="catalogo:editar">
                     <Services />
                   </RoleProtectedRoute>
                 }
@@ -386,7 +386,7 @@ const App = () => (
               <Route
                 path="/comercial/servicos/:lineId"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="catalogo:editar">
                     <ServiceLineDetail />
                   </RoleProtectedRoute>
                 }
@@ -406,7 +406,7 @@ const App = () => (
               <Route 
                 path="/budgets/new" 
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="orcamento:editar">
                     <BudgetForm />
                   </RoleProtectedRoute>
                 } 
@@ -414,7 +414,7 @@ const App = () => (
               <Route 
                 path="/budgets/:id" 
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="orcamento:ler">
                     <BudgetDetail />
                   </RoleProtectedRoute>
                 } 
@@ -422,7 +422,7 @@ const App = () => (
               <Route 
                 path="/budgets/:id/edit" 
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="orcamento:editar">
                     <BudgetForm />
                   </RoleProtectedRoute>
                 } 
@@ -438,7 +438,7 @@ const App = () => (
               <Route 
                 path="/rh/funcionarios-desligados" 
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="desligamento:executar">
                     <TerminatedEmployees />
                   </RoleProtectedRoute>
                 } 
@@ -446,7 +446,7 @@ const App = () => (
               <Route
                 path="/rh/desligamentos"
                 element={
-                  <RoleProtectedRoute requireManager>
+                  <RoleProtectedRoute requireCapability="desligamento:executar">
                     <TerminatedEmployees />
                   </RoleProtectedRoute>
                 }
@@ -454,13 +454,13 @@ const App = () => (
               <Route path="/my-kanban" element={<ProtectedRoute><MyKanban /></ProtectedRoute>} />
               <Route path="/my-projects" element={<ProtectedRoute><MyProjects /></ProtectedRoute>} />
               <Route path="/my-projects/:id" element={<ProtectedRoute><MyProjectDetail /></ProtectedRoute>} />
-              <Route path="/rh/candidatos" element={<RoleProtectedRoute requireManager><Candidates /></RoleProtectedRoute>} />
-              <Route path="/rh/vagas" element={<RoleProtectedRoute requireManager><JobOpenings /></RoleProtectedRoute>} />
+              <Route path="/rh/candidatos" element={<RoleProtectedRoute requireCapability="candidatura:ler"><Candidates /></RoleProtectedRoute>} />
+              <Route path="/rh/vagas" element={<RoleProtectedRoute requireCapability="vaga:editar"><JobOpenings /></RoleProtectedRoute>} />
               <Route path="/trabalhe-conosco/:tenantId" element={<JobApplication />} />
               <Route path="/trabalhe-conosco/:tenantId/:vagaId" element={<JobApplicationVaga />} />
-              <Route path="/estrategia" element={<RoleProtectedRoute requireManager><Strategy /></RoleProtectedRoute>} />
+              <Route path="/estrategia" element={<RoleProtectedRoute requireCapability="iniciativa:editar"><Strategy /></RoleProtectedRoute>} />
               <Route path="/rh/ferramentas-beneficios" element={<RoleProtectedRoute requireAdmin><BenefitsAndTools /></RoleProtectedRoute>} />
-              <Route path="/rh/ferias" element={<RoleProtectedRoute requireManager><VacationManagement /></RoleProtectedRoute>} />
+              <Route path="/rh/ferias" element={<RoleProtectedRoute requireCapability="ferias:gerir"><VacationManagement /></RoleProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
                 </Routes>
