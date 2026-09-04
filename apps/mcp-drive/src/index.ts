@@ -47,6 +47,8 @@ import {
   atualizaOportunidade,
   criaOportunidade,
   ETAPAS_MOVIVEIS,
+  lancaHorasDeProjeto,
+  listaHorasLancadas,
   moveEtapaOportunidade,
 } from './writes.js';
 import { loadFromBase64, loadSource } from './source.js';
@@ -443,6 +445,51 @@ server.tool(
   async ({ opportunity_id, stage }) => {
     try {
       return ok(await moveEtapaOportunidade(opportunity_id, stage));
+    } catch (error) {
+      return fail(describe(error));
+    }
+  },
+);
+
+// ─── Horas de projeto ─────────────────────────────────────────────────────────
+//
+// A RLS carrega a regra inteira: alocação da própria pessoa, período travado e o custo
+// gravado por trigger. Lançar para outra pessoa exige `timesheet-terceiro:editar`.
+
+server.tool(
+  'log_project_hours',
+  'Lança horas trabalhadas num projeto. Lançar de novo na mesma data corrige o valor, não duplica. Para lançar por outra pessoa é preciso ter a capacidade de editar apontamento de terceiro.',
+  {
+    hours: z.number().min(0).describe('Horas trabalhadas no dia'),
+    work_date: z.string().describe('Data no formato AAAA-MM-DD'),
+    project_query: z.string().optional().describe('Parte do nome do projeto'),
+    project_id: z.string().uuid().optional().describe('Id do projeto, quando souber'),
+    description: z.string().optional().describe('O que foi feito'),
+    person_query: z
+      .string()
+      .optional()
+      .describe('Nome de outra pessoa, para lançar por ela. Sem isso, lança para você.'),
+  },
+  async (input) => {
+    try {
+      return ok(await lancaHorasDeProjeto(input));
+    } catch (error) {
+      return fail(describe(error));
+    }
+  },
+);
+
+server.tool(
+  'list_logged_hours',
+  'Lista as horas já lançadas num período, com projeto, pessoa e se o lançamento está travado.',
+  {
+    from: z.string().describe('Data inicial, AAAA-MM-DD'),
+    to: z.string().describe('Data final, AAAA-MM-DD'),
+    person_query: z.string().optional().describe('Filtra por nome da pessoa'),
+  },
+  async ({ from, to, person_query }) => {
+    try {
+      return ok(await listaHorasLancadas(from, to, person_query));
     } catch (error) {
       return fail(describe(error));
     }

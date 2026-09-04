@@ -48,10 +48,10 @@ export interface HelpGroup {
   topics: HelpTopic[];
 }
 
-const SEM_MCP_ESCRITA_PROPRIA: HelpMcp = {
+const SEM_MCP_MARCACAO: HelpMcp = {
   server: null,
   note:
-    'Não há ferramenta de MCP para isto, e é decisão, não falta: apontamento e marcação são registro pessoal com efeito em folha e cobrança. Um modelo lançando hora em seu nome tiraria de você a autoria do dado.',
+    'Marcar ponto não passa pelo chat, e é decisão: a marcação é registro de jornada com efeito trabalhista, feita no momento em que acontece. Pedir a um modelo para marcar por você descolaria o registro do fato.',
 };
 
 export const HELP_GROUPS: HelpGroup[] = [
@@ -71,7 +71,13 @@ export const HELP_GROUPS: HelpGroup[] = [
           'Confira o total do período antes de submeter — depois de submetido, a correção passa por quem aprova.',
           'Submeta. O período fica travado para edição e vai para a fila de aprovação.',
         ],
-        mcp: SEM_MCP_ESCRITA_PROPRIA,
+        mcp: {
+          server: 'drive',
+          tools: ['log_project_hours', 'list_logged_hours'],
+          example: 'Lança 6 horas de ontem no projeto Cobrança Automática, revisão do relatório.',
+          note:
+            'Lançar de novo na mesma data corrige o valor, não duplica. O banco só aceita hora em projeto onde você está alocado, e recusa período já travado — as mesmas regras da tela. Submeter o período segue na tela, porque é o ato que fecha o mês.',
+        },
       },
       {
         id: 'meus-projetos',
@@ -101,7 +107,7 @@ export const HELP_GROUPS: HelpGroup[] = [
           'Confira o resumo diário e o saldo de banco de horas.',
           'Divergência em dia fechado vira pedido de ajuste, com justificativa, e vai para aprovação.',
         ],
-        mcp: SEM_MCP_ESCRITA_PROPRIA,
+        mcp: SEM_MCP_MARCACAO,
       },
     ],
   },
@@ -363,8 +369,11 @@ export const HELP_GROUPS: HelpGroup[] = [
           'Corrigir apontamento de outra pessoa exige a capacidade de editar timesheet de terceiro.',
         ],
         mcp: {
-          server: null,
-          note: 'Sem ferramenta de MCP para apontamento, próprio ou de terceiro.',
+          server: 'drive',
+          tools: ['list_logged_hours', 'log_project_hours'],
+          example: 'Quem do meu time não lançou hora nesta semana?',
+          note:
+            'Corrigir apontamento de outra pessoa pelo chat exige a capacidade de editar timesheet de terceiro — sem ela o banco recusa, como recusa na tela.',
         },
       },
       {
