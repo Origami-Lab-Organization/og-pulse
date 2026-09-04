@@ -8,6 +8,21 @@
 
 ## Aberto
 
+- TD-0022 (aberto em 04/09, com a escrita de Oportunidade pelo MCP): a regra de escrita de
+  dominio passa a existir em DOIS lugares — `src/services/leadService.ts` para a tela e
+  `apps/mcp-drive/src/writes.ts` para o chat. Hoje a duplicacao e pequena e consciente (os
+  campos simples e o Follow Up, que sao tres colunas), e as operacoes com efeito colateral
+  ficaram DE FORA do MCP exatamente para nao duplicar: fechar negocio orquestra 282 linhas
+  em `useCloseBusinessDeal` (ativa orcamento, cria projeto, calcula valor) e dar perda
+  arquiva e marca follow-ups como `skipped`. Mas duplicacao pequena e como a divergencia
+  comeca: no dia em que a tela mudar a regra, o chat continua com a antiga e ninguem
+  percebe, porque os dois "funcionam".
+  **Correcao durradoura:** mover a operacao para UMA implementacao que os dois consomem —
+  funcao no banco com `SECURITY INVOKER` (roda como quem chama, entao a RLS continua sendo
+  a barreira) exposta como RPC. A tela chama a RPC, o MCP chama a mesma RPC. Enquanto nao
+  houver, toda mudanca em regra de escrita de Oportunidade tem de conferir os dois arquivos
+  — e o `ai-review-checklist.md` passa a pedir isso.
+
 - TD-0021 (deste log, aberto em 04/09): a numeracao colidiu entre a serie de agosto e a da
   onda de perfis, e ha ID repetido com significados diferentes. Enquanto nao for unificada,
   toda citacao precisa dizer a serie. Correcao: renumerar uma das series em ordem

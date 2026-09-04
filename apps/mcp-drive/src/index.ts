@@ -43,6 +43,12 @@ import {
   listProjectTeam,
   listProjects,
 } from './reads.js';
+import {
+  atualizaOportunidade,
+  criaOportunidade,
+  ETAPAS_MOVIVEIS,
+  moveEtapaOportunidade,
+} from './writes.js';
 import { loadFromBase64, loadSource } from './source.js';
 import { PulseNotAuthenticatedError, currentPulseUser, getSupabase } from './supabase.js';
 import type { ProjectDriveTarget } from './types.js';
@@ -360,6 +366,83 @@ server.tool(
   async ({ stage, query }) => {
     try {
       return ok(await listOpportunities(stage, query));
+    } catch (error) {
+      return fail(describe(error));
+    }
+  },
+);
+
+// ─── Escrita de Oportunidade ──────────────────────────────────────────────────
+//
+// A barreira é a policy: estas ferramentas rodam com a sessão da pessoa, então o banco
+// recusa o que `pipeline:editar` não permite — a mesma capacidade que governa a tela.
+// Fechar negócio e dar perda ficam de fora de propósito; ver `writes.ts`.
+
+const CAMPOS_OPORTUNIDADE = {
+  company_name: z.string().optional().describe('Empresa do contato'),
+  contact_name: z.string().optional().describe('Nome da pessoa de contato'),
+  contact_email: z.string().optional(),
+  contact_phone: z.string().optional(),
+  estimated_value: z.number().optional().describe('Valor estimado em reais'),
+  service_line: z
+    .enum([
+      'financiamento_inovacao',
+      'consultoria_estrategica',
+      'product_studio',
+      'educacao_corporativa',
+      'ventures',
+    ])
+    .optional()
+    .describe('Linha de serviço'),
+  source: z.string().optional().describe('Origem: indicação, evento, inbound...'),
+  notes: z.string().optional(),
+};
+
+server.tool(
+  'create_opportunity',
+  'Cria uma oportunidade no Pipeline comercial, em Prospecção. Use "Oportunidade" e "Pipeline" ao falar disso — nunca "lead", "CRM" ou "funil".',
+  {
+    name: z.string().describe('Nome da oportunidade'),
+    ...CAMPOS_OPORTUNIDADE,
+  },
+  async ({ name, ...campos }) => {
+    try {
+      return ok(await criaOportunidade({ name, ...campos }));
+    } catch (error) {
+      return fail(describe(error));
+    }
+  },
+);
+
+server.tool(
+  'update_opportunity',
+  'Altera campos de uma oportunidade. Passe apenas o que deseja mudar. Para mudar de etapa use move_opportunity_stage.',
+  {
+    opportunity_id: z.string().uuid(),
+    name: z.string().optional(),
+    ...CAMPOS_OPORTUNIDADE,
+  },
+  async ({ opportunity_id, ...campos }) => {
+    try {
+      return ok(await atualizaOportunidade(opportunity_id, campos));
+    } catch (error) {
+      return fail(describe(error));
+    }
+  },
+);
+
+server.tool(
+  'move_opportunity_stage',
+  'Move a oportunidade de etapa no Pipeline. Ganho e Perda não passam por aqui: fechar negócio cria projeto e ativa orçamento, e dar perda arquiva e cancela follow-ups — ambos ficam na tela.',
+  {
+    opportunity_id: z.string().uuid(),
+    stage: z
+      .enum(ETAPAS_MOVIVEIS)
+      .describe('Etapa de destino. stand_by é o Follow Up, e guarda a etapa de origem para o retorno.'),
+  },
+  async ({ opportunity_id, stage }) => {
+    try {
+      return ok(await moveEtapaOportunidade(opportunity_id, stage));
     } catch (error) {
       return fail(describe(error));
     }
