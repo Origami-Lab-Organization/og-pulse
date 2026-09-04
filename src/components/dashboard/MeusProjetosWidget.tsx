@@ -16,15 +16,16 @@ function getStageBadgeClass(stage: string): string {
 
 export function MeusProjetosWidget() {
   const navigate = useNavigate();
-  const { employee } = useAuth();
-  const isManager = employee?.is_gerente ?? false;
-  const isAdmin = employee?.isAdmin ?? false;
+  const { can } = useAuth();
+  // Quem enxerga o portfólio abre a tela completa do projeto; quem não, abre a visão de
+  // execução do consultor. É identidade de tela, decidida pela mesma capacidade que
+  // governa o portfólio (ADR-0027) — o mesmo conjunto de antes.
 
   const { data: projects = [], isLoading } = useMyProjects();
   const active = projects.slice(0, 3);
 
   const handleProjectClick = (projectId: string) => {
-    if (isAdmin || isManager) navigate(`/projects/${projectId}`);
+    if (can('portfolio:ler')) navigate(`/projects/${projectId}`);
     else navigate(`/my-projects/${projectId}`);
   };
 

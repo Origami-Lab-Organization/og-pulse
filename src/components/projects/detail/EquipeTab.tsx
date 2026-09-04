@@ -13,9 +13,12 @@ interface EquipeTabProps {
 }
 
 export function EquipeTab({ project, isReadOnly = false }: EquipeTabProps) {
-  const { employee } = useAuth();
-  // FINANCIAL_GUARD: only managers and admins can edit
-  const isFinancialVisible = !!(employee?.isAdmin || employee?.is_gerente);
+  const { employee, can } = useAuth();
+  // FINANCIAL_GUARD: quem vê e edita o financeiro do projeto é quem tem a capacidade que
+  // governa esse dado, não quem tem papel de admin ou gerente (ADR-0027). Mesmo conjunto
+  // de pessoas hoje; a diferença é que agora dá para mudar sem deploy, e a policy de
+  // `project_financials` lê a mesma capacidade.
+  const isFinancialVisible = can('financeiro:ler');
   const canEdit = isFinancialVisible && !isReadOnly;
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);

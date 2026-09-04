@@ -356,11 +356,15 @@ export function AllocationOverview({
   onFilterOptionsChange,
   onKPIDataChange,
 }: AllocationOverviewProps) {
-  const { employee } = useAuth();
+  const { employee, can } = useAuth();
   const tenantId = employee?.tenant_id;
   const isAdmin = employee?.isAdmin ?? false;
-  const isManager = employee?.is_gerente ?? false;
-  const canViewAllocation = isAdmin || isManager;
+  // Ver a alocação passa a ser a capacidade que governa o dado (ADR-0027) — mesmo conjunto
+  // de pessoas que `isAdmin || is_gerente`, agora configurável.
+  const canViewAllocation = can('alocacao:ler');
+  // Editar alocação interna e corrigir mês passado seguem em `isAdmin`: `alocacao:editar` é
+  // Admin + Gerente no seed, e usá-la aqui daria a gerente o que hoje é só de admin. Falta
+  // vocabulário para "corrigir período fechado" (TD-0019).
   const canEditInternalAllocation = isAdmin;
   const currentEmployeeId = employee?.id;
   const { data: holidaysData } = useHolidays();
