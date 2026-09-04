@@ -59,7 +59,7 @@ interface CardTaskListProps {
 
 export function CardTaskList({ cardId, project, tenantId, disabled = false }: CardTaskListProps) {
   const { employee } = useAuth();
-  const { isAdmin, isPM, isEmployee } = useActivityPermissions(project);
+  const { canManage, isEmployee } = useActivityPermissions(project);
   const { data: members = [] } = useProjectAssignableMembers(project.id);
 
   const { data: tasks = [] } = useCardTasks(cardId);
@@ -80,8 +80,10 @@ export function CardTaskList({ cardId, project, tenantId, disabled = false }: Ca
   const [editDueDate,    setEditDueDate]    = useState<Date | undefined>(undefined);
 
   // ── Permissions ────────────────────────────────────────────────────────────
+  // `project_activity_tasks` escreve sob `can_manage_project`; quem só está alocado mexe
+  // na tarefa que é dele. Mesma pergunta que a policy faz.
   const canManageTask = (task: ActivityTaskWithRelations): boolean => {
-    if (isAdmin || isPM) return true;
+    if (canManage) return true;
     if (isEmployee) return task.assignee_id === employee?.id;
     return false;
   };
