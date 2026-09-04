@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CircleHelp,
   CalendarDays,
   Clock,
   Database,
@@ -130,6 +131,9 @@ export const NAV_ITEMS: SidebarNavItem[] = [
   // preços, financeiro, encargos, feriados, atividades, lembretes) e só era alcançável
   // pelo menu do avatar — dois cliques, sem nada no menu lateral sugerindo que existisse.
   { kind: 'link', title: 'Configurações', url: '/admin', icon: Settings, requiresCapability: 'configuracao:editar' },
+  // Ajuda não declara capacidade de propósito: é a única entrada que todo mundo precisa
+  // alcançar, e o conteúdo dela já se filtra pelo que a pessoa acessa.
+  { kind: 'link', title: 'Ajuda', url: '/ajuda', icon: CircleHelp },
 ];
 
 export function visibleChildren(item: GroupItem, ctx: NavVisibilityContext): NavChild[] {

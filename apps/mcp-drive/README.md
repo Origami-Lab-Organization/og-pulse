@@ -20,10 +20,13 @@ chave publicável (a mesma que já vai no bundle do site) — **não usa
 `service_role`**. A RLS vale normalmente: ele só enxerga os projetos que você
 enxerga.
 
-Isso é de propósito diferente do `apps/mcp-activities`, que usa `service_role` e
-bypassa RLS. Aqui há um LLM no volante; dar a ele um cliente que ignora RLS seria
-outro patamar de risco. E resolve o problema prático de quem usa Lovable Cloud e
-não tem o painel bruto do Supabase para pegar a service key.
+Aqui há um LLM no volante; dar a ele um cliente que ignora RLS seria outro
+patamar de risco. E resolve o problema prático de quem usa Lovable Cloud e não
+tem o painel bruto do Supabase para pegar a service key.
+
+`apps/mcp-activities` usava `service_role` e bypassava a RLS, o que era a mesma
+falha com outro nome — corrigido em 02/09 (TD-0015). Hoje os **dois** servidores
+operam sob a RLS, com a chave publicável e login da própria pessoa.
 
 Dois caches locais, ambos `0600` e fora do repositório:
 `~/.og-pulse/msal-drive-cache.json` (refresh token da Microsoft) e
