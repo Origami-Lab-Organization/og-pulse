@@ -58,30 +58,15 @@
   mostra avatar — decisao de produto, nao correcao de policy. Mesma situacao vale para
   `company-logos`. Registrar e decidir; nao mexer por conta.
 
-- TD-0019 (PUL-201, lacuna de VOCABULARIO): **resolvido em 2026-09-04 para 37 das 57
-  policies**, pelo grupo 5. Tres capacidades criadas — `configuracao:editar` (parametros e
-  cadastros-base do tenant, so Admin), `pessoa:administrar` (admitir, remover, encerrar
-  vinculo, so Admin) e `ponto:travar-periodo` (Admin + RH) — com seed derivado de quem hoje
-  tem `pessoa:editar-papel` e `ponto:auditar`, para nao depender de nome de papel. Paridade
-  zero no harness. **Continua aberto** para as 20 restantes, em tres grupos com naturezas
-  diferentes:
-  1. **Governanca do proprio mecanismo (7)** — `tenant_roles`, `role_capabilities`,
-     `user_tenant_roles`, `user_capability_overrides`, `user_roles`. Ficam em
-     `has_role('admin')` **por decisao**, nao por falta de vocabulario: quem administra o
-     mecanismo de capacidade nao deve ser decidido pelo proprio mecanismo, senao uma
-     configuracao ruim tranca o tenant fora da administracao, e a invariante do ultimo
-     administrador cobre so `pessoa:editar-papel`. Registrado na secao 9 da matriz.
-  2. **Predicado composto, decisao de politica pendente (9)** — os 4 `DELETE` de
-     `strategy_cycles/objectives/key_results/checkins` (admin OU gerente hoje, mas
-     `okr:editar` e so-admin no seed), `vacation_requests` (I/S/U, misturam admin, proprio
-     registro e aprovador designado) e `project_team_rows`/`project_team_row_months`
-     SELECT (`has_role(admin)` isolado ao lado de `can_manage_project` OR membro).
-  3. **Admin-only ainda sem capacidade que os represente (4)** — `project_edit_logs`
-     INSERT, `project_financials` DELETE, `project_timesheet_submissions` DELETE e
-     `timesheet_submissions` DELETE. Sao valvulas de escape administrativas em dominio de
-     projeto e timesheet; encaixa-las em `configuracao:editar` seria mentir sobre o escopo.
-     Provavelmente pedem uma capacidade tipo `lancamento:desfazer`, e isso e decisao de
-     vocabulario que vale discutir junto de P1–P6 (PUL-199).
+- TD-0019 — RESOLVIDO em 04/09 (migrations 20260904230000 e 240000), com a decisao de
+  aposentar o mecanismo antigo. As 20 policies que ainda decidiam por papel viraram: as 7 de
+  governanca do modelo passaram a `pessoa:editar-papel`, e 13 ganharam vocabulario novo —
+  `estrategia:editar` (Admin+Gerente), `ferias:administrar`, `lancamento:desfazer` e
+  `alocacao:ler-tudo` (so-admin). Paridade zero nas cinco, pessoa por pessoa, medida contra o
+  schema real. **A objecao registrada aqui continua verdadeira em tese**: a governanca do
+  mecanismo passou a ser decidida pelo proprio mecanismo, e a unica rede e a invariante do
+  ultimo administrador (20260902170000) — que existe para isso e recusa a operacao que
+  deixaria o tenant sem ninguem capaz de gerir perfis.
 - TD-0018 — RESOLVIDO em 04/09 (migrations 20260904210000 e 20260904220000), com a decisao
   P4 respondida pelo negocio: gerente edita apenas o projeto que gerencia. As 20 policies de
   `projeto:editar` passaram a compor capacidade E relacao; nas filhas o escopo entrou DENTRO
