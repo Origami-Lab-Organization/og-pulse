@@ -14,6 +14,11 @@
 #
 set -euo pipefail
 
+# Os servidores de MCP são empacotados em todo build, não só em produção: eles são
+# servidos como estático em /mcp e precisam existir também em preview, senão o
+# instalador que a Central de Ajuda mostra baixaria 404 de uma branch.
+bash scripts/build-mcp-bundles.sh
+
 if [ "${VERCEL_ENV:-}" = "production" ]; then
   if [ -z "${SUPABASE_DB_URL:-}" ]; then
     echo "❌ SUPABASE_DB_URL não está definida no ambiente Production." >&2

@@ -6,6 +6,14 @@
 # comando fica no histórico do shell e vaza em qualquer print de tela.
 #
 #   bash apps/mcp-drive/install.sh
+#
+# ESTE É O CAMINHO DE QUEM TEM O REPOSITÓRIO. Ele compila do código local, o que serve para
+# desenvolver e testar antes de publicar. Quem só usa o produto não precisa dele: o Pulse
+# serve o instalador e os servidores já empacotados, e a instalação é uma linha —
+#
+#   curl -fsSL https://origamipulse.com.br/mcp/install.sh | bash
+#
+# Ver `scripts/build-mcp-bundles.sh` e `public/mcp/install.sh`.
 
 set -euo pipefail
 

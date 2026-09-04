@@ -34,6 +34,21 @@ Dois caches locais, ambos `0600` e fora do repositório:
 
 ## Instalação
 
+**Quem só usa o produto não precisa deste repositório.** O Pulse serve o instalador e os
+dois servidores já empacotados, e a instalação é uma linha:
+
+```bash
+curl -fsSL https://origamipulse.com.br/mcp/install.sh | bash
+```
+
+O instalador confere o Node, baixa os pacotes, pergunta as credenciais, valida antes de
+gravar configuração e registra nos dois clientes sem apagar outros MCPs. Ver
+`scripts/build-mcp-bundles.sh` (empacotamento, roda no build) e `public/mcp/install.sh`.
+
+O que segue abaixo é a instalação **a partir do repositório**, que compila do código local —
+o caminho de quem desenvolve.
+
+
 **Para o time (GP, PM, dev):** um comando só, a partir da raiz do repositório.
 
 ```bash

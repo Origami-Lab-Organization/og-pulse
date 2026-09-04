@@ -1,14 +1,18 @@
-SUBIR ARQUIVO DE PROJETO PELO CHAT — COMO INSTALAR
-==================================================
+USAR O PULSE PELO CHAT — COMO INSTALAR
+======================================
 
-Depois disso, você vai poder pedir ao Claude coisas como:
+Depois disso você vai poder pedir ao Claude coisas como:
+
+  "quais projetos eu tenho em andamento?"
+
+  "como está a sprint atual do projeto Cobrança Automática?"
 
   "sobe o arquivo ~/Downloads/ata-kickoff.docx na pasta de execução
    do projeto Cobrança Automática"
 
-E ele coloca no OneDrive, na pasta certa, sem você abrir o navegador.
+E ele resolve, sem você abrir o navegador.
 
-São 3 passos e leva uns 10 minutos na primeira vez.
+Leva uns 5 minutos na primeira vez, e é uma vez por computador.
 
 
 ANTES DE COMEÇAR
@@ -18,108 +22,66 @@ Você precisa de:
 
   1. Node.js versão 20 ou maior
      Baixe em https://nodejs.org (pegue a opção "LTS").
-     Para conferir se já tem, abra o Terminal e digite:  node -v
 
-  2. O repositório og-pulse no seu computador
-     Se ainda não tem, peça ao time de tecnologia.
+  2. O Claude Desktop instalado, ou o Claude Code no terminal.
 
-  3. Sua senha do Pulse
-     Se você entra só pelo botão da Microsoft e nunca criou senha,
-     avise antes — precisamos resolver isso primeiro.
+  3. Seu e-mail e senha do Pulse — os mesmos do site.
+
+Você NÃO precisa do repositório, nem de git, nem saber programar.
 
 
-PASSO 1 — RODAR O INSTALADOR
-----------------------------
+O PASSO ÚNICO
+-------------
 
-Abra o Terminal, vá até a pasta do projeto e rode:
+Abra o Terminal e cole esta linha:
 
-  bash apps/mcp-drive/install.sh
+  curl -fsSL https://origamipulse.com.br/mcp/install.sh | bash
 
-Ele vai:
-  - conferir se o Node está ok
-  - compilar o programa
-  - perguntar seu e-mail e sua senha do Pulse
-  - configurar o Claude sozinho
+O instalador vai:
 
-A senha não aparece na tela enquanto você digita, e não fica gravada
-no histórico do Terminal. Isso é de propósito.
+  - conferir o Node;
+  - baixar os dois servidores do próprio site do Pulse;
+  - pedir seu e-mail e senha (digitados, nunca colados na linha de comando);
+  - conferir as credenciais ANTES de gravar qualquer configuração;
+  - registrar no Claude Desktop e no Claude Code, sem apagar outros MCPs
+    que você já tenha;
+  - testar e dizer o que fazer em seguida.
 
-Se aparecer "Registrado no Claude Desktop", feche e abra o Claude
-Desktop de novo para ele enxergar a novidade.
-
-
-PASSO 2 — AUTORIZAR SUA CONTA MICROSOFT
----------------------------------------
-
-No Claude, escreva:
-
-  faz login na Microsoft
-
-Ele vai te devolver um endereço de site e um código. Abra o endereço,
-digite o código e entre com sua conta da Origami.
-
-Isso é feito uma vez só. Depois disso o acesso se renova sozinho.
-
-IMPORTANTE: o Claude vai enxergar exatamente as pastas que VOCÊ já
-enxerga no OneDrive — nem mais, nem menos. Se uma pasta não foi
-compartilhada com você, ele também não acessa.
+Se aparecer erro, ele diz o que fazer. Não precisa adivinhar.
 
 
-PASSO 3 — TESTAR
-----------------
+DEPOIS DE INSTALAR
+------------------
 
-No Claude, peça na ordem:
+  1. Feche o Claude Desktop por completo e abra de novo.
+     A configuração só é lida na abertura.
 
-  1. "qual conta está autorizada no og-pulse-drive?"
-     → deve mostrar seu e-mail da Microsoft e do Pulse
+  2. Peça: "quais projetos eu tenho em andamento?"
 
-  2. "acha o projeto Cobrança"
-     → deve listar o projeto e a pasta dele
-
-  3. "lista o que tem na pasta de execução desse projeto"
-     → deve mostrar as pastas e arquivos
-
-  4. "sobe o <arquivo> na pasta de execução"
-     → faça o primeiro teste com um arquivo qualquer,
-       de preferência numa pasta de teste
-
-Deu certo nos quatro? Está funcionando.
+  3. Para chegar nos arquivos, autorize sua conta Microsoft uma vez:
+     peça "inicia o login da Microsoft" e siga a URL e o código.
 
 
-O QUE FAZER SE DER ERRADO
--------------------------
+UMA COISA IMPORTANTE
+--------------------
 
-"Conta Microsoft não autorizada"
-  → refaça o Passo 2.
-
-"Projeto ainda não tem pasta do OneDrive vinculada"
-  → alguém precisa escolher a pasta do projeto no Pulse,
-    na aba Arquivos. Normalmente é o gerente do projeto.
-
-"Você não tem acesso a esta pasta"
-  → não é erro do sistema. Você realmente não tem acesso
-    a essa pasta no OneDrive. Peça ao gerente do projeto.
-
-"node: command not found"
-  → o Node.js não está instalado. Volte ao item 1.
-
-Qualquer outra coisa: mande print da mensagem para o time de tecnologia.
+O chat só enxerga o que VOCÊ enxerga no Pulse. Ele entra com as suas
+credenciais e obedece às mesmas regras do sistema. Se um projeto não aparece
+para você no site, também não aparece no chat — e o caminho é pedir acesso a
+quem administra, não reinstalar.
 
 
-COISAS QUE VALE SABER
+SE ALGO NÃO FUNCIONAR
 ---------------------
 
-- O que você subir aparece para todo mundo que tem acesso à pasta,
-  inclusive quem nunca abriu o Pulse. É o OneDrive de verdade.
+A Central de Ajuda do Pulse tem a aba "Pelo chat" com o passo a passo e os
+erros mais comuns: entre no Pulse e clique em Ajuda, no menu lateral.
 
-- Não existe desfazer. Confira o destino antes de confirmar.
 
-- Limite de 100MB por arquivo. Acima disso, use o OneDrive direto.
+PARA QUEM DESENVOLVE
+--------------------
 
-- A estrutura padrão dos projetos é:
-    1.Propostas  — propostas comerciais
-    2.Contratos  — contrato assinado e aditivos
-    3.Execução   — atas, entregas, material do dia a dia
+Quem tem o repositório clonado pode instalar a partir dele, o que compila do
+código local em vez de baixar o empacotado:
 
-  Se você não disser a pasta, o Claude vai sugerir uma pela cara do
-  arquivo e pedir sua confirmação.
+  bash apps/mcp-drive/install.sh
