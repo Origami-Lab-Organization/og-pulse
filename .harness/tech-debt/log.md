@@ -8,6 +8,14 @@
 
 ## Aberto
 
+- TD-0023 (achado ao expor lancamento de hora pelo MCP, 04/09): em `project_timesheets` as
+  duas colunas de autoria apontam para tabelas DIFERENTES —
+  `created_by` referencia `employees(id)` e `updated_by` referencia `auth.users(id)`. Passar
+  o mesmo id nas duas estoura foreign key, e foi o que aconteceu no primeiro teste da
+  ferramenta. Nao e ambiguidade teorica: qualquer codigo novo que grave apontamento erra em
+  metade das vezes, e o erro so aparece em runtime. Padronizar em `employees(id)`, que e o
+  que o resto do schema usa para autoria, com migration que converte os valores existentes.
+
 - TD-0022 (aberto em 04/09, com a escrita de Oportunidade pelo MCP): a regra de escrita de
   dominio passa a existir em DOIS lugares — `src/services/leadService.ts` para a tela e
   `apps/mcp-drive/src/writes.ts` para o chat. Hoje a duplicacao e pequena e consciente (os
@@ -17,6 +25,10 @@
   arquiva e marca follow-ups como `skipped`. Mas duplicacao pequena e como a divergencia
   comeca: no dia em que a tela mudar a regra, o chat continua com a antiga e ninguem
   percebe, porque os dois "funcionam".
+  **Contraste que vale registrar:** o lancamento de HORA, exposto no mesmo dia, nao duplicou
+  regra nenhuma — a RLS de `project_timesheets` ja carrega alocacao da propria pessoa,
+  recusa de periodo travado e o custo por trigger, entao a ferramenta so monta a linha. Onde
+  a regra esta no banco, expor pelo MCP nao cria divida; onde esta na aplicacao, cria.
   **Correcao durradoura:** mover a operacao para UMA implementacao que os dois consomem —
   funcao no banco com `SECURITY INVOKER` (roda como quem chama, entao a RLS continua sendo
   a barreira) exposta como RPC. A tela chama a RPC, o MCP chama a mesma RPC. Enquanto nao
