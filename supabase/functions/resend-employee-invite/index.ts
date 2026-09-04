@@ -79,15 +79,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Check if user is admin
-    const { data: roleData } = await supabaseUser
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("tenant_id", currentEmployee.tenant_id)
-      .eq("role", "admin")
-      .maybeSingle();
+    // Reenviar convite é administrar o vínculo da pessoa: `pessoa:administrar` (PUL-206).
+    const { data: podeAdministrar } = await supabaseUser.rpc("has_capability", {
+      _user_id: user.id,
+      _tenant_id: currentEmployee.tenant_id,
+      _capability: "pessoa:administrar",
+    });
 
-    if (!roleData) {
+    if (!podeAdministrar) {
       throw new Error("Only admins can resend invites");
     }
 

@@ -5,6 +5,25 @@ import { jobApplicationService } from '@/services/jobApplicationService';
 import { CreateJobApplicationInput, JobApplicationDB, JobApplicationStatus } from '@/types/jobApplication';
 import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * Contas com uma capacidade no tenant da pessoa logada.
+ *
+ * Substituiu o filtro `is_gerente.eq.true,system_role.eq.admin`, que lia as colunas legadas
+ * de papel — aposentadas em PUL-206. A pergunta certa é quem tem a capacidade.
+ */
+async function idsComCapacidade(capability: string): Promise<string[]> {
+  const { data: sessao } = await supabase.auth.getUser();
+  const authId = sessao?.user?.id;
+  if (!authId) return [];
+  const { data: eu } = await supabase.from('employees').select('tenant_id').eq('auth_id', authId).maybeSingle();
+  if (!eu?.tenant_id) return [];
+  const { data } = await supabase.rpc('users_with_capability' as any, {
+    _tenant_id: eu.tenant_id,
+    _capability: capability,
+  } as any);
+  return ((data ?? []) as { user_id: string }[]).map((r) => r.user_id);
+}
+
 export const useJobApplications = () => {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
@@ -66,7 +85,7 @@ export const useManagers = () => {
         .select('id, nome')
         .eq('tenant_id', employee.tenant_id)
         .eq('status', 'ativo')
-        .or('is_gerente.eq.true,system_role.eq.admin')
+        .in('auth_id', await idsComCapacidade('candidatura:ler'))
         .order('nome');
       if (error) throw error;
       return (data || []) as { id: string; nome: string }[];

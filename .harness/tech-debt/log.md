@@ -120,18 +120,20 @@
   `strategy_guardrails`, e nao se sabe sem olhar o catalogo. Proximo passo, quando houver
   acesso de leitura ao banco: `SELECT ... FROM pg_constraint` nessas duas tabelas, e
   `pg_policies` para fechar tambem a lacuna INFERIDA de .harness/capability-matrix.md.
-- TD-0012 (PUL-198, ADR-0027; issue: PUL-206): remover `employees.is_gerente` e
-  `employees.system_role`, hoje fontes de papel concorrentes com `user_roles`.
-  Consumidores vivos: policies de reembolso (20260319150000, modulo removido do produto
-  por ADR-0007, tabela nunca dropada) e trigger `notify_managers_new_job_application`
-  (20260325130000) — este ultimo produz defeito observavel: usuario `manager` em
-  `user_roles` com `is_gerente = false` nao e notificado de nova candidatura.
-  `system_role` tem CHECK sem `rh`, ou seja nao representa o enum atual. Divergencia D3.
-  **Atualizacao 2026-09-04 (PUL-203):** as duas colunas passaram a ser DERIVADAS de
-  `user_roles` por trigger, e escrita direta nelas e ignorada. O defeito observavel descrito
-  acima deixou de ser possivel — `is_gerente` nao pode mais ficar `false` para quem e
-  `manager`, entao o trigger de candidatura notifica quem deve. O que resta e a REMOCAO das
-  colunas, que e a fase de contracao (PUL-206), mais o descarte da tabela de reembolso.
+- TD-0012 — RESOLVIDO EM PARTE em 04/09, e o resto rebaixado de risco para limpeza. O
+  mecanismo antigo foi aposentado: `user_roles`, o tipo `app_role`, `has_role`,
+  `is_admin_or_manager` e `is_manager_in_tenant` sairam do banco, e nenhuma policy, funcao,
+  Edge Function ou tela os le. **Ficam** as colunas `employees.system_role` e
+  `employees.is_gerente`, por decisao explicita: deixaram de ser fonte concorrente na
+  PUL-203 e hoje sao PROJECAO derivada por trigger, como `isAdmin` no front. Cerca de
+  quarenta arquivos as leem para exibir; remover e limpeza cosmetica com superficie de
+  regressao grande e valor de seguranca zero, porque ninguem decide acesso por elas. A
+  sincronia passou a disparar na mudanca de PERFIL e na mudanca da matriz do perfil, que sao
+  as novas fontes.
+- TD-0024 (aberto em 04/09, na aposentadoria): as tabelas de reembolso guardam 124 linhas de
+  um modulo retirado do produto (ADR-0007). As policies delas foram convertidas para
+  `lancamento:desfazer` para nao segurar a aposentadoria, mas isso e predicado de espera: o
+  destino do dado (arquivar, exportar, descartar) e decisao de produto que ninguem tomou.
 - TD-0001: `allocationService.allocateToProject` / `deallocateFromProject` e a regra
   `canEditProject` do EmployeeAllocationPanel ficaram sem teste (testes desativados na
   sessao de 2026-06-19). E logica de negocio + autorizacao por recurso (ADR-0002/0005).

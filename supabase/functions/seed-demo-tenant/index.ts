@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
     }).select().single();
     if (eaErr) throw new Error(`emp admin: ${eaErr.message}`);
 
-    await db.from('user_roles').insert({ user_id: adminAuthId, tenant_id: tid, role: 'admin' });
+    await db.from('user_tenant_roles').insert({ user_id: adminAuthId, tenant_id: tid, role_id: (await db.from('tenant_roles').select('id').eq('tenant_id', tid).eq('name', 'Admin').maybeSingle()).data?.id ?? null });
 
     // ── Manager Employee ─────────────────────────────────────────────────────
     const manSalary = 12000;
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
     }).select().single();
     if (emErr) throw new Error(`emp manager: ${emErr.message}`);
 
-    await db.from('user_roles').insert({ user_id: managerAuthId, tenant_id: tid, role: 'manager' });
+    await db.from('user_tenant_roles').insert({ user_id: managerAuthId, tenant_id: tid, role_id: (await db.from('tenant_roles').select('id').eq('tenant_id', tid).eq('name', 'Gerente').maybeSingle()).data?.id ?? null });
 
     // Benefits & tools for manager
     await db.from('employee_benefits').insert([
@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
     }).select().single();
     if (euErr) throw new Error(`emp user: ${euErr.message}`);
 
-    await db.from('user_roles').insert({ user_id: userAuthId, tenant_id: tid, role: 'user' });
+    await db.from('user_tenant_roles').insert({ user_id: userAuthId, tenant_id: tid, role_id: (await db.from('tenant_roles').select('id').eq('tenant_id', tid).eq('name', 'Colaborador').maybeSingle()).data?.id ?? null });
 
     await db.from('employee_benefits').insert([
       { employee_id: empUser.id, name: 'Vale Refeição', monthly_value: 880, origin: 'manual' },

@@ -64,13 +64,21 @@ export function PortfolioFilters({
 
   useEffect(() => {
     if (!tenantId || !canFilterManagers) return;
+    // A lista é de quem GERENCIA projeto, e por isso sai dos próprios projetos em vez da
+    // coluna legada `is_gerente` (aposentada em PUL-206). Também fica mais correta: filtrar
+    // o portfólio por alguém que tem a flag mas não gerencia nada nunca devolvia nada.
     supabase
-      .from('employees')
-      .select('id, nome')
+      .from('projects')
+      .select('manager:employees!projects_manager_id_fkey(id, nome)')
       .eq('tenant_id', tenantId)
-      .eq('is_gerente', true)
-      .order('nome')
-      .then(({ data }) => setManagers((data || []) as ManagerOption[]));
+      .not('manager_id', 'is', null)
+      .then(({ data }) => {
+        const porId = new Map<string, ManagerOption>();
+        for (const row of (data || []) as { manager?: ManagerOption | null }[]) {
+          if (row.manager?.id) porId.set(row.manager.id, row.manager);
+        }
+        setManagers([...porId.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
+      });
   }, [tenantId, canFilterManagers]);
 
   return (

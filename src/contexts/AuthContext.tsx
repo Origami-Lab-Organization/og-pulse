@@ -132,22 +132,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return null;
     }
 
-    // Papel (user_roles) e capacidades (my_capabilities) em paralelo. O papel ainda alimenta
-    // isAdmin/isRH no período de graça (PUL-206); as capacidades são o que rotas e menus
-    // consultam para decidir o que mostrar (ADR-0027, Cenário 4).
-    const [{ data: roles }, capabilities] = await Promise.all([
-      supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('tenant_id', empData.tenant_id),
-      fetchMyCapabilities(empData.tenant_id),
-    ]);
+    // Uma consulta só, e nenhuma leitura de papel: o mecanismo antigo foi aposentado
+    // (PUL-206). `isAdmin`, `isRH` e `is_gerente` sobreviveram como conveniência de leitura
+    // para as telas que ainda os consultam, e agora DERIVAM de capacidade — a mesma fonte
+    // que rotas e menus usam. Cada um está atrelado à capacidade que era equivalente ao
+    // papel: gerir perfis era o que só admin fazia, editar projeto era admin ou gerente, e
+    // ler candidatura era admin ou RH.
+    const capabilities = await fetchMyCapabilities(empData.tenant_id);
+    const has = (key: string) => capabilities.includes(key);
 
-    const roleSet = new Set((roles || []).map(r => r.role));
-    const isAdmin = roleSet.has('admin');
-    const isManager = roleSet.has('manager') || isAdmin;
-    const isRH = roleSet.has('rh') || isAdmin;
+    const isAdmin = has('pessoa:editar-papel');
+    const isManager = has('projeto:editar');
+    const isRH = has('candidatura:ler');
 
     const employeeData = {
       ...empData,
