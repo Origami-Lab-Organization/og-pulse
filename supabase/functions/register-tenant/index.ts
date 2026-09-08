@@ -176,8 +176,7 @@ Deno.serve(async (req) => {
     // O papel passa a ser gravado no modelo novo: perfil do tenant, não papel global
     // (PUL-206). O perfil é resolvido pelo nome, e o tenant nasce com os quatro padrão
     // (trigger em `tenants`), então a busca sempre encontra.
-    const nomeDoPerfil =
-      'admin' === "admin" ? "Admin" : 'admin' === "manager" ? "Gerente" : 'admin' === "rh" ? "RH" : "Colaborador";
+    const nomeDoPerfil = "Admin";
 
     const { data: perfil } = await adminClient
       .from("tenant_roles")

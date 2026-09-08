@@ -20,7 +20,7 @@ interface CreateEmployeeRequest {
   cpf: string;
   dataAdmissao: string;
   isGerente: boolean;
-  systemRole: "admin" | "manager" | "user";
+  systemRole: "admin" | "manager" | "rh" | "user";
   alocaEmProjetos?: boolean;
   status: string;
   salarioMensal: number;
