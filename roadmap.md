@@ -1,6 +1,6 @@
 # Task Roadmap
 
-## In Progress
+## Completed
 - Fix typecheck build errors from /tmp/observability/build-errors.log
 
 ## Pending
