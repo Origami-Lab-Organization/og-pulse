@@ -1,8 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { addMonths, format, startOfMonth } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, CalendarRange, ChevronDown, ChevronRight, LineChart, Search, Users } from 'lucide-react';
+import { AlertCircle, CalendarRange, ChevronDown, ChevronLeft, ChevronRight, LineChart, Search, Users } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,11 +27,17 @@ import type {
   MonthBreakdown,
 } from '@/types/allocation';
 
-/** Janela de meses selecionável: 6 meses para trás até 17 para frente (mês atual = offset 0). */
-const RANGE_MIN_OFFSET = -6;
-const RANGE_MAX_OFFSET = 17;
-const DEFAULT_FROM_OFFSET = 0;
-const DEFAULT_TO_OFFSET = 3;
+/**
+ * A tela trabalha um ano inteiro por vez, e não um intervalo de/até.
+ *
+ * O intervalo obrigava a esticar o filtro para ver dezembro e escondia o resto do ano
+ * atrás de duas listas. Com o ano fechado, os doze meses ficam sempre na tira — que
+ * rola de lado quando não cabem — e trocar de ano é um clique. Também é mais barato:
+ * a RPC de alocação busca por ano, então um ano é uma chamada, enquanto o intervalo
+ * que cruzava dezembro fazia duas.
+ */
+const ANOS_PARA_TRAS = 3;
+const ANOS_PARA_FRENTE = 3;
 
 const EMPTY_FILTERS = {
   status: 'all',
@@ -515,51 +519,35 @@ export default function MinhaEquipeAlocacaoPage() {
   const isAdmin = !!employee?.isAdmin;
   const baseDate = useMemo(() => new Date(), []);
   const [managerFilter, setManagerFilter] = useState<string>(ALL_OPTION);
-  const [fromOffset, setFromOffset] = useState<number>(DEFAULT_FROM_OFFSET);
-  const [toOffset, setToOffset] = useState<number>(DEFAULT_TO_OFFSET);
+  const anoAtual = baseDate.getFullYear();
+  const [year, setYear] = useState<number>(anoAtual);
   const [search, setSearch] = useState('');
   const [projectFilter, setProjectFilter] = useState<string>(ALL_OPTION);
   const [focusBucket, setFocusBucket] = useState<HealthBucket | null>(null);
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
   const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
 
-  const monthOptions = useMemo(
-    () =>
-      Array.from({ length: RANGE_MAX_OFFSET - RANGE_MIN_OFFSET + 1 }, (_, index) => {
-        const offset = RANGE_MIN_OFFSET + index;
-        const date = addMonths(startOfMonth(baseDate), offset);
-        return {
-          offset,
-          label: format(date, "MMM/yy", { locale: ptBR }).replace('.', ''),
-        };
-      }),
-    [baseDate],
-  );
+  const anoMinimo = anoAtual - ANOS_PARA_TRAS;
+  const anoMaximo = anoAtual + ANOS_PARA_FRENTE;
 
   const { data: holidays = [] } = useHolidays();
   const monthsOverride = useMemo(
-    () =>
-      buildAllocationMonthsRange(
-        addMonths(startOfMonth(baseDate), fromOffset),
-        addMonths(startOfMonth(baseDate), Math.max(fromOffset, toOffset)),
-        holidays,
-        baseDate,
-      ),
-    [baseDate, fromOffset, toOffset, holidays],
+    () => buildAllocationMonthsRange(new Date(year, 0, 1), new Date(year, 11, 1), holidays, baseDate),
+    [year, holidays, baseDate],
   );
 
   const { data, isLoading, isError, refetch } = useAllocationGrid({
     tenantId,
     filters: { ...EMPTY_FILTERS },
-    offsetStart: fromOffset,
-    periodLength: Math.max(1, toOffset - fromOffset + 1),
+    offsetStart: 0,
+    periodLength: 12,
     baseDate,
     monthsOverride,
   });
 
   const months = useMemo(() => data?.months ?? [], [data?.months]);
   const referenceMonth =
-    months.find((month) => month.year === baseDate.getFullYear() && month.month === baseDate.getMonth() + 1) ?? months[0];
+    months.find((month) => month.year === anoAtual && month.month === baseDate.getMonth() + 1) ?? months[0];
   const referenceMonthKey = referenceMonth?.key ?? '';
   const activeMonthKey = selectedMonthKey ?? referenceMonthKey;
   const activeMonth = months.find((month) => month.key === activeMonthKey) ?? referenceMonth;
@@ -641,14 +629,13 @@ export default function MinhaEquipeAlocacaoPage() {
   }, [months, selectedMonthKey]);
 
   const activeFilterCount = [
-    fromOffset !== DEFAULT_FROM_OFFSET || toOffset !== DEFAULT_TO_OFFSET,
+    year !== anoAtual,
     search.trim().length > 0,
     projectFilter !== ALL_OPTION,
   ].filter(Boolean).length;
 
   const clearFilters = () => {
-    setFromOffset(DEFAULT_FROM_OFFSET);
-    setToOffset(DEFAULT_TO_OFFSET);
+    setYear(anoAtual);
     setSearch('');
     setProjectFilter(ALL_OPTION);
   };
@@ -692,37 +679,33 @@ export default function MinhaEquipeAlocacaoPage() {
           </p>
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <div className="flex items-center gap-1.5 rounded-md border bg-card px-2 py-1">
-              <CalendarRange className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-              <Select value={String(fromOffset)} onValueChange={(value) => setFromOffset(Number(value))}>
-                <SelectTrigger className="h-7 w-[104px] border-0 bg-transparent text-xs shadow-none" aria-label="Mês inicial">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {monthOptions.map((option) => (
-                    <SelectItem key={option.offset} value={String(option.offset)}>
-                      {option.label}
-                      {option.offset === 0 ? ' (atual)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">até</span>
-              <Select value={String(toOffset)} onValueChange={(value) => setToOffset(Number(value))}>
-                <SelectTrigger className="h-7 w-[104px] border-0 bg-transparent text-xs shadow-none" aria-label="Mês final">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {monthOptions
-                    .filter((option) => option.offset >= fromOffset)
-                    .map((option) => (
-                      <SelectItem key={option.offset} value={String(option.offset)}>
-                        {option.label}
-                        {option.offset === 0 ? ' (atual)' : ''}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-0.5 rounded-md border bg-card px-1 py-1">
+              <CalendarRange className="mx-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setYear((atual) => Math.max(anoMinimo, atual - 1))}
+                disabled={year <= anoMinimo}
+                aria-label="Ano anterior"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+              </Button>
+              <span className="min-w-[3rem] text-center font-mono text-xs font-semibold tabular-nums">
+                {year}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setYear((atual) => Math.min(anoMaximo, atual + 1))}
+                disabled={year >= anoMaximo}
+                aria-label="Próximo ano"
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden />
+              </Button>
             </div>
 
             <div className="relative">
@@ -816,18 +799,26 @@ export default function MinhaEquipeAlocacaoPage() {
           </div>
         ) : (
             <div className="space-y-3">
-              <ToggleGroup
-                type="single"
-                value={activeMonthKey}
-                onValueChange={(value) => value && setSelectedMonthKey(value)}
-                aria-label="Mês analisado"
-              >
-                {months.map((month) => (
-                  <ToggleGroupItem key={month.key} value={month.key} className="text-xs">
-                    {month.label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
+              {/* Doze meses sempre presentes; rola de lado quando a tela não comporta. */}
+              <div className="-mx-1 overflow-x-auto px-1 pb-1">
+                <ToggleGroup
+                  type="single"
+                  value={activeMonthKey}
+                  onValueChange={(value) => value && setSelectedMonthKey(value)}
+                  aria-label="Mês analisado"
+                  className="w-max justify-start"
+                >
+                  {months.map((month) => (
+                    <ToggleGroupItem
+                      key={month.key}
+                      value={month.key}
+                      className="shrink-0 text-xs"
+                    >
+                      {month.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
 
               <PeopleCapacityTable
                 rows={personRows}
@@ -837,7 +828,7 @@ export default function MinhaEquipeAlocacaoPage() {
                   setExpandedPersonId((current) => (current === personId ? null : personId))
                 }
                 onOpen={openPerson}
-                temporal={{ tenantId, year: baseDate.getFullYear(), currentMonthNumber: baseDate.getMonth() + 1, lensManagerId: myLensId, managerByProject }}
+                temporal={{ tenantId, year, currentMonthNumber: baseDate.getMonth() + 1, lensManagerId: myLensId, managerByProject }}
               />
 
               <CapacityLegend lensLabel={lensLabel} />
