@@ -24,6 +24,21 @@
 - Predicado de policy inclui `tenant_id`? Policy de storage tambem (ver TD-0011).
 - Existe risco de vazamento de dados pessoais, financeiros ou comerciais?
 - Regras de negocio alteradas tem teste ou validacao documentada?
+- Remocao de funcao SQL: o inventario incluiu o CORPO das outras funcoes, e nao so
+  policies, triggers e `src/`? Chamada dentro de funcao so falha em RUNTIME — o `DROP`
+  passa, o deploy passa, e a quebra aparece para o usuario dias depois. Query que fecha o
+  inventario: `SELECT proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+  WHERE p.prokind='f' AND n.nspname='public' AND pg_get_functiondef(p.oid) ILIKE '%<nome>%'`.
+  (Aprendido em PUL-206: `has_role` foi derrubada com cinco funcoes ainda chamando —
+  incluindo o trigger de hora planejada e as duas de ferias, que deixaram a aprovacao de
+  ferias erroando em producao por quatro dias sem ninguem reportar.)
+- Mensagem de erro que chega ao usuario foi escrita PARA ele? `error.message` cru no toast
+  entrega texto do Postgres ("function public.has_role(uuid, uuid, unknown) does not
+  exist") a quem so queria salvar. Regra: RAISE destinado ao usuario usa `ERRCODE 'PU001'`
+  e diz o que fazer; a tela passa o erro por `mensagemParaUsuario`
+  (`src/lib/errors/userMessage.ts`), que so deixa passar `PU001` e traduz o resto.
+- Funcao nova ou alterada respeita complexidade <= 7? O hook do harness avisa no Write,
+  mas so no arquivo tocado.
 - Migration que escreve em tabela com TRIGGER de protecao foi provada com o trigger
   presente? Stub que reproduz colunas e policies mas nao triggers prova o comportamento de
   uma tabela que nao existe. (Aprendido em PUL-203: a reconciliacao passou no harness e

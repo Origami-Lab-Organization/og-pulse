@@ -109,6 +109,8 @@ decisao pendente **P2**.
 | `portfolio:ler` | sim | sim | — | — | rota `requireManager` (ADR-0002) |
 | `alocacao:ler` | sim | sim | — | proprio | rota `requireManager` |
 | `alocacao:editar` | sim | PM | — | — | `can_manage_project` (ADR-0003) |
+| `alocacao:editar-mes-fechado` — corrigir planejamento de mes anterior | sim | — | — | — | trigger `enforce_past_month_allocation_edit`; criada em 08/09, substituiu `has_role(admin)` que ficou orfa na aposentadoria |
+| `gpo:reabrir-relatorio` — devolver ao rascunho relatorio entregue | sim | — | — | — | RPC `reopen_project_gpo_report`; criada em 08/09, mesma origem |
 | `arquivo-projeto:ler` | sim | sim | — | alocado | `can_view_project_document` |
 
 ## 6. Timesheet, ponto e ferias
