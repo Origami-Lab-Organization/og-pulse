@@ -187,7 +187,7 @@ serve(async (req) => {
         action_type: "navigate",
         action_url: "/jornada/aprovacoes",
         title: `Nova solicitação de ${label} — ${employee.nome}`,
-        message: `${employee.nome} solicitou ${label} para ${body.data_referencia}. Motivo: ${body.motivo.trim()}`,
+        message: `${employee.nome} solicitou ${label} para ${body.data_referencia}. Motivo: ${(body.motivo || '').trim()}`,
         metadata: { employee_name: employee.nome, tipo, data_referencia: body.data_referencia },
         is_read: false,
         is_resolved: false,

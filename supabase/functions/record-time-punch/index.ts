@@ -30,7 +30,9 @@ function jsonResponse(body: unknown, status: number) {
   });
 }
 
-type AdminClient = ReturnType<typeof createClient>;
+// Edge function clients don't carry generated DB types; casts keep RPC/table
+// calls pragmatic while still benefiting from runtime validation.
+type AdminClient = any;
 
 // Colaborador + admin/rh do tenant recebem os alertas de jornada (decisão do dev:
 // sem etapa de gestor no fluxo, então avisa direto quem pode agir — admin/rh).
@@ -83,8 +85,8 @@ async function upsertAlert(
     if (existing && existing.length > 0) {
       await adminClient
         .from("notifications")
-        .update({ created_at: new Date().toISOString(), title, message, metadata })
-        .eq("id", existing[0].id);
+        .update({ created_at: new Date().toISOString(), title, message, metadata } as any)
+        .eq("id", (existing[0] as any).id);
     } else {
       await adminClient.from("notifications").insert({
         tenant_id: tenantId,
@@ -100,7 +102,7 @@ async function upsertAlert(
         metadata,
         is_read: false,
         is_resolved: false,
-      });
+      } as any);
     }
   }
 }
@@ -108,7 +110,7 @@ async function upsertAlert(
 async function resolveAlert(adminClient: AdminClient, type: string, employeeId: string) {
   await adminClient
     .from("notifications")
-    .update({ is_resolved: true })
+    .update({ is_resolved: true } as any)
     .eq("type", type)
     .eq("reference_id", employeeId)
     .eq("is_resolved", false);
