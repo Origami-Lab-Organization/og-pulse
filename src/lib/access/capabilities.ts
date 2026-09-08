@@ -11,6 +11,7 @@
  */
 export const CAPABILITY_KEYS = [
   'alocacao:editar',
+  'alocacao:editar-mes-fechado',
   'alocacao:ler',
   'alocacao:ler-tudo',
   'arquivo-projeto:ler',
@@ -32,6 +33,7 @@ export const CAPABILITY_KEYS = [
   'financeiro:editar',
   'financeiro:ler',
   'folha:ler',
+  'gpo:reabrir-relatorio',
   'guardrail-estrategia:editar',
   'horas-projeto:ler',
   'iniciativa:editar',

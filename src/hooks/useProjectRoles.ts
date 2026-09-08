@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import { equipeService } from '@/services/equipeService';
 import { ProjectWithRelations } from '@/types/project';
 import {
@@ -206,7 +207,7 @@ function invalidateAllocationDependents(queryClient: ReturnType<typeof useQueryC
  */
 export const useSaveAllocationMonthHours = (projectId: string) => {
   const queryClient = useQueryClient();
-  const { employee } = useAuth();
+  const { employee, can } = useAuth();
   const { toast } = useToast();
 
   return useMutation({
@@ -224,8 +225,13 @@ export const useSaveAllocationMonthHours = (projectId: string) => {
       reasonCode?: string;
       justification?: string;
     }) => {
-      if (input.isPastMonth && !employee?.isAdmin) {
-        throw new Error('Apenas admin pode editar horas planejadas de meses passados');
+      // Mesma capacidade que o trigger `enforce_past_month_allocation_edit` consulta
+      // (20260908150000). Perguntar `isAdmin` aqui divergiria do banco no dia em que o
+      // interruptor for desligado na tela de perfis.
+      if (input.isPastMonth && !can('alocacao:editar-mes-fechado')) {
+        throw new Error(
+          'Este mês já está fechado e a hora planejada dele não pode ser alterada por você. Quem administra o sistema consegue corrigir; se a diferença é de execução, registre no mês corrente.',
+        );
       }
 
       const affected = await equipeService.upsertAllocations([{
@@ -259,8 +265,8 @@ export const useSaveAllocationMonthHours = (projectId: string) => {
       invalidateAllocationDependents(queryClient, projectId);
       toast({ title: 'Horas atualizadas' });
     },
-    onError: (error: Error) => {
-      toast({ title: error.message || 'Erro ao atualizar horas', variant: 'destructive' });
+    onError: (error: unknown) => {
+      toast({ title: mensagemParaUsuario(error), variant: 'destructive' });
     },
   });
 };
