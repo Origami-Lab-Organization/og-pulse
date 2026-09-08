@@ -9,6 +9,7 @@ export interface TimeTrackingSettings {
   intervalo_minimo_minutos: number;
   limite_horas_extras_diarias: number;
   exigir_selfie: boolean;
+  exigir_reconhecimento_facial: boolean;
 }
 
 const DEFAULT_SETTINGS: TimeTrackingSettings = {
@@ -17,6 +18,7 @@ const DEFAULT_SETTINGS: TimeTrackingSettings = {
   intervalo_minimo_minutos: 60,
   limite_horas_extras_diarias: 2,
   exigir_selfie: false,
+  exigir_reconhecimento_facial: false,
 };
 
 export const useTimeTrackingSettings = () => {
@@ -28,7 +30,7 @@ export const useTimeTrackingSettings = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('time_tracking_settings')
-        .select('tolerancia_entrada_minutos, tolerancia_saida_minutos, intervalo_minimo_minutos, limite_horas_extras_diarias, exigir_selfie')
+        .select('tolerancia_entrada_minutos, tolerancia_saida_minutos, intervalo_minimo_minutos, limite_horas_extras_diarias, exigir_selfie, exigir_reconhecimento_facial')
         .eq('tenant_id', tenantId)
         .maybeSingle();
 

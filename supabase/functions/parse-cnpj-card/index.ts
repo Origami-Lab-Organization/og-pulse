@@ -88,7 +88,7 @@ serve(async (req) => {
     // O modelo pode recusar (stop_reason "refusal") ou o parse pode falhar;
     // nos dois casos parsed_output vem nulo e não há o que devolver ao front.
     if (response.stop_reason === "refusal") {
-      console.error("Model refused:", response.stop_details?.category);
+      console.error("Model refused:", (response as any).stop_details?.category);
       return json({ error: "Não foi possível extrair dados do documento" }, 500);
     }
 
