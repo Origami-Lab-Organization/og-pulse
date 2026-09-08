@@ -11,9 +11,15 @@
 -- O que esta reversão faz de fato: desfaz o vocabulário novo. As funções ficam como
 -- estão, porque removê-las quebraria trigger e policy que dependem delas.
 
-BEGIN;
 
 -- 1. Solta as duas capacidades novas de perfis, exceções e perfis padrão.
+-- SEM `BEGIN`/`COMMIT` de propósito. Um arquivo de reversão com controle de transação
+-- próprio é uma armadilha: ao ser lido com `\i` de dentro de um ensaio
+-- `BEGIN ... ROLLBACK`, o `COMMIT` de dentro do arquivo fecha a transação de fora e
+-- grava o que era para ser descartado. Aconteceu em 08/09 e custou uma migration de
+-- reparo (20260908170000). Quem for aplicar isto de verdade envolve por fora, com
+-- `psql --single-transaction`.
+
 DELETE FROM public.user_capability_overrides
  WHERE capability IN ('alocacao:editar-mes-fechado', 'gpo:reabrir-relatorio');
 
@@ -75,4 +81,3 @@ $function$;
 DELETE FROM public.capabilities
  WHERE key IN ('alocacao:editar-mes-fechado', 'gpo:reabrir-relatorio');
 
-COMMIT;

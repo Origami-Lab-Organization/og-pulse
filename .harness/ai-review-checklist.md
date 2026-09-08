@@ -24,6 +24,13 @@
 - Predicado de policy inclui `tenant_id`? Policy de storage tambem (ver TD-0011).
 - Existe risco de vazamento de dados pessoais, financeiros ou comerciais?
 - Regras de negocio alteradas tem teste ou validacao documentada?
+- Arquivo de reversao NAO traz `BEGIN`/`COMMIT` proprio, e o ensaio nao o le com `\i`
+  dentro de um `BEGIN ... ROLLBACK`? O `COMMIT` de dentro do arquivo fecha a transacao de
+  fora e grava em producao o que era para ser descartado — o `ROLLBACK` seguinte cai no
+  vazio. O psql avisa ("there is already a transaction in progress" / "there is no
+  transaction in progress"); esses dois WARNING sao erro, nao ruido. Envolver por fora com
+  `psql --single-transaction`. (Aprendido em 08/09: um ensaio de ida e volta gravou a
+  reversao em producao e exigiu a migration de reparo 20260908170000.)
 - Remocao de funcao SQL: o inventario incluiu o CORPO das outras funcoes, e nao so
   policies, triggers e `src/`? Chamada dentro de funcao so falha em RUNTIME — o `DROP`
   passa, o deploy passa, e a quebra aparece para o usuario dias depois. Query que fecha o
