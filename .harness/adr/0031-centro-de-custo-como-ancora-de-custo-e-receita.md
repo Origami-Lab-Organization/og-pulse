@@ -201,6 +201,13 @@ esperado.
   diagnóstico em PUL-182.
 - Banco: `supabase/migrations/20260910100000_cost_centers.sql` e a correção de tenant
   `20260910110000_cost_centers_seed_fix_tenant.sql`.
+- Primeira leitura que consome a âncora: custo por centro de custo em Análises > Financeiro
+  (PUL-245, commit `608fa73`) — `src/hooks/useCostByCostCenter.ts` e
+  `src/services/costCenterCostService.ts`. Confirma na prática as duas origens de centro
+  decididas aqui: a atividade interna lê `activity_timesheets.cost_center_id` (o centro do
+  momento, gravado pelo trigger) e o projeto de cliente deriva em leitura via
+  `projects.service_line` -> `services.cost_center_id`, porque a hora de projeto ainda não
+  persiste centro — é a pergunta aberta P4.
 - Leitura de produção somente-leitura em 09/09/2026 (pooler, tenant `93e40db0`): contagens de
   serviços, modelos, atividades, horas e o conteúdo de `projects.service_line`.
 - Relacionados: ADR-0003 (catálogo), ADR-0008 (`employees` sem departamento), ADR-0023
