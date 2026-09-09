@@ -97,11 +97,23 @@ export interface CostCenterCostRow {
   details: readonly CostCenterDetailRow[];
 }
 
+/**
+ * O que não foi possível classificar, separado nos dois casos porque o conserto de cada um
+ * é diferente — e um deles reescreve o passado e o outro não (ADR-0031).
+ */
+export interface CostCenterCoverageGap {
+  projectHours: number;
+  projectCost: number;
+  internalHours: number;
+  internalCost: number;
+  totalHours: number;
+  totalCost: number;
+}
+
 export interface CostByCostCenterData {
   rows: readonly CostCenterCostRow[];
   totalCost: number;
   totalHours: number;
-  /** Horas cujo centro não foi possível determinar, para a tela ser honesta sobre a cobertura. */
-  unclassifiedHours: number;
-  unclassifiedCost: number;
+  /** Para a tela ser honesta sobre a cobertura em vez de dar um total redondo. */
+  unclassified: CostCenterCoverageGap;
 }

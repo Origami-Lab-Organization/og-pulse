@@ -5,7 +5,12 @@ import { fetchCostInputs, type CostInputs } from '@/services/costCenterCostServi
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import type { Holiday } from '@/lib/workingDays';
 import type { AnalyticsFilters } from '@/hooks/useAnalyticsData';
-import type { CostByCostCenterData, CostCenterCostRow, CostCenterDetailRow } from '@/types/costCenter';
+import type {
+  CostByCostCenterData,
+  CostCenterCostRow,
+  CostCenterCoverageGap,
+  CostCenterDetailRow,
+} from '@/types/costCenter';
 import { CostOrigin } from '@/types/costCenter';
 
 /**
@@ -180,6 +185,22 @@ function buildRows(
   });
 }
 
+/** A lacuna de cobertura, nos dois casos que se consertam de formas diferentes. */
+function coverageGap(bucket: Bucket | undefined): CostCenterCoverageGap {
+  const projectHours = bucket?.projectHours ?? 0;
+  const projectCost = bucket?.projectCost ?? 0;
+  const internalHours = bucket?.internalHours ?? 0;
+  const internalCost = bucket?.internalCost ?? 0;
+  return {
+    projectHours,
+    projectCost,
+    internalHours,
+    internalCost,
+    totalHours: projectHours + internalHours,
+    totalCost: projectCost + internalCost,
+  };
+}
+
 function aggregate(input: CostInputs): CostByCostCenterData {
   const employeeCost = new Map<string, EmployeeCost>(
     input.employees.map((e) => [
@@ -253,14 +274,11 @@ function aggregate(input: CostInputs): CostByCostCenterData {
     }),
     { cost: 0, hours: 0 },
   );
-  const unclassified = buckets.get(NO_CENTER);
-
   return {
     rows: buildRows(buckets, input.centers, totals.cost),
     totalCost: totals.cost,
     totalHours: totals.hours,
-    unclassifiedHours: (unclassified?.projectHours ?? 0) + (unclassified?.internalHours ?? 0),
-    unclassifiedCost: (unclassified?.projectCost ?? 0) + (unclassified?.internalCost ?? 0),
+    unclassified: coverageGap(buckets.get(NO_CENTER)),
   };
 }
 

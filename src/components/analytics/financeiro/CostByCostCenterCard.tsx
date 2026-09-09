@@ -54,16 +54,47 @@ function LoadingCard() {
   );
 }
 
+/**
+ * O que ficou sem centro, e o que fazer em cada caso.
+ *
+ * Os dois casos NÃO se consertam do mesmo jeito, e dizer "classifica os lançamentos
+ * seguintes" para os dois seria mentira: a hora de atividade interna guarda o centro no
+ * momento do lançamento (trigger da PUL-221), então o passado dela fica como está; a hora de
+ * projeto deriva o centro do serviço em tempo de leitura, então vincular o serviço a um
+ * centro reclassifica o histórico inteiro na hora. É a assimetria da pergunta aberta P4 do
+ * ADR-0031, e a tela fala dela em vez de esconder.
+ */
 function CoverageNote(props: { data: CostByCostCenterData }) {
-  const { data } = props;
-  if (data.unclassifiedHours === 0) return null;
-  const pct = data.totalCost > 0 ? (data.unclassifiedCost / data.totalCost) * 100 : 0;
+  const { unclassified: gap, totalCost } = props.data;
+  if (gap.totalHours === 0) return null;
+  const pctOf = (cost: number) => (totalCost > 0 ? fmtPct((cost / totalCost) * 100) : fmtPct(0));
   return (
     <div className="mt-3 flex items-start gap-2 rounded-md border bg-warning/5 p-2.5 text-[11px] text-muted-foreground">
       <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
-      {fmtHours(data.unclassifiedHours)} ({fmtPct(pct)} do custo) ainda sem centro: item do catálogo ou atividade sem
-      centro definido, ou projeto sem serviço vinculado. Definir o centro no cadastro classifica os lançamentos
-      seguintes.
+      <div>
+        <p className="font-medium text-foreground">
+          {fmtHours(gap.totalHours)} ({pctOf(gap.totalCost)} do custo) ainda sem centro de custo.
+        </p>
+        <ul className="mt-1 space-y-1">
+          {gap.projectHours > 0 && (
+            <li>
+              <strong className="font-medium">{fmtHours(gap.projectHours)} em projeto de cliente</strong> (
+              {pctOf(gap.projectCost)}): o projeto está sem serviço vinculado, ou o serviço está sem centro. Definir o
+              centro no serviço reclassifica também o histórico, porque a hora de projeto deriva o centro do serviço na
+              leitura.
+            </li>
+          )}
+          {gap.internalHours > 0 && (
+            <li>
+              <strong className="font-medium">{fmtHours(gap.internalHours)} em atividade interna</strong> (
+              {pctOf(gap.internalCost)}): a atividade está sem centro no cadastro. Definir o centro vale para os
+              lançamentos seguintes. Estas horas continuam sem centro, porque cada hora guarda o centro do momento em
+              que foi lançada.
+            </li>
+          )}
+        </ul>
+        <p className="mt-1">Abra a linha "Sem centro de custo" acima para ver quais projetos e atividades são.</p>
+      </div>
     </div>
   );
 }
