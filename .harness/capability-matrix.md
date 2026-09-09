@@ -169,6 +169,8 @@ reativacao sao decisao da Origami: as colunas so mudam por service role ou sessa
 (trigger `tenants_guard_plan_columns`, migration `20260909120000`). A policy de UPDATE por
 `configuracao:editar` continua valendo para os demais campos do tenant. Ver PUL-224.
 
+**Centro de custo (PUL-216, ADR-0031).** O *cadastro* do centro (`cost_centers`) e escrito por `configuracao:editar` (cadastro-base do tenant, so Admin no seed) e lido por todo membro do tenant — quem lanca hora precisa ver a lista. O *campo de centro no item* (servico e atividade interna) **herda a capacidade do cadastro onde vive**, `catalogo:editar`: nao se cria capacidade para um campo. Divergencia aberta (P2 de PUL-216): em producao `catalogo:editar` esta habilitada para Admin **e** Gerente, mas `Services.tsx` restringe a acao a admin (`canManage = isAdmin`). Recomendacao do ADR-0031: alinhar a tela ao banco.
+
 ---
 
 ## Cenario 1 — respostas diretas, sem abrir codigo
