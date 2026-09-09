@@ -17,6 +17,27 @@ import type { Holiday } from '@/lib/workingDays';
 
 const db = supabase as unknown as SupabaseClient;
 
+interface RawResult {
+  data: unknown;
+  error: { message: string } | null;
+}
+
+/**
+ * Converte a resposta em linhas e ESTOURA se a consulta falhou.
+ *
+ * Cair para lista vazia em silêncio é armadilha: uma consulta quebrada seguia para a
+ * agregação e a tela mostrava um número plausível com tudo caindo em "não identificado" —
+ * foi exatamente o que aconteceu com o filtro por `tenant_id` em `project_members`, coluna
+ * que não existe. Melhor a tela dizer que não conseguiu ler do que mentir com aparência de
+ * certeza.
+ */
+function rowsOf<T>(label: string) {
+  return (result: RawResult): T[] => {
+    if (result.error) throw new Error(`Não foi possível ler ${label}: ${result.error.message}`);
+    return (result.data ?? []) as T[];
+  };
+}
+
 export interface CostCenterRow {
   id: string;
   name: string;
@@ -45,7 +66,8 @@ export interface ProjectServiceRow {
 
 export interface ProjectMemberRow {
   id: string;
-  employee_id: string;
+  /** Anulável: um membro pode ser um papel do orçamento ainda sem pessoa vinculada. */
+  employee_id: string | null;
 }
 
 export interface ActivityTypeNameRow {
@@ -90,51 +112,53 @@ export async function fetchCostInputs(tenantId: string, startDate: string, endDa
     .from('cost_centers')
     .select('id, name, is_active')
     .eq('tenant_id', tenantId)
-    .then((r) => (r.data ?? []) as CostCenterRow[]);
+    .then(rowsOf<CostCenterRow>('os centros de custo'));
   const employeesP = db
     .from('employees')
     .select('id, nome, total_monthly_cost_estimated, jornada_diaria, data_admissao')
     .eq('tenant_id', tenantId)
-    .then((r) => (r.data ?? []) as EmployeeCostRow[]);
+    .then(rowsOf<EmployeeCostRow>('o custo das pessoas'));
   const holidaysP = db
     .from('company_holidays')
     .select('holiday_type, fixed_day, fixed_month, specific_date')
     .eq('tenant_id', tenantId)
     .eq('is_active', true)
-    .then((r) => (r.data ?? []) as Holiday[]);
+    .then(rowsOf<Holiday>('os feriados da empresa'));
   const servicesP = db
     .from('services')
     .select('id, cost_center_id')
     .eq('tenant_id', tenantId)
-    .then((r) => (r.data ?? []) as ServiceCenterRow[]);
+    .then(rowsOf<ServiceCenterRow>('os serviços'));
   const projectsP = db
     .from('projects')
     .select('id, name, service_line')
     .eq('tenant_id', tenantId)
-    .then((r) => (r.data ?? []) as ProjectServiceRow[]);
+    .then(rowsOf<ProjectServiceRow>('os projetos'));
+  // Sem `tenant_id`: `project_members` se isola pelo projeto (e pela RLS), como
+  // `project_timesheets`. Só os membros citados pelas horas dos projetos deste tenant são
+  // usados na agregação.
   const membersP = db
     .from('project_members')
     .select('id, employee_id')
-    .eq('tenant_id', tenantId)
-    .then((r) => (r.data ?? []) as ProjectMemberRow[]);
+    .then(rowsOf<ProjectMemberRow>('os membros dos projetos'));
   const activitiesP = db
     .from('activity_types')
     .select('id, name')
     .eq('tenant_id', tenantId)
-    .then((r) => (r.data ?? []) as ActivityTypeNameRow[]);
+    .then(rowsOf<ActivityTypeNameRow>('as atividades internas'));
   const activityHoursP = db
     .from('activity_timesheets')
     .select('cost_center_id, activity_type_id, employee_id, hours, work_date')
     .eq('tenant_id', tenantId)
     .gte('work_date', startDate)
     .lte('work_date', endDate)
-    .then((r) => (r.data ?? []) as ActivityHourRow[]);
+    .then(rowsOf<ActivityHourRow>('as horas de atividade interna'));
   const projectHoursP = db
     .from('project_timesheets')
     .select('project_id, project_member_id, hours, cost_per_hour, work_date')
     .gte('work_date', startDate)
     .lte('work_date', endDate)
-    .then((r) => (r.data ?? []) as ProjectHourRow[]);
+    .then(rowsOf<ProjectHourRow>('as horas de projeto'));
 
   return {
     centers: await centersP,

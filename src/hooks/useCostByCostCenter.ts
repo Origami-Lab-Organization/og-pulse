@@ -96,7 +96,7 @@ function hourlyCostOf(employee: EmployeeCost | undefined, workDate: string, holi
 }
 
 /** Nome de quem apontou; sem pessoa resolvida, a hora fica visível como não identificada. */
-function personOf(id: string | undefined, names: Map<string, string>): Pick<Entry, 'personId' | 'personName'> {
+function personOf(id: string | null | undefined, names: Map<string, string>): Pick<Entry, 'personId' | 'personName'> {
   if (!id) return { personId: NO_PERSON, personName: UNKNOWN_PERSON };
   return { personId: id, personName: names.get(id) ?? UNKNOWN_PERSON };
 }
