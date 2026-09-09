@@ -1,6 +1,9 @@
 import type { ContentPage } from '@/types/landing';
 import { ContentKind } from '@/types/landing';
 import { SITE, TRIAL } from '@/landing/site';
+import { SLUG } from '@/landing/slugs';
+import { PERSONA_PAGES } from '@/landing/pages-personas';
+import { GUIDE_PAGES } from '@/landing/pages-guias';
 
 /**
  * Páginas públicas de conteúdo (PUL-242): uma por intenção de busca, todas pré-renderizadas
@@ -8,15 +11,9 @@ import { SITE, TRIAL } from '@/landing/site';
  *
  * Regras de escrita (skill SEO & GEO): resposta direta no `lead`, listas e tabelas, FAQ
  * com schema; só funcionalidades que existem; sem citar concorrentes; nomenclatura da casa
- * (Oportunidade, Pipeline, Orçamento). Adicionar página = adicionar item aqui.
+ * (Oportunidade, Pipeline, Orçamento). Adicionar página = adicionar item em uma das três
+ * listas (`pages.ts`, `pages-guias.ts`, `pages-personas.ts`) e o slug em `slugs.ts`.
  */
-
-const SLUG = {
-  PSA: '/o-que-e-psa',
-  MARGEM: '/controle-de-margem-por-projeto',
-  CONSULTORIAS: '/software-de-gestao-para-consultorias',
-  CUSTO_HORA: '/custo-hora-de-funcionario',
-} as const;
 
 const UPDATED = '2026-09-09';
 
@@ -403,7 +400,11 @@ const custoHora: ContentPage = {
   updatedAt: UPDATED,
 };
 
-export const CONTENT_PAGES: readonly ContentPage[] = [psa, margem, consultorias, custoHora];
+/**
+ * Ordem = ordem no `llms.txt` e no sitemap. O rodapé agrupa por intenção (ver `content.ts`).
+ * Segunda leva em `pages-guias.ts` (problema e definição) e `pages-personas.ts` (persona).
+ */
+export const CONTENT_PAGES: readonly ContentPage[] = [psa, margem, custoHora, ...GUIDE_PAGES, consultorias, ...PERSONA_PAGES];
 
 export function findContentPage(slug: string): ContentPage | undefined {
   return CONTENT_PAGES.find((page) => page.slug === slug);

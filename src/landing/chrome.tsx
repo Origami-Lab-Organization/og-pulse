@@ -110,7 +110,7 @@ function FooterLinkItem(props: FooterLink) {
 export function SiteFooter() {
   return (
     <footer className="dark border-t border-border bg-background py-14 text-foreground">
-      <div className="container grid gap-10 md:grid-cols-[1.4fr_repeat(4,1fr)]">
+      <div className="container grid gap-10 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-[1.4fr_repeat(5,1fr)]">
         <div>
           <div className="flex items-center gap-2">
             <img src={SITE.logoPath} alt="" width={28} height={28} className="h-7 w-auto" />

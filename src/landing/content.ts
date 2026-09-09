@@ -330,8 +330,12 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
     ],
   },
   {
+    title: 'Para quem',
+    links: CONTENT_PAGES.filter((page) => page.kind === ContentKind.PERSONA).map((page) => ({ label: page.navLabel, href: page.slug })),
+  },
+  {
     title: 'Conteúdo',
-    links: CONTENT_PAGES.map((page) => ({ label: page.navLabel, href: page.slug })),
+    links: CONTENT_PAGES.filter((page) => page.kind !== ContentKind.PERSONA).map((page) => ({ label: page.navLabel, href: page.slug })),
   },
   {
     title: 'Legal',
