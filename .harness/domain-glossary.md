@@ -10,6 +10,7 @@
 - Forecast (Receita Prevista): soma do valor da oportunidade ponderado pela probabilidade da etapa (`CRM_STAGE_META.forecastWeight`): Prospeccao 10%, Qualificacao 25%, Proposta Enviada 50%, Negociacao 75%, Fechado 100%, Stand By e Perdido 0%.
 - Ticket Medio (Fechados): KPI do Dashboard Comercial — media do valor dos negocios fechados no periodo, calculada em memoria. Nao confundir com o antigo cadastro de ticket medio por servico, removido em 2026-08-11 (ADR-0017).
 - Servico: oferta comercial precificada e associada a projetos/orcamentos.
+- Centro de custo: unidade da empresa pela qual custo e receita sao lidos. E a ancora do modelo (decisao de 08/09/2026, PUL-215): servico, atividade interna e pessoa apontam para um centro, e a hora lancada em um item carrega o centro do item. Cadastro-base do tenant em `cost_centers` (PUL-217): leitura por todo membro, escrita por `configuracao:editar`, nome unico por tenant (sem caixa nem espacos nas pontas), nunca se apaga — inativa-se (`is_active`). Os sete da Origami, com o codigo no nome como a casa usa: OG001_Administrativo, OG001_Comercial/Marketing, 105 Coworking, SL01 Financiamento de Inovacao, SL02 Studio de Produto, SL03 Ventures, SL04 Consultoria Estrategica (lista do Italo, 09/09/2026). Tenant novo nasce sem centros e a tela orienta o cadastro.
 - Projeto: entrega contratada, com membros, receitas, parcelas, milestones e status.
 - Portfolio: visao consolidada de projetos e saude operacional.
 - Orcamento/Budget: estimativa comercial com papeis, horas, materiais, fornecedores, margem e versoes.

@@ -155,7 +155,7 @@ Admin + Gerente. Faltava vocabulario, nao mecanismo.
 
 | Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
 |---|---|---|---|---|---|
-| `configuracao:editar` — encargos e perfil de folha, tabela de precos por cargo, config. financeira, feriados, beneficios e ferramentas do catalogo, modelos de receita, dados da empresa | sim | — | — | — | `has_role('admin')` em `payroll_profiles`, `role_rates`, `financial_settings`, `company_holidays`, `benefits`, `tools`, `service_revenue_models`, `tenants` UPDATE |
+| `configuracao:editar` — encargos e perfil de folha, tabela de precos por cargo, config. financeira, feriados, beneficios e ferramentas do catalogo, modelos de receita, dados da empresa, **centros de custo** (PUL-217) | sim | — | — | — | `has_role('admin')` em `payroll_profiles`, `role_rates`, `financial_settings`, `company_holidays`, `benefits`, `tools`, `service_revenue_models`, `tenants` UPDATE; `has_capability` direto em `cost_centers` INSERT/UPDATE (leitura tenant-wide por `user_belongs_to_tenant`; sem DELETE) |
 
 Nao entra aqui, de proposito: **governanca do proprio mecanismo** (`tenant_roles`,
 `role_capabilities`, `user_tenant_roles`, `user_capability_overrides`, `user_roles`)

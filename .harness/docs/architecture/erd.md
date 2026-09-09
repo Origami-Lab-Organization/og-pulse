@@ -5,6 +5,7 @@ sources:
   - supabase/migrations/20260810190000_project_gpo_reports.sql
   - supabase/migrations/20260909120000_tenant_plan_and_signup_attempts.sql
   - supabase/migrations/20260909130000_tenant_plan_enforced_in_rls.sql
+  - supabase/migrations/20260910100000_cost_centers.sql
   - src/types/lead.ts
   - src/types/portfolio.ts
 ---
@@ -268,7 +269,10 @@ eletrônico (`time_entries`, `time_daily_summary`, `time_bank_ledger`,
 kanban pessoal (`personal_kanban_*`), benefícios/ferramentas, folha
 (`payroll_*`), análise de mercado (`market_analyses`), tentativas de autocadastro (`signup_attempts`: só
 hashes de IP e e-mail, sem policy, lida e escrita apenas pela service role em
-`register-tenant`). Gerar diagrama dedicado sob demanda.
+`register-tenant`), centros de custo (`cost_centers`, PUL-217: cadastro-base do tenant,
+`tenant_id` → `tenants`, nome único por tenant, leitura por membro e escrita por
+`configuracao:editar`, sem DELETE; serviços, atividades e pessoas passam a apontar para ele em
+PUL-218/219/221). Gerar diagrama dedicado sob demanda.
 
 ## Divergências código × doc
 

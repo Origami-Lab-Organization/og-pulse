@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity, Bell, ShieldCheck, UserCog } from 'lucide-react';
+import { Plus, Search, DollarSign, Receipt, PartyPopper, Tag, Activity, Bell, ShieldCheck, UserCog, Layers } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { FinancialSettingsForm } from '@/components/settings/FinancialSettingsFo
 import { PayrollProfileSettingsForm } from '@/components/settings/PayrollProfileSettingsForm';
 import { HolidaysSettingsForm } from '@/components/settings/HolidaysSettingsForm';
 import { ActivityTypesSettings } from '@/components/settings/ActivityTypesSettings';
+import { CostCentersSettings } from '@/components/settings/CostCentersSettings';
 import { AccessProfilesSettings } from '@/components/settings/AccessProfilesSettings';
 import { CapabilityOverridesSettings } from '@/components/settings/CapabilityOverridesSettings';
 import { TimesheetReminderSettings } from '@/components/admin/TimesheetReminderSettings';
@@ -146,6 +147,10 @@ export default function AdminPortal() {
             <PartyPopper className="h-4 w-4" />
             Feriados/Folgas
           </TabsTrigger>
+          <TabsTrigger value="cost-centers" className="flex items-center gap-2">
+            <Layers className="h-4 w-4" />
+            Centros de custo
+          </TabsTrigger>
           <TabsTrigger value="activities" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             Atividades
@@ -255,6 +260,11 @@ export default function AdminPortal() {
         {/* Feriados/Folgas */}
         <TabsContent value="holidays" className="space-y-4">
           <HolidaysSettingsForm />
+        </TabsContent>
+
+        {/* Centros de custo (PUL-217) */}
+        <TabsContent value="cost-centers" className="space-y-4">
+          <CostCentersSettings />
         </TabsContent>
 
         {/* Atividades Internas */}
