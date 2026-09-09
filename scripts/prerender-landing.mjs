@@ -107,7 +107,9 @@ function outputFor(route) {
 async function writePage(template, mod, route, file) {
   const body = mod.renderBody(route.path);
   if (!body.includes('<main') || !body.includes('<h1')) fail(`HTML de ${route.path} sem <main> ou <h1>`);
-  const html = inject(template, mod.renderHead(route), body);
+  const head = mod.renderHead(route);
+  if (route.indexable && !head.includes('application/ld+json')) fail(`página indexável ${route.path} sem JSON-LD`);
+  const html = inject(template, head, body);
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, html, 'utf8');
   const flag = route.indexable ? 'index' : 'noindex';

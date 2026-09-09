@@ -13,6 +13,7 @@
 
 import type {
   ComparisonRow,
+  ContentPage,
   FaqItem,
   Feature,
   FooterColumn,
@@ -23,30 +24,11 @@ import type {
   Pain,
   Spotlight,
 } from '@/types/landing';
+import { ContentKind } from '@/types/landing';
+import { CONTENT_PAGES } from '@/landing/pages';
+import { SITE, TRIAL } from '@/landing/site';
 
-export const SITE = {
-  /** Origem canônica. Uma só, sem www — a mesma usada pelas Edge Functions. */
-  origin: 'https://origamipulse.com.br',
-  name: 'Origami Pulse',
-  shortName: 'Pulse',
-  maker: {
-    name: 'Origami Lab',
-    url: 'https://origamilab.com.br',
-  },
-  /** Contato definido em 09/09/2026 para pedir o uso após o período de teste. */
-  contactEmail: 'italo@origamilab.com.br',
-  locale: 'pt_BR',
-  language: 'pt-BR',
-  logoPath: '/brand/origami-pulse-logo.png',
-  ogImagePath: '/og-image.png',
-} as const;
-
-export const TRIAL = {
-  days: 14,
-  label: 'Teste grátis por 14 dias',
-  afterwards:
-    'Ao fim do período de teste, fale com a Origami Lab para continuar usando a ferramenta.',
-} as const;
+export { SITE, TRIAL };
 
 export const SEO = {
   title: 'Origami Pulse | Rentabilidade de projetos para empresas de serviços',
@@ -348,13 +330,17 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
     ],
   },
   {
+    title: 'Conteúdo',
+    links: CONTENT_PAGES.map((page) => ({ label: page.navLabel, href: page.slug })),
+  },
+  {
     title: 'Legal',
     links: [
       { label: 'Termos de uso', href: NAV.terms },
       { label: 'Política de privacidade', href: NAV.privacy },
     ],
   },
-] as const;
+];
 
 /** Página 404 (PUL-240). O tsuru fica em `src/landing/OrigamiCrane.tsx`. */
 export const NOT_FOUND = {
@@ -501,6 +487,52 @@ export function buildJsonLd(): JsonLd[] {
   return [organization, website, software, faq];
 }
 
+const pageUrl = (page: ContentPage) => `${SITE.origin}${page.slug}`;
+
+/**
+ * JSON-LD de uma página de conteúdo (PUL-242): WebPage (Article nos guias), trilha de
+ * navegação e FAQPage quando há perguntas. Publisher e site apontam para os `@id` da home.
+ */
+export function buildPageJsonLd(page: ContentPage): JsonLd[] {
+  const url = pageUrl(page);
+  const webPage: JsonLd = {
+    '@context': 'https://schema.org',
+    '@type': page.kind === ContentKind.GUIDE ? 'Article' : 'WebPage',
+    '@id': url,
+    url,
+    name: page.seoTitle,
+    headline: page.title,
+    description: page.description,
+    inLanguage: SITE.language,
+    dateModified: page.updatedAt,
+    isPartOf: { '@id': `${SITE.origin}/#website` },
+    publisher: { '@id': `${SITE.maker.url}/#organization` },
+    about: { '@id': `${SITE.origin}/#software` },
+  };
+  const breadcrumb: JsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Início', item: `${SITE.origin}/` },
+      { '@type': 'ListItem', position: 2, name: page.title, item: url },
+    ],
+  };
+  const docs = [webPage, breadcrumb];
+  if (page.faq.length > 0) {
+    docs.push({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      '@id': `${url}#faq`,
+      mainEntity: page.faq.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: { '@type': 'Answer', text: item.answer },
+      })),
+    });
+  }
+  return docs;
+}
+
 /** Rotas públicas indexáveis. O app (login, dashboard…) é `noindex` de propósito. */
 /**
  * Páginas públicas pré-renderizadas no build (`scripts/prerender-landing.mjs`).
@@ -508,6 +540,10 @@ export function buildJsonLd(): JsonLd[] {
  * texto completo não é publicado: página fina indexada vale menos que nenhuma (PUL-240).
  * Quando o texto entrar, basta virar a chave aqui.
  */
+function contentRoute(page: ContentPage): PublicRoute {
+  return { path: page.slug, title: page.seoTitle, description: page.description, indexable: true, changefreq: 'monthly', priority: '0.7' };
+}
+
 export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { path: '/', title: SEO.title, description: SEO.description, indexable: true, changefreq: 'weekly', priority: '1.0' },
   {
@@ -528,7 +564,8 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
     changefreq: 'monthly',
     priority: '0.3',
   },
-] as const;
+  ...CONTENT_PAGES.map(contentRoute),
+];
 
 /** Página 404: `dist/404.html`, servida pela Vercel com status 404. Nunca indexável. */
 export const NOT_FOUND_ROUTE: PublicRoute = {
@@ -583,6 +620,10 @@ export function buildLlmsTxt(): string {
     '## Perguntas frequentes',
     '',
     ...FAQ.flatMap((item) => [`### ${item.question}`, '', item.answer, '']),
+    '## Páginas de conteúdo',
+    '',
+    ...CONTENT_PAGES.map((page) => `- [${page.title}](${SITE.origin}${page.slug}): ${page.description}`),
+    '',
     '## Links canônicos',
     '',
     `- Página inicial: ${SITE.origin}/`,

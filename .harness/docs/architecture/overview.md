@@ -25,6 +25,9 @@ sources:
   - src/landing/content.ts
   - src/landing/prerender-entry.tsx
   - src/landing/chrome.tsx
+  - src/landing/pages.ts
+  - src/landing/ContentPage.tsx
+  - src/pages/PublicContent.tsx
   - src/pages/NotFound.tsx
   - scripts/prerender-landing.mjs
   - scripts/check-app-routes.mjs
@@ -75,7 +78,7 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 
 | Módulo | Rotas principais | Guard | Fonte (App.tsx) |
 |---|---|---|---|
-| Público | `/` (landing, para quem não tem sessão), `/login`, `/esqueci-minha-senha`, `/reset-password`, `/trabalhe-conosco/:tenantId`; `/landing` redireciona para `/`; `/register` é o autocadastro (PUL-227); `/boas-vindas` e `/confirme-seu-email` confirmam o e-mail; `/teste-encerrado` recebe tenant com teste vencido; `/termos` e `/privacidade` são páginas públicas pré-renderizadas (PUL-240); rota `*` → `NotFound` (mesma página que a Vercel serve como `404.html`) | — | 110-124, 455-456 |
+| Público | `/` (landing, para quem não tem sessão), `/login`, `/esqueci-minha-senha`, `/reset-password`, `/trabalhe-conosco/:tenantId`; `/landing` redireciona para `/`; `/register` é o autocadastro (PUL-227); `/boas-vindas` e `/confirme-seu-email` confirmam o e-mail; `/teste-encerrado` recebe tenant com teste vencido; `/termos` e `/privacidade` são páginas públicas pré-renderizadas (PUL-240); `/:slug` → `PublicContent` resolve as páginas de conteúdo de `src/landing/pages.ts` (`/o-que-e-psa`, `/controle-de-margem-por-projeto`, `/software-de-gestao-para-consultorias`, `/custo-hora-de-funcionario`, PUL-242) e cai em `NotFound` para slug desconhecido; rota `*` → `NotFound` (mesma página que a Vercel serve como `404.html`) | — | 110-124, 455-470 |
 | Home | `/` → RootEntry (`src/components/auth/RootEntry.tsx:25-37`): sem sessão → `LandingPage` (a mesma já pré-renderizada no HTML); com sessão → HomeRedirect (admin → `/admin-dashboard`, demais → `/dashboard`) | — (decide pela sessão) | 140 |
 | Pessoal | `/inbox`, `/minha-agenda`, `/meus-emails`, `/my-timesheet`, `/minhas-ferias`, `/my-kanban`, `/my-projects` | Protected | 153-158, 167, 450-452 |
 | Jornada (ponto) | `/jornada`, `/jornada/configuracoes`, `/jornada/aprovacoes`, `/jornada/relatorios`, `/jornada/auditoria` | Protected / Admin / RH | 176, 184, 192, 200, 208 |
@@ -110,8 +113,14 @@ Três entradas HTML em `vite.config.ts` (`build.rollupOptions.input`):
 `vercel.json` também redireciona (308, permanente) qualquer caminho pedido pelo host `og-pulse.vercel.app` para `https://origamipulse.com.br`, porque esse host servia a home inteira sem `noindex` (PUL-231). A escolha apex × `www` é configuração de domínio no painel da Vercel, não do repositório.
 
 `src/landing/content.ts` é a fonte única de copy, SEO, JSON-LD, `llms.txt`,
-`sitemap.xml`, texto da 404 e dos documentos legais (`PUBLIC_ROUTES`: home
-indexável; termos e privacidade `noindex`; `NOT_FOUND_ROUTE`). Cabeçalho, rodapé e a
+`sitemap.xml`, texto da 404 e dos documentos legais (`PUBLIC_ROUTES`: home e páginas de
+conteúdo indexáveis; termos e privacidade `noindex`; `NOT_FOUND_ROUTE`). Identidade e
+oferta (`SITE`, `TRIAL`) moram em `src/landing/site.ts`. As páginas de conteúdo (SEO/GEO,
+PUL-242) são dados em `src/landing/pages.ts` (`CONTENT_PAGES`: lead com resposta direta,
+seções, tabelas, FAQ, relacionadas) renderizados por `src/landing/ContentPage.tsx`; a
+lista alimenta sozinha o sitemap, o `llms.txt` (seção "Páginas de conteúdo"), a coluna
+"Conteúdo" do rodapé e o JSON-LD por página (`buildPageJsonLd`: WebPage ou Article,
+BreadcrumbList, FAQPage). O prerender falha se uma página indexável sair sem JSON-LD. Cabeçalho, rodapé e a
 moldura `PublicPage` das páginas públicas vivem em `src/landing/chrome.tsx`; o rodapé
 leva "© {ano atual} Origami Lab" (`copyrightLine`), reaproveitado pelo `AppFooter`
 em todas as telas do app (`src/components/layout/AppLayout.tsx`). Scripts de operação:

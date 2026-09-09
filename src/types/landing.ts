@@ -23,6 +23,54 @@ export interface FaqItem {
 }
 
 /** Página pública pré-renderizada no build. `indexable: false` = `noindex` e fora do sitemap. */
+export interface ContentTable {
+  caption: string;
+  head: readonly string[];
+  rows: readonly (readonly string[])[];
+}
+
+export interface ContentSection {
+  title: string;
+  paragraphs?: readonly string[];
+  bullets?: readonly string[];
+  table?: ContentTable;
+}
+
+/** Intenção de busca da página de conteúdo. Comparar sempre pelo membro. */
+export const ContentKind = {
+  DEFINITION: 'definition',
+  PROBLEM: 'problem',
+  PERSONA: 'persona',
+  GUIDE: 'guide',
+} as const;
+export type ContentKind = (typeof ContentKind)[keyof typeof ContentKind];
+
+/** Página pública de conteúdo (SEO/GEO), pré-renderizada no build. Ver `src/landing/pages.ts`. */
+export interface ContentPage {
+  /** Caminho absoluto, ex.: `/o-que-e-psa`. */
+  slug: string;
+  kind: ContentKind;
+  /** Rótulo curto para rodapé e links relacionados. */
+  navLabel: string;
+  eyebrow: string;
+  /** `<h1>`. */
+  title: string;
+  seoTitle: string;
+  description: string;
+  /** Resposta direta no primeiro parágrafo, do jeito que um motor generativo cita. */
+  lead: string;
+  sections: readonly ContentSection[];
+  faq: readonly FaqItem[];
+  /** Slugs de outras páginas de conteúdo. */
+  related: readonly string[];
+  /** ISO `YYYY-MM-DD`. */
+  updatedAt: string;
+}
+
+export interface ContentPageProps {
+  page: ContentPage;
+}
+
 export interface PublicRoute {
   path: string;
   title: string;

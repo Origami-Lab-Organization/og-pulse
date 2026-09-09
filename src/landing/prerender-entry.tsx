@@ -13,9 +13,11 @@ import { StaticRouter } from 'react-router-dom/server';
 import LandingPage from '@/pages/LandingPage';
 import NotFound from '@/pages/NotFound';
 import Privacy from '@/pages/Privacy';
+import PublicContent from '@/pages/PublicContent';
 import Terms from '@/pages/Terms';
-import { NAV, NOT_FOUND_ROUTE, PUBLIC_ROUTES, SITE, buildJsonLd, buildLlmsTxt, buildSitemap } from '@/landing/content';
-import type { PublicRoute } from '@/types/landing';
+import { NAV, NOT_FOUND_ROUTE, PUBLIC_ROUTES, SITE, buildJsonLd, buildLlmsTxt, buildPageJsonLd, buildSitemap } from '@/landing/content';
+import { findContentPage } from '@/landing/pages';
+import type { JsonLd, PublicRoute } from '@/types/landing';
 
 export { buildJsonLd, buildLlmsTxt, buildSitemap, NOT_FOUND_ROUTE, PUBLIC_ROUTES, SITE };
 
@@ -28,6 +30,7 @@ function PublicRoutes() {
       <Route path={HOME} element={<LandingPage />} />
       <Route path={NAV.terms} element={<Terms />} />
       <Route path={NAV.privacy} element={<Privacy />} />
+      <Route path="/:slug" element={<PublicContent />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -76,16 +79,20 @@ function socialTags(route: PublicRoute, canonical: string): string[] {
   ];
 }
 
-/** JSON-LD só na home. `</` é escapado dentro do JSON para não fechar o script. */
-function jsonLdTags(): string[] {
-  return buildJsonLd().map(
-    (doc) => `<script type="application/ld+json">${JSON.stringify(doc).replace(/</g, '\\u003c')}</script>`,
-  );
+/** `</` é escapado dentro do JSON para não fechar o script. */
+function jsonLdTags(docs: JsonLd[]): string[] {
+  return docs.map((doc) => `<script type="application/ld+json">${JSON.stringify(doc).replace(/</g, '\\u003c')}</script>`);
+}
+
+/** Home leva Organization/WebSite/SoftwareApplication/FAQ; página de conteúdo leva WebPage/Breadcrumb/FAQ; as demais, nada. */
+function jsonLdFor(route: PublicRoute): JsonLd[] {
+  if (route.path === HOME) return buildJsonLd();
+  const page = findContentPage(route.path);
+  return page ? buildPageJsonLd(page) : [];
 }
 
 export function renderHead(route: PublicRoute): string {
   const canonical = canonicalOf(route);
-  const tags = [...baseTags(route, canonical), ...socialTags(route, canonical)];
-  if (route.path === HOME) tags.push(...jsonLdTags());
+  const tags = [...baseTags(route, canonical), ...socialTags(route, canonical), ...jsonLdTags(jsonLdFor(route))];
   return tags.join('\n    ');
 }

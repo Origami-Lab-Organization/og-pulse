@@ -7,7 +7,7 @@
  *   sitemaps                   lista os sitemaps enviados da propriedade
  *   submit [url]               envia o sitemap (padrão: <origem>/sitemap.xml)
  *   inspect <url>              inspeção de URL: estado no índice, canônica do Google, último rastreio
- *   status                     inspeciona as páginas-chave (hoje: a home)
+ *   status                     inspeciona as páginas do sitemap publicado (fallback: a home)
  *
  * Configuração (variáveis de ambiente, nunca no repositório):
  *   GSC_CREDENTIALS  caminho do JSON da conta de serviço (padrão ~/.config/gsc/pulse.json)
@@ -29,7 +29,17 @@ const CREDENTIALS = process.env.GSC_CREDENTIALS ?? path.join(homedir(), '.config
 const SITE = process.env.GSC_SITE ?? 'sc-domain:origamipulse.com.br';
 const ORIGIN = process.env.GSC_ORIGIN ?? 'https://origamipulse.com.br';
 const SCOPE = 'https://www.googleapis.com/auth/webmasters';
-const KEY_PAGES = ['/'];
+/** Páginas-chave = o que o sitemap publicado declara; se ele não responder, só a home. */
+async function keyPages() {
+  try {
+    const res = await fetch(`${ORIGIN}/sitemap.xml`);
+    if (!res.ok) return ['/'];
+    const locs = [...(await res.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].replace(ORIGIN, '') || '/');
+    return locs.length ? locs : ['/'];
+  } catch {
+    return ['/'];
+  }
+}
 
 function base64url(input) {
   return Buffer.from(input).toString('base64url');
@@ -184,7 +194,7 @@ async function cmdInspect(token, url) {
 }
 
 async function cmdStatus(token) {
-  for (const p of KEY_PAGES) {
+  for (const p of await keyPages()) {
     printInspection(await inspect(token, `${ORIGIN}${p}`));
     console.log('');
   }

@@ -23,6 +23,7 @@ import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import ClientFormPage from "./pages/ClientFormPage";
 import NotFound from "./pages/NotFound";
+import PublicContent from "./pages/PublicContent";
 import JobApplication from "./pages/JobApplication";
 import ProjectDetail from "./pages/ProjectDetail";
 import MyProjects from "./pages/MyProjects";
@@ -461,6 +462,9 @@ const App = () => (
               <Route path="/estrategia" element={<RoleProtectedRoute requireCapability="iniciativa:editar"><Strategy /></RoleProtectedRoute>} />
               <Route path="/rh/ferramentas-beneficios" element={<RoleProtectedRoute requireCapability="configuracao:editar"><BenefitsAndTools /></RoleProtectedRoute>} />
               <Route path="/rh/ferias" element={<RoleProtectedRoute requireCapability="ferias:gerir"><VacationManagement /></RoleProtectedRoute>} />
+              {/* Páginas públicas de conteúdo (SEO/GEO, PUL-242): um segmento, resolvido por
+                  src/landing/pages.ts; slug desconhecido cai em NotFound. Estáticas via prerender. */}
+              <Route path="/:slug" element={<PublicContent />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
                 </Routes>
