@@ -1,6 +1,6 @@
 # ADR 0028: Plano de teste por tenant, autocadastro aberto e bloqueio de teste expirado na RLS
 
-- Status: proposto (mecanismo técnico); as decisões de produto são de 09/09/2026
+- Status: aceito em 2026-09-09 por Italo Castro (decisões de produto e mecanismo técnico)
 - Data: 2026-09-09
 - Decisores: Italo Castro (produto); implementação registrada em PUL-224, PUL-227 e PUL-228
 

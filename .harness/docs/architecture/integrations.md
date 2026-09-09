@@ -62,6 +62,7 @@ flowchart LR
 | Serviço | Consumidor | O quê | Credencial |
 |---|---|---|---|
 | Microsoft Entra ID | Browser (`msalClient.ts:54`) | Login OAuth Auth Code + PKCE | client_id público, sem secret (`config.ts:1-16`) |
+| Google Identity (**planejado**, ADR-0029 / PUL-225) | Browser (Google Identity Services) → Edge Function `google-sso` | Login social: ID token OpenID Connect com escopos mínimos `openid email profile`. A função valida JWKS do Google, `iss`, `aud`, `exp` e `email_verified`, casa o e-mail com funcionário ativo (o tenant vem dele) e emite magiclink pela Admin API. Nada do Drive | `VITE_GOOGLE_CLIENT_ID` (público) no front; `GOOGLE_CLIENT_ID` como secret da função; sem client secret (só ID token) |
 | Microsoft Graph v1.0 | Browser (`microsoftGraphService.ts:39`) | Calendário (`/me/calendarView`, `/me/events`) e Email (`/me/mailFolders/inbox/messages`); escopos `Calendars.ReadWrite`, `Mail.Read` (`:47`) | Bearer MSAL, renovado silent; backend nunca vê o token |
 | Microsoft Graph — OneDrive | Browser (`microsoftGraphService.ts:962-1075`) | Seletor de pasta raiz do projeto: `/me/drive/root`, `/drives/{id}/items/{id}/children`, `/me/drive/sharedWithMe` e `/shares/u!{b64}/driveItem`. Escopo `Files.ReadWrite.All` **em conjunto separado** (`FILES_SCOPES`, `:962`) | Bearer MSAL adquirido por consentimento incremental (`msalClient.ts:219`), só ao abrir o seletor |
 | Resend | `send-invite-email/index.ts:135`, `send-candidate-hired-email/index.ts:126` | Email transacional (ver divergência 2) | `RESEND_API_KEY` |
@@ -75,6 +76,9 @@ flowchart LR
 **SSO** — `microsoft-sso`: valida idToken via JWKS + `tid` e emite magiclink
 `tokenHash` (`index.ts:91-111, 152-161`). `verify_jwt=false`
 (`config.toml:5-7`). Ver ADR-0016 e sequência no `overview.md`.
+`google-sso` (**planejada**, ADR-0029 / PUL-225): mesmo desenho, com JWKS do Google, `iss`
+`accounts.google.com`, `aud` igual ao client id e `email_verified`; sem `tid`, o tenant vem do
+funcionário. O que for comum às duas funções sai para `_shared/` quando a segunda nascer.
 
 **RH / convites** — `create-employee-user` (convite via `inviteUserByEmail`,
 valida JWT manualmente — `index.ts:108, 263-267`), `resend-employee-invite`
