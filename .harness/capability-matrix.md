@@ -164,6 +164,11 @@ decidido pelo proprio mecanismo — configuracao ruim trancaria o tenant fora da
 administracao, e a invariante do ultimo administrador cobre so `pessoa:editar-papel`. E o
 mesmo raciocinio do ponto 7 do ADR-0027 (escopo e tenant nunca sao configuraveis).
 
+**Plano do tenant (`tenants.plan`, `trial_ends_at`) tambem nao e capacidade.** Teste de 14 dias e
+reativacao sao decisao da Origami: as colunas so mudam por service role ou sessao direta no banco
+(trigger `tenants_guard_plan_columns`, migration `20260909120000`). A policy de UPDATE por
+`configuracao:editar` continua valendo para os demais campos do tenant. Ver PUL-224.
+
 ---
 
 ## Cenario 1 — respostas diretas, sem abrir codigo

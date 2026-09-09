@@ -30,7 +30,7 @@ const getPasswordStrength = (password: string): { label: string; level: number; 
   if (!password) return { label: '', level: 0, color: '' };
   const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /\d/.test(password);
-  const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/.test(password);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=[\]\\/`~;']/.test(password);
   const isLong = password.length >= 8;
 
   if (isLong && hasUpper && hasNumber && hasSpecial) return { label: 'Forte', level: 3, color: 'bg-green-500' };
@@ -45,7 +45,7 @@ const step1Schema = z.object({
     .min(8, 'Senha deve ter pelo menos 8 caracteres')
     .refine(val => /[A-Z]/.test(val), { message: 'Senha deve conter ao menos 1 letra maiúscula' })
     .refine(val => /\d/.test(val), { message: 'Senha deve conter ao menos 1 número' })
-    .refine(val => /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/`~;']/.test(val), { message: 'Senha deve conter ao menos 1 símbolo' }),
+    .refine(val => /[!@#$%^&*(),.?":{}|<>_\-+=[\]\\/`~;']/.test(val), { message: 'Senha deve conter ao menos 1 símbolo' }),
   confirmPassword: z.string(),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'As senhas não coincidem',
@@ -61,6 +61,8 @@ const registerSchema = z.object({
   cnpj: z.string().refine(val => validateCNPJ(val), { message: 'CNPJ inválido' }),
   segment: z.string().min(1, 'Segmento é obrigatório'),
   employeeCount: z.string().min(1, 'Selecione o número de funcionários'),
+  /** Honeypot: humano nunca vê nem preenche; robô preenche e a função finge sucesso. */
+  website: z.string().optional(),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'As senhas não coincidem',
   path: ['confirmPassword'],
@@ -123,6 +125,7 @@ const Register = () => {
     mode: 'onBlur',
     defaultValues: {
       adminName: '',
+      website: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -164,6 +167,7 @@ const Register = () => {
           cnpj: unformatCNPJ(data.cnpj),
           segment: data.segment,
           employeeCount: employeeCountMap[data.employeeCount] || 5,
+          website: data.website ?? '',
         },
       });
 
@@ -184,26 +188,22 @@ const Register = () => {
         throw new Error(responseData.error);
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
+      // Sem login automático: o e-mail precisa ser confirmado antes (PUL-227). A tela de
+      // boas-vindas explica e oferece o reenvio.
+      navigate('/boas-vindas', {
+        state: {
+          email: data.email,
+          justRegistered: true,
+          confirmationEmailSent: responseData?.confirmationEmailSent !== false,
+          autoConfirmed: Boolean(responseData?.autoConfirmed),
+        },
       });
-
-      if (signInError) {
-        toast({
-          title: 'Empresa cadastrada com sucesso!',
-          description: 'Faça login com suas credenciais.',
-        });
-        navigate('/login');
-        return;
-      }
-
-      navigate('/boas-vindas', { state: { email: data.email, justRegistered: true } });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
+      const message = error instanceof Error ? error.message : 'Tente novamente mais tarde.';
       toast({
         title: 'Erro ao cadastrar empresa',
-        description: error.message || 'Tente novamente mais tarde.',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -222,7 +222,7 @@ const Register = () => {
             Comece a ver a <span className="ol-text-accent">margem real</span> dos seus projetos.
           </h1>
           <p className="text-white/60 text-base max-w-sm mx-auto">
-            Configure sua empresa em menos de 7 dias e tome decisões com dados concretos.
+            Teste grátis por 14 dias, sem cartão de crédito. Depois, é só falar com a gente.
           </p>
         </div>
       </div>
@@ -240,7 +240,7 @@ const Register = () => {
               Cadastrar <span className="ol-text-accent">Empresa</span>
             </h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              Comece a ver a margem real dos seus projetos em menos de 7 dias.
+              Teste grátis por 14 dias, sem cartão. Cadastre a empresa e o administrador; o time você convida depois.
             </p>
           </div>
 
@@ -248,6 +248,15 @@ const Register = () => {
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {/* Honeypot anti-robô: fora do fluxo de leitura e de foco. */}
+              <input
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                className="sr-only"
+                {...form.register('website')}
+              />
               {step === 1 && (
                 <>
                   <FormField

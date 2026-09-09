@@ -68,7 +68,7 @@ flowchart LR
 | Anthropic | `market-analysis-start/index.ts:317` (Opus 4), `market-analysis-refine/index.ts:37` (Sonnet 4) | Relatórios de análise de mercado | `ANTHROPIC_API_KEY` |
 | Anthropic (Opus 5) | `parse-cnpj-card/index.ts:70-89` | Extração de Cartão CNPJ (PDF em base64 via bloco `document`), com schema Zod em `output_config` — o modelo é obrigado ao formato, sem pós-processamento de markdown; usado por `ClientForm` e `SupplierFormDialog` | `ANTHROPIC_API_KEY` |
 | Reconhecimento facial | `src/lib/faceRecognition.ts:1-12` | **100% local no browser** (`@vladmandic/face-api`), threshold 0.6; só os pesos vêm da CDN jsDelivr | — |
-| SMTP do Supabase Auth | `create-employee-user`, `resend-employee-invite`, `request-first-access` | Convites e recovery links (substituiu Resend nessas funções) | interno Supabase |
+| SMTP do Supabase Auth | `create-employee-user`, `resend-employee-invite`, `request-first-access`, `register-tenant` | Convites, recovery links e confirmação de e-mail do autocadastro (`resend` tipo `signup`, redireciona para `/boas-vindas`) | interno Supabase |
 
 ## Edge Functions por grupo
 
@@ -79,7 +79,10 @@ flowchart LR
 **RH / convites** — `create-employee-user` (convite via `inviteUserByEmail`,
 valida JWT manualmente — `index.ts:108, 263-267`), `resend-employee-invite`
 (exige admin — `index.ts:91`), `request-first-access` (público),
-`register-tenant`, `recalculate-employee-costs`, `send-candidate-hired-email`,
+`register-tenant` (autocadastro público, PUL-227: corpo validado com zod, honeypot
+`website`, limite por IP e por e-mail em `signup_attempts`, usuário nasce não confirmado e a
+confirmação sai pelo SMTP do Auth via `auth.resend` tipo `signup`; rollback de tenant,
+usuário e funcionário em falha), `recalculate-employee-costs`, `send-candidate-hired-email`,
 `send-invite-email`.
 
 **Ponto / facial** — `record-time-punch` (recebe `face_match_status` calculado
@@ -141,8 +144,10 @@ nunca foram aplicados e deixaram os três jobs falhando desde 22/06.
 1. **`seed-demo-tenant` é endpoint aberto**: `verify_jwt=false`
    (`config.toml:43`), sem verificação de token/header no código, e com
    credenciais demo hardcoded (`index.ts:21-25`).
-2. **`register-tenant` e `recalculate-employee-costs`** também têm
-   `verify_jwt=false` sem checagem de chamador no corpo.
+2. **`recalculate-employee-costs`** tem `verify_jwt=false` sem checagem de chamador no
+   corpo. `register-tenant` é público **de propósito** (autocadastro, PUL-227) e desde 09/09
+   valida o corpo com zod, tem honeypot e limite por IP/e-mail; falta captcha (Turnstile,
+   pendente de chaves) e a constraint única de CNPJ no banco (a função já recusa repetido).
 3. **`market-analysis-start` confia em `userId`/`tenantId` do body** sem
    validar sessão (`index.ts:274-282`) — quebra o modelo de autorização por
    recurso.

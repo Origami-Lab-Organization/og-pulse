@@ -1,420 +1,580 @@
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import type { CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  Users,
-  Building2,
-  FolderKanban,
-  FileText,
-  TrendingUp,
-  Shield,
-  CheckCircle2,
   ArrowRight,
-} from "lucide-react";
-import logo from "@/assets/logo.png";
+  CheckCircle2,
+  Clock,
+  FileText,
+  FolderKanban,
+  Shield,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import type {
+  EyebrowProps,
+  FeatureIcon,
+  FooterLink,
+  ScrollProgressProps,
+  SiteHeaderProps,
+  SpotlightMock,
+  SpotlightRowProps,
+} from '@/types/landing';
+import { MockTone } from '@/types/landing';
+import {
+  AUDIENCE,
+  COMPARISON,
+  DEFINITION,
+  FAQ,
+  FEATURES,
+  FINAL_CTA,
+  FOOTER,
+  FOOTER_COLUMNS,
+  HERO,
+  HERO_STATS,
+  MARQUEE,
+  NAV,
+  PROBLEM,
+  SITE,
+  SPOTLIGHTS,
+  TRIAL_SECTION,
+} from '@/landing/content';
+import { useMotionEnabled, useParallax, useRevealOnScroll, useScrollProgress, useTilt } from '@/landing/hooks';
+import { AllocationMock, DashboardMock, FloatingBadge, MarginMock, PipelineMock } from '@/landing/mocks';
+import '@/landing/landing.css';
 
-// JSON-LD Schema for SEO
-const softwareSchema = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "Origami Pulse",
-  applicationCategory: "BusinessApplication",
-  operatingSystem: "Web",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "BRL",
-  },
-  description:
-    "Sistema de gestão financeira completo para empresas de serviços. Controle funcionários, projetos e orçamentos em um só lugar.",
-  featureList: [
-    "Gestão de equipe com cálculo de custo/hora real",
-    "Controle de clientes e projetos",
-    "Orçamentos comerciais profissionais",
-    "Dashboard de margem e rentabilidade",
-    "Multi-tenant com segurança isolada",
-  ],
+/**
+ * Landing page pública em `/`.
+ *
+ * É pré-renderizada no build (`scripts/prerender-landing.mjs`) para que Google e
+ * motores generativos recebam o HTML completo sem executar JavaScript. Por isso:
+ *  - toda copy vem de `src/landing/content.ts`, a mesma fonte do JSON-LD e do llms.txt;
+ *  - o FAQ usa `<details>` nativo, para as respostas existirem no HTML mesmo fechadas;
+ *  - nada aqui depende de sessão, dado do banco ou `window` em tempo de render.
+ *
+ * Os efeitos (parallax, revelação por scroll, inclinação 3D, faixa em movimento)
+ * são progressivos: só ligam no cliente, via `data-motion="on"`, e desligam com
+ * `prefers-reduced-motion`. Sem JavaScript a página é a mesma, parada.
+ *
+ * Seções escuras usam a classe `dark` como escopo: os tokens do tema trocam de valor
+ * e os componentes continuam lendo `bg-background`, `text-foreground` etc.
+ * (pattern `.harness/patterns/design-system.md`: nunca cor avulsa).
+ */
+
+const ICONS: Record<FeatureIcon, LucideIcon> = { TrendingUp, FolderKanban, Users, FileText, Clock, Shield };
+
+const MOCKS: Record<SpotlightMock, () => JSX.Element> = {
+  pipeline: PipelineMock,
+  allocation: AllocationMock,
+  margin: MarginMock,
 };
 
-const faqSchema = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: [
-    {
-      "@type": "Question",
-      name: "O que é o Origami Pulse?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Origami Pulse é um sistema de gestão financeira desenvolvido para empresas de serviços. Ele permite controlar funcionários, clientes, projetos e orçamentos em uma única plataforma, calculando automaticamente custos reais e margens de lucro.",
-      },
-    },
-    {
-      "@type": "Question",
-      name: "Para quem é indicado o Origami Pulse?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "O sistema é ideal para agências, consultorias, software houses, escritórios de design, e qualquer empresa de serviços que precise controlar custos de equipe, criar orçamentos comerciais e acompanhar a rentabilidade de projetos.",
-      },
-    },
-    {
-      "@type": "Question",
-      name: "Como calcular o custo real de um funcionário?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "O Origami Pulse calcula automaticamente o custo real somando salário, benefícios, encargos trabalhistas e ferramentas utilizadas. O sistema divide esse total pelas horas trabalhadas para obter o custo/hora real de cada colaborador.",
-      },
-    },
-    {
-      "@type": "Question",
-      name: "Posso criar orçamentos comerciais?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Sim. O módulo de orçamentos permite criar propostas comerciais detalhadas com roles, horas por mês, taxas administrativas, impostos e descontos. Você pode converter orçamentos aprovados diretamente em projetos.",
-      },
-    },
-    {
-      "@type": "Question",
-      name: "O sistema é seguro para minha empresa?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Sim. O Origami Pulse utiliza arquitetura multi-tenant onde cada empresa tem seu ambiente completamente isolado. Os dados são protegidos com políticas de segurança no nível do banco de dados e autenticação robusta.",
-      },
-    },
-    {
-      "@type": "Question",
-      name: "Como começo a usar?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Basta clicar em 'Cadastrar Empresa Grátis', preencher os dados da sua empresa e do administrador. Em poucos segundos você terá acesso completo ao sistema para começar a cadastrar funcionários, clientes e projetos.",
-      },
-    },
-  ],
-};
+/** Grade "bento": posições por índice das seis funcionalidades. */
+const BENTO_SPAN = ['md:col-span-4', 'md:col-span-2', 'md:col-span-2', 'md:col-span-4', 'md:col-span-3', 'md:col-span-3'];
 
-const features = [
-  {
-    icon: Users,
-    title: "Gestão de Equipe",
-    description:
-      "Controle completo de funcionários com cálculo automático de custo/hora real incluindo salário, benefícios, encargos e ferramentas.",
-  },
-  {
-    icon: Building2,
-    title: "Gestão de Clientes",
-    description:
-      "Carteira de clientes organizada com histórico de projetos, status e informações centralizadas para melhor relacionamento.",
-  },
-  {
-    icon: FolderKanban,
-    title: "Projetos e Alocação",
-    description:
-      "Gerencie projetos fixos ou contínuos, aloque equipe por projeto e acompanhe a margem real versus contratada.",
-  },
-  {
-    icon: FileText,
-    title: "Orçamentos Profissionais",
-    description:
-      "Crie propostas comerciais detalhadas com roles, horas por mês, taxas, impostos e descontos calculados automaticamente.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Controle Financeiro",
-    description:
-      "Dashboard de margem com visão clara de rentabilidade, controle de parcelas e recebimentos por projeto.",
-  },
-  {
-    icon: Shield,
-    title: "Multi-Empresa",
-    description:
-      "Ambiente isolado por empresa com segurança e privacidade garantidas. Cadastro self-service em poucos minutos.",
-  },
-];
+const contactHref = `mailto:${SITE.contactEmail}`;
 
-const benefits = [
-  "Saiba o custo real de cada hora trabalhada",
-  "Crie orçamentos precisos em minutos",
-  "Acompanhe a margem de cada projeto",
-  "Tome decisões baseadas em dados reais",
-  "Ambiente seguro e isolado para sua empresa",
-  "Comece a usar gratuitamente",
-];
+const delay = (index: number, step = 90): CSSProperties => ({ ['--lp-delay' as string]: `${index * step}ms` });
 
-const faqItems = [
-  {
-    question: "O que é o Origami Pulse?",
-    answer:
-      "Origami Pulse é um sistema de gestão financeira desenvolvido para empresas de serviços. Ele permite controlar funcionários, clientes, projetos e orçamentos em uma única plataforma, calculando automaticamente custos reais e margens de lucro.",
-  },
-  {
-    question: "Para quem é indicado o Origami Pulse?",
-    answer:
-      "O sistema é ideal para agências, consultorias, software houses, escritórios de design, e qualquer empresa de serviços que precise controlar custos de equipe, criar orçamentos comerciais e acompanhar a rentabilidade de projetos.",
-  },
-  {
-    question: "Como calcular o custo real de um funcionário?",
-    answer:
-      "O Origami Pulse calcula automaticamente o custo real somando salário, benefícios, encargos trabalhistas e ferramentas utilizadas. O sistema divide esse total pelas horas trabalhadas para obter o custo/hora real de cada colaborador.",
-  },
-  {
-    question: "Posso criar orçamentos comerciais?",
-    answer:
-      "Sim. O módulo de orçamentos permite criar propostas comerciais detalhadas com roles, horas por mês, taxas administrativas, impostos e descontos. Você pode converter orçamentos aprovados diretamente em projetos.",
-  },
-  {
-    question: "O sistema é seguro para minha empresa?",
-    answer:
-      "Sim. O Origami Pulse utiliza arquitetura multi-tenant onde cada empresa tem seu ambiente completamente isolado. Os dados são protegidos com políticas de segurança no nível do banco de dados e autenticação robusta.",
-  },
-  {
-    question: "Como começo a usar?",
-    answer:
-      "Basta clicar em 'Cadastrar Empresa Grátis', preencher os dados da sua empresa e do administrador. Em poucos segundos você terá acesso completo ao sistema para começar a cadastrar funcionários, clientes e projetos.",
-  },
-];
+const focusRing = 'rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+
+function Eyebrow(props: EyebrowProps) {
+  const { children, className = '' } = props;
+  return <p className={`ol-label mb-4 text-primary ${className}`}>{children}</p>;
+}
+
+function ScrollProgress(props: ScrollProgressProps) {
+  const { progress } = props;
+  return (
+    <div
+      aria-hidden="true"
+      className="lp-progress fixed inset-x-0 top-0 z-[70] h-0.5 bg-primary"
+      style={{ ['--lp-progress' as string]: progress } as CSSProperties}
+    />
+  );
+}
+
+function SiteHeader(props: SiteHeaderProps) {
+  const { scrolled } = props;
+  const surface = scrolled ? 'border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70' : 'border-transparent bg-transparent';
+  return (
+    <header data-scrolled={scrolled} className={`lp-header dark sticky top-0 z-50 w-full border-b text-foreground ${surface}`}>
+      <div className="container flex h-16 items-center justify-between">
+        <Link to="/" className={`flex items-center gap-2 ${focusRing}`}>
+          <img src={SITE.logoPath} alt="" width={32} height={32} className="h-8 w-auto" />
+          <span className="text-lg font-semibold">
+            Origami <span className="ol-text-accent">Pulse</span>
+          </span>
+        </Link>
+        <nav aria-label="Principal" className="hidden items-center gap-6 md:flex">
+          <a href="#funcionalidades" className={`text-sm text-muted-foreground transition-colors hover:text-foreground ${focusRing}`}>
+            Funcionalidades
+          </a>
+          <a href="#como-funciona" className={`text-sm text-muted-foreground transition-colors hover:text-foreground ${focusRing}`}>
+            Como funciona
+          </a>
+          <a href="#perguntas-frequentes" className={`text-sm text-muted-foreground transition-colors hover:text-foreground ${focusRing}`}>
+            Perguntas
+          </a>
+        </nav>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button variant="ghost" asChild>
+            <Link to={NAV.login}>{HERO.secondaryCta}</Link>
+          </Button>
+          <Button variant="gradient" asChild>
+            <Link to={NAV.register}>{HERO.primaryCta}</Link>
+          </Button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function HeroSection() {
+  const motion = useMotionEnabled();
+  const ref = useParallax<HTMLElement>(motion);
+  return (
+    <section
+      ref={ref}
+      aria-labelledby="hero-title"
+      className="lp-parallax dark relative -mt-16 overflow-hidden bg-background pb-24 pt-32 text-foreground md:pb-32 md:pt-40"
+    >
+      <div className="lp-grid absolute inset-0" aria-hidden="true" />
+      <div className="lp-orb lp-orb--primary -left-40 top-10 h-[36rem] w-[36rem]" aria-hidden="true" />
+      <div className="lp-orb lp-orb--deep -right-32 bottom-0 h-[30rem] w-[30rem]" aria-hidden="true" />
+
+      <div className="container relative grid items-center gap-16 lg:grid-cols-[1.05fr_1fr]">
+        <div className="max-w-2xl">
+          <div className="lp-enter" style={delay(0)}>
+            <Eyebrow>{HERO.eyebrow}</Eyebrow>
+          </div>
+          <h1 id="hero-title" className="ol-display lp-enter lp-gradient-text" style={delay(1)}>
+            {HERO.title}
+          </h1>
+          <p className="lp-enter mt-6 text-lg text-muted-foreground md:text-xl" style={delay(2)}>
+            {HERO.subtitle}
+          </p>
+          <div className="lp-enter mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center" style={delay(3)}>
+            <Button variant="gradient" size="lg" asChild>
+              <Link to={NAV.register}>
+                {HERO.primaryCta}
+                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <Link to={NAV.login}>{HERO.secondaryCta}</Link>
+            </Button>
+          </div>
+          <p className="lp-enter mt-4 text-sm text-muted-foreground" style={delay(4)}>
+            {HERO.note}
+          </p>
+          <dl className="lp-enter mt-12 grid grid-cols-3 gap-6 border-t border-border pt-8" style={delay(5)}>
+            {HERO_STATS.map((stat) => (
+              <div key={stat.value}>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</dt>
+                <dd className="mt-1 text-xl font-semibold text-foreground md:text-2xl">{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="lp-enter relative mx-auto w-full max-w-xl lg:max-w-none" style={delay(3)}>
+          <div className="lp-layer" style={{ ['--lp-depth' as string]: 0.5 } as CSSProperties}>
+            <DashboardMock />
+          </div>
+          <div className="lp-layer lp-bob absolute -left-8 -top-6 hidden sm:block" style={{ ['--lp-depth' as string]: 1.6 } as CSSProperties}>
+            <FloatingBadge label="Margem realizada" value="+3 p.p. sobre o plano" />
+          </div>
+          <div className="lp-layer lp-bob lp-bob--late absolute -bottom-6 -right-6 hidden sm:block" style={{ ['--lp-depth' as string]: 1.2 } as CSSProperties}>
+            <FloatingBadge label="Semana 37" value="Horas fechadas" tone={MockTone.PRIMARY} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MarqueeSection() {
+  const items = [...MARQUEE, ...MARQUEE];
+  return (
+    <section aria-label="Segmentos atendidos" className="border-y border-border bg-card py-5">
+      <div className="lp-marquee overflow-hidden">
+        <div className="lp-marquee__track">
+          {items.map((item, index) => (
+            <span
+              key={`${item}-${index}`}
+              aria-hidden={index >= MARQUEE.length}
+              className="flex items-center gap-3 whitespace-nowrap text-sm font-medium uppercase tracking-widest text-muted-foreground"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DefinitionSection() {
+  return (
+    <section aria-labelledby="definicao-title" className="bg-background py-20 md:py-28">
+      <div className="container grid gap-12 lg:grid-cols-[1.2fr_1fr] lg:items-start">
+        <div className="lp-reveal">
+          <Eyebrow>Em uma frase</Eyebrow>
+          <h2 id="definicao-title" className="ol-h2 text-foreground">
+            {DEFINITION.heading}
+          </h2>
+          <p className="mt-6 text-lg leading-relaxed text-foreground md:text-xl">{DEFINITION.answer}</p>
+        </div>
+        <aside className="lp-reveal rounded-2xl border border-border bg-card p-8 shadow-sm" style={delay(2)}>
+          <h3 className="ol-h3 text-foreground">{DEFINITION.psaHeading}</h3>
+          <p className="mt-4 text-muted-foreground">{DEFINITION.psaAnswer}</p>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function ProblemSection() {
+  return (
+    <section aria-labelledby="problema-title" className="dark relative overflow-hidden bg-background py-20 text-foreground md:py-28">
+      <div className="lp-orb lp-orb--deep -right-40 -top-40 h-[28rem] w-[28rem]" aria-hidden="true" />
+      <div className="container relative">
+        <div className="lp-reveal mx-auto max-w-3xl text-center">
+          <Eyebrow>{PROBLEM.eyebrow}</Eyebrow>
+          <h2 id="problema-title" className="ol-h2">
+            {PROBLEM.title}
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground">{PROBLEM.paragraphs[0]}</p>
+        </div>
+        <ul className="mt-14 grid gap-6 md:grid-cols-3">
+          {PROBLEM.pains.map((pain, index) => (
+            <li key={pain.title} className="lp-reveal rounded-2xl border border-border bg-card p-7" style={delay(index + 1)}>
+              <span className="ol-label text-primary" aria-hidden="true">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <h3 className="mt-3 text-lg font-semibold text-foreground">{pain.title}</h3>
+              <p className="mt-2 text-muted-foreground">{pain.description}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="lp-reveal mx-auto mt-14 max-w-3xl text-center text-lg font-medium text-foreground" style={delay(4)}>
+          {PROBLEM.paragraphs[1]}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function SpotlightRow(props: SpotlightRowProps) {
+  const { item, index } = props;
+  const Mock = MOCKS[item.mock];
+  const flipped = index % 2 === 1;
+  return (
+    <li className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+      <div className={`lp-reveal ${flipped ? 'lg:order-2' : ''}`}>
+        <Eyebrow>{item.eyebrow}</Eyebrow>
+        <h3 className="ol-h2 text-foreground">{item.title}</h3>
+        <p className="mt-5 text-lg text-muted-foreground">{item.description}</p>
+        <ul className="mt-6 space-y-3">
+          {item.bullets.map((bullet) => (
+            <li key={bullet} className="flex items-start gap-3 text-foreground">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" aria-hidden="true" />
+              <span>{bullet}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className={`lp-reveal ${flipped ? 'lg:order-1' : ''}`} style={delay(1)}>
+        <div data-tilt className="lp-tilt rounded-xl">
+          <Mock />
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function SpotlightsSection() {
+  return (
+    <section aria-labelledby="destaques-title" className="bg-muted/40 py-20 md:py-28">
+      <div className="container">
+        <div className="lp-reveal mx-auto mb-16 max-w-3xl text-center">
+          <Eyebrow>Como o Pulse trabalha</Eyebrow>
+          <h2 id="destaques-title" className="ol-h2 text-foreground">
+            Do comercial à margem, <span className="ol-text-accent">um fluxo só.</span>
+          </h2>
+        </div>
+        <ol className="space-y-24">
+          {SPOTLIGHTS.map((item, index) => (
+            <SpotlightRow key={item.title} item={item} index={index} />
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+function FeaturesSection() {
+  return (
+    <section id="funcionalidades" aria-labelledby="funcionalidades-title" className="bg-background py-20 md:py-28">
+      <div className="container">
+        <div className="lp-reveal mb-12 max-w-3xl">
+          <Eyebrow>Funcionalidades</Eyebrow>
+          <h2 id="funcionalidades-title" className="ol-h2 text-foreground">
+            Comercial, projetos e pessoas <span className="ol-text-accent">na mesma base.</span>
+          </h2>
+        </div>
+        <ul className="grid gap-5 md:grid-cols-6">
+          {FEATURES.map((feature, index) => {
+            const Icon = ICONS[feature.icon];
+            return (
+              <li key={feature.title} className={`lp-reveal ${BENTO_SPAN[index]}`} style={delay(index)}>
+                <div data-tilt className="lp-tilt h-full rounded-2xl border border-border bg-card p-7">
+                  <div className="inline-flex rounded-xl bg-gradient-brand p-3 text-primary-foreground shadow-md shadow-primary/30" aria-hidden="true">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-5 text-lg font-semibold text-foreground">{feature.title}</h3>
+                  <p className="mt-2 text-muted-foreground">{feature.description}</p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="lp-reveal mt-12 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-border pt-8" style={delay(2)}>
+          <span className="ol-label text-muted-foreground">{AUDIENCE.title}</span>
+          {AUDIENCE.items.map((item) => (
+            <span key={item} className="flex items-center gap-2 text-sm text-foreground">
+              <CheckCircle2 className="h-4 w-4 text-primary" aria-hidden="true" />
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ComparisonSection() {
+  return (
+    <section aria-labelledby="comparativo-title" className="dark bg-background py-20 text-foreground md:py-28">
+      <div className="container">
+        <div className="lp-reveal mb-12 text-center">
+          <Eyebrow>{COMPARISON.eyebrow}</Eyebrow>
+          <h2 id="comparativo-title" className="ol-h2">
+            {COMPARISON.title}
+          </h2>
+        </div>
+        <div className="lp-reveal mx-auto max-w-4xl overflow-x-auto rounded-2xl border border-border bg-card" style={delay(1)}>
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <caption className="sr-only">{COMPARISON.title}</caption>
+            <thead className="text-foreground">
+              <tr className="border-b border-border">
+                <th scope="col" className="px-5 py-4 font-semibold">
+                  O que você precisa saber
+                </th>
+                <th scope="col" className="px-5 py-4 font-semibold text-muted-foreground">
+                  {COMPARISON.columns[0]}
+                </th>
+                <th scope="col" className="bg-primary/10 px-5 py-4 font-semibold text-primary">
+                  {COMPARISON.columns[1]}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARISON.rows.map((row) => (
+                <tr key={row.topic} className="border-b border-border last:border-0">
+                  <th scope="row" className="px-5 py-4 font-medium text-foreground">
+                    {row.topic}
+                  </th>
+                  <td className="px-5 py-4 text-muted-foreground">{row.spreadsheets}</td>
+                  <td className="bg-primary/10 px-5 py-4 text-foreground">{row.pulse}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TrialSection() {
+  return (
+    <section id="como-funciona" aria-labelledby="como-funciona-title" className="bg-background py-20 md:py-28">
+      <div className="container">
+        <div className="lp-reveal mb-14 text-center">
+          <Eyebrow>{TRIAL_SECTION.eyebrow}</Eyebrow>
+          <h2 id="como-funciona-title" className="ol-h2 text-foreground">
+            {TRIAL_SECTION.title}
+          </h2>
+        </div>
+        <ol className="relative grid gap-8 md:grid-cols-4">
+          <div className="absolute left-0 right-0 top-6 hidden h-px bg-gradient-to-r from-transparent via-border to-transparent md:block" aria-hidden="true" />
+          {TRIAL_SECTION.steps.map((step, index) => (
+            <li key={step.title} className="lp-reveal relative" style={delay(index)}>
+              <span className="relative z-10 inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-brand text-sm font-semibold text-primary-foreground shadow-md shadow-primary/30" aria-hidden="true">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <h3 className="mt-5 text-lg font-semibold text-foreground">{step.title}</h3>
+              <p className="mt-2 text-muted-foreground">{step.description}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+function FaqSection() {
+  return (
+    <section id="perguntas-frequentes" aria-labelledby="faq-title" className="bg-muted/40 py-20 md:py-28">
+      <div className="container">
+        <div className="mx-auto max-w-3xl">
+          <div className="lp-reveal mb-12 text-center">
+            <Eyebrow>Dúvidas</Eyebrow>
+            <h2 id="faq-title" className="ol-h2 text-foreground">
+              Perguntas <span className="ol-text-accent">frequentes</span>
+            </h2>
+          </div>
+          <div className="lp-reveal divide-y divide-border rounded-2xl border border-border bg-card" style={delay(1)}>
+            {FAQ.map((item) => (
+              <details key={item.question} className="lp-faq px-6 py-4">
+                <summary className={`flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-foreground ${focusRing}`}>
+                  {item.question}
+                  <span aria-hidden="true" className="lp-faq__icon inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground">
+                    +
+                  </span>
+                </summary>
+                <p className="lp-faq__body mt-3 pr-11 text-muted-foreground">{item.answer}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FinalCtaSection() {
+  return (
+    <section aria-labelledby="cta-title" className="dark relative overflow-hidden bg-background py-24 text-foreground md:py-32">
+      <div className="lp-grid absolute inset-0" aria-hidden="true" />
+      <div className="lp-orb lp-orb--primary left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2" aria-hidden="true" />
+      <div className="container relative">
+        <div className="lp-reveal mx-auto max-w-2xl text-center">
+          <Eyebrow>{FINAL_CTA.eyebrow}</Eyebrow>
+          <h2 id="cta-title" className="ol-display lp-gradient-text">
+            {FINAL_CTA.title}
+          </h2>
+          <p className="mt-6 text-lg text-muted-foreground">{FINAL_CTA.subtitle}</p>
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Button variant="gradient" size="lg" asChild>
+              <Link to={NAV.register}>
+                {FINAL_CTA.cta}
+                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <a href={contactHref}>Falar com a Origami Lab</a>
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FooterLinkItem(props: FooterLink) {
+  const { label, href } = props;
+  const className = `text-sm text-muted-foreground transition-colors hover:text-foreground ${focusRing}`;
+  if (href.startsWith('#') || href.startsWith('mailto:')) {
+    return (
+      <a href={href} className={className}>
+        {label}
+      </a>
+    );
+  }
+  return (
+    <Link to={href} className={className}>
+      {label}
+    </Link>
+  );
+}
+
+function SiteFooter() {
+  return (
+    <footer className="dark border-t border-border bg-background py-14 text-foreground">
+      <div className="container grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div>
+          <div className="flex items-center gap-2">
+            <img src={SITE.logoPath} alt="" width={28} height={28} className="h-7 w-auto" />
+            <span className="font-semibold">
+              Origami <span className="ol-text-accent">Pulse</span>
+            </span>
+          </div>
+          <p className="mt-4 max-w-xs text-sm text-muted-foreground">{HERO.subtitle}</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            {FOOTER.tagline}{' '}
+            <a href={SITE.maker.url} rel="noopener" className={`underline-offset-4 hover:underline ${focusRing}`}>
+              {SITE.maker.url.replace('https://', '')}
+            </a>
+          </p>
+        </div>
+        {FOOTER_COLUMNS.map((column) => (
+          <nav key={column.title} aria-label={column.title}>
+            <h2 className="ol-label text-muted-foreground">{column.title}</h2>
+            <ul className="mt-4 space-y-3">
+              {column.links.map((link) => (
+                <li key={link.href}>
+                  <FooterLinkItem label={link.label} href={link.href} />
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+      <div className="container mt-12 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-sm text-muted-foreground md:flex-row md:items-center">
+        <span>{SITE.name} · {SITE.maker.name}</span>
+        <a href={contactHref} className={`hover:text-foreground ${focusRing}`}>
+          {SITE.contactEmail}
+        </a>
+      </div>
+    </footer>
+  );
+}
 
 const LandingPage = () => {
+  const motion = useMotionEnabled();
+  const revealRef = useRevealOnScroll<HTMLDivElement>(motion);
+  const tiltRef = useTilt<HTMLElement>(motion);
+  const { progress, scrolled } = useScrollProgress();
+
   return (
-    <>
-      {/* JSON-LD Schema Markup */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
-
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <header className="sticky top-0 z-50 w-full border-b bg-[hsl(222,18%,10%)]/95 backdrop-blur supports-[backdrop-filter]:bg-[hsl(222,18%,10%)]/80">
-          <div className="container flex h-16 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img
-                src={logo}
-                alt="Origami Pulse - Sistema de Gestão Financeira"
-                className="h-8 w-auto"
-              />
-              <span className="font-semibold text-lg text-white">
-                Origami <span className="ol-text-accent">Pulse</span>
-              </span>
-            </div>
-            <nav className="flex items-center gap-4">
-              <Button variant="ghost" asChild className="text-white/70 hover:text-white hover:bg-white/10">
-                <Link to="/login">Entrar</Link>
-              </Button>
-              <Button variant="gradient" asChild>
-                <Link to="/register">Começar grátis</Link>
-              </Button>
-            </nav>
-          </div>
-        </header>
-
-        <main>
-          {/* DARK — Hero Section */}
-          <section className="relative overflow-hidden py-24 md:py-36 bg-[hsl(222,18%,10%)]">
-            <div className="absolute inset-0 bg-gradient-brand opacity-5" />
-            <div className="container relative">
-              <div className="mx-auto max-w-3xl text-center">
-                <p className="ol-label text-white/40 mb-6">Gestão de Serviços</p>
-                <h1 className="ol-display text-white animate-fade-in">
-                  Gestão que gera{" "}
-                  <span className="ol-text-accent">resultado real.</span>
-                </h1>
-                <p className="mt-6 text-lg text-white/60 md:text-xl animate-fade-in">
-                  Controle funcionários, projetos e orçamentos em um só lugar.
-                  Saiba exatamente quanto custa sua operação e maximize sua
-                  margem de lucro.
-                </p>
-                <div className="mt-10 flex items-center justify-center gap-4 animate-fade-in">
-                  <Button variant="gradient" size="lg" asChild>
-                    <Link to="/register">
-                      Cadastrar Empresa Grátis
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="lg" asChild className="border-white/20 text-white hover:bg-white/10 hover:text-white">
-                    <Link to="/login">Acessar minha conta</Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* LIGHT — Problem Section */}
-          <section className="py-16 md:py-24 bg-muted/40">
-            <div className="container">
-              <div className="mx-auto max-w-3xl text-center">
-                <p className="ol-label text-muted-foreground mb-4">O Problema</p>
-                <h2 className="ol-h2 text-foreground">
-                  Você sabe quanto custa{" "}
-                  <span className="ol-text-accent">cada hora</span> da sua equipe?
-                </h2>
-                <p className="mt-4 text-muted-foreground text-lg">
-                  Muitas empresas de serviços precificam projetos sem considerar
-                  todos os custos reais: salários, benefícios, encargos,
-                  ferramentas. O resultado são margens apertadas ou até
-                  prejuízos invisíveis.
-                </p>
-                <p className="mt-4 text-foreground font-medium">
-                  O Origami Pulse resolve isso calculando automaticamente o
-                  custo real de cada colaborador e ajudando você a criar
-                  orçamentos rentáveis.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* WHITE — Features Section */}
-          <section className="py-16 md:py-24 bg-white" id="funcionalidades">
-            <div className="container">
-              <div className="text-center mb-12">
-                <p className="ol-label text-muted-foreground mb-4">Funcionalidades</p>
-                <h2 className="ol-h2 text-foreground">
-                  Tudo que você precisa,{" "}
-                  <span className="ol-text-accent">em uma plataforma.</span>
-                </h2>
-              </div>
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {features.map((feature, index) => (
-                  <Card
-                    key={index}
-                    className="hover:border-primary/30 transition-colors duration-200"
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <div className="rounded-lg bg-primary/10 p-3">
-                          <feature.icon className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground">
-                            {feature.title}
-                          </h3>
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            {feature.description}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* DARK — Benefits Section */}
-          <section className="py-16 md:py-24 bg-[hsl(222,18%,10%)]">
-            <div className="container">
-              <div className="mx-auto max-w-3xl text-center">
-                <p className="ol-label text-white/40 mb-4">Por que escolher</p>
-                <h2 className="ol-h2 text-white">
-                  Origami <span className="ol-text-accent">Pulse</span>
-                </h2>
-                <div className="mt-10 grid gap-4 sm:grid-cols-2 text-left">
-                  {benefits.map((benefit, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                      <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-primary" />
-                      <span className="text-white/80">
-                        {benefit}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* LIGHT — FAQ Section */}
-          <section className="py-16 md:py-24 bg-muted/40" id="faq">
-            <div className="container">
-              <div className="mx-auto max-w-3xl">
-                <div className="text-center mb-12">
-                  <p className="ol-label text-muted-foreground mb-4">Dúvidas</p>
-                  <h2 className="ol-h2 text-foreground">
-                    Perguntas <span className="ol-text-accent">Frequentes</span>
-                  </h2>
-                </div>
-                <Accordion type="single" collapsible className="w-full">
-                  {faqItems.map((item, index) => (
-                    <AccordionItem key={index} value={`item-${index}`}>
-                      <AccordionTrigger className="text-left text-foreground">
-                        {item.question}
-                      </AccordionTrigger>
-                      <AccordionContent className="text-muted-foreground">
-                        {item.answer}
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              </div>
-            </div>
-          </section>
-
-          {/* DARK — Final CTA Section */}
-          <section className="py-16 md:py-24 bg-[hsl(222,18%,10%)] relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-brand opacity-5" />
-            <div className="container relative">
-              <div className="mx-auto max-w-2xl text-center">
-                <p className="ol-label text-white/40 mb-4">Comece agora</p>
-                <h2 className="ol-h2 text-white">
-                  Controle sua operação{" "}
-                  <span className="ol-text-accent">hoje.</span>
-                </h2>
-                <p className="mt-4 text-white/60 text-lg">
-                  Cadastre sua empresa gratuitamente e tenha acesso completo ao
-                  sistema. Sem necessidade de cartão de crédito.
-                </p>
-                <div className="mt-8">
-                  <Button variant="gradient" size="lg" asChild>
-                    <Link to="/register">
-                      Cadastrar Empresa Grátis
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </section>
-        </main>
-
-        {/* Footer */}
-        <footer className="border-t border-white/10 bg-[hsl(222,20%,5%)] py-8">
-          <div className="container">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <nav className="flex items-center gap-6">
-                <Link
-                  to="/login"
-                  className="text-sm text-white/40 hover:text-white transition-colors"
-                >
-                  Login
-                </Link>
-                <a
-                  href="#funcionalidades"
-                  className="text-sm text-white/40 hover:text-white transition-colors"
-                >
-                  Funcionalidades
-                </a>
-                <a
-                  href="#faq"
-                  className="text-sm text-white/40 hover:text-white transition-colors"
-                >
-                  FAQ
-                </a>
-              </nav>
-              <p className="text-xs text-white/20">
-                Powered by OrigamiLab
-              </p>
-            </div>
-          </div>
-        </footer>
-      </div>
-    </>
+    <div ref={revealRef} data-motion={motion ? 'on' : 'off'} className="min-h-screen bg-background">
+      <a
+        href="#conteudo"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[80] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+      >
+        Pular para o conteúdo
+      </a>
+      <ScrollProgress progress={progress} />
+      <SiteHeader scrolled={scrolled} />
+      <main id="conteudo" ref={tiltRef}>
+        <HeroSection />
+        <MarqueeSection />
+        <DefinitionSection />
+        <ProblemSection />
+        <SpotlightsSection />
+        <FeaturesSection />
+        <ComparisonSection />
+        <TrialSection />
+        <FaqSection />
+        <FinalCtaSection />
+      </main>
+      <SiteFooter />
+    </div>
   );
 };
 

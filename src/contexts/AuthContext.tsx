@@ -3,6 +3,8 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { clearPrivatePwaCaches } from '@/lib/pwa';
 import { acquireMicrosoftIdToken } from '@/integrations/microsoft/msalClient';
+import { resolveTenantPlan } from '@/lib/tenantPlan';
+import type { TenantPlan } from '@/types/tenantPlan';
 import { fetchMyCapabilities } from '@/services/capabilityService';
 import {
   deriveLegacyRoleFlags,
@@ -69,6 +71,8 @@ interface AuthContextType {
   accessDenied: boolean;
   /** As capacidades não puderam ser confirmadas nesta carga — a tela pode estar incompleta. */
   capabilitiesUnavailable: boolean;
+  /** Plano do tenant (teste ou ativo) lido do banco a cada carga; `null` enquanto não carregou ou offline. Nunca vai para o snapshot. */
+  tenantPlan: TenantPlan | null;
   /** Recarrega funcionário e capacidades. Usado pelo aviso de capacidades não confirmadas. */
   refreshEmployee: () => Promise<void>;
   /** A pessoa tem a capacidade (ou qualquer uma da lista)? Decide renderização; a RLS decide acesso. */
@@ -102,6 +106,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // Não foi possível confirmar as capacidades nesta carga. A interface avisa em vez
   // de apresentar um sistema menor como se fosse o normal daquela pessoa.
   const [capabilitiesUnavailable, setCapabilitiesUnavailable] = useState(false);
+  const [tenantPlan, setTenantPlan] = useState<TenantPlan | null>(null);
+
+  // Plano é derivado sempre do banco (PUL-224): se fosse para o snapshot do PWA, um tenant
+  // reativado continuaria bloqueado por até 24h (mesma lição de PUL-200).
+  const loadTenantPlan = async (tenantId: string) => {
+    if (!navigator.onLine) return;
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('plan, trial_ends_at')
+      .eq('id', tenantId)
+      .maybeSingle();
+    if (error) {
+      console.error('Error fetching tenant plan:', error);
+      return;
+    }
+    setTenantPlan(resolveTenantPlan(data));
+  };
 
   const fetchEmployeeData = async (userId: string, opts?: { signOutIfInactive?: boolean }) => {
     if (!navigator.onLine) return readEmployeeSnapshot(userId);
@@ -176,6 +197,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // tela de login em vez de falhar em silêncio.
   const applyEmployeeResult = (employeeData: EmployeeData | null) => {
     setEmployee(employeeData);
+    if (employeeData) void loadTenantPlan(employeeData.tenant_id);
+    else setTenantPlan(null);
     // Offline sem snapshot também cai aqui e não é negação de acesso.
     setAccessDenied(!employeeData && navigator.onLine);
     if (!employeeData) {
@@ -389,6 +412,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       loading,
       accessDenied,
       capabilitiesUnavailable,
+        tenantPlan,
       refreshEmployee,
       can,
       signIn,

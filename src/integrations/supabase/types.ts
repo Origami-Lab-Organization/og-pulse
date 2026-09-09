@@ -6027,8 +6027,12 @@ export type Database = {
           created_at: string
           employee_count: number | null
           id: string
+          plan: string
+          plan_changed_at: string | null
+          plan_changed_by: string | null
           name: string
           segment: string | null
+          trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
@@ -6036,8 +6040,12 @@ export type Database = {
           created_at?: string
           employee_count?: number | null
           id?: string
+          plan?: string
+          plan_changed_at?: string | null
+          plan_changed_by?: string | null
           name: string
           segment?: string | null
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -6045,8 +6053,12 @@ export type Database = {
           created_at?: string
           employee_count?: number | null
           id?: string
+          plan?: string
+          plan_changed_at?: string | null
+          plan_changed_by?: string | null
           name?: string
           segment?: string | null
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []

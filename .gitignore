@@ -37,3 +37,6 @@ dist-ssr
 # O install.sh em public/mcp/ é versionado; os .mjs e o manifesto, não.
 public/mcp/*.mjs
 public/mcp/manifest.json
+
+# saída intermediária de scripts/prerender-landing.mjs
+.prerender

@@ -3,6 +3,8 @@ sources:
   - src/integrations/supabase/types.ts
   - supabase/migrations/20260121002930_945e9a92-8375-4b35-b9eb-291f57ae6716.sql
   - supabase/migrations/20260810190000_project_gpo_reports.sql
+  - supabase/migrations/20260909120000_tenant_plan_and_signup_attempts.sql
+  - supabase/migrations/20260909130000_tenant_plan_enforced_in_rls.sql
   - src/types/lead.ts
   - src/types/portfolio.ts
 ---
@@ -23,6 +25,16 @@ resolvido via `employees.auth_id = auth.uid()`. 69 tabelas têm `tenant_id`
 direto; as demais são filhas que herdam o tenant pelo pai (ex.: `budget_roles`
 via `budget_id`, `project_installments` via `project_id`). Nos diagramas,
 `tenants` aparece só nas raízes para não virar estrela ilegível.
+
+**Plano do tenant** (migration `20260909120000`, PUL-224): `tenants.plan` (`trial` | `active`),
+`trial_ends_at`, `plan_changed_at`, `plan_changed_by`. Tenant novo nasce `trial` com 14 dias
+(trigger `tenants_default_trial`); tenants anteriores à migration foram marcados `active`. As
+colunas de plano só mudam por service role ou sessão direta no banco (trigger
+`tenants_guard_plan_columns`); a policy de UPDATE por `configuracao:editar` vale para o resto.
+O app lê `plan`/`trial_ends_at` em `AuthContext` e resolve dias restantes em `src/lib/tenantPlan.ts`.
+Desde `20260909130000` (PUL-228, ADR-0028) `user_belongs_to_tenant` e `has_capability` exigem
+`tenant_is_active()`: teste vencido nega toda leitura e escrita sob RLS; a leitura do próprio
+`tenants` usa `user_is_member_of_tenant` (pertencimento puro) para o app mostrar o fim do teste.
 
 ## Cluster 1 — Comercial (Pipeline de Oportunidades)
 
@@ -254,8 +266,9 @@ Timesheet por atividade (`activity_timesheets`, `activity_types`…), ponto
 eletrônico (`time_entries`, `time_daily_summary`, `time_bank_ledger`,
 `time_punch_face_profiles`…), reembolsos (`reimbursement_*` — ver ADR-0007),
 kanban pessoal (`personal_kanban_*`), benefícios/ferramentas, folha
-(`payroll_*`), análise de mercado (`market_analyses`). Gerar diagrama dedicado
-sob demanda.
+(`payroll_*`), análise de mercado (`market_analyses`), tentativas de autocadastro (`signup_attempts`: só
+hashes de IP e e-mail, sem policy, lida e escrita apenas pela service role em
+`register-tenant`). Gerar diagrama dedicado sob demanda.
 
 ## Divergências código × doc
 
@@ -263,8 +276,9 @@ sob demanda.
    migrations: não contém `project_gpo_reports`/`project_gpo_actions`/
    `project_gpo_action_reviews` (`20260810190000_*.sql`) nem
    `service_avg_tickets` (`20260806140000_*.sql`), e ainda lista a legada
-   `service_line_avg_tickets` (L4928). **Ação sugerida:** regenerar os types
-   (`supabase gen types`).
+   `service_line_avg_tickets` (L4928). Em 09/09 as colunas de plano de `tenants` foram
+   acrescentadas ao types.ts à mão (PUL-224); `signup_attempts` ficou fora de propósito, o
+   app não a lê. **Ação sugerida:** regenerar os types (`supabase gen types`).
 2. **Glossário × código:** o glossário ainda define "Lead" e "CRM" como termos
    correntes, enquanto boundaries.md exige Oportunidade/Pipeline na UI. No
    banco e no código as tabelas/rotas internas continuam `leads`/`crm_stage` —

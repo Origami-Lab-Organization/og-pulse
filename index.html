@@ -4,36 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>Origami Pulse</title>
-    <meta name="description" content="Controle funcionários, projetos e orçamentos. Calcule custos reais da sua equipe e maximize sua margem de lucro. Sistema completo para agências e consultorias.">
-    <meta name="author" content="OrigamiLab" />
-    <meta name="keywords" content="gestão financeira, controle de custos, orçamentos, projetos, funcionários, agências, consultorias, margem de lucro, custo hora">
-    <link rel="canonical" href="https://og-pulse.lovable.app" />
-
-    
-    
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://og-pulse.lovable.app" />
-    <meta property="og:image" content="https://og-pulse.lovable.app/og-image.png" />
-    <meta property="og:locale" content="pt_BR" />
-    <meta property="og:site_name" content="Origami Pulse" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    
-    
-    <meta name="twitter:image" content="https://og-pulse.lovable.app/og-image.png" />
-    <meta property="og:title" content="Origami Pulse">
-  <meta name="twitter:title" content="Origami Pulse">
-  <meta property="og:description" content="Controle funcionários, projetos e orçamentos. Calcule custos reais da sua equipe e maximize sua margem de lucro. Sistema completo para agências e consultorias.">
-  <meta name="twitter:description" content="Controle funcionários, projetos e orçamentos. Calcule custos reais da sua equipe e maximize sua margem de lucro. Sistema completo para agências e consultorias.">
-  <link rel="icon" type="image/png" href="https://storage.googleapis.com/gpt-engineer-file-uploads/nY37RXP1cdcSfeq5zeETjIaaL6x2/uploads/1770938786432-Origami_Pulse_Logo.png">
-</head>
+    <meta name="author" content="Origami Lab" />
+    <!--
+      Home pública (landing). No build, scripts/prerender-landing.mjs substitui o
+      bloco entre os marcadores pelas metatags e pelo JSON-LD gerados de
+      src/landing/content.ts, e injeta o HTML da página em #root. O que está aqui
+      é só o fallback do ambiente de desenvolvimento.
+    -->
+    <!--LANDING_HEAD_START-->
+    <title>Origami Pulse | Rentabilidade de projetos para empresas de serviços</title>
+    <meta name="description" content="Software de PSA para consultorias, agências e escritórios técnicos: pipeline comercial, orçamentos, alocação, horas e margem real por projeto em um só lugar. Teste grátis por 14 dias." />
+    <link rel="canonical" href="https://origamipulse.com.br/" />
+    <!--LANDING_HEAD_END-->
+  </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root"><!--LANDING_BODY--></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

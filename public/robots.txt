@@ -1,14 +1,21 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
+# Origami Pulse — https://origamipulse.com.br
+# A home é a vitrine pública e indexável. A área logada (login, dashboard…) é
+# servida com <meta name="robots" content="noindex"> e não precisa de bloqueio aqui.
 
 User-agent: *
 Allow: /
+
+# Motores generativos (GEO): permitidos de propósito. Bloquear exige ADR (skill SEO & GEO).
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://origamipulse.com.br/sitemap.xml

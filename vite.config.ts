@@ -5,7 +5,11 @@ import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  // Modo "prerender": build SSR da landing por scripts/prerender-landing.mjs.
+  // Sem PWA nem tagger, e sem as entradas HTML (a entrada vem de --ssr).
+  const isPrerender = mode === "prerender";
+  return {
   server: {
     host: "::",
     port: 8080,
@@ -15,8 +19,8 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === "development" && componentTagger(),
-    VitePWA({
+    !isPrerender && mode === "development" && componentTagger(),
+    !isPrerender && VitePWA({
       strategies: "injectManifest",
       srcDir: "src",
       filename: "sw.ts",
@@ -48,13 +52,19 @@ export default defineConfig(({ mode }) => ({
     dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
   build: {
-    rollupOptions: {
-      input: {
-        // Entry separado: carregar a SPA na página de retorno faria o roteador
-        // apagar o fragmento com o código do OAuth.
-        main: path.resolve(__dirname, "index.html"),
-        microsoftAuth: path.resolve(__dirname, "microsoft-auth.html"),
-      },
-    },
+    rollupOptions: isPrerender
+      ? {}
+      : {
+          input: {
+            // Home pública, pré-renderizada no build (scripts/prerender-landing.mjs).
+            main: path.resolve(__dirname, "index.html"),
+            // Shell da área logada (noindex): a Vercel serve para toda rota que não é a home.
+            app: path.resolve(__dirname, "app.html"),
+            // Entry separado: carregar a SPA na página de retorno faria o roteador
+            // apagar o fragmento com o código do OAuth.
+            microsoftAuth: path.resolve(__dirname, "microsoft-auth.html"),
+          },
+        },
   },
-}));
+  };
+});

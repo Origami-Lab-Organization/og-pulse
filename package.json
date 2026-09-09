@@ -17,12 +17,19 @@
   "main": "eslint.config.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender-landing.mjs",
+    "prerender": "node scripts/prerender-landing.mjs",
+    "og:image": "node scripts/generate-og-image.mjs",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "gsc:sites": "node scripts/search-console.mjs sites",
+    "gsc:sitemaps": "node scripts/search-console.mjs sitemaps",
+    "gsc:submit": "node scripts/search-console.mjs submit",
+    "gsc:inspect": "node scripts/search-console.mjs inspect",
+    "gsc:status": "node scripts/search-console.mjs status"
   },
   "dependencies": {
     "@amplitude/analytics-browser": "^2.35.4",

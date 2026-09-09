@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
-import HomeRedirect from "@/components/auth/HomeRedirect";
+import RootEntry from "@/components/auth/RootEntry";
 import Index from "./pages/Index";
 import Ajuda from "./pages/Ajuda";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -30,7 +30,6 @@ import MyProjectDetail from "./pages/MyProjectDetail";
 import AdminPortal from "./pages/AdminPortal";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
-import LandingPage from "./pages/LandingPage";
 import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
 import Portfolio from "./pages/Portfolio";
@@ -51,6 +50,7 @@ import JornadaRelatorios from "./pages/JornadaRelatorios";
 import JornadaAuditoria from "./pages/JornadaAuditoria";
 import CommercialDashboard from "./pages/CommercialDashboard";
 import Welcome from "./pages/Welcome";
+import TesteEncerrado from "./pages/TesteEncerrado";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import TerminatedEmployees from "./pages/TerminatedEmployees";
@@ -93,15 +93,8 @@ function RedirectAlocacaoPessoa() {
  * logado (ex.: após login) segue o HomeRedirect para o dashboard do seu
  * nível. Nos demais domínios mantém sempre o fluxo autenticado.
  */
-function RootEntry() {
-  // Sem sessão, ProtectedRoute redireciona para /login (a página de construção
-  // segue acessível em /em-construcao).
-  return (
-    <ProtectedRoute>
-      <HomeRedirect />
-    </ProtectedRoute>
-  );
-}
+// RootEntry mora em src/components/auth/RootEntry.tsx: visitante vê a landing
+// pública; quem tem sessão segue para a home do seu perfil.
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -116,14 +109,17 @@ const App = () => (
               <PwaRouteGuard>
                 <Routes>
               <Route path="/em-construcao" element={<SiteUnderConstruction />} />
-              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/landing" element={<Navigate to="/" replace />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Navigate to="/login" replace />} />
+              <Route path="/register" element={<Register />} />
               <Route path="/esqueci-minha-senha" element={<ForgotPassword />} />
               {/* Reenvio do convite de primeiro acesso — público (FUNC-J1) */}
               <Route path="/reenviar-primeiro-acesso" element={<ReenviarPrimeiroAcesso />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/boas-vindas" element={<Welcome />} />
+              {/* Confirmação de e-mail do autocadastro e fim do período de teste (PUL-227 / PUL-228) */}
+              <Route path="/confirme-seu-email" element={<Welcome />} />
+              <Route path="/teste-encerrado" element={<TesteEncerrado />} />
               <Route path="/termos" element={<Terms />} />
               <Route path="/privacidade" element={<Privacy />} />
               {/* Primeiro acesso — troca de senha obrigatória do convite (FUNC-J1) */}
