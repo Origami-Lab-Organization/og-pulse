@@ -22,7 +22,10 @@ sources:
   - src/pages/LandingPage.tsx
   - src/landing/content.ts
   - src/landing/prerender-entry.tsx
+  - src/landing/chrome.tsx
+  - src/pages/NotFound.tsx
   - scripts/prerender-landing.mjs
+  - scripts/check-app-routes.mjs
 ---
 
 # Arquitetura — Visão Geral
@@ -66,7 +69,7 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 
 | Módulo | Rotas principais | Guard | Fonte (App.tsx) |
 |---|---|---|---|
-| Público | `/` (landing, para quem não tem sessão), `/login`, `/esqueci-minha-senha`, `/reset-password`, `/trabalhe-conosco/:tenantId`; `/landing` redireciona para `/`; `/register` é o autocadastro (PUL-227); `/boas-vindas` e `/confirme-seu-email` confirmam o e-mail; `/teste-encerrado` recebe tenant com teste vencido | — | 110-123, 455-456 |
+| Público | `/` (landing, para quem não tem sessão), `/login`, `/esqueci-minha-senha`, `/reset-password`, `/trabalhe-conosco/:tenantId`; `/landing` redireciona para `/`; `/register` é o autocadastro (PUL-227); `/boas-vindas` e `/confirme-seu-email` confirmam o e-mail; `/teste-encerrado` recebe tenant com teste vencido; `/termos` e `/privacidade` são páginas públicas pré-renderizadas (PUL-240); rota `*` → `NotFound` (mesma página que a Vercel serve como `404.html`) | — | 110-124, 455-456 |
 | Home | `/` → RootEntry (`src/components/auth/RootEntry.tsx:25-37`): sem sessão → `LandingPage` (a mesma já pré-renderizada no HTML); com sessão → HomeRedirect (admin → `/admin-dashboard`, demais → `/dashboard`) | — (decide pela sessão) | 140 |
 | Pessoal | `/inbox`, `/minha-agenda`, `/meus-emails`, `/my-timesheet`, `/minhas-ferias`, `/my-kanban`, `/my-projects` | Protected | 153-158, 167, 450-452 |
 | Jornada (ponto) | `/jornada`, `/jornada/configuracoes`, `/jornada/aprovacoes`, `/jornada/relatorios`, `/jornada/auditoria` | Protected / Admin / RH | 176, 184, 192, 200, 208 |
@@ -93,14 +96,19 @@ Três entradas HTML em `vite.config.ts` (`build.rollupOptions.input`):
 
 | Entrada | Papel | Indexável | Quem serve |
 |---|---|---|---|
-| `index.html` | Home pública (landing). No build, `scripts/prerender-landing.mjs` roda depois do `vite build` (`package.json` → `build`), compila `src/landing/prerender-entry.tsx` em modo `prerender` (sem PWA nem tagger) e injeta `<head>` e corpo gerados de `src/landing/content.ts`; gera `sitemap.xml` e `llms.txt` e valida o JSON-LD, falhando o build se faltar algo | sim | Vercel, pelo filesystem (`/`) |
-| `app.html` | Shell da área logada, `<meta name="robots" content="noindex, nofollow">` | não | Vercel: `vercel.json` reescreve toda rota que não é arquivo para `/app.html` |
-
-`vercel.json` também redireciona (308, permanente) qualquer caminho pedido pelo host `og-pulse.vercel.app` para `https://origamipulse.com.br`, porque esse host servia a home inteira sem `noindex` (PUL-231). A escolha apex × `www` é configuração de domínio no painel da Vercel, não do repositório.
+| `index.html` | Home pública (landing) e **molde** das outras páginas públicas. `npm run build` = `check-app-routes` → `vite build` → `scripts/prerender-landing.mjs`. O prerender compila `src/landing/prerender-entry.tsx` em modo `prerender` (sem PWA nem tagger), renderiza cada rota de `PUBLIC_ROUTES` com `StaticRouter` e injeta `<head>` e corpo entre os marcadores do `index.html` compilado: `/` em `dist/index.html`, `/termos` em `dist/termos/index.html`, `/privacidade` em `dist/privacidade/index.html`, e a 404 em `dist/404.html`. Gera `sitemap.xml` (só rotas `indexable`) e `llms.txt`; valida o JSON-LD da home e exige `<main>` e `<h1>` em toda página, falhando o build se faltar algo | home sim; termos e privacidade `noindex` até o texto completo existir (chave `indexable` em `content.ts`) | Vercel, pelo filesystem (`trailingSlash: false`: `/termos/` → 308 `/termos`) |
+| `app.html` | Shell da área logada, `<meta name="robots" content="noindex, nofollow">` | não | Vercel: `vercel.json` reescreve para `/app.html` **só** os segmentos de rota de topo do `App.tsx` (`/:segment(admin\|dashboard\|…)` e `/:segment(...)/:rest*`); caminho fora da lista cai em `dist/404.html` com **status 404** (PUL-240). `scripts/check-app-routes.mjs` roda antes do `vite build` e falha se alguma rota do `App.tsx` não estiver na lista |
+| `dist/404.html` | Página 404 (`src/pages/NotFound.tsx`, tsuru em `src/landing/OrigamiCrane.tsx`), gerada pelo prerender | não | Vercel, para qualquer caminho sem arquivo nem rewrite |
 | `microsoft-auth.html` | Retorno do OAuth Microsoft (ver SSO) | não | filesystem |
 
-`src/landing/content.ts` é a fonte única de copy, SEO, JSON-LD, `llms.txt` e
-`sitemap.xml` da vitrine (`PUBLIC_ROUTES` lista só a home). Scripts de operação:
+`vercel.json` também redireciona (308, permanente) qualquer caminho pedido pelo host `og-pulse.vercel.app` para `https://origamipulse.com.br`, porque esse host servia a home inteira sem `noindex` (PUL-231). A escolha apex × `www` é configuração de domínio no painel da Vercel, não do repositório.
+
+`src/landing/content.ts` é a fonte única de copy, SEO, JSON-LD, `llms.txt`,
+`sitemap.xml`, texto da 404 e dos documentos legais (`PUBLIC_ROUTES`: home
+indexável; termos e privacidade `noindex`; `NOT_FOUND_ROUTE`). Cabeçalho, rodapé e a
+moldura `PublicPage` das páginas públicas vivem em `src/landing/chrome.tsx`; o rodapé
+leva "© {ano atual} Origami Lab" (`copyrightLine`), reaproveitado pelo `AppFooter`
+em todas as telas do app (`src/components/layout/AppLayout.tsx`). Scripts de operação:
 `npm run prerender`, `npm run og:image` (imagem social via Playwright) e
 `npm run gsc:*` (Search Console pela API, `scripts/search-console.mjs`, credencial
 fora do repositório). Decisões e tarefas: PUL-223, PUL-230 a PUL-241.

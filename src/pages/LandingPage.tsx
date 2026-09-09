@@ -15,9 +15,6 @@ import { Button } from '@/components/ui/button';
 import type {
   EyebrowProps,
   FeatureIcon,
-  FooterLink,
-  ScrollProgressProps,
-  SiteHeaderProps,
   SpotlightMock,
   SpotlightRowProps,
 } from '@/types/landing';
@@ -29,8 +26,6 @@ import {
   FAQ,
   FEATURES,
   FINAL_CTA,
-  FOOTER,
-  FOOTER_COLUMNS,
   HERO,
   HERO_STATS,
   MARQUEE,
@@ -40,8 +35,10 @@ import {
   SPOTLIGHTS,
   TRIAL_SECTION,
 } from '@/landing/content';
+import { ScrollProgress, SiteFooter, SiteHeader, SkipLink } from '@/landing/chrome';
 import { useMotionEnabled, useParallax, useRevealOnScroll, useScrollProgress, useTilt } from '@/landing/hooks';
 import { AllocationMock, DashboardMock, FloatingBadge, MarginMock, PipelineMock } from '@/landing/mocks';
+import { focusRing } from '@/landing/styles';
 import '@/landing/landing.css';
 
 /**
@@ -77,58 +74,9 @@ const contactHref = `mailto:${SITE.contactEmail}`;
 
 const delay = (index: number, step = 90): CSSProperties => ({ ['--lp-delay' as string]: `${index * step}ms` });
 
-const focusRing = 'rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
-
 function Eyebrow(props: EyebrowProps) {
   const { children, className = '' } = props;
   return <p className={`ol-label mb-4 text-primary ${className}`}>{children}</p>;
-}
-
-function ScrollProgress(props: ScrollProgressProps) {
-  const { progress } = props;
-  return (
-    <div
-      aria-hidden="true"
-      className="lp-progress fixed inset-x-0 top-0 z-[70] h-0.5 bg-primary"
-      style={{ ['--lp-progress' as string]: progress } as CSSProperties}
-    />
-  );
-}
-
-function SiteHeader(props: SiteHeaderProps) {
-  const { scrolled } = props;
-  const surface = scrolled ? 'border-border bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70' : 'border-transparent bg-transparent';
-  return (
-    <header data-scrolled={scrolled} className={`lp-header dark sticky top-0 z-50 w-full border-b text-foreground ${surface}`}>
-      <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className={`flex items-center gap-2 ${focusRing}`}>
-          <img src={SITE.logoPath} alt="" width={32} height={32} className="h-8 w-auto" />
-          <span className="text-lg font-semibold">
-            Origami <span className="ol-text-accent">Pulse</span>
-          </span>
-        </Link>
-        <nav aria-label="Principal" className="hidden items-center gap-6 md:flex">
-          <a href="#funcionalidades" className={`text-sm text-muted-foreground transition-colors hover:text-foreground ${focusRing}`}>
-            Funcionalidades
-          </a>
-          <a href="#como-funciona" className={`text-sm text-muted-foreground transition-colors hover:text-foreground ${focusRing}`}>
-            Como funciona
-          </a>
-          <a href="#perguntas-frequentes" className={`text-sm text-muted-foreground transition-colors hover:text-foreground ${focusRing}`}>
-            Perguntas
-          </a>
-        </nav>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Button variant="ghost" asChild>
-            <Link to={NAV.login}>{HERO.secondaryCta}</Link>
-          </Button>
-          <Button variant="gradient" asChild>
-            <Link to={NAV.register}>{HERO.primaryCta}</Link>
-          </Button>
-        </div>
-      </div>
-    </header>
-  );
 }
 
 function HeroSection() {
@@ -486,65 +434,6 @@ function FinalCtaSection() {
   );
 }
 
-function FooterLinkItem(props: FooterLink) {
-  const { label, href } = props;
-  const className = `text-sm text-muted-foreground transition-colors hover:text-foreground ${focusRing}`;
-  if (href.startsWith('#') || href.startsWith('mailto:')) {
-    return (
-      <a href={href} className={className}>
-        {label}
-      </a>
-    );
-  }
-  return (
-    <Link to={href} className={className}>
-      {label}
-    </Link>
-  );
-}
-
-function SiteFooter() {
-  return (
-    <footer className="dark border-t border-border bg-background py-14 text-foreground">
-      <div className="container grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
-        <div>
-          <div className="flex items-center gap-2">
-            <img src={SITE.logoPath} alt="" width={28} height={28} className="h-7 w-auto" />
-            <span className="font-semibold">
-              Origami <span className="ol-text-accent">Pulse</span>
-            </span>
-          </div>
-          <p className="mt-4 max-w-xs text-sm text-muted-foreground">{HERO.subtitle}</p>
-          <p className="mt-4 text-sm text-muted-foreground">
-            {FOOTER.tagline}{' '}
-            <a href={SITE.maker.url} rel="noopener" className={`underline-offset-4 hover:underline ${focusRing}`}>
-              {SITE.maker.url.replace('https://', '')}
-            </a>
-          </p>
-        </div>
-        {FOOTER_COLUMNS.map((column) => (
-          <nav key={column.title} aria-label={column.title}>
-            <h2 className="ol-label text-muted-foreground">{column.title}</h2>
-            <ul className="mt-4 space-y-3">
-              {column.links.map((link) => (
-                <li key={link.href}>
-                  <FooterLinkItem label={link.label} href={link.href} />
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
-      </div>
-      <div className="container mt-12 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-sm text-muted-foreground md:flex-row md:items-center">
-        <span>{SITE.name} · {SITE.maker.name}</span>
-        <a href={contactHref} className={`hover:text-foreground ${focusRing}`}>
-          {SITE.contactEmail}
-        </a>
-      </div>
-    </footer>
-  );
-}
-
 const LandingPage = () => {
   const motion = useMotionEnabled();
   const revealRef = useRevealOnScroll<HTMLDivElement>(motion);
@@ -553,12 +442,7 @@ const LandingPage = () => {
 
   return (
     <div ref={revealRef} data-motion={motion ? 'on' : 'off'} className="min-h-screen bg-background">
-      <a
-        href="#conteudo"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[80] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
-      >
-        Pular para o conteúdo
-      </a>
+      <SkipLink />
       <ScrollProgress progress={progress} />
       <SiteHeader scrolled={scrolled} />
       <main id="conteudo" ref={tiltRef}>

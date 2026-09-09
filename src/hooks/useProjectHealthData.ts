@@ -107,10 +107,16 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
       if (!tenantId) throw new Error('No tenant');
 
       // ── 1. Projects ──────────────────────────────────────────────────────────
+      // Só projeto em andamento que toca o período. Concluído, cancelado, pausado ou ainda
+      // em planejamento não tem horas nem receita no recorte e sairia "Crítico" por falta de
+      // dado, não por saúde (dashboard admin listava projetos concluídos, 09/09/2026).
       let projectsQuery = supabase
         .from('projects')
         .select('id, name, start_date, client_id, manager_id')
-        .eq('tenant_id', tenantId);
+        .eq('tenant_id', tenantId)
+        .eq('status', 'active')
+        .lte('start_date', endStr)
+        .or(`end_date.is.null,end_date.gte.${startStr}`);
 
       if (!isAdmin && currentEmployeeId) {
         projectsQuery = projectsQuery.eq('manager_id', currentEmployeeId);

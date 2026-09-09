@@ -1,15 +1,28 @@
 {
   "installCommand": "npm install",
   "buildCommand": "bash scripts/vercel-build.sh",
+  "trailingSlash": false,
   "redirects": [
     {
       "source": "/:path*",
-      "has": [{ "type": "host", "value": "og-pulse.vercel.app" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "og-pulse.vercel.app"
+        }
+      ],
       "destination": "https://origamipulse.com.br/:path*",
       "permanent": true
     }
   ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/app.html" }
+    {
+      "source": "/:segment(admin|admin-dashboard|ajuda|alocacao|analises|analytics|boas-vindas|budgets|change-password|clients|comercial|confirme-seu-email|crm|dashboard|em-construcao|employees|esqueci-minha-senha|estrategia|inbox|jornada|landing|login|meus-emails|minha-agenda|minhas-ferias|my-kanban|my-projects|my-timesheet|pipeline|portfolio|primeiro-acesso|privacidade|projects|projetos|reenviar-primeiro-acesso|register|reset-password|rh|suppliers|termos|teste-encerrado|trabalhe-conosco)",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/:segment(admin|admin-dashboard|ajuda|alocacao|analises|analytics|boas-vindas|budgets|change-password|clients|comercial|confirme-seu-email|crm|dashboard|em-construcao|employees|esqueci-minha-senha|estrategia|inbox|jornada|landing|login|meus-emails|minha-agenda|minhas-ferias|my-kanban|my-projects|my-timesheet|pipeline|portfolio|primeiro-acesso|privacidade|projects|projetos|reenviar-primeiro-acesso|register|reset-password|rh|suppliers|termos|teste-encerrado|trabalhe-conosco)/:rest*",
+      "destination": "/app.html"
+    }
   ]
 }

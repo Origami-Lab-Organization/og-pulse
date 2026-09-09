@@ -85,7 +85,6 @@ export default function CommercialDashboard() {
         newLeadsThisYear: data.newLeadsThisYear,
         prevConversionRate: data.prevConversionRate,
         prevAvgTicket: data.prevAvgTicket,
-        prevActivePipeline: data.prevActivePipeline,
         prevForecast: data.prevForecast,
         prevNewLeadsThisYear: data.prevNewLeadsThisYear,
       },
@@ -227,7 +226,6 @@ export default function CommercialDashboard() {
               prevConversionRate={data.prevConversionRate}
               prevAvgTicket={data.prevAvgTicket}
               prevAvgSalesCycleDays={data.prevAvgSalesCycleDays}
-              prevActivePipeline={data.prevActivePipeline}
               prevForecast={data.prevForecast}
               prevNewLeadsThisYear={data.prevNewLeadsThisYear}
             />

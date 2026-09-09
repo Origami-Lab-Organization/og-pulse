@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 /**
- * Pré-renderiza a landing page em `dist/index.html` e gera `sitemap.xml` e
- * `llms.txt` a partir de `src/landing/content.ts`.
+ * Pré-renderiza as páginas públicas e gera `sitemap.xml` e `llms.txt` a partir de
+ * `src/landing/content.ts`:
+ *   - a home em `dist/index.html`;
+ *   - cada outra rota de `PUBLIC_ROUTES` em `dist/<rota>/index.html`;
+ *   - a página 404 em `dist/404.html`, que a Vercel serve com status 404 para
+ *     qualquer caminho fora das rotas do app listadas em `vercel.json` (PUL-240).
  *
  * Roda depois de `vite build` (ver `npm run build`). Motivo: o Pulse é uma SPA;
  * sem este passo, Google e motores generativos (GPTBot, ClaudeBot, PerplexityBot)
- * recebem um `<div id="root"></div>` vazio na home. Com ele, a home é HTML
+ * recebem um `<div id="root"></div>` vazio. Com ele, cada página pública é HTML
  * completo, e o app continua carregando por cima (o `main.tsx` re-renderiza a
  * mesma página para o visitante, ou redireciona quem já tem sessão).
  *
@@ -78,40 +82,60 @@ function validateJsonLd(docs) {
   assertSoftwareOffer(docs);
 }
 
-function inject(html, head, body) {
+function assertTemplate(html) {
   const start = html.indexOf(HEAD_START);
   const end = html.indexOf(HEAD_END);
   if (start === -1 || end === -1 || end < start) fail(`marcadores ${HEAD_START}/${HEAD_END} ausentes em dist/index.html`);
   if (!html.includes(BODY_MARK)) fail(`marcador ${BODY_MARK} ausente em dist/index.html`);
-  const withHead = html.slice(0, start) + head + html.slice(end + HEAD_END.length);
+}
+
+function inject(template, head, body) {
+  const start = template.indexOf(HEAD_START);
+  const end = template.indexOf(HEAD_END);
+  const withHead = template.slice(0, start) + head + template.slice(end + HEAD_END.length);
   return withHead.replace(BODY_MARK, body);
+}
+
+const kb = (html) => (Buffer.byteLength(html, 'utf8') / 1024).toFixed(1);
+
+/** `/` fica em `dist/index.html`; `/termos` vira `dist/termos/index.html` (a Vercel serve o índice do diretório). */
+function outputFor(route) {
+  if (route.path === '/') return indexHtml;
+  return path.join(dist, route.path.replace(/^\//, ''), 'index.html');
+}
+
+async function writePage(template, mod, route, file) {
+  const body = mod.renderBody(route.path);
+  if (!body.includes('<main') || !body.includes('<h1')) fail(`HTML de ${route.path} sem <main> ou <h1>`);
+  const html = inject(template, mod.renderHead(route), body);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, html, 'utf8');
+  const flag = route.indexable ? 'index' : 'noindex';
+  return `  ${route.path} → ${path.relative(dist, file)} (${kb(html)} kB, ${flag})`;
+}
+
+async function writeArtifacts(mod) {
+  const today = new Date().toISOString().slice(0, 10);
+  await writeFile(path.join(dist, 'sitemap.xml'), mod.buildSitemap(today), 'utf8');
+  await writeFile(path.join(dist, 'llms.txt'), mod.buildLlmsTxt(), 'utf8');
 }
 
 async function main() {
   if (!existsSync(indexHtml)) fail('dist/index.html não existe; rode `vite build` antes');
+  const template = await readFile(indexHtml, 'utf8');
+  assertTemplate(template);
 
   const entryFile = buildSsrBundle();
   const mod = await import(pathToFileURL(entryFile).href);
+  validateJsonLd(mod.buildJsonLd());
 
-  const jsonLd = mod.buildJsonLd();
-  validateJsonLd(jsonLd);
-
-  const body = mod.renderBody();
-  if (!body.includes('<main') || !body.includes('<h1')) fail('HTML da landing sem <main> ou <h1>');
-  const head = mod.renderHead();
-
-  const html = inject(await readFile(indexHtml, 'utf8'), head, body);
-  await writeFile(indexHtml, html, 'utf8');
-
-  const today = new Date().toISOString().slice(0, 10);
-  await mkdir(dist, { recursive: true });
-  await writeFile(path.join(dist, 'sitemap.xml'), mod.buildSitemap(today), 'utf8');
-  await writeFile(path.join(dist, 'llms.txt'), mod.buildLlmsTxt(), 'utf8');
+  const lines = [];
+  for (const route of mod.PUBLIC_ROUTES) lines.push(await writePage(template, mod, route, outputFor(route)));
+  lines.push(await writePage(template, mod, mod.NOT_FOUND_ROUTE, path.join(dist, '404.html')));
+  await writeArtifacts(mod);
 
   await rm(ssrOut, { recursive: true, force: true });
-
-  const kb = (Buffer.byteLength(html, 'utf8') / 1024).toFixed(1);
-  console.log(`✔ prerender: home pré-renderizada (${kb} kB), sitemap.xml e llms.txt gerados em dist/`);
+  console.log(`✔ prerender: ${lines.length} páginas, sitemap.xml e llms.txt gerados em dist/\n${lines.join('\n')}`);
 }
 
 main().catch((err) => fail(err.stack ?? err.message));

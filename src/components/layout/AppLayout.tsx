@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
+import { AppFooter } from './AppFooter';
 import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
 import { OfflineBanner } from '@/components/pwa/OfflineBanner';
 import { CapabilitiesUnavailableBanner } from '@/components/access/CapabilitiesUnavailableBanner';
@@ -92,6 +93,7 @@ export function AppLayout({
             {children}
           </div>
         </main>
+        <AppFooter />
       </SidebarInset>
     </SidebarProvider>
   );

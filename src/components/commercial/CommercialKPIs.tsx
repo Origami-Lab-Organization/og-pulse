@@ -16,14 +16,14 @@ interface Props {
   prevConversionRate: number;
   prevAvgTicket: number;
   prevAvgSalesCycleDays: number | null;
-  prevActivePipeline: number;
   prevForecast: number;
   prevNewLeadsThisYear: number;
 }
 
 interface KPIConfig {
   key: string;
-  prevKey: string;
+  /** Ausente em KPI de estoque (pipeline em aberto é retrato de agora, sem "período anterior"). */
+  prevKey?: string;
   label: string;
   icon: typeof Percent;
   format: (v: any) => string;
@@ -32,15 +32,15 @@ interface KPIConfig {
 }
 
 const row1: KPIConfig[] = [
-  { key: 'conversionRate', prevKey: 'prevConversionRate', label: 'Taxa de Conversão', icon: Percent, format: (v: number) => `${v.toFixed(1)}%`, tooltip: 'Percentual de leads que se tornaram negócio fechado no período', invertColor: false },
+  { key: 'conversionRate', prevKey: 'prevConversionRate', label: 'Taxa de Conversão', icon: Percent, format: (v: number) => `${v.toFixed(1)}%`, tooltip: 'Percentual de oportunidades criadas no período que se tornaram negócio fechado', invertColor: false },
   { key: 'avgTicket', prevKey: 'prevAvgTicket', label: 'Ticket Médio', icon: Receipt, format: (v: number) => formatCurrency(v), tooltip: 'Valor médio dos negócios fechados. Vale o orçamento vinculado quando existe; sem orçamento, o valor estimado informado na oportunidade', invertColor: false },
   { key: 'forecast', prevKey: 'prevForecast', label: 'Receita Prevista (Forecast)', icon: Target, format: (v: number) => formatCurrency(v), tooltip: 'Estimativa ponderada de receita com base nos orçamentos em andamento e probabilidade de fechamento por etapa: Proposta Enviada 50%, Negociação 75%, Fechado 100%', invertColor: false },
 ];
 
 const row2: KPIConfig[] = [
-  { key: 'activePipeline', prevKey: 'prevActivePipeline', label: 'Pipeline Ativo', icon: TrendingUp, format: (v: number) => formatCurrency(v), tooltip: 'Soma do valor das oportunidades em aberto (exclui Fechado, Perdido e Stand By). Vale o orçamento vinculado quando existe; sem orçamento, o valor estimado informado na oportunidade. Oportunidades sem valor informado não entram na conta', invertColor: false },
-  { key: 'avgSalesCycleDays', prevKey: 'prevAvgSalesCycleDays', label: 'Ciclo Médio de Venda', icon: Clock, format: (v: number | null) => v !== null ? `${Math.round(v)} dias` : '—', tooltip: 'Tempo médio em dias desde a criação do lead até o fechamento do negócio', invertColor: true },
-  { key: 'newLeadsThisYear', prevKey: 'prevNewLeadsThisYear', label: 'Leads no Período', icon: UserPlus, format: (v: number) => String(v), tooltip: 'Quantidade de novos leads criados no período, independente da etapa', invertColor: false },
+  { key: 'activePipeline', label: 'Pipeline Ativo', icon: TrendingUp, format: (v: number) => formatCurrency(v), tooltip: 'Soma do valor das oportunidades em aberto hoje, independente de quando foram criadas (exclui Fechado, Perdido e Stand By). Vale o orçamento vinculado quando existe; sem orçamento, o valor estimado informado na oportunidade. Oportunidades sem valor não entram na conta', invertColor: false },
+  { key: 'avgSalesCycleDays', prevKey: 'prevAvgSalesCycleDays', label: 'Ciclo Médio de Venda', icon: Clock, format: (v: number | null) => v !== null ? `${Math.round(v)} dias` : '—', tooltip: 'Tempo médio em dias desde a criação da oportunidade até o fechamento do negócio', invertColor: true },
+  { key: 'newLeadsThisYear', prevKey: 'prevNewLeadsThisYear', label: 'Oportunidades no Período', icon: UserPlus, format: (v: number) => String(v), tooltip: 'Quantidade de oportunidades criadas no período, independente da etapa', invertColor: false },
 ];
 
 function getVariation(current: number | null, previous: number | null, invertColor: boolean) {
@@ -54,15 +54,15 @@ function getVariation(current: number | null, previous: number | null, invertCol
 function KPICard({ kpi, props }: { kpi: KPIConfig; props: Props }) {
   const Icon = kpi.icon;
   const value = (props as any)[kpi.key];
-  const prevValue = (props as any)[kpi.prevKey];
+  const prevValue = kpi.prevKey ? (props as any)[kpi.prevKey] : null;
   const variation = getVariation(value as number | null, prevValue as number | null, kpi.invertColor);
 
   const showPipelineSublabel = kpi.key === 'activePipeline';
   const pipelineSublabel = showPipelineSublabel
     ? props.pipelineLeadsWithBudgetCount > 0
-      ? `Baseado em ${props.pipelineLeadsWithBudgetCount} lead${props.pipelineLeadsWithBudgetCount > 1 ? 's' : ''} com orçamento definido`
+      ? `${props.pipelineLeadsWithBudgetCount} oportunidade${props.pipelineLeadsWithBudgetCount > 1 ? 's' : ''} em aberto com valor`
       : props.pipelineHasNoProposals
-        ? 'Nenhum orçamento gerado no período'
+        ? 'Oportunidades em aberto ainda sem valor informado'
         : null
     : null;
 
@@ -94,7 +94,7 @@ function KPICard({ kpi, props }: { kpi: KPIConfig; props: Props }) {
             </div>
             <p className="text-lg font-bold text-foreground">{kpi.format(value)}</p>
             {variation && (
-              <div className={`flex items-center gap-0.5 text-xs ${variation.isGood ? 'text-emerald-600' : 'text-red-500'}`}>
+              <div className={`flex items-center gap-0.5 text-xs ${variation.isGood ? 'text-success-emphasis' : 'text-destructive'}`}>
                 {variation.isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                 <span>{Math.abs(variation.pct).toFixed(1)}% vs. período anterior</span>
               </div>

@@ -27,7 +27,6 @@ export interface CommercialPdfKPIs {
   newLeadsThisYear: number;
   prevConversionRate: number;
   prevAvgTicket: number;
-  prevActivePipeline: number;
   prevForecast: number;
   prevNewLeadsThisYear: number;
 }
@@ -224,17 +223,16 @@ export function generateCommercialPdf(input: CommercialPdfInput): void {
 
   const convDelta = fmtDelta(kpis.conversionRate, kpis.prevConversionRate);
   const ticketDelta = fmtDelta(kpis.avgTicket, kpis.prevAvgTicket);
-  const pipelineDelta = fmtDelta(kpis.activePipeline, kpis.prevActivePipeline);
   const forecastDelta = fmtDelta(kpis.forecast, kpis.prevForecast);
 
   const convOk = kpis.conversionRate >= kpis.prevConversionRate;
   const ticketOk = kpis.avgTicket >= kpis.prevAvgTicket;
-  const pipelineOk = kpis.activePipeline >= kpis.prevActivePipeline;
   const forecastOk = kpis.forecast >= kpis.prevForecast;
 
   kpiCard(margin,              y, kW4, kH, 'Taxa de Conversão', fmtPct(kpis.conversionRate), convDelta, convOk ? C_GREEN : C_RED);
   kpiCard(margin + kW4 + 3,   y, kW4, kH, 'Ticket Médio (Fechados)', fmtK(kpis.avgTicket), ticketDelta, ticketOk ? C_GREEN : C_RED);
-  kpiCard(margin + (kW4+3)*2, y, kW4, kH, 'Pipeline Ativo', fmtK(kpis.activePipeline), pipelineDelta, pipelineOk ? C_GREEN : C_RED);
+  // Pipeline é retrato de agora (oportunidades em aberto, sem recorte de data): não há "período anterior".
+  kpiCard(margin + (kW4+3)*2, y, kW4, kH, 'Pipeline Ativo', fmtK(kpis.activePipeline), 'em aberto hoje', C_GRAY);
   kpiCard(margin + (kW4+3)*3, y, kW4, kH, 'Forecast Ponderado', fmtK(kpis.forecast), forecastDelta, forecastOk ? C_GREEN : C_RED);
   y += kH + 3;
 

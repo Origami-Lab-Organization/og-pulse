@@ -22,10 +22,41 @@ export interface FaqItem {
   answer: string;
 }
 
+/** Página pública pré-renderizada no build. `indexable: false` = `noindex` e fora do sitemap. */
 export interface PublicRoute {
   path: string;
-  changefreq: 'daily' | 'weekly' | 'monthly';
-  priority: string;
+  title: string;
+  description: string;
+  indexable: boolean;
+  changefreq?: 'daily' | 'weekly' | 'monthly';
+  priority?: string;
+}
+
+export interface LegalSection {
+  title: string;
+  paragraphs?: readonly string[];
+  bullets?: readonly string[];
+}
+
+export interface LegalDocument {
+  title: string;
+  lead: string;
+  /** ISO `YYYY-MM-DD`. */
+  updatedAt: string;
+  sections: readonly LegalSection[];
+}
+
+export interface LegalPageProps {
+  document: LegalDocument;
+}
+
+export interface PublicPageProps {
+  children: ReactNode;
+  mainClassName?: string;
+}
+
+export interface OrigamiCraneProps {
+  className?: string;
 }
 
 export type JsonLd = Record<string, unknown>;
@@ -87,6 +118,8 @@ export interface EyebrowProps {
 
 export interface SiteHeaderProps {
   scrolled: boolean;
+  /** Superfície sólida desde o topo (páginas sem hero escuro por baixo do cabeçalho). */
+  solid?: boolean;
 }
 
 export interface ScrollProgressProps {

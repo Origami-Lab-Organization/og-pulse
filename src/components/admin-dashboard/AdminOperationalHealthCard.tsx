@@ -11,22 +11,11 @@ interface AdminOperationalHealthCardProps {
   loading?: boolean;
 }
 
+/** Tokens semânticos do tema (pattern design-system.md): nunca cor avulsa. */
 const STATUS_STYLES: Record<HealthStatus, { dot: string; badge: string; label: string }> = {
-  green: {
-    dot: 'bg-emerald-500',
-    badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
-    label: 'Saudável',
-  },
-  amber: {
-    dot: 'bg-amber-500',
-    badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
-    label: 'Atenção',
-  },
-  red: {
-    dot: 'bg-red-500',
-    badge: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
-    label: 'Crítico',
-  },
+  green: { dot: 'bg-success', badge: 'bg-success-subtle text-success-emphasis', label: 'Saudável' },
+  amber: { dot: 'bg-warning', badge: 'bg-warning-subtle text-warning-emphasis', label: 'Atenção' },
+  red: { dot: 'bg-destructive', badge: 'bg-destructive-subtle text-destructive', label: 'Crítico' },
 };
 
 export function AdminOperationalHealthCard({ rows, loading }: AdminOperationalHealthCardProps) {
@@ -46,10 +35,10 @@ export function AdminOperationalHealthCard({ rows, loading }: AdminOperationalHe
     <AdminDashboardSection
       title="Saúde Operacional"
       icon={Activity}
-      description="Situação dos projetos no período"
+      description="Projetos em andamento no período"
       loading={loading}
       empty={rows.length === 0}
-      emptyMessage="Cadastre projetos para acompanhar a saúde operacional."
+      emptyMessage="Nenhum projeto em andamento no período. Projetos concluídos, cancelados, pausados ou em planejamento ficam de fora."
     >
       <div className="space-y-4">
         {/* Projetos que precisam de atenção — badge clicável leva ao projeto */}

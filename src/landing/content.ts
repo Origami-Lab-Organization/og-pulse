@@ -18,6 +18,7 @@ import type {
   FooterColumn,
   HeroStat,
   JsonLd,
+  LegalDocument,
   PublicRoute,
   Pain,
   Spotlight,
@@ -59,6 +60,10 @@ export const NAV = {
   register: '/register',
   terms: '/termos',
   privacy: '/privacidade',
+  /** Âncoras absolutas (`/#secao`): funcionam na home e a partir de qualquer outra página pública. */
+  features: '/#funcionalidades',
+  howItWorks: '/#como-funciona',
+  faq: '/#perguntas-frequentes',
 } as const;
 
 export const HERO = {
@@ -273,8 +278,8 @@ export const FOOTER = {
   tagline: 'Feito pela Origami Lab.',
   links: [
     { label: 'Entrar', href: NAV.login },
-    { label: 'Funcionalidades', href: '#funcionalidades' },
-    { label: 'Perguntas frequentes', href: '#perguntas-frequentes' },
+    { label: 'Funcionalidades', href: NAV.features },
+    { label: 'Perguntas frequentes', href: NAV.faq },
     { label: 'Termos de uso', href: NAV.terms },
     { label: 'Privacidade', href: NAV.privacy },
   ],
@@ -330,9 +335,9 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
   {
     title: 'Produto',
     links: [
-      { label: 'Funcionalidades', href: '#funcionalidades' },
-      { label: 'Como funciona', href: '#como-funciona' },
-      { label: 'Perguntas frequentes', href: '#perguntas-frequentes' },
+      { label: 'Funcionalidades', href: NAV.features },
+      { label: 'Como funciona', href: NAV.howItWorks },
+      { label: 'Perguntas frequentes', href: NAV.faq },
     ],
   },
   {
@@ -350,6 +355,80 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
     ],
   },
 ] as const;
+
+/** Página 404 (PUL-240). O tsuru fica em `src/landing/OrigamiCrane.tsx`. */
+export const NOT_FOUND = {
+  eyebrow: 'Erro 404',
+  title: 'Essa página dobrou para outro lado.',
+  description: 'O endereço que você abriu não existe ou mudou de lugar. Nada se perdeu: o Origami Pulse continua aqui.',
+  primaryCta: 'Ir para a página inicial',
+  secondaryCta: 'Entrar na minha conta',
+  hint: 'Chegou aqui por um link de dentro do produto? Escreva para',
+  hintAfter: 'e a gente ajusta.',
+} as const;
+
+/**
+ * Documentos legais (`/termos`, `/privacidade`). Versão inicial: registra só o que já é
+ * decisão de produto (ADR-0028) e aponta o contato. O texto completo é tarefa própria;
+ * até lá as páginas ficam `noindex` (ver PUBLIC_ROUTES).
+ */
+export const LEGAL: Record<'terms' | 'privacy', LegalDocument> = {
+  terms: {
+    title: 'Termos de uso',
+    lead:
+      'As condições para usar o Origami Pulse. Este documento está sendo finalizado; até a publicação da versão completa, valem as condições combinadas diretamente com a Origami Lab e o que está descrito abaixo.',
+    updatedAt: '2026-09-09',
+    sections: [
+      {
+        title: 'O que já vale hoje',
+        bullets: [
+          `O teste grátis dura ${TRIAL.days} dias corridos a partir da criação da empresa, sem cartão de crédito e com todas as funcionalidades liberadas.`,
+          'Ao fim do teste, o acesso é pausado e os dados são preservados. Para continuar usando, a empresa fala com a Origami Lab.',
+          'A conta é da empresa, não da pessoa: quem cria a empresa é o administrador e convida as demais pessoas.',
+          'O e-mail do administrador precisa ser confirmado antes do primeiro acesso.',
+        ],
+      },
+      {
+        title: 'Uso aceitável',
+        paragraphs: [
+          'O Origami Pulse é uma ferramenta de gestão para empresas de serviços. Cada empresa é responsável pelos dados que cadastra, pelas pessoas que convida e pelo uso que faz das informações geradas.',
+        ],
+      },
+    ],
+  },
+  privacy: {
+    title: 'Política de privacidade',
+    lead:
+      'Como o Origami Pulse trata os dados da sua empresa e das pessoas que trabalham nela. Este documento está sendo finalizado; o que está abaixo já é como o produto funciona hoje.',
+    updatedAt: '2026-09-09',
+    sections: [
+      {
+        title: 'O que já vale hoje',
+        bullets: [
+          'Os dados cadastrados pertencem à empresa que os cadastrou e ficam isolados por empresa: nenhuma outra empresa os acessa.',
+          'O acesso é individual, por e-mail e senha ou por conta Microsoft da empresa. Quem administra a empresa define o que cada pessoa vê.',
+          'Dados financeiros, de custo e de pessoas são protegidos no banco de dados, com regras de acesso por perfil, e não apenas na tela.',
+          'A Origami Lab não vende dados e não os usa para fins fora da operação do produto.',
+        ],
+      },
+      {
+        title: 'Direitos sobre dados pessoais',
+        paragraphs: [
+          `Para acesso, correção ou exclusão de dados pessoais, escreva para ${SITE.contactEmail}. Pedidos de pessoas que trabalham em uma empresa cliente são atendidos junto com a administração dessa empresa.`,
+        ],
+      },
+    ],
+  },
+};
+
+/**
+ * "© 2026 Origami Lab. Todos os direitos reservados." com o ano de agora. Usada pelo
+ * rodapé público e pelo rodapé do app: no build sai o ano da compilação e o cliente
+ * re-renderiza com o ano real ao carregar.
+ */
+export function copyrightLine(now: Date = new Date()): string {
+  return `© ${now.getFullYear()} ${SITE.maker.name}. Todos os direitos reservados.`;
+}
 
 /* ------------------------------------------------------------------------ */
 /* Artefatos derivados: JSON-LD, llms.txt e sitemap                          */
@@ -422,14 +501,46 @@ export function buildJsonLd(): JsonLd[] {
 }
 
 /** Rotas públicas indexáveis. O app (login, dashboard…) é `noindex` de propósito. */
+/**
+ * Páginas públicas pré-renderizadas no build (`scripts/prerender-landing.mjs`).
+ * Termos e privacidade ficam `indexable: false` (noindex, fora do sitemap) enquanto o
+ * texto completo não é publicado: página fina indexada vale menos que nenhuma (PUL-240).
+ * Quando o texto entrar, basta virar a chave aqui.
+ */
 export const PUBLIC_ROUTES: readonly PublicRoute[] = [
-  { path: '/', changefreq: 'weekly', priority: '1.0' },
+  { path: '/', title: SEO.title, description: SEO.description, indexable: true, changefreq: 'weekly', priority: '1.0' },
+  {
+    path: NAV.terms,
+    title: 'Termos de uso | Origami Pulse',
+    description:
+      'Condições de uso do Origami Pulse: teste grátis de 14 dias sem cartão, conta por empresa, confirmação de e-mail e continuidade após o teste com a Origami Lab.',
+    indexable: false,
+    changefreq: 'monthly',
+    priority: '0.3',
+  },
+  {
+    path: NAV.privacy,
+    title: 'Política de privacidade | Origami Pulse',
+    description:
+      'Como o Origami Pulse trata os dados da sua empresa e das pessoas: isolamento por empresa, acesso individual por perfil e contato para direitos do titular.',
+    indexable: false,
+    changefreq: 'monthly',
+    priority: '0.3',
+  },
 ] as const;
 
+/** Página 404: `dist/404.html`, servida pela Vercel com status 404. Nunca indexável. */
+export const NOT_FOUND_ROUTE: PublicRoute = {
+  path: '/404',
+  title: 'Página não encontrada | Origami Pulse',
+  description: 'O endereço que você abriu não existe ou mudou de lugar. Volte para a página inicial ou entre na sua conta.',
+  indexable: false,
+};
+
 export function buildSitemap(lastmod: string): string {
-  const urls = PUBLIC_ROUTES.map(
+  const urls = PUBLIC_ROUTES.filter((r) => r.indexable).map(
     (r) =>
-      `  <url>\n    <loc>${SITE.origin}${r.path}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${r.changefreq}</changefreq>\n    <priority>${r.priority}</priority>\n  </url>`,
+      `  <url>\n    <loc>${SITE.origin}${r.path}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${r.changefreq ?? 'monthly'}</changefreq>\n    <priority>${r.priority ?? '0.5'}</priority>\n  </url>`,
   ).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }

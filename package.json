@@ -17,7 +17,7 @@
   "main": "eslint.config.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prerender-landing.mjs",
+    "build": "node scripts/check-app-routes.mjs && vite build && node scripts/prerender-landing.mjs",
     "prerender": "node scripts/prerender-landing.mjs",
     "og:image": "node scripts/generate-og-image.mjs",
     "build:dev": "vite build --mode development",

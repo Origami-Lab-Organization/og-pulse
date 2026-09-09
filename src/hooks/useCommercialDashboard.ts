@@ -29,11 +29,10 @@ interface CommercialDashboardData {
   forecastLeadsCount: number;
   newLeadsThisYear: number;
 
-  // Previous period KPIs
+  // Previous period KPIs (só os de fluxo: pipeline é retrato de agora e não tem "período anterior")
   prevConversionRate: number;
   prevAvgTicket: number;
   prevAvgSalesCycleDays: number | null;
-  prevActivePipeline: number;
   prevForecast: number;
   prevNewLeadsThisYear: number;
 
@@ -71,6 +70,7 @@ function isInRange(dateStr: string, from: Date, to: Date): boolean {
   return d >= from && d <= to;
 }
 
+/** KPIs de fluxo: o que aconteceu com as oportunidades criadas no período (cohort). */
 function computeKPIs(leads: LeadWithBudget[]) {
   const activeLeads = leads.filter(l => !l.archived);
   const closedLeads = leads.filter(l => l.crm_stage === 'closed' && !l.archived);
@@ -88,16 +88,6 @@ function computeKPIs(leads: LeadWithBudget[]) {
     .map(l => differenceInDays(parseISO(l.closed_at!), parseISO(l.created_at)));
   const avgSalesCycleDays = cyclesInDays.length > 0 ? cyclesInDays.reduce((a, b) => a + b, 0) / cyclesInDays.length : null;
 
-  // Pipeline ativo exclui o Follow Up: negócio esfriado com data de retorno não é
-  // pipeline em aberto, e contá-lo infla o valor projetado.
-  const pipelineLeads = activeLeads.filter(
-    l => !isClosedOutcome(l.crm_stage) && !isInStandBy(l.crm_stage)
-  );
-  const pipelineLeadsWithBudget = pipelineLeads.filter(l => getLeadValue(l) > 0);
-  const activePipeline = pipelineLeadsWithBudget.reduce((sum, l) => sum + getLeadValue(l), 0);
-  const pipelineLeadsWithBudgetCount = pipelineLeadsWithBudget.length;
-  const pipelineHasNoProposals = pipelineLeadsWithBudgetCount === 0 && pipelineLeads.length > 0;
-
   // Forecast: sum of (lead value × stage probability) only for leads with value > 0
   const forecastLeads = activeLeads.filter(l => getLeadValue(l) > 0);
   const forecast = forecastLeads.reduce((sum, l) => {
@@ -107,7 +97,40 @@ function computeKPIs(leads: LeadWithBudget[]) {
 
   const newLeadsThisYear = leads.length;
 
-  return { conversionRate, avgTicket, avgSalesCycleDays, activePipeline, pipelineLeadsWithBudgetCount, pipelineHasNoProposals, forecast, forecastLeadsCount, newLeadsThisYear };
+  return { conversionRate, avgTicket, avgSalesCycleDays, forecast, forecastLeadsCount, newLeadsThisYear };
+}
+
+/**
+ * Retrato do pipeline AGORA: toda oportunidade em aberto, independente de quando foi criada.
+ * Pipeline é estoque, não fluxo — filtrar pela data de criação escondia negócios antigos
+ * ainda em negociação, e o dashboard admin mostrava "sem oportunidades" em visão mensal
+ * (corrigido em 09/09/2026). Exclui Fechado, Perdido e Stand By: negócio esfriado com data
+ * de retorno não é pipeline em aberto, e contá-lo infla o valor projetado.
+ */
+function computePipelineSnapshot(activeLeads: LeadWithBudget[]) {
+  const openLeads = activeLeads.filter(l => !isClosedOutcome(l.crm_stage) && !isInStandBy(l.crm_stage));
+  const withValue = openLeads.filter(l => resolveLeadEstimatedValue(l) > 0);
+  const activePipeline = withValue.reduce((sum, l) => sum + resolveLeadEstimatedValue(l), 0);
+
+  const pipelineByStage = CRM_FUNNEL_STAGES
+    .filter(s => s !== 'closed')
+    .map(stage => {
+      const stageLeads = openLeads.filter(l => l.crm_stage === stage);
+      return {
+        name: getStageLabel(stage),
+        value: stageLeads.reduce((sum, l) => sum + resolveLeadEstimatedValue(l), 0),
+        count: stageLeads.length,
+      };
+    })
+    .filter(s => s.count > 0);
+
+  return {
+    activePipeline,
+    pipelineLeadsWithBudgetCount: withValue.length,
+    pipelineHasNoProposals: withValue.length === 0 && openLeads.length > 0,
+    pipelineByStage,
+    totalPipeline: pipelineByStage.reduce((s, p) => s + p.value, 0),
+  };
 }
 
 export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedServiceLine: string, selectedResponsible: string) {
@@ -174,8 +197,9 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
     // Active leads in period
     const activeLeadsPeriod = periodFiltered.filter(l => !l.archived);
 
-    // Current period KPIs
+    // Current period KPIs (fluxo) e retrato do pipeline em aberto (estoque, sem recorte de data)
     const currentKPIs = computeKPIs(periodFiltered);
+    const pipeline = computePipelineSnapshot(filtered.filter(l => !l.archived));
 
     // Previous period KPIs (same duration shifted back)
     const durationMs = differenceInMilliseconds(dateTo, dateFrom);
@@ -225,19 +249,6 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
       accWon += wonThisMonth;
       return { month: label, wonMonth: wonThisMonth, lostMonth: lostThisMonth, wonAccumulated: accWon };
     });
-
-    // Pipeline by stage (donut)
-    const pipelineStages = CRM_FUNNEL_STAGES.filter(s => s !== 'closed');
-    const pipelineByStage = pipelineStages.map(stage => {
-      const stageLeads = activeLeadsPeriod.filter(l => l.crm_stage === stage);
-      return {
-        name: getStageLabel(stage),
-        value: stageLeads.reduce((sum, l) => sum + resolveLeadEstimatedValue(l), 0),
-        count: stageLeads.length,
-      };
-    }).filter(s => s.count > 0);
-
-    const totalPipeline = pipelineByStage.reduce((s, p) => s + p.value, 0);
 
     // Top 5 clients by revenue (closed leads in period)
     const closedLeads = periodFiltered.filter(l => l.crm_stage === 'closed' && !l.archived);
@@ -293,16 +304,14 @@ export function useCommercialDashboard(dateFrom: Date, dateTo: Date, selectedSer
 
     return {
       ...currentKPIs,
+      ...pipeline,
       prevConversionRate: prevKPIs.conversionRate,
       prevAvgTicket: prevKPIs.avgTicket,
       prevAvgSalesCycleDays: prevKPIs.avgSalesCycleDays,
-      prevActivePipeline: prevKPIs.activePipeline,
       prevForecast: prevKPIs.forecast,
       prevNewLeadsThisYear: prevKPIs.newLeadsThisYear,
       funnelData,
       revenueByMonth: revenueByMonthData,
-      pipelineByStage,
-      totalPipeline,
       topClients,
       lossReasons,
       leadsBySource,
