@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useFinancialReport } from '@/hooks/useFinancialReport';
+import { useCostByCostCenter } from '@/hooks/useCostByCostCenter';
 import { useAnalyticsFilterOptions } from '@/hooks/useAnalyticsData';
 import { generateAnalyticsPdf } from '@/components/analytics/AnalyticsPdfGenerator';
 import { FinanceKpiCards } from '@/components/analytics/financeiro/FinanceKpiCards';
@@ -19,6 +20,7 @@ import { FinanceEvolutionChart } from '@/components/analytics/financeiro/Finance
 import { OverdueSection } from '@/components/analytics/financeiro/OverdueSection';
 import { BillableSplitCard } from '@/components/analytics/financeiro/BillableSplitCard';
 import { ClientBreakdownCard } from '@/components/analytics/financeiro/ClientBreakdownCard';
+import { CostByCostCenterCard } from '@/components/analytics/financeiro/CostByCostCenterCard';
 
 type PeriodPreset = 'currentMonth' | 'previousMonth' | 'currentQuarter' | 'year' | 'custom';
 
@@ -75,6 +77,8 @@ export default function Analytics() {
   );
 
   const { data, isLoading } = useFinancialReport(filters);
+  // Custo por centro só depende do período (ver o hook); os demais filtros não se aplicam.
+  const { data: costByCenter, isLoading: isCostByCenterLoading } = useCostByCostCenter(filters);
   const { data: options } = useAnalyticsFilterOptions();
 
   const periodLabelFull = useMemo(() => {
@@ -233,6 +237,7 @@ export default function Analytics() {
           <ClientBreakdownCard rows={data.clientBreakdown} metaPct={data.metaPct} />
           <OverdueSection overdueNFs={data.revenue.overdueNFs} overdueReceipts={data.revenue.overdueReceipts} />
           <BillableSplitCard data={data} />
+          <CostByCostCenterCard data={costByCenter} isLoading={isCostByCenterLoading} />
         </div>
       )}
     </AppLayout>

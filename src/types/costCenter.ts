@@ -46,3 +46,62 @@ export interface CostCenterRowProps {
   onEdit: (costCenter: CostCenter) => void;
   onToggleActive: (costCenter: CostCenter) => void;
 }
+
+/** De onde a hora veio. Comparar sempre pelo membro. */
+export const CostOrigin = {
+  PROJECT: 'project',
+  ACTIVITY: 'activity',
+} as const;
+export type CostOrigin = (typeof CostOrigin)[keyof typeof CostOrigin];
+
+/** Quem apontou as horas de uma origem de custo — o terceiro nivel da tabela. */
+export interface CostCenterPersonRow {
+  id: string;
+  name: string;
+  hours: number;
+  cost: number;
+  /** Fatia do custo da origem (o projeto ou a atividade), em pontos percentuais. */
+  sharePct: number;
+}
+
+/** Uma origem dentro de um centro: um projeto de cliente ou uma atividade interna. */
+export interface CostCenterDetailRow {
+  origin: CostOrigin;
+  id: string;
+  name: string;
+  hours: number;
+  cost: number;
+  /** Fatia do custo do centro, em pontos percentuais. */
+  sharePct: number;
+  /** Quem apontou, do maior custo para o menor. */
+  people: readonly CostCenterPersonRow[];
+}
+
+/** Uma linha da tabela de custo por centro de custo (`useCostByCostCenter`). */
+export interface CostCenterCostRow {
+  /** `null` na linha que agrupa o que ainda não tem centro. */
+  costCenterId: string | null;
+  costCenterName: string;
+  isActive: boolean;
+  /** Horas apontadas em projeto de cliente, classificadas pelo serviço do projeto. */
+  projectHours: number;
+  projectCost: number;
+  /** Horas apontadas em atividade interna. */
+  internalHours: number;
+  internalCost: number;
+  totalHours: number;
+  totalCost: number;
+  /** Fatia do custo total do período, em pontos percentuais. */
+  sharePct: number;
+  /** Composição do centro: projetos e atividades que geraram o custo, do maior para o menor. */
+  details: readonly CostCenterDetailRow[];
+}
+
+export interface CostByCostCenterData {
+  rows: readonly CostCenterCostRow[];
+  totalCost: number;
+  totalHours: number;
+  /** Horas cujo centro não foi possível determinar, para a tela ser honesta sobre a cobertura. */
+  unclassifiedHours: number;
+  unclassifiedCost: number;
+}
