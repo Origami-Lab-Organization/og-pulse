@@ -111,9 +111,11 @@ export function ActivityTypesSettings() {
                     <p className={`text-sm font-medium ${!at.is_active ? 'line-through text-muted-foreground' : ''}`}>
                       {at.name}
                     </p>
-                    {at.description && (
-                      <p className="text-xs text-muted-foreground truncate">{at.description}</p>
-                    )}
+                    {/* O centro de custo aparece na linha: é por ele que a hora é lida (PUL-219). */}
+                    <p className="text-xs text-muted-foreground truncate">
+                      {at.cost_center_name ?? 'Sem centro de custo'}
+                      {at.description ? ` · ${at.description}` : ''}
+                    </p>
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">

@@ -136,6 +136,7 @@ export type Database = {
       }
       activity_timesheets: {
         Row: {
+          cost_center_id: string | null
           activity_type_id: string
           created_at: string
           description: string | null
@@ -148,6 +149,7 @@ export type Database = {
           work_date: string
         }
         Insert: {
+          cost_center_id?: string | null
           activity_type_id: string
           created_at?: string
           description?: string | null
@@ -160,6 +162,7 @@ export type Database = {
           work_date: string
         }
         Update: {
+          cost_center_id?: string | null
           activity_type_id?: string
           created_at?: string
           description?: string | null
@@ -230,6 +233,7 @@ export type Database = {
       }
       activity_types: {
         Row: {
+          cost_center_id: string | null
           applies_to_all: boolean
           color: string
           created_at: string
@@ -241,6 +245,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cost_center_id?: string | null
           applies_to_all?: boolean
           color?: string
           created_at?: string
@@ -252,6 +257,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cost_center_id?: string | null
           applies_to_all?: boolean
           color?: string
           created_at?: string
@@ -5419,6 +5425,7 @@ export type Database = {
       }
       services: {
         Row: {
+          cost_center_id: string | null
           billing_type: string | null
           billing_unit: string | null
           created_at: string
@@ -5436,6 +5443,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cost_center_id?: string | null
           billing_type?: string | null
           billing_unit?: string | null
           created_at?: string
@@ -5453,6 +5461,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cost_center_id?: string | null
           billing_type?: string | null
           billing_unit?: string | null
           created_at?: string

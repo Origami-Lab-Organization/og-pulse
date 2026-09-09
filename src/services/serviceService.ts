@@ -23,6 +23,7 @@ export const serviceService = {
       .insert({
         tenant_id: tenantId,
         service_line_id: input.serviceLineId,
+        cost_center_id: input.costCenterId,
         name: input.name,
         project_type: input.billingType ?? 'fixed_scope',
         billing_type: input.billingType ?? 'fixed_scope',
@@ -46,6 +47,7 @@ export const serviceService = {
   async update(id: string, input: Partial<CreateServiceInput>): Promise<ServiceDB> {
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (input.serviceLineId !== undefined) updates.service_line_id = input.serviceLineId;
+    if (input.costCenterId !== undefined) updates.cost_center_id = input.costCenterId;
     if (input.name !== undefined) updates.name = input.name;
     if (input.billingType !== undefined) {
       updates.billing_type = input.billingType;

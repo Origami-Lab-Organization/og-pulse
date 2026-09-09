@@ -26,10 +26,13 @@ import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { ActivityType, CreateActivityTypeInput } from '@/hooks/useActivityTypes';
 import { useEmployees } from '@/hooks/useEmployees';
+import { CostCenterSelect } from '@/components/costCenters/CostCenterSelect';
+import { FormDescription } from '@/components/ui/form';
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   description: z.string().optional(),
+  cost_center_id: z.string().min(1, 'Selecione o centro de custo da atividade'),
   applies_to_all: z.enum(['all', 'specific']),
 });
 
@@ -63,6 +66,7 @@ export function ActivityTypeFormDialog({
     defaultValues: {
       name: '',
       description: '',
+      cost_center_id: '',
       applies_to_all: 'all',
     },
   });
@@ -75,6 +79,7 @@ export function ActivityTypeFormDialog({
         form.reset({
           name: activityType.name,
           description: activityType.description ?? '',
+          cost_center_id: activityType.cost_center_id ?? '',
           applies_to_all: activityType.applies_to_all ? 'all' : 'specific',
         });
         setSelectedEmployeeIds(existingEmployeeIds);
@@ -82,6 +87,7 @@ export function ActivityTypeFormDialog({
         form.reset({
           name: '',
           description: '',
+          cost_center_id: '',
           applies_to_all: 'all',
         });
         setSelectedEmployeeIds([]);
@@ -94,6 +100,7 @@ export function ActivityTypeFormDialog({
     onSubmit({
       name: data.name,
       description: data.description,
+      cost_center_id: data.cost_center_id,
       applies_to_all: data.applies_to_all === 'all',
       employee_ids: data.applies_to_all === 'specific' ? selectedEmployeeIds : [],
     });
@@ -127,6 +134,21 @@ export function ActivityTypeFormDialog({
                   <FormControl>
                     <Input placeholder="Ex: Administrativo" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="cost_center_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Centro de custo</FormLabel>
+                  <CostCenterSelect value={field.value} onChange={field.onChange} />
+                  <FormDescription>
+                    A hora lançada nesta atividade é lida neste centro.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

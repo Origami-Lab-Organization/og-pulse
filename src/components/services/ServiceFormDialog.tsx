@@ -28,11 +28,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Layers, Loader2 } from 'lucide-react';
+import { CostCenterSelect } from '@/components/costCenters/CostCenterSelect';
 import { Service, CreateServiceInput } from '@/types/service';
 import { ServiceLine } from '@/types/serviceLine';
 
 const formSchema = z.object({
   serviceLineId: z.string().min(1, 'Selecione uma linha de serviço'),
+  costCenterId: z.string().min(1, 'Selecione o centro de custo do serviço'),
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   description: z.string().optional(),
 });
@@ -62,7 +64,7 @@ export function ServiceFormDialog({
 }: ServiceFormDialogProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { serviceLineId: '', name: '', description: '' },
+    defaultValues: { serviceLineId: '', costCenterId: '', name: '', description: '' },
   });
 
   useEffect(() => {
@@ -70,12 +72,14 @@ export function ServiceFormDialog({
     if (service) {
       form.reset({
         serviceLineId: service.serviceLineId ?? defaultServiceLineId ?? '',
+        costCenterId: service.costCenterId ?? '',
         name: service.name,
         description: service.description ?? '',
       });
     } else {
       form.reset({
         serviceLineId: defaultServiceLineId ?? '',
+        costCenterId: '',
         name: '',
         description: '',
       });
@@ -85,6 +89,7 @@ export function ServiceFormDialog({
   const handleSubmit = (values: FormValues) => {
     onSubmit({
       serviceLineId: values.serviceLineId,
+      costCenterId: values.costCenterId,
       name: values.name,
       description: values.description || undefined,
     });
@@ -144,6 +149,21 @@ export function ServiceFormDialog({
                   <FormControl>
                     <Input placeholder="Ex.: Desenvolvimento de MVP" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="costCenterId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Centro de custo</FormLabel>
+                  <CostCenterSelect value={field.value} onChange={field.onChange} />
+                  <FormDescription>
+                    A hora lançada neste serviço é lida neste centro.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

@@ -6,6 +6,7 @@ sources:
   - supabase/migrations/20260909120000_tenant_plan_and_signup_attempts.sql
   - supabase/migrations/20260909130000_tenant_plan_enforced_in_rls.sql
   - supabase/migrations/20260910100000_cost_centers.sql
+  - supabase/migrations/20260910120000_cost_center_on_catalog_items.sql
   - src/types/lead.ts
   - src/types/portfolio.ts
 ---
@@ -271,8 +272,12 @@ kanban pessoal (`personal_kanban_*`), benefícios/ferramentas, folha
 hashes de IP e e-mail, sem policy, lida e escrita apenas pela service role em
 `register-tenant`), centros de custo (`cost_centers`, PUL-217: cadastro-base do tenant,
 `tenant_id` → `tenants`, nome único por tenant, leitura por membro e escrita por
-`configuracao:editar`, sem DELETE; serviços, atividades e pessoas passam a apontar para ele em
-PUL-218/219/221). Gerar diagrama dedicado sob demanda.
+`configuracao:editar`, sem DELETE). Desde PUL-221 (ADR-0031) o **item aponta para o centro**:
+`services.cost_center_id` e `activity_types.cost_center_id` (FK `RESTRICT`, anuláveis por
+expand-contract — a obrigatoriedade está no cadastro), e a hora guarda o centro **do momento
+do lançamento** em `activity_timesheets.cost_center_id`, preenchido pelo trigger
+`activity_timesheets_set_cost_center` a partir do item quando quem insere não informa. Trocar
+o centro de um item não reescreve as horas já lançadas. Pessoa × centro chega em PUL-218. Gerar diagrama dedicado sob demanda.
 
 ## Divergências código × doc
 

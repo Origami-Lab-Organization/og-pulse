@@ -34,6 +34,7 @@ import {
   useDeleteService,
 } from '@/hooks/useServices';
 import { useServiceLines } from '@/hooks/useServiceLines';
+import { useCostCenters } from '@/hooks/useCostCenters';
 import {
   useServiceRevenueModels,
   useCreateServiceRevenueModel,
@@ -116,6 +117,9 @@ const ServiceLineDetail = () => {
   const { lineId = '' } = useParams<{ lineId: string }>();
   const navigate = useNavigate();
   const { employee } = useAuth();
+  const { data: costCenters = [] } = useCostCenters();
+  /** Nome do centro para exibir ao lado do serviço; `null` enquanto o item não tem centro (PUL-220). */
+  const costCenterName = (id: string | null) => costCenters.find((c) => c.id === id)?.name ?? null;
   const canManage = employee?.isAdmin ?? false;
 
   const { data: serviceLines = [], isLoading: linesLoading } = useServiceLines();

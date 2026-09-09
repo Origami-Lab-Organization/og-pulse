@@ -7,6 +7,9 @@ export interface ActivityType {
   tenant_id: string;
   name: string;
   description: string | null;
+  /** Centro de custo da atividade (PUL-221). Nulo nas anteriores à migração e nas ausências (P3). */
+  cost_center_id: string | null;
+  cost_center_name?: string | null;
   applies_to_all: boolean;
   is_active: boolean;
   created_at: string;
@@ -17,6 +20,8 @@ export interface ActivityType {
 export interface CreateActivityTypeInput {
   name: string;
   description?: string;
+  /** Obrigatório no cadastro (PUL-219); a hora lançada na atividade herda este centro. */
+  cost_center_id: string;
   applies_to_all: boolean;
   employee_ids?: string[];
 }
@@ -35,7 +40,8 @@ export const useActivityTypes = () => {
         .from('activity_types')
         .select(`
           *,
-          activity_type_employees(employee_id)
+          activity_type_employees(employee_id),
+          cost_centers(name)
         `)
         .order('name');
 
@@ -44,6 +50,7 @@ export const useActivityTypes = () => {
       return (data || []).map((at: any) => ({
         ...at,
         employee_count: at.applies_to_all ? null : (at.activity_type_employees?.length ?? 0),
+        cost_center_name: at.cost_centers?.name ?? null,
       })) as ActivityType[];
     },
   });
@@ -62,6 +69,7 @@ export const useCreateActivityType = () => {
           tenant_id: employee.tenant_id,
           name: input.name,
           description: input.description || null,
+          cost_center_id: input.cost_center_id,
           applies_to_all: input.applies_to_all,
         }])
         .select()
@@ -100,6 +108,7 @@ export const useUpdateActivityType = () => {
         .update({
           name: input.name,
           description: input.description || null,
+          cost_center_id: input.cost_center_id,
           applies_to_all: input.applies_to_all,
           updated_at: new Date().toISOString(),
         })

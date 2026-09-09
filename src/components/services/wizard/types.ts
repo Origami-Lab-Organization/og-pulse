@@ -8,6 +8,8 @@ export interface WizardLineData {
 export interface WizardServiceData {
   name: string;
   description?: string;
+  /** Centro de custo do serviço, obrigatório (PUL-219). */
+  costCenterId: string;
 }
 
 export interface WizardModelData {

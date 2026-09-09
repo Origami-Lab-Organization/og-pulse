@@ -118,6 +118,7 @@ export function ServiceSetupWizard({
         const line = await createLine.mutateAsync(lineData);
         const service = await createService.mutateAsync({
           serviceLineId: line.id,
+          costCenterId: svc.costCenterId,
           name: svc.name,
           description: svc.description,
         });

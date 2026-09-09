@@ -15,6 +15,8 @@ export interface ServiceDB {
   id: string;
   tenant_id: string;
   service_line_id: string | null;
+  /** Centro de custo do serviço (PUL-221). Nulo só nos itens anteriores à migração. */
+  cost_center_id: string | null;
   name: string;
   billing_type: BillingType;
   description: string | null;
@@ -31,6 +33,7 @@ export interface Service {
   id: string;
   tenantId: string;
   serviceLineId: string | null;
+  costCenterId: string | null;
   name: string;
   billingType: BillingType;
   description: string | null;
@@ -45,6 +48,8 @@ export interface Service {
 
 export interface CreateServiceInput {
   serviceLineId: string;
+  /** Obrigatório no cadastro (PUL-219); a hora lançada no serviço herda este centro. */
+  costCenterId: string;
   name: string;
   description?: string;
   // Campos legados (billing_type/project_type): o valor de cobrança migrou para
@@ -59,6 +64,7 @@ export const dbToService = (db: ServiceDB): Service => ({
   id: db.id,
   tenantId: db.tenant_id,
   serviceLineId: db.service_line_id ?? null,
+  costCenterId: db.cost_center_id ?? null,
   name: db.name,
   billingType: db.billing_type,
   description: db.description,
@@ -71,8 +77,9 @@ export const dbToService = (db: ServiceDB): Service => ({
   updatedAt: db.updated_at,
 });
 
-// Seed templates não carregam serviceLineId — a linha é resolvida no momento do seed.
-export type DefaultServiceTemplate = Omit<CreateServiceInput, 'serviceLineId'>;
+// Seed templates não carregam serviceLineId nem costCenterId — linha e centro são
+// resolvidos no momento do seed.
+export type DefaultServiceTemplate = Omit<CreateServiceInput, 'serviceLineId' | 'costCenterId'>;
 
 export const DEFAULT_SERVICES: DefaultServiceTemplate[] = [
   { name: 'Consultoria de Projeto', billingType: 'fixed_scope', hasDefaultValue: false },

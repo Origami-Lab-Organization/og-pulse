@@ -13,11 +13,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { FormDescription } from '@/components/ui/form';
+import { CostCenterSelect } from '@/components/costCenters/CostCenterSelect';
 import { WizardServiceData } from './types';
 
 const schema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   description: z.string().optional(),
+  costCenterId: z.string().min(1, 'Selecione o centro de custo do serviço'),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -37,7 +40,11 @@ export function WizardStep2Service({
 }: WizardStep2ServiceProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: initial?.name ?? '', description: initial?.description ?? '' },
+    defaultValues: {
+      name: initial?.name ?? '',
+      description: initial?.description ?? '',
+      costCenterId: initial?.costCenterId ?? '',
+    },
   });
 
   return (
@@ -67,6 +74,21 @@ export function WizardStep2Service({
               <FormControl>
                 <Input placeholder="Ex.: Desenvolvimento de MVP" autoFocus {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="costCenterId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Centro de custo</FormLabel>
+              <CostCenterSelect value={field.value} onChange={field.onChange} />
+              <FormDescription>
+                A hora lançada neste serviço é lida neste centro.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

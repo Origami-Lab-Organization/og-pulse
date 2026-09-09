@@ -32,6 +32,14 @@ export interface CostCenterFormDialogProps {
   isSubmitting: boolean;
 }
 
+export interface CostCenterSelectProps {
+  /** Id do centro escolhido, ou `undefined` no cadastro novo. */
+  value?: string;
+  onChange: (costCenterId: string) => void;
+  disabled?: boolean;
+  id?: string;
+}
+
 export interface CostCenterRowProps {
   costCenter: CostCenter;
   canEdit: boolean;
