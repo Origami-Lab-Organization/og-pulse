@@ -26,6 +26,9 @@ sources:
   - src/landing/prerender-entry.tsx
   - src/landing/chrome.tsx
   - src/landing/pages.ts
+  - src/landing/pages-guias.ts
+  - src/landing/pages-personas.ts
+  - src/landing/slugs.ts
   - src/landing/ContentPage.tsx
   - src/pages/PublicContent.tsx
   - src/pages/NotFound.tsx
@@ -116,11 +119,12 @@ Três entradas HTML em `vite.config.ts` (`build.rollupOptions.input`):
 `sitemap.xml`, texto da 404 e dos documentos legais (`PUBLIC_ROUTES`: home e páginas de
 conteúdo indexáveis; termos e privacidade `noindex`; `NOT_FOUND_ROUTE`). Identidade e
 oferta (`SITE`, `TRIAL`) moram em `src/landing/site.ts`. As páginas de conteúdo (SEO/GEO,
-PUL-242) são dados em `src/landing/pages.ts` (`CONTENT_PAGES`: lead com resposta direta,
-seções, tabelas, FAQ, relacionadas) renderizados por `src/landing/ContentPage.tsx`; a
-lista alimenta sozinha o sitemap, o `llms.txt` (seção "Páginas de conteúdo"), a coluna
-"Conteúdo" do rodapé e o JSON-LD por página (`buildPageJsonLd`: WebPage ou Article,
-BreadcrumbList, FAQPage). O prerender falha se uma página indexável sair sem JSON-LD. Cabeçalho, rodapé e a
+PUL-242) são dados em `src/landing/pages.ts`, `pages-guias.ts` (problema e definição) e
+`pages-personas.ts` (persona), com slugs em `slugs.ts` (`CONTENT_PAGES`: lead com resposta
+direta, seções, tabelas, FAQ, relacionadas), renderizados por `src/landing/ContentPage.tsx`;
+a lista alimenta sozinha o sitemap (12 URLs), o `llms.txt` (seção "Páginas de conteúdo"), as
+colunas "Para quem" e "Conteúdo" do rodapé e o JSON-LD por página (`buildPageJsonLd`:
+WebPage ou Article, BreadcrumbList, FAQPage). O prerender falha se uma página indexável sair sem JSON-LD. Cabeçalho, rodapé e a
 moldura `PublicPage` das páginas públicas vivem em `src/landing/chrome.tsx`; o rodapé
 leva "© {ano atual} Origami Lab" (`copyrightLine`), reaproveitado pelo `AppFooter`
 em todas as telas do app (`src/components/layout/AppLayout.tsx`). Scripts de operação:
