@@ -4,6 +4,17 @@
   "trailingSlash": false,
   "redirects": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "og-pulse.vercel.app"
+        }
+      ],
+      "destination": "https://origamipulse.com.br/",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [
         {
