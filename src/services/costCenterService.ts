@@ -24,7 +24,12 @@ function toRow(form: CostCenterFormData): { name: string; description: string | 
  */
 export const costCenterService = {
   async getAll(): Promise<CostCenter[]> {
-    const { data, error } = await supabase.from(TABLE).select('*').order('name');
+    // Ativos primeiro, depois por nome: o que está em uso aparece antes do que saiu de uso.
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('*')
+      .order('is_active', { ascending: false })
+      .order('name');
     if (error) throw toError(error);
     return (data ?? []) as CostCenter[];
   },

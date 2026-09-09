@@ -43,6 +43,8 @@ export const useActivityTypes = () => {
           activity_type_employees(employee_id),
           cost_centers(name)
         `)
+        // Ativos primeiro, depois por nome.
+        .order('is_active', { ascending: false })
         .order('name');
 
       if (error) throw error;

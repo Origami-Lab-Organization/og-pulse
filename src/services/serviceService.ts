@@ -7,6 +7,8 @@ export const serviceService = {
       .from('services')
       .select('*')
       .eq('tenant_id', tenantId)
+      // Ativos primeiro, depois por nome.
+      .order('is_active', { ascending: false })
       .order('name');
 
     if (error) {

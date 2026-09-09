@@ -1,6 +1,6 @@
 # ADR 0031: Centro de custo como âncora de custo e receita; catálogo e atividades internas preservados
 
-- Status: proposto (decisões de produto de 08 e 09/09/2026 já tomadas; duas perguntas em aberto, marcadas abaixo)
+- Status: proposto (decisões de produto de 08, 09 e 10/09/2026 já tomadas; duas perguntas em aberto, marcadas abaixo)
 - Data: 2026-09-10
 - Decisores: Italo Castro (produto); registro e implementação em PUL-216, PUL-217, PUL-218, PUL-219, PUL-220, PUL-221
 
@@ -15,10 +15,13 @@ baratos do que são.
 
 Leitura de produção em 09/09/2026 (tenant `93e40db0`, o real da Origami):
 
-- **10 serviços** em uma única linha de serviço ("Serviços Gerais"), com duplicatas
-  deliberadas: "Consultoria Estratégica" existe duas vezes (uma `fixed`, uma `recurring`) e
-  "Ventures" três vezes (`fixed`, `success_fee` e uma sem modelo). A casa **duplica o
-  serviço para representar modelos de cobrança diferentes**.
+- **10 serviços** em uma única linha de serviço ("Serviços Gerais"), com duplicatas:
+  "Consultoria Estratégica" duas vezes (uma `fixed`, uma `recurring`) e "Ventures" três
+  vezes (`fixed`, `success_fee` e uma sem modelo). A casa vinha **criando um serviço novo a
+  cada modelo de cobrança** — e a causa é técnica: `services` nunca teve restrição de nome
+  único, embora `serviceService.ts` já traduzisse o erro `23505` para "Já existe um serviço
+  com este nome". A mensagem existia antes de o erro poder acontecer. Consolidado em
+  10/09/2026, ver decisão 6.
 - **7 atividades internas**, com 1.353 horas lançadas: Marketing (812 h), Administrativo
   (197 h), Comercial (178 h), Folga/Férias (77 h), Hackaton (52 h, inativa), RH/DP (27 h,
   inativa), Atestado Médico (10 h).
@@ -69,10 +72,7 @@ Nenhum cadastro novo, nenhuma unificação. O que entra é o **campo de centro**
   `success_fee`, `indication`, `equity` e combinações). Não se cria nada.
 - **A marcação serviço/atividade não é campo**: vem do cadastro de origem. Item do catálogo
   de Serviços **cobra hora**; item de Atividades Internas **desconta hora**.
-- **Duplicatas do catálogo são preservadas.** "Consultoria Estratégica" (fixed) e
-  "Consultoria Estratégica" (recurring) são dois serviços com projetos distintos apontando
-  para cada um. Unificá-las exigiria decidir o que fazer com os modelos de cobrança e
-  reescrever `projects.service_line` em 21 projetos. Fica fora desta onda.
+- **Duplicata por modelo de cobrança é erro, e foi consolidada** (decisão 6).
 
 ### 3. A hora grava o centro do momento do lançamento
 
@@ -100,6 +100,32 @@ ao banco (gerente edita, porque quem vende o serviço sabe de que estúdio ele �
 tela ao banco.** Manter `if (isAdmin)` na tela enquanto o banco permite gerente é a pior das
 três opções, porque deixa a regra em dois lugares que discordam.
 
+### 6. Um serviço, vários modelos de cobrança (10/09/2026)
+
+Decisão do Italo: "serviços iguais mas apenas com modelo diferente deveriam ficar juntos; se
+for duplicado pode apagar". O catálogo sempre suportou isso — `service_revenue_models` é N:1
+com `services` — mas sem trava de unicidade a casa criou um serviço por modelo.
+
+- **Duplicata = mesmo tenant, mesma linha de serviço, mesmo nome normalizado** (sem caixa nem
+  espaços). Mesmo nome em **linhas diferentes não é duplicata**: é o caso de "Captação de
+  recursos" no tenant Pulse Demo Consultoria, que vive em duas linhas e fica intacto.
+- **Sobrevivente**: o serviço mais referenciado (projetos + oportunidades apontando),
+  desempate pelo mais antigo. Mantém o que a operação já usa e minimiza o que muda.
+- **O absorvido entrega tudo antes de sair**: modelos de cobrança, `projects.service_line`,
+  `leads.service_line`, `lead_services` (removendo o que colidiria com o UNIQUE
+  `(lead_id, service_id)`), `budgets.template_for_service_id`, e o `cost_center_id` quando o
+  sobrevivente ainda não tem um.
+- **Apagar com rastro.** O ADR-0003 diz que nada se apaga; aqui a exclusão foi autorizada,
+  então cada absorvido é registrado em `catalog_merge_log` (id, nome, sobrevivente e o que
+  foi movido) **antes** do `DELETE`. É o que torna a operação auditável e reconstruível.
+- **A porta fica fechada**: índice único em
+  `(tenant_id, coalesce(service_line_id, zero), lower(btrim(name)))`. Modelo de cobrança
+  diferente passa a ser outro `service_revenue_models`, nunca outro serviço.
+
+Resultado em produção: "Consultoria Estratégica" com dois modelos (`fixed` + `recurring`),
+5 projetos e 5 oportunidades; "Ventures" com dois modelos (`fixed` + `success_fee`) e
+7 projetos. Três serviços absorvidos, nenhum órfão.
+
 ### 5. Mapa de migração dos itens existentes (PUL-220)
 
 Destino de cada item do tenant real, decidido a partir do nome e dos projetos que apontam
@@ -108,16 +134,13 @@ histórico ficar legível.
 
 | Serviço (id curto) | Modelo | Projetos que apontam | Centro de destino |
 |---|---|---|---|
-| Consultoria Estratégica (`3e79de15`) | fixed | 3 | SL04 Consultoria Estratégica |
-| Consultoria Estratégica (`a5fd980f`) | recurring | 2 | SL04 Consultoria Estratégica |
+| Consultoria Estratégica (`3e79de15`) | fixed + recurring (após a consolidação) | 5 | SL04 Consultoria Estratégica |
 | Financiamento da Inovação (`ad096345`) | success_fee | 2 | SL01 Financiamento de Inovação |
 | Lei do Bem (`a055dc6f`) | success_fee | 0 | SL01 Financiamento de Inovação |
 | Product Studio (`4014bc78`) | fixed | 7 | SL02 Studio de Produto |
 | Programa de Inovação (`c02e2c1b`) | fixed | 0 | SL04 Consultoria Estratégica *(a confirmar: pode ser SL01)* |
 | Sprint 0 (`a5a9098a`) | fixed | 0 | SL02 Studio de Produto |
-| Ventures (`0135c470`) | sem modelo | 6 | SL03 Ventures |
-| Ventures (`7ca1fc4d`) | success_fee | 1 | SL03 Ventures |
-| Ventures (`f1684f78`) | fixed | 0 | SL03 Ventures |
+| Ventures (`0135c470`) | success_fee + fixed (após a consolidação) | 7 | SL03 Ventures |
 
 | Atividade interna | Horas | Estado | Centro de destino |
 |---|---|---|---|
@@ -139,8 +162,8 @@ esperado.
   coisa em vez de duas; o histórico não é reescrito quando o cadastro muda; catálogo e
   atividades internas seguem íntegros, sem migração de forma.
 - Custos: um item pertence a um centro só. Se o mesmo serviço passar a ser vendido por dois
-  estúdios, viram dois serviços — o que já é o padrão de fato da casa para modelos de
-  cobrança diferentes. A leitura de **receita** por centro depende do elo projeto → serviço,
+  estúdios, viram dois serviços em linhas diferentes — o índice único é por linha, não por
+  tenant, justamente para isso. A leitura de **receita** por centro depende do elo projeto → serviço,
   hoje guardado em `projects.service_line` como texto com `service_id` dentro; enquanto essa
   coluna não for saneada, a receita por centro é derivada por conversão de texto.
 - Riscos: **`name ILIKE '%origami%'` não identifica o tenant da casa** — existem dois
