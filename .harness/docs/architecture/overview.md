@@ -95,6 +95,8 @@ Três entradas HTML em `vite.config.ts` (`build.rollupOptions.input`):
 |---|---|---|---|
 | `index.html` | Home pública (landing). No build, `scripts/prerender-landing.mjs` roda depois do `vite build` (`package.json` → `build`), compila `src/landing/prerender-entry.tsx` em modo `prerender` (sem PWA nem tagger) e injeta `<head>` e corpo gerados de `src/landing/content.ts`; gera `sitemap.xml` e `llms.txt` e valida o JSON-LD, falhando o build se faltar algo | sim | Vercel, pelo filesystem (`/`) |
 | `app.html` | Shell da área logada, `<meta name="robots" content="noindex, nofollow">` | não | Vercel: `vercel.json` reescreve toda rota que não é arquivo para `/app.html` |
+
+`vercel.json` também redireciona (308, permanente) qualquer caminho pedido pelo host `og-pulse.vercel.app` para `https://origamipulse.com.br`, porque esse host servia a home inteira sem `noindex` (PUL-231). A escolha apex × `www` é configuração de domínio no painel da Vercel, não do repositório.
 | `microsoft-auth.html` | Retorno do OAuth Microsoft (ver SSO) | não | filesystem |
 
 `src/landing/content.ts` é a fonte única de copy, SEO, JSON-LD, `llms.txt` e
