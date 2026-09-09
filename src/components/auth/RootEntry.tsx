@@ -2,19 +2,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import HomeRedirect from '@/components/auth/HomeRedirect';
 import LandingPage from '@/pages/LandingPage';
-
-/**
- * O Supabase guarda a sessão em `localStorage` sob `sb-<ref>-auth-token`.
- * Se existe, vale esperar o auth resolver em vez de mostrar a landing e depois
- * trocar de tela; se não existe, a pessoa é visitante e a landing aparece já.
- */
-function hasStoredSession(): boolean {
-  try {
-    return Object.keys(localStorage).some((key) => key.startsWith('sb-') && key.endsWith('-auth-token'));
-  } catch {
-    return false;
-  }
-}
+import { hasStoredSession } from '@/lib/session';
 
 /**
  * Raiz do site (`/`): visitante vê a landing pública; quem tem sessão segue o

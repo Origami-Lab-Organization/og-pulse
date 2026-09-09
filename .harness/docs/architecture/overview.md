@@ -1,6 +1,8 @@
 ---
 sources:
   - src/main.tsx
+  - src/lib/analytics.ts
+  - src/lib/session.ts
   - src/App.tsx
   - src/contexts/AuthContext.tsx
   - src/integrations/supabase/client.ts
@@ -41,8 +43,12 @@ sources:
   Cliente único criado em `src/integrations/supabase/client.ts:11-17`
   (`VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY`, sessão persistida
   em localStorage com auto-refresh).
-- **Observabilidade de produto:** Amplitude + Session Replay, inicializado
-  antes do render (`src/main.tsx:11-12`).
+- **Analytics:** Amplitude em dois modos (`src/lib/analytics.ts`). **Vitrine**, para quem
+  não está logado (`startVisitorAnalytics` em `src/main.tsx`, só sem sessão guardada):
+  instância própria sem cookie, sem IP e sem replay, só páginas vistas e atribuição.
+  **Produto**, só com funcionário ativo (`AuthContext.applyEmployeeResult` →
+  `startProductAnalytics`): autocapture completo e session replay, herdando o device id da
+  vitrine; `setOptOut(true)` no `signOut`. PUL-239, ADR-0030.
 - **PWA:** service worker próprio (`injectManifest`, `vite.config.ts:23-46`),
   registrado **somente em viewport mobile** (`src/main.tsx:7-9`).
 

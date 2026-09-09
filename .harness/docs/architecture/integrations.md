@@ -3,6 +3,8 @@ sources:
   - supabase/functions/**
   - supabase/config.toml
   - src/services/microsoftGraphService.ts
+  - src/lib/analytics.ts
+  - src/lib/session.ts
   - src/integrations/microsoft/msalClient.ts
   - src/integrations/microsoft/config.ts
   - src/lib/faceRecognition.ts
@@ -68,6 +70,8 @@ flowchart LR
 | Resend | `send-invite-email/index.ts:135`, `send-candidate-hired-email/index.ts:126` | Email transacional (ver divergência 2) | `RESEND_API_KEY` |
 | Anthropic | `market-analysis-start/index.ts:317` (Opus 4), `market-analysis-refine/index.ts:37` (Sonnet 4) | Relatórios de análise de mercado | `ANTHROPIC_API_KEY` |
 | Anthropic (Opus 5) | `parse-cnpj-card/index.ts:70-89` | Extração de Cartão CNPJ (PDF em base64 via bloco `document`), com schema Zod em `output_config` — o modelo é obrigado ao formato, sem pós-processamento de markdown; usado por `ClientForm` e `SupplierFormDialog` | `ANTHROPIC_API_KEY` |
+| Amplitude, modo **vitrine** | Browser, `src/lib/analytics.ts` → `startVisitorAnalytics` em `src/main.tsx`, só sem sessão guardada (`src/lib/session.ts`) | Instância `vitrine`: `identityStorage: 'none'` (sem cookie), `trackingOptions.ipAddress: false`, sem replay; autocapture só de páginas vistas e atribuição (referrer/UTM). Mede a vitrine e o cadastro; referrers de IA (chatgpt.com, perplexity.ai, gemini.google.com) medem GEO (PUL-239, ADR-0030) | chave pública de browser no código |
+| Amplitude, modo **produto** (autocapture + session replay 100%) | `startProductAnalytics`, chamado por `AuthContext.applyEmployeeResult` **só com funcionário ativo**; cala a vitrine e herda seu device id; `setOptOut(true)` no `signOut` | Gravação de sessão e eventos nomeados da área logada (`AlocacaoPage`/`EmployeeAllocationPanel`). Nunca roda antes do login | idem |
 | Reconhecimento facial | `src/lib/faceRecognition.ts:1-12` | **100% local no browser** (`@vladmandic/face-api`), threshold 0.6; só os pesos vêm da CDN jsDelivr | — |
 | SMTP do Supabase Auth | `create-employee-user`, `resend-employee-invite`, `request-first-access`, `register-tenant` | Convites, recovery links e confirmação de e-mail do autocadastro (`resend` tipo `signup`, redireciona para `/boas-vindas`) | interno Supabase |
 

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { startProductAnalytics, stopProductAnalytics } from '@/lib/analytics';
 import { clearPrivatePwaCaches } from '@/lib/pwa';
 import { acquireMicrosoftIdToken } from '@/integrations/microsoft/msalClient';
 import { resolveTenantPlan } from '@/lib/tenantPlan';
@@ -197,8 +198,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // tela de login em vez de falhar em silêncio.
   const applyEmployeeResult = (employeeData: EmployeeData | null) => {
     setEmployee(employeeData);
-    if (employeeData) void loadTenantPlan(employeeData.tenant_id);
-    else setTenantPlan(null);
+    if (employeeData) {
+      void loadTenantPlan(employeeData.tenant_id);
+      // Só aqui, com funcionário ativo, o Amplitude liga (PUL-239, ADR-0030).
+      startProductAnalytics();
+    } else {
+      setTenantPlan(null);
+    }
     // Offline sem snapshot também cai aqui e não é negação de acesso.
     setAccessDenied(!employeeData && navigator.onLine);
     if (!employeeData) {
@@ -358,6 +364,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setAccessDenied(false);
     localStorage.removeItem(PWA_EMPLOYEE_SNAPSHOT);
     await supabase.auth.signOut();
+    stopProductAnalytics();
     setUser(null);
     setSession(null);
     setEmployee(null);

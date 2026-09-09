@@ -409,6 +409,7 @@ export const LEGAL: Record<'terms' | 'privacy', LegalDocument> = {
           'O acesso é individual, por e-mail e senha ou por conta Microsoft da empresa. Quem administra a empresa define o que cada pessoa vê.',
           'Dados financeiros, de custo e de pessoas são protegidos no banco de dados, com regras de acesso por perfil, e não apenas na tela.',
           'A Origami Lab não vende dados e não os usa para fins fora da operação do produto.',
+          'O site público não usa cookies de rastreamento: a medição de audiência é feita sem cookies, sem guardar o endereço IP e sem identificar a pessoa. Dentro da área logada, usamos analytics de produto, com gravação de sessão, para entender o uso e melhorar o Pulse; isso só começa depois do login.',
         ],
       },
       {
