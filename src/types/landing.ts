@@ -150,6 +150,29 @@ export interface HeroStat {
   label: string;
 }
 
+/** Ícones da seção de conexão com IA; a página resolve o componente. */
+export type AiPillarIcon = 'MessageSquare' | 'Clock' | 'ShieldCheck';
+
+export interface AiPillar {
+  icon: AiPillarIcon;
+  title: string;
+  description: string;
+}
+
+/** Seção "Conexão com IA" da landing (PUL-254). */
+export interface AiConnection {
+  eyebrow: string;
+  title: string;
+  /** Trecho do título em destaque. */
+  accent: string;
+  description: string;
+  pillars: readonly AiPillar[];
+  examplesTitle: string;
+  examples: readonly string[];
+  note: string;
+  cta: string;
+}
+
 export interface FooterLink {
   label: string;
   href: string;

@@ -12,6 +12,7 @@
  */
 
 import type {
+  AiConnection,
   ComparisonRow,
   ContentPage,
   FaqItem,
@@ -20,8 +21,8 @@ import type {
   HeroStat,
   JsonLd,
   LegalDocument,
-  PublicRoute,
   Pain,
+  PublicRoute,
   Spotlight,
 } from '@/types/landing';
 import { ContentKind } from '@/types/landing';
@@ -44,6 +45,7 @@ export const NAV = {
   privacy: '/privacidade',
   /** Âncoras absolutas (`/#secao`): funcionam na home e a partir de qualquer outra página pública. */
   features: '/#funcionalidades',
+  ai: '/#conexao-ia',
   howItWorks: '/#como-funciona',
   faq: '/#perguntas-frequentes',
 } as const;
@@ -132,6 +134,51 @@ export const FEATURES: readonly Feature[] = [
       'Cada empresa tem seu espaço isolado no banco de dados, com permissões por perfil e trilha de quem alterou o quê.',
   },
 ] as const;
+
+/**
+ * Conexão com IA (PUL-254). Fala só do que existe hoje: o MCP local para Claude Desktop e
+ * Claude Code, que entra com as credenciais da pessoa e roda sob a RLS. ChatGPT não entra
+ * enquanto o MCP remoto não for decidido — prometer na landing o que não existe é o jeito
+ * mais rápido de um teste grátis virar um chamado de suporte.
+ *
+ * Nomenclatura da casa: Oportunidade e Pipeline, nunca lead ou funil.
+ */
+export const AI_CONNECTION: AiConnection = {
+  eyebrow: 'Conexão com IA',
+  title: 'Converse com a sua empresa.',
+  accent: 'Pelo Claude.',
+  description:
+    'Conecte o assistente que você já usa à sua conta do Pulse e pergunte pelos projetos, aponte horas, mova oportunidades no Pipeline e acompanhe o kanban do time. Conversando. A ligação leva um minuto e é feita uma vez.',
+  pillars: [
+    {
+      icon: 'MessageSquare',
+      title: 'Pergunte em português',
+      description:
+        'Sem relatório, sem exportar planilha. Você escreve como falaria com alguém do time, e a resposta vem com o dado de verdade, da sua base.',
+    },
+    {
+      icon: 'Clock',
+      title: 'Aponte horas sem abrir o sistema',
+      description:
+        'A hora que ninguém lança é a hora que ninguém cobra. Peça no fim do dia e a grade semanal fecha sozinha, com o custo certo caindo no projeto.',
+    },
+    {
+      icon: 'ShieldCheck',
+      title: 'A IA nunca vê mais que você',
+      description:
+        'Ela entra com as suas credenciais e herda exatamente as suas permissões. Não vê salário, custo nem margem, e não existe atalho por fora do seu perfil.',
+    },
+  ],
+  examplesTitle: 'Coisas que dá para pedir',
+  examples: [
+    'Quais projetos eu tenho em andamento?',
+    'Lança 2 horas de hoje no projeto Cobrança Automática',
+    'Move a oportunidade da Acme para Proposta',
+    'Como está a sprint atual do time?',
+  ],
+  note: 'Funciona com Claude Desktop e Claude Code, em todos os planos, inclusive no teste grátis. A ligação é feita uma vez, na Central de Ajuda, dentro do Pulse.',
+  cta: 'Começar teste grátis',
+} as const;
 
 export const AUDIENCE = {
   eyebrow: 'Para quem',
@@ -247,6 +294,11 @@ export const FAQ: readonly FaqItem[] = [
     answer:
       'A Origami Lab, empresa brasileira de consultoria e tecnologia. O Pulse nasceu da necessidade da própria Origami de saber qual projeto dava lucro de verdade.',
   },
+  {
+    question: 'O Pulse conecta com assistentes de IA?',
+    answer:
+      'Sim. Pelo protocolo MCP, você conecta o Claude (Desktop ou Code) à sua conta e pergunta pelos projetos, aponta horas, move oportunidades no Pipeline e acompanha o kanban, conversando. A IA entra com as suas credenciais e vê exatamente o que você vê, nunca mais que isso. A ligação é feita uma vez, na Central de Ajuda, e funciona em todos os planos.',
+  },
 ] as const;
 
 export const FINAL_CTA = {
@@ -318,6 +370,7 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
     title: 'Produto',
     links: [
       { label: 'Funcionalidades', href: NAV.features },
+      { label: 'Conexão com IA', href: NAV.ai },
       { label: 'Como funciona', href: NAV.howItWorks },
       { label: 'Perguntas frequentes', href: NAV.faq },
     ],
@@ -609,6 +662,13 @@ export function buildLlmsTxt(): string {
     '',
     ...FEATURES.map((f) => `- ${f.title}: ${f.description}`),
     '',
+    '## Conexão com IA',
+    '',
+    `${AI_CONNECTION.description}`,
+    '',
+    ...AI_CONNECTION.pillars.map((pilar) => `- ${pilar.title}: ${pilar.description}`),
+    `- ${AI_CONNECTION.note}`,
+    '',
     '## Para quem',
     '',
     ...AUDIENCE.items.map((i) => `- ${i}`),
@@ -620,6 +680,7 @@ export function buildLlmsTxt(): string {
     '- Orçamento: proposta comercial montada sobre o catálogo de serviços, com versões e margem calculada.',
     '- Alocação: horas planejadas por pessoa e mês em cada projeto, comparadas ao apontado.',
     '- Margem realizada: receita do projeto menos o custo das horas apontadas e demais custos lançados.',
+    '- MCP (Model Context Protocol): padrão aberto pelo qual um assistente de IA, como o Claude, conecta-se ao Pulse com as credenciais da pessoa e opera o produto conversando.',
     '',
     '## Perguntas frequentes',
     '',

@@ -7,12 +7,16 @@ import {
   Clock,
   FileText,
   FolderKanban,
+  MessageSquare,
   Shield,
+  ShieldCheck,
+  Sparkles,
   TrendingUp,
   Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type {
+  AiPillarIcon,
   EyebrowProps,
   FeatureIcon,
   SpotlightMock,
@@ -20,6 +24,7 @@ import type {
 } from '@/types/landing';
 import { MockTone } from '@/types/landing';
 import {
+  AI_CONNECTION,
   AUDIENCE,
   COMPARISON,
   DEFINITION,
@@ -38,6 +43,7 @@ import {
 import { ScrollProgress, SiteFooter, SiteHeader, SkipLink } from '@/landing/chrome';
 import { useMotionEnabled, useParallax, useRevealOnScroll, useScrollProgress, useTilt } from '@/landing/hooks';
 import { AllocationMock, DashboardMock, FloatingBadge, MarginMock, PipelineMock } from '@/landing/mocks';
+import { OrigamiCrane } from '@/landing/OrigamiCrane';
 import { focusRing } from '@/landing/styles';
 import '@/landing/landing.css';
 
@@ -60,6 +66,7 @@ import '@/landing/landing.css';
  */
 
 const ICONS: Record<FeatureIcon, LucideIcon> = { TrendingUp, FolderKanban, Users, FileText, Clock, Shield };
+const AI_ICONS: Record<AiPillarIcon, LucideIcon> = { MessageSquare, Clock, ShieldCheck };
 
 const MOCKS: Record<SpotlightMock, () => JSX.Element> = {
   pipeline: PipelineMock,
@@ -304,6 +311,77 @@ function FeaturesSection() {
   );
 }
 
+/**
+ * Conexão com IA (PUL-254). Fica entre Funcionalidades (fundo claro) e Comparativo (escuro)
+ * com `bg-muted/40`, para manter a alternância de fundos da página.
+ *
+ * O tsuru aqui NÃO recebe `state`: na landing ele flutua pelo `.lp-crane__body` de
+ * `landing.css` com `data-motion`, igual à 404. Passar `state` faria as duas animações
+ * disputarem o mesmo elemento.
+ */
+function AiConnectionSection() {
+  return (
+    <section id="conexao-ia" aria-labelledby="conexao-ia-title" className="bg-muted/40 py-20 md:py-28">
+      <div className="container">
+        <div className="grid items-center gap-10 lg:grid-cols-[1.4fr_1fr]">
+          <div className="lp-reveal max-w-2xl">
+            <Eyebrow>{AI_CONNECTION.eyebrow}</Eyebrow>
+            <h2 id="conexao-ia-title" className="ol-h2 text-foreground">
+              {AI_CONNECTION.title} <span className="ol-text-accent">{AI_CONNECTION.accent}</span>
+            </h2>
+            <p className="mt-5 text-lg text-muted-foreground">{AI_CONNECTION.description}</p>
+          </div>
+          <div className="lp-reveal flex justify-center lg:justify-end" style={delay(1)}>
+            <OrigamiCrane className="lp-crane w-full max-w-[14rem] drop-shadow-[0_24px_48px_hsl(var(--primary)/0.25)] md:max-w-[18rem]" />
+          </div>
+        </div>
+
+        <ul className="mt-14 grid gap-5 md:grid-cols-3">
+          {AI_CONNECTION.pillars.map((pilar, index) => {
+            const Icon = AI_ICONS[pilar.icon];
+            return (
+              <li key={pilar.title} className="lp-reveal" style={delay(index)}>
+                <div data-tilt className="lp-tilt h-full rounded-2xl border border-border bg-card p-7">
+                  <div className="inline-flex rounded-xl bg-gradient-brand p-3 text-primary-foreground shadow-md shadow-primary/30" aria-hidden="true">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-5 text-lg font-semibold text-foreground">{pilar.title}</h3>
+                  <p className="mt-2 text-muted-foreground">{pilar.description}</p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="lp-reveal mt-10 flex flex-col gap-8 rounded-2xl border border-primary/30 bg-primary/5 p-6 lg:flex-row lg:items-center sm:p-8" style={delay(2)}>
+          <div className="flex-1">
+            <p className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+              {AI_CONNECTION.examplesTitle}
+            </p>
+            <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+              {AI_CONNECTION.examples.map((example) => (
+                <li key={example} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
+                  “{example}”
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="shrink-0 space-y-4 lg:max-w-[260px]">
+            <p className="text-sm leading-relaxed text-muted-foreground">{AI_CONNECTION.note}</p>
+            <Button asChild variant="gradient">
+              <Link to={NAV.register}>
+                {AI_CONNECTION.cta}
+                <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ComparisonSection() {
   return (
     <section aria-labelledby="comparativo-title" className="dark bg-background py-20 text-foreground md:py-28">
@@ -452,6 +530,7 @@ const LandingPage = () => {
         <ProblemSection />
         <SpotlightsSection />
         <FeaturesSection />
+        <AiConnectionSection />
         <ComparisonSection />
         <TrialSection />
         <FaqSection />
