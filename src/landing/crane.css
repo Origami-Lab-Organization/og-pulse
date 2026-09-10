@@ -175,3 +175,64 @@
     animation: none !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Dobra de entrada (PUL-252). Cada faceta cresce a partir do vértice que
+   compartilha com a anterior, na ordem em que o papel seria dobrado. O brilho no
+   início é a luz pegando a aresta recém-dobrada.
+
+   `--fold` vem inline de cada faceta; a origem também, porque cada uma dobra de
+   um ponto diferente e isso não cabe numa regra só.
+   --------------------------------------------------------------------------- */
+
+[data-crane-entrance] .crane__facet {
+  transform-box: view-box;
+  animation: crane-fold 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--fold, 0) * 75ms + 120ms);
+}
+
+@keyframes crane-fold {
+  0%   { transform: scale(0); opacity: 0; filter: brightness(1.8); }
+  55%  { opacity: 1; }
+  80%  { filter: brightness(1.25); }
+  100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+}
+
+/* Enquanto se dobra, o corpo inteiro não flutua: papel sendo dobrado está na mão
+   de alguém, não no ar. A flutuação começa quando a última faceta termina. */
+[data-crane-entrance] .crane__float {
+  animation-delay: 0.95s;
+}
+[data-crane-entrance] .crane__wing-front,
+[data-crane-entrance] .crane__wing-back {
+  animation-delay: 0.95s;
+}
+
+/* ---------------------------------------------------------------------------
+   Gestos em repouso: só valem por cima de `resting`, e são uma vez.
+   --------------------------------------------------------------------------- */
+
+[data-crane-state='resting'][data-crane-gesture='look'] .crane__neck {
+  animation: crane-look 0.8s ease-in-out 1;
+}
+@keyframes crane-look {
+  0%, 100% { transform: rotate(0deg); }
+  35%      { transform: rotate(-11deg); }
+  65%      { transform: rotate(-9deg); }
+}
+
+[data-crane-state='resting'][data-crane-gesture='flap'] .crane__wing-front {
+  animation: crane-flap-front 0.4s ease-in-out 2;
+}
+[data-crane-state='resting'][data-crane-gesture='flap'] .crane__wing-back {
+  animation: crane-flap-back 0.4s ease-in-out 2;
+}
+[data-crane-state='resting'][data-crane-gesture='flap'] .crane__float {
+  animation: crane-bob 0.4s ease-in-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-crane-entrance] .crane__facet {
+    animation: none !important;
+  }
+}

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { OrigamiCrane } from '@/landing/OrigamiCrane';
 import { useOwnerGuide } from '@/hooks/useOwnerGuide';
 import { Spotlight } from './Spotlight';
+import { PaperConfetti } from './PaperConfetti';
 import type { OwnerGuideState, OwnerGuideStep } from '@/types/ownerGuide';
 import { CraneState } from '@/types/landing';
 
@@ -125,10 +126,53 @@ function CurrentStep(props: {
   );
 }
 
+/** Tempo da despedida quando a trilha completa; casa com a queda do confete. */
+const FINALE_MS = 3400;
+
+/**
+ * Quando a trilha fecha, o dock não some no mesmo frame. Ele fica alguns segundos com
+ * confete e a frase de despedida, e aí sai. Sumir na hora seria o produto engolindo o
+ * momento em que a pessoa terminou de montar a empresa — justo o que vale comemorar.
+ *
+ * Só na TRANSIÇÃO para completo, nunca na primeira leitura: quem abre o app com tudo
+ * pronto há semanas não pode receber confete todo dia.
+ */
+function useFinale(complete: boolean): boolean {
+  const [finale, setFinale] = useState(false);
+  const previous = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    const before = previous.current;
+    previous.current = complete;
+    if (before !== false || !complete) return;
+    setFinale(true);
+    const done = setTimeout(() => setFinale(false), FINALE_MS);
+    return () => clearTimeout(done);
+  }, [complete]);
+
+  return finale;
+}
+
+function Finale() {
+  return (
+    <>
+      <PaperConfetti />
+      <div className="mt-2">
+        <p className="text-sm font-semibold text-foreground">Casa montada.</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          Custo e margem já leem o que você lança. Eu saio do canto agora; se precisar, estou na Central de Ajuda.
+        </p>
+      </div>
+    </>
+  );
+}
+
 export function OwnerGuide() {
   const navigate = useNavigate();
   const { state, visible, dismiss } = useOwnerGuide();
-  const craneState = useCelebration(state.doneCount);
+  const finale = useFinale(state.complete);
+  const celebration = useCelebration(state.doneCount);
+  const craneState = finale ? CraneState.CELEBRATING : celebration;
   const [open, setOpen] = useState(true);
   const [showing, setShowing] = useState(false);
   const [targetMissing, setTargetMissing] = useState(false);
@@ -154,17 +198,19 @@ export function OwnerGuide() {
     setTargetMissing(!rect);
   }, []);
 
-  if (!visible || !step) return null;
+  // `visible` cai no instante em que a trilha completa; o finale segura o dock para a despedida.
+  if (!finale && (!visible || !step)) return null;
 
   return (
     <>
-      {showing && <Spotlight selectors={step.selectors} stepKey={step.id} onRectChange={handleRect} />}
+      {showing && step && <Spotlight selectors={step.selectors} stepKey={step.id} onRectChange={handleRect} />}
       <aside
         aria-label="Primeiros passos"
         className="fixed bottom-4 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-lg border bg-card p-3 shadow-lg"
       >
         <div className="flex items-start gap-3">
-          <OrigamiCrane state={craneState} className={CRANE_SIZE} />
+          {/* Dobra-se do papel na primeira aparição: é assim que a casa se apresenta. */}
+          <OrigamiCrane state={craneState} entrance className={CRANE_SIZE} />
           <div className="min-w-0 flex-1">
             <Progress state={state} />
           </div>
@@ -191,7 +237,9 @@ export function OwnerGuide() {
           </div>
         </div>
 
-        {open && (
+        {finale && <Finale />}
+
+        {open && !finale && step && (
           <div className="mt-2">
             <CurrentStep
               step={step}

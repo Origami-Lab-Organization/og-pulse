@@ -117,9 +117,20 @@ export const CraneState = {
 } as const;
 export type CraneState = (typeof CraneState)[keyof typeof CraneState];
 
+/** Micro-gestos em repouso. Sorteados pelo componente; ninguém de fora escolhe. */
+export const CraneGesture = {
+  /** Vira a cabeça, como quem olha para o lado. */
+  LOOK: 'look',
+  /** Uma batida de asa, sem sair do lugar. */
+  FLAP: 'flap',
+} as const;
+export type CraneGesture = (typeof CraneGesture)[keyof typeof CraneGesture];
+
 export interface OrigamiCraneProps {
   className?: string;
   state?: CraneState;
+  /** Dobra-se a partir do papel ao montar. Uma vez só, por instância. */
+  entrance?: boolean;
 }
 
 export type JsonLd = Record<string, unknown>;

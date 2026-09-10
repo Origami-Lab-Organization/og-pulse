@@ -1,0 +1,44 @@
+/* Confete de papel dobrado (PUL-252). Ver PaperConfetti.tsx. */
+
+.paper-confetti__piece {
+  position: absolute;
+  top: -4vh;
+  display: block;
+  background: var(--tone);
+  opacity: 0.9;
+  animation-name: paper-fall;
+  animation-timing-function: cubic-bezier(0.3, 0, 0.7, 1);
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+
+.paper-confetti__piece--square {
+  border-radius: 1px;
+}
+
+/* Triângulo com clip, para continuar usando o token como background. */
+.paper-confetti__piece--triangle {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+/* Papel cai balançando, não em linha reta: o `translateX` alterna. O giro em dois
+   eixos é o que faz o quadradinho parecer uma folha e não um pixel. */
+@keyframes paper-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotateX(0) rotateZ(0);
+    opacity: 0.95;
+  }
+  25%  { transform: translate3d(14px, 26vh, 0) rotateX(calc(var(--spin) * 0.3)) rotateZ(calc(var(--spin) * 0.25)); }
+  50%  { transform: translate3d(-10px, 52vh, 0) rotateX(calc(var(--spin) * 0.6)) rotateZ(calc(var(--spin) * 0.5)); }
+  75%  { transform: translate3d(12px, 78vh, 0) rotateX(calc(var(--spin) * 0.85)) rotateZ(calc(var(--spin) * 0.75)); opacity: 0.9; }
+  100% {
+    transform: translate3d(-6px, 108vh, 0) rotateX(var(--spin)) rotateZ(var(--spin));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-confetti {
+    display: none;
+  }
+}
