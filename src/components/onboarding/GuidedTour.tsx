@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { OrigamiCrane } from '@/landing/OrigamiCrane';
 import { useTour } from '@/hooks/useTour';
 import type { TourStep } from '@/types/tour';
+import { CraneState } from '@/types/landing';
 
 /**
  * O tour guiado que apresenta a casa na primeira entrada (PUL-251).
@@ -22,12 +23,18 @@ import type { TourStep } from '@/types/tour';
  * O projete.app filtra o passo quando o seletor não existe, e foi assim que a copy do passo
  * "Indicadores" sumiu de vez quando o painel foi reescrito — ninguém notou porque não quebra
  * nada. Aqui a regra é o contrário: o passo se explica com palavras.
+ *
+ * **O tsuru voa junto (PUL-252).** Ele está pousado na borda do card, e o card transiciona
+ * de posição entre os passos em vez de saltar. Durante o percurso ele bate as asas; ao
+ * chegar, pousa. É o que transforma "o card mudou de lugar" em "o tsuru me levou até aqui".
  */
 
 const CARD_WIDTH = 340;
 const CARD_HEIGHT = 210;
 const GAP = 12;
 const EDGE = 16;
+/** Precisa casar com a duração da transição de posição do card, abaixo. */
+const FLIGHT_MS = 520;
 
 interface Position {
   top: number;
@@ -104,13 +111,14 @@ interface CardProps {
   index: number;
   total: number;
   position: Position | null;
+  craneState: CraneState;
   onBack: () => void;
   onNext: () => void;
   onSkip: () => void;
 }
 
 function TourCard(props: CardProps) {
-  const { step, index, total, position, onBack, onNext, onSkip } = props;
+  const { step, index, total, position, craneState, onBack, onNext, onSkip } = props;
   const isLast = index === total - 1;
   const isFirst = index === 0;
   const centered = !position;
@@ -121,11 +129,18 @@ function TourCard(props: CardProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="tour-title"
-      className={`pointer-events-auto rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg ${
+      className={`pointer-events-auto rounded-xl border bg-popover p-4 pt-6 text-popover-foreground shadow-lg motion-safe:transition-[top,left] motion-safe:duration-500 motion-safe:ease-out ${
         centered ? 'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2' : 'fixed'
       }`}
       style={centered ? { width: `min(${CARD_WIDTH}px, calc(100vw - 2rem))` } : { ...position, width: CARD_WIDTH }}
     >
+      {/* Pousado na borda, meio para fora: fica claro que ele conduz o card, não que está
+          desenhado dentro dele. */}
+      <OrigamiCrane
+        state={craneState}
+        className="pointer-events-none absolute -left-4 -top-7 h-16 w-20 drop-shadow-[0_8px_16px_hsl(var(--primary)/0.35)]"
+      />
+
       <div className="flex items-start justify-between gap-2">
         <Dots total={total} index={index} />
         <Button
@@ -139,14 +154,11 @@ function TourCard(props: CardProps) {
         </Button>
       </div>
 
-      <div className="mt-2 flex items-start gap-3">
-        <OrigamiCrane className="h-11 w-14 shrink-0 motion-safe:animate-crane-float" />
-        <div className="min-w-0">
-          <p id="tour-title" className="text-sm font-semibold text-foreground">
-            {step.title}
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{body}</p>
-        </div>
+      <div className="mt-2">
+        <p id="tour-title" className="text-sm font-semibold text-foreground">
+          {step.title}
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{body}</p>
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-2">
@@ -173,6 +185,7 @@ export function GuidedTour() {
   const [index, setIndex] = useState(0);
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [craneState, setCraneState] = useState<CraneState>(CraneState.RESTING);
 
   // `open` é estado próprio para o tour não reabrir enquanto a gravação de "já vi" está em
   // vôo. Reabrir volta ao primeiro passo: quem pediu para rever quer rever inteiro.
@@ -183,6 +196,15 @@ export function GuidedTour() {
   }, [shouldOpen]);
 
   const step = steps[index];
+
+  // Bate asas enquanto o card se desloca, e pousa ao chegar. Não roda no primeiro passo:
+  // aparecer voando sem ter saído de lugar nenhum não faz sentido.
+  useEffect(() => {
+    if (!open || index === 0) return;
+    setCraneState(CraneState.FLYING);
+    const landing = setTimeout(() => setCraneState(CraneState.RESTING), FLIGHT_MS);
+    return () => clearTimeout(landing);
+  }, [open, index]);
 
   useLayoutEffect(() => {
     if (!open || !step) return;
@@ -236,6 +258,7 @@ export function GuidedTour() {
         index={index}
         total={steps.length}
         position={rect ? placeCard(rect) : null}
+        craneState={craneState}
         onBack={goBack}
         onNext={goNext}
         onSkip={finish}

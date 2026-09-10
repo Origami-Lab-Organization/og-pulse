@@ -1,0 +1,177 @@
+/**
+ * O tsuru vivo (PUL-252).
+ *
+ * Vive aqui, e não em `landing.css`, porque o tsuru agora é usado dentro do app (tour e guia
+ * de primeiros passos) e o app não carrega o CSS da landing. `OrigamiCrane.tsx` importa este
+ * arquivo, então a animação vai junto com o componente para onde ele for.
+ *
+ * O QUE FAZ ELE PARECER VIVO, e por que não era só flutuar:
+ *
+ * A versão anterior movia o SVG inteiro para cima e para baixo. Isso lê como imagem
+ * subindo, não como pássaro voando, porque num pássaro real a asa gira em torno da quilha e
+ * o corpo REAGE a ela — sobe quando a asa desce. Aqui cada asa é um grupo próprio com
+ * `transform-origin` na quilha (160 118 no viewBox), e o corpo sobe em contrafase.
+ *
+ * As duas asas estão em fases opostas de propósito: o tsuru é visto de lado e em
+ * perspectiva, então a asa da frente e a de trás nunca aparecem no mesmo ângulo. Bater as
+ * duas juntas achataria o desenho.
+ *
+ * `transform-box: view-box` é o que permite usar coordenadas do viewBox como origem. Com o
+ * `fill-box` padrão, a origem seria a caixa de cada grupo e cada asa giraria em torno de si
+ * mesma, o que parece uma hélice.
+ */
+
+/*
+ * TUDO escopado sob `[data-crane-state]`, e isso não é zelo excessivo.
+ *
+ * A página 404 usa o mesmo componente sem estado, e anima `.lp-crane__body` pelo
+ * `landing.css`, que declara `transform-box: fill-box; transform-origin: center` no MESMO
+ * elemento. As duas regras têm a especificidade de uma classe, então quem ganharia depende
+ * da ordem em que os arquivos entram no bundle — e a 404 giraria em torno de outro ponto
+ * dependendo do build. Com o escopo, sem estado nada daqui se aplica.
+ */
+
+[data-crane-state].crane {
+  overflow: visible;
+}
+
+[data-crane-state] .crane__shadow,
+[data-crane-state] .crane__float,
+[data-crane-state] .crane__wing-back,
+[data-crane-state] .crane__wing-front,
+[data-crane-state] .crane__neck,
+[data-crane-state] .crane__tail {
+  transform-box: view-box;
+  transform-origin: 160px 118px;
+}
+
+[data-crane-state] .crane__shadow {
+  transform-origin: 160px 216px;
+}
+
+[data-crane-state] .crane__neck {
+  transform-origin: 104px 151px;
+}
+
+[data-crane-state] .crane__tail {
+  transform-origin: 218px 150px;
+}
+
+/* ---------------------------------------------------------------------------
+   Pousado: quase parado. Só a respiração, para não parecer figura colada.
+   --------------------------------------------------------------------------- */
+
+[data-crane-state='resting'] .crane__wing-front {
+  animation: crane-breathe-front 4.5s ease-in-out infinite;
+}
+[data-crane-state='resting'] .crane__wing-back {
+  animation: crane-breathe-back 4.5s ease-in-out infinite;
+}
+[data-crane-state='resting'] .crane__float {
+  animation: crane-hover 4.5s ease-in-out infinite;
+}
+
+@keyframes crane-breathe-front {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-3.5deg); }
+}
+@keyframes crane-breathe-back {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(2.5deg); }
+}
+@keyframes crane-hover {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* ---------------------------------------------------------------------------
+   Voando: asas batendo, corpo em contrafase, pescoço esticado, cauda dando o
+   contrapeso. É o estado do deslocamento entre um passo e o próximo.
+   --------------------------------------------------------------------------- */
+
+[data-crane-state='flying'] .crane__wing-front {
+  animation: crane-flap-front 0.42s ease-in-out infinite;
+}
+[data-crane-state='flying'] .crane__wing-back {
+  animation: crane-flap-back 0.42s ease-in-out infinite;
+}
+[data-crane-state='flying'] .crane__float {
+  animation: crane-bob 0.42s ease-in-out infinite;
+}
+[data-crane-state='flying'] .crane__neck {
+  animation: crane-neck 0.42s ease-in-out infinite;
+}
+[data-crane-state='flying'] .crane__tail {
+  animation: crane-tail 0.84s ease-in-out infinite;
+}
+[data-crane-state='flying'] .crane__shadow {
+  animation: crane-shadow-fly 0.42s ease-in-out infinite;
+}
+
+/* A asa sobe mais do que desce: o impulso do voo está na descida, e a subida é
+   recuperação. Curvas iguais nas duas metades parecem metrônomo. */
+@keyframes crane-flap-front {
+  0%   { transform: rotate(-26deg); }
+  35%  { transform: rotate(12deg); }
+  100% { transform: rotate(-26deg); }
+}
+@keyframes crane-flap-back {
+  0%   { transform: rotate(18deg); }
+  35%  { transform: rotate(-9deg); }
+  100% { transform: rotate(18deg); }
+}
+/* Corpo em contrafase com a asa: sobe quando ela desce. */
+@keyframes crane-bob {
+  0%   { transform: translateY(2px); }
+  35%  { transform: translateY(-5px); }
+  100% { transform: translateY(2px); }
+}
+@keyframes crane-neck {
+  0%, 100% { transform: rotate(1.5deg); }
+  35% { transform: rotate(-1.5deg); }
+}
+@keyframes crane-tail {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes crane-shadow-fly {
+  0%   { transform: scaleX(1); opacity: 0.5; }
+  35%  { transform: scaleX(0.78); opacity: 0.3; }
+  100% { transform: scaleX(1); opacity: 0.5; }
+}
+
+/* ---------------------------------------------------------------------------
+   Comemorando: um giro completo, uma vez. Marca o passo concluído.
+   --------------------------------------------------------------------------- */
+
+[data-crane-state='celebrating'] .crane__float {
+  animation: crane-celebrate 0.9s cubic-bezier(0.34, 1.4, 0.64, 1) 1;
+}
+[data-crane-state='celebrating'] .crane__wing-front {
+  animation: crane-flap-front 0.3s ease-in-out 3;
+}
+[data-crane-state='celebrating'] .crane__wing-back {
+  animation: crane-flap-back 0.3s ease-in-out 3;
+}
+
+@keyframes crane-celebrate {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); }
+  30%  { transform: translateY(-16px) rotate(-8deg) scale(1.06); }
+  100% { transform: translateY(0) rotate(0deg) scale(1); }
+}
+
+/* ---------------------------------------------------------------------------
+   Movimento reduzido: o tsuru para. Ele é decorativo, então parar não custa
+   informação nenhuma — o texto ao lado dele diz tudo.
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-crane-state] .crane__shadow,
+  [data-crane-state] .crane__float,
+  [data-crane-state] .crane__wing-back,
+  [data-crane-state] .crane__wing-front,
+  [data-crane-state] .crane__neck,
+  [data-crane-state] .crane__tail {
+    animation: none !important;
+  }
+}

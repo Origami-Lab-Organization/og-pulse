@@ -1,6 +1,7 @@
 import { Route } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { OrigamiCrane } from '@/landing/OrigamiCrane';
+import { CraneState } from '@/types/landing';
 import { useTour } from '@/hooks/useTour';
 
 /**
@@ -23,7 +24,7 @@ export function TourRestartCard() {
   return (
     <section className="rounded-lg border bg-card p-4 shadow-card">
       <div className="flex items-start gap-3">
-        <OrigamiCrane className="h-10 w-12 shrink-0 motion-safe:animate-crane-float" />
+        <OrigamiCrane state={CraneState.RESTING} className="h-10 w-12 shrink-0" />
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold text-foreground">Tour de apresentação</h2>
           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">

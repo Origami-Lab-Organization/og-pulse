@@ -193,12 +193,6 @@ export default {
         "ds-shimmer": {
           to: { backgroundPosition: "-200% 0" },
         },
-        // Tsuru do guia de primeiros passos (PUL-250). Vive aqui e nao em landing.css
-        // porque o guia roda dentro do app, que nao carrega o CSS da landing.
-        "crane-float": {
-          "0%, 100%": { transform: "translate3d(0, 0, 0) rotate(0deg)" },
-          "50%": { transform: "translate3d(0, -8px, 0) rotate(2deg)" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -210,7 +204,6 @@ export default {
         "scale-in": "scale-in 0.2s cubic-bezier(0.2, 0, 0, 1)",
         "ds-spin": "ds-spin 0.6s linear infinite",
         "ds-shimmer": "ds-shimmer 1.4s infinite",
-        "crane-float": "crane-float 6s ease-in-out infinite",
       },
       boxShadow: {
         // Elevação DS — 3 níveis, só para o que flutua

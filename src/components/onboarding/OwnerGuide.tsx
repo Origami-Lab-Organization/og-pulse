@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronDown, ChevronUp, Eye, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { OrigamiCrane } from '@/landing/OrigamiCrane';
 import { useOwnerGuide } from '@/hooks/useOwnerGuide';
 import { Spotlight } from './Spotlight';
 import type { OwnerGuideState, OwnerGuideStep } from '@/types/ownerGuide';
+import { CraneState } from '@/types/landing';
 
 /**
  * O tsuru que guia quem acabou de criar a empresa (PUL-250).
@@ -25,6 +26,32 @@ import type { OwnerGuideState, OwnerGuideStep } from '@/types/ownerGuide';
  */
 
 const CRANE_SIZE = 'h-12 w-16 shrink-0';
+/** Tempo do giro de comemoração; precisa casar com `crane-celebrate` em `crane.css`. */
+const CELEBRATION_MS = 950;
+
+/**
+ * Comemora quando o número de passos concluídos SOBE (PUL-252).
+ *
+ * Reage à subida e não a qualquer mudança porque o progresso é derivado do dado real: apagar
+ * um cliente faz um passo reabrir, e comemorar uma regressão seria constrangedor. Também
+ * não comemora na primeira leitura, senão quem já tem passos feitos abriria o app com o
+ * tsuru girando sem ter feito nada agora.
+ */
+function useCelebration(doneCount: number): CraneState {
+  const [state, setState] = useState<CraneState>(CraneState.RESTING);
+  const previous = useRef<number | null>(null);
+
+  useEffect(() => {
+    const before = previous.current;
+    previous.current = doneCount;
+    if (before === null || doneCount <= before) return;
+    setState(CraneState.CELEBRATING);
+    const back = setTimeout(() => setState(CraneState.RESTING), CELEBRATION_MS);
+    return () => clearTimeout(back);
+  }, [doneCount]);
+
+  return state;
+}
 
 function Progress(props: { state: OwnerGuideState }) {
   const { doneCount, total } = props.state;
@@ -101,6 +128,7 @@ function CurrentStep(props: {
 export function OwnerGuide() {
   const navigate = useNavigate();
   const { state, visible, dismiss } = useOwnerGuide();
+  const craneState = useCelebration(state.doneCount);
   const [open, setOpen] = useState(true);
   const [showing, setShowing] = useState(false);
   const [targetMissing, setTargetMissing] = useState(false);
@@ -136,7 +164,7 @@ export function OwnerGuide() {
         className="fixed bottom-4 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-lg border bg-card p-3 shadow-lg"
       >
         <div className="flex items-start gap-3">
-          <OrigamiCrane className={`${CRANE_SIZE} motion-safe:animate-crane-float`} />
+          <OrigamiCrane state={craneState} className={CRANE_SIZE} />
           <div className="min-w-0 flex-1">
             <Progress state={state} />
           </div>

@@ -2,6 +2,7 @@ import { Check, Eye, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OrigamiCrane } from '@/landing/OrigamiCrane';
+import { CraneState } from '@/types/landing';
 import { useOwnerGuide } from '@/hooks/useOwnerGuide';
 import type { OwnerGuideState } from '@/types/ownerGuide';
 
@@ -49,7 +50,7 @@ function Header(props: { state: OwnerGuideState }) {
   const { doneCount, total, complete } = props.state;
   return (
     <div className="flex items-start gap-3">
-      <OrigamiCrane className="h-12 w-16 shrink-0 motion-safe:animate-crane-float" />
+      <OrigamiCrane state={CraneState.RESTING} className="h-12 w-16 shrink-0" />
       <div className="min-w-0 flex-1">
         <h2 className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
           Primeiros passos

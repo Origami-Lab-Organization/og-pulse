@@ -103,8 +103,23 @@ export interface PublicPageProps {
   mainClassName?: string;
 }
 
+/**
+ * Estados do tsuru (PUL-252). Sem estado, nada anima — é como a 404 o usa, onde a flutuação
+ * vem do CSS da landing.
+ */
+export const CraneState = {
+  /** Pousado: só a respiração, para não parecer figura colada. */
+  RESTING: 'resting',
+  /** Voando: asas batendo, usado no deslocamento entre passos do tour. */
+  FLYING: 'flying',
+  /** Um giro, uma vez. Marca passo concluído. */
+  CELEBRATING: 'celebrating',
+} as const;
+export type CraneState = (typeof CraneState)[keyof typeof CraneState];
+
 export interface OrigamiCraneProps {
   className?: string;
+  state?: CraneState;
 }
 
 export type JsonLd = Record<string, unknown>;
