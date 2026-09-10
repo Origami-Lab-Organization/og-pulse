@@ -3,7 +3,14 @@
  *
  * Cria tenant, feriados padrão, usuário administrador, funcionário e papel Admin,
  * e dispara a confirmação de e-mail. O tenant nasce em período de teste de 14 dias
- * por trigger no banco (PUL-224), não por decisão desta função.
+ * por trigger no banco (PUL-224), não por decisão desta função. A base do produto
+ * (centros de custo, linha de serviço, encargos) vem por trigger também (PUL-249).
+ *
+ * Depois de criar, avisa o comercial da Origami por e-mail com os dados do cadastro
+ * (PUL-253): cada empresa nova é uma oportunidade, e sem o aviso ela ficaria invisível
+ * até alguém abrir o banco. O telefone é obrigatório e validado por isso mesmo — é o
+ * contato para ligar. O aviso é acessório: se o envio falhar, o cadastro continua
+ * válido e só fica um log, sem dado pessoal.
  *
  * Proteções contra abuso, nesta ordem:
  *   1. validação estrita do corpo (zod);
@@ -20,12 +27,23 @@
 
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { z } from 'https://esm.sh/zod@3.23.8';
+import { Resend } from 'https://esm.sh/resend@4.0.0';
 
 const HttpMethod = { OPTIONS: 'OPTIONS', POST: 'POST' } as const;
 const PUBLIC_APP_ORIGIN = 'https://origamipulse.com.br';
 const CONFIRMATION_REDIRECT = `${PUBLIC_APP_ORIGIN}/boas-vindas`;
 const LIMITS = { perIpPerHour: 5, perEmailPerHour: 3 } as const;
 const ATTEMPT_RETENTION_HOURS = 24;
+
+/**
+ * Quem recebe o aviso de cadastro novo. Padrão em código para o aviso funcionar sem
+ * configurar nada; a variável de ambiente existe para trocar sem deploy.
+ */
+const SIGNUP_NOTIFY_TO = Deno.env.get('SIGNUP_NOTIFY_TO') || 'victor@origamilab.com.br';
+const SIGNUP_NOTIFY_CC = Deno.env.get('SIGNUP_NOTIFY_CC') || 'italo@origamilab.com.br';
+
+/** DDD de 11 a 99 e, depois, celular com 9 dígitos começando em 9 ou fixo com 8. */
+const BR_PHONE = /^[1-9]\d(9\d{8}|[2-8]\d{7})$/;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,7 +65,10 @@ const Payload = z.object({
   segment: optionalText(60),
   employeeCount: z.number().int().min(1).max(100000).optional().nullable(),
   cpf: optionalText(14),
-  phone: optionalText(20),
+  phone: z
+    .string()
+    .transform((value) => value.replace(/\D/g, ''))
+    .pipe(z.string().regex(BR_PHONE, 'Informe um telefone válido com DDD')),
   position: optionalText(80),
   /** Honeypot: humano nunca vê nem preenche. */
   website: optionalText(200),
@@ -202,7 +223,7 @@ async function createEmployee(admin: SupabaseClient, input: Input, tenantId: str
       email: input.email,
       cargo: input.position || 'Administrador',
       cpf: input.cpf || '00000000000',
-      telefone: input.phone || '00000000000',
+      telefone: input.phone,
       data_admissao: new Date().toISOString().slice(0, 10),
       is_gerente: true,
       tenant_id: tenantId,
@@ -242,6 +263,70 @@ async function sendConfirmation(anon: SupabaseClient, admin: SupabaseClient, ema
   const { error: confirmError } = await admin.auth.admin.updateUserById(userId, { email_confirm: true });
   if (confirmError) console.error('register-tenant: confirmação direta falhou:', confirmError.message);
   return { sent: false, autoConfirmed: !confirmError };
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch] ?? ch);
+}
+
+function formatPhone(digits: string): string {
+  const ddd = digits.slice(0, 2);
+  const rest = digits.slice(2);
+  return rest.length === 9 ? `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}` : `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+}
+
+function formatCnpj(digits: string): string {
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+}
+
+/**
+ * Avisa o comercial que uma empresa nova entrou. Nunca lança: o cadastro já aconteceu, e
+ * falhar aqui não pode desfazê-lo nem devolver erro para quem acabou de se cadastrar. O
+ * log NÃO carrega dado pessoal — só o id do tenant e a mensagem do erro.
+ */
+async function notifyNewSignup(input: Input, tenantId: string, trialEndsAt: string | null): Promise<void> {
+  const apiKey = Deno.env.get('RESEND_API_KEY');
+  if (!apiKey) {
+    console.error('register-tenant: RESEND_API_KEY ausente, aviso de cadastro não enviado', { tenantId });
+    return;
+  }
+  const rows: Array<[string, string]> = [
+    ['Empresa', input.companyName],
+    ['CNPJ', formatCnpj(input.cnpj)],
+    ['Segmento', input.segment || '—'],
+    ['Funcionários', input.employeeCount ? String(input.employeeCount) : '—'],
+    ['Responsável', input.adminName],
+    ['Cargo', input.position || '—'],
+    ['E-mail', input.email],
+    ['Telefone', formatPhone(input.phone)],
+    ['Teste até', trialEndsAt ? new Date(trialEndsAt).toLocaleDateString('pt-BR') : '—'],
+  ];
+  const table = rows
+    .map(([label, value]) => `<tr><td style="padding:6px 12px 6px 0;color:#6b7280;white-space:nowrap">${label}</td><td style="padding:6px 0;font-weight:600">${escapeHtml(value)}</td></tr>`)
+    .join('');
+  const html = `
+    <div style="font-family:Inter,system-ui,sans-serif;max-width:560px;color:#111827">
+      <p style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;margin:0 0 4px">Origami Pulse</p>
+      <h1 style="font-size:20px;margin:0 0 16px">Nova empresa cadastrada</h1>
+      <table style="border-collapse:collapse;font-size:14px">${table}</table>
+      <p style="font-size:13px;color:#6b7280;margin-top:20px">
+        Cadastro pelo site em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.
+        A empresa nasceu em período de teste; vale ligar nos primeiros dias.
+      </p>
+    </div>`;
+  try {
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: Deno.env.get('RESEND_FROM_EMAIL') || 'Origami Pulse <noreply@resend.dev>',
+      to: [SIGNUP_NOTIFY_TO],
+      cc: [SIGNUP_NOTIFY_CC],
+      subject: `Novo cadastro no Pulse · ${input.companyName}`,
+      html,
+    });
+    if (error) console.error('register-tenant: aviso de cadastro recusado pelo Resend', { tenantId, error: error.message });
+  } catch (error) {
+    console.error('register-tenant: aviso de cadastro falhou', { tenantId, error: error instanceof Error ? error.message : 'desconhecido' });
+  }
 }
 
 async function rollback(admin: SupabaseClient, created: Created): Promise<void> {
@@ -305,6 +390,8 @@ async function handleRegistration(req: Request, { admin, anon, secret }: Clients
 
   await assertNotRegistered(admin, input);
   const result = await register(admin, anon, input);
+  // Fora do `register` de propósito: a falha do aviso não pode acionar o rollback.
+  await notifyNewSignup(input, result.tenantId, result.trialEndsAt);
 
   return json({
     success: true,

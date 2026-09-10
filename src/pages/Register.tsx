@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Building2, ArrowLeft, ArrowRight, Eye, EyeOff, Check } from 'lucide-react';
-import { formatCNPJ, validateCNPJ, unformatCNPJ } from '@/lib/masks';
+import { formatCNPJ, formatPhone, unformatCNPJ, unformatPhone, validateCNPJ } from '@/lib/masks';
 import logo from '@/assets/logo.png';
 
 const getPasswordStrength = (password: string): { label: string; level: number; color: string } => {
@@ -38,9 +38,22 @@ const getPasswordStrength = (password: string): { label: string; level: number; 
   return { label: 'Fraca', level: 1, color: 'bg-red-500' };
 };
 
+
+/**
+ * Telefone válido no Brasil, só dígitos: DDD de 11 a 99 e, depois, celular com 9 dígitos
+ * começando em 9 ou fixo com 8. É o contato comercial de quem se cadastra (PUL-253), então
+ * "qualquer coisa com dez números" não serve — precisa dar para ligar.
+ */
+const BR_PHONE = /^[1-9]\d(9\d{8}|[2-8]\d{7})$/;
+const phoneSchema = z
+  .string()
+  .min(1, 'Telefone é obrigatório')
+  .refine((value) => BR_PHONE.test(unformatPhone(value)), { message: 'Informe um telefone válido com DDD' });
+
 const step1Schema = z.object({
   adminName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   email: z.string().email('E-mail inválido'),
+  phone: phoneSchema,
   password: z.string()
     .min(8, 'Senha deve ter pelo menos 8 caracteres')
     .refine(val => /[A-Z]/.test(val), { message: 'Senha deve conter ao menos 1 letra maiúscula' })
@@ -55,6 +68,7 @@ const step1Schema = z.object({
 const registerSchema = z.object({
   adminName: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   email: z.string().email('E-mail inválido'),
+  phone: phoneSchema,
   password: z.string().min(8),
   confirmPassword: z.string(),
   companyName: z.string().min(1, 'Nome da empresa é obrigatório'),
@@ -133,6 +147,7 @@ const Register = () => {
       cnpj: '',
       segment: '',
       employeeCount: '',
+      phone: '',
     },
   });
 
@@ -147,7 +162,7 @@ const Register = () => {
     
     if (!result.success) {
       // Trigger validation on step 1 fields
-      await form.trigger(['adminName', 'email', 'password', 'confirmPassword']);
+      await form.trigger(['adminName', 'email', 'phone', 'password', 'confirmPassword']);
       return;
     }
     
@@ -163,6 +178,7 @@ const Register = () => {
           companyName: data.companyName,
           adminName: data.adminName,
           email: data.email,
+          phone: unformatPhone(data.phone),
           password: data.password,
           cnpj: unformatCNPJ(data.cnpj),
           segment: data.segment,
@@ -281,6 +297,28 @@ const Register = () => {
                         <FormLabel>E-mail</FormLabel>
                         <FormControl>
                           <Input type="email" placeholder="joao@empresa.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telefone</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel-national"
+                            placeholder="(11) 99999-9999"
+                            {...field}
+                            onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                            maxLength={15}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
