@@ -1,6 +1,15 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * ATENÇÃO ao autorizar aqui: use `has_capability`, NUNCA `has_role`.
+ *
+ * `has_role` e a tabela `user_roles` foram REMOVIDAS do banco pelo PUL-206, que trocou papel
+ * global por perfil de tenant e capacidade (ADR-0027). Esta função continuou chamando a RPC
+ * inexistente: a chamada falhava, caía no ramo de erro e a operação respondia erro para TODO
+ * mundo, inclusive admin. Só apareceu em 10/09, quando um cliente novo tentou usar (PUL-257).
+ */
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -79,10 +88,10 @@ serve(async (req) => {
     }
 
     // Aprovação de ajuste de ponto/hora extra é exclusiva do admin (sem etapa de gestor/RH — ADR-0008).
-    const { data: isAdmin } = await adminClient.rpc("has_role", {
+    const { data: isAdmin } = await adminClient.rpc("has_capability", {
       _user_id: user.id,
       _tenant_id: adminEmployee.tenant_id,
-      _role: "admin",
+      _capability: "ponto:aprovar",
     });
     if (!isAdmin) {
       return jsonResponse({ error: "Apenas administradores podem decidir esta solicitação" }, 403);

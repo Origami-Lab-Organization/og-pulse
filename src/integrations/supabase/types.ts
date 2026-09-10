@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       _backup_cost_per_hour_20260721: {
@@ -136,8 +161,8 @@ export type Database = {
       }
       activity_timesheets: {
         Row: {
-          cost_center_id: string | null
           activity_type_id: string
+          cost_center_id: string | null
           created_at: string
           description: string | null
           employee_id: string
@@ -149,8 +174,8 @@ export type Database = {
           work_date: string
         }
         Insert: {
-          cost_center_id?: string | null
           activity_type_id: string
+          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           employee_id: string
@@ -162,8 +187,8 @@ export type Database = {
           work_date: string
         }
         Update: {
-          cost_center_id?: string | null
           activity_type_id?: string
+          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           employee_id?: string
@@ -180,6 +205,13 @@ export type Database = {
             columns: ["activity_type_id"]
             isOneToOne: false
             referencedRelation: "activity_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_timesheets_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
             referencedColumns: ["id"]
           },
           {
@@ -233,9 +265,9 @@ export type Database = {
       }
       activity_types: {
         Row: {
-          cost_center_id: string | null
           applies_to_all: boolean
           color: string
+          cost_center_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -245,9 +277,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          cost_center_id?: string | null
           applies_to_all?: boolean
           color?: string
+          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -257,9 +289,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          cost_center_id?: string | null
           applies_to_all?: boolean
           color?: string
+          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -269,6 +301,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "activity_types_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "activity_types_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -730,6 +769,84 @@ export type Database = {
           },
         ]
       }
+      capabilities: {
+        Row: {
+          created_at: string
+          description: string | null
+          domain: string
+          is_sensitive: boolean
+          key: string
+          label: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          domain: string
+          is_sensitive?: boolean
+          key: string
+          label: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          domain?: string
+          is_sensitive?: boolean
+          key?: string
+          label?: string
+        }
+        Relationships: []
+      }
+      catalog_merge_log: {
+        Row: {
+          entity: string
+          id: string
+          merged_at: string
+          merged_id: string
+          merged_name: string
+          moved_budgets: number
+          moved_lead_services: number
+          moved_leads: number
+          moved_models: number
+          moved_projects: number
+          reason: string
+          survivor_id: string
+          survivor_name: string
+          tenant_id: string
+        }
+        Insert: {
+          entity: string
+          id?: string
+          merged_at?: string
+          merged_id: string
+          merged_name: string
+          moved_budgets?: number
+          moved_lead_services?: number
+          moved_leads?: number
+          moved_models?: number
+          moved_projects?: number
+          reason: string
+          survivor_id: string
+          survivor_name: string
+          tenant_id: string
+        }
+        Update: {
+          entity?: string
+          id?: string
+          merged_at?: string
+          merged_id?: string
+          merged_name?: string
+          moved_budgets?: number
+          moved_lead_services?: number
+          moved_leads?: number
+          moved_models?: number
+          moved_projects?: number
+          reason?: string
+          survivor_id?: string
+          survivor_name?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       client_contacts: {
         Row: {
           client_id: string
@@ -948,6 +1065,90 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      default_cost_centers: {
+        Row: {
+          description: string | null
+          name: string
+          position: number
+        }
+        Insert: {
+          description?: string | null
+          name: string
+          position?: number
+        }
+        Update: {
+          description?: string | null
+          name?: string
+          position?: number
+        }
+        Relationships: []
+      }
+      default_role_capabilities: {
+        Row: {
+          capability: string
+          role_name: string
+        }
+        Insert: {
+          capability: string
+          role_name: string
+        }
+        Update: {
+          capability?: string
+          role_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "default_role_capabilities_capability_fkey"
+            columns: ["capability"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "default_role_capabilities_role_name_fkey"
+            columns: ["role_name"]
+            isOneToOne: false
+            referencedRelation: "default_tenant_roles"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
+      default_service_lines: {
+        Row: {
+          description: string | null
+          name: string
+          position: number
+        }
+        Insert: {
+          description?: string | null
+          name: string
+          position?: number
+        }
+        Update: {
+          description?: string | null
+          name?: string
+          position?: number
+        }
+        Relationships: []
+      }
+      default_tenant_roles: {
+        Row: {
+          is_default: boolean
+          name: string
+          position: number
+        }
+        Insert: {
+          is_default?: boolean
+          name: string
+          position?: number
+        }
+        Update: {
+          is_default?: boolean
+          name?: string
+          position?: number
+        }
+        Relationships: []
       }
       employee_benefits: {
         Row: {
@@ -1235,6 +1436,7 @@ export type Database = {
           nome: string
           onboarding_completed: boolean
           onboarding_completed_at: string | null
+          owner_guide_dismissed_at: string | null
           pix_key: string | null
           pix_key_type: string | null
           pro_labore: number
@@ -1253,6 +1455,7 @@ export type Database = {
           tipo_contratacao: string
           total_annual_cost_estimated: number
           total_monthly_cost_estimated: number
+          tour_seen_at: string | null
           updated_at: string
           valor_contrato_pj: number
         }
@@ -1293,6 +1496,7 @@ export type Database = {
           nome: string
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
+          owner_guide_dismissed_at?: string | null
           pix_key?: string | null
           pix_key_type?: string | null
           pro_labore?: number
@@ -1311,6 +1515,7 @@ export type Database = {
           tipo_contratacao?: string
           total_annual_cost_estimated?: number
           total_monthly_cost_estimated?: number
+          tour_seen_at?: string | null
           updated_at?: string
           valor_contrato_pj?: number
         }
@@ -1351,6 +1556,7 @@ export type Database = {
           nome?: string
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
+          owner_guide_dismissed_at?: string | null
           pix_key?: string | null
           pix_key_type?: string | null
           pro_labore?: number
@@ -1369,6 +1575,7 @@ export type Database = {
           tipo_contratacao?: string
           total_annual_cost_estimated?: number
           total_monthly_cost_estimated?: number
+          tour_seen_at?: string | null
           updated_at?: string
           valor_contrato_pj?: number
         }
@@ -5286,6 +5493,45 @@ export type Database = {
           },
         ]
       }
+      role_capabilities: {
+        Row: {
+          capability: string
+          enabled: boolean
+          role_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          capability: string
+          enabled?: boolean
+          role_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          capability?: string
+          enabled?: boolean
+          role_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_capabilities_capability_fkey"
+            columns: ["capability"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "role_capabilities_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_rates: {
         Row: {
           created_at: string
@@ -5425,9 +5671,9 @@ export type Database = {
       }
       services: {
         Row: {
-          cost_center_id: string | null
           billing_type: string | null
           billing_unit: string | null
+          cost_center_id: string | null
           created_at: string
           default_value: number | null
           description: string | null
@@ -5443,9 +5689,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          cost_center_id?: string | null
           billing_type?: string | null
           billing_unit?: string | null
+          cost_center_id?: string | null
           created_at?: string
           default_value?: number | null
           description?: string | null
@@ -5461,9 +5707,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          cost_center_id?: string | null
           billing_type?: string | null
           billing_unit?: string | null
+          cost_center_id?: string | null
           created_at?: string
           default_value?: number | null
           description?: string | null
@@ -5479,6 +5725,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "services_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "services_service_line_id_fkey"
             columns: ["service_line_id"]
@@ -5501,6 +5754,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      signup_attempts: {
+        Row: {
+          created_at: string
+          email_hash: string
+          id: string
+          ip_hash: string
+          outcome: string
+        }
+        Insert: {
+          created_at?: string
+          email_hash: string
+          id?: string
+          ip_hash: string
+          outcome?: string
+        }
+        Update: {
+          created_at?: string
+          email_hash?: string
+          id?: string
+          ip_hash?: string
+          outcome?: string
+        }
+        Relationships: []
       }
       strategy_checkins: {
         Row: {
@@ -5647,6 +5924,13 @@ export type Database = {
             columns: ["cycle_id"]
             isOneToOne: false
             referencedRelation: "strategy_cycles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_guardrails_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -6068,16 +6352,51 @@ export type Database = {
           },
         ]
       }
+      tenant_roles: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           cnpj: string | null
           created_at: string
           employee_count: number | null
           id: string
+          name: string
           plan: string
           plan_changed_at: string | null
           plan_changed_by: string | null
-          name: string
           segment: string | null
           trial_ends_at: string | null
           updated_at: string
@@ -6087,10 +6406,10 @@ export type Database = {
           created_at?: string
           employee_count?: number | null
           id?: string
+          name: string
           plan?: string
           plan_changed_at?: string | null
           plan_changed_by?: string | null
-          name: string
           segment?: string | null
           trial_ends_at?: string | null
           updated_at?: string
@@ -6100,10 +6419,10 @@ export type Database = {
           created_at?: string
           employee_count?: number | null
           id?: string
+          name?: string
           plan?: string
           plan_changed_at?: string | null
           plan_changed_by?: string | null
-          name?: string
           segment?: string | null
           trial_ends_at?: string | null
           updated_at?: string
@@ -6794,31 +7113,83 @@ export type Database = {
           },
         ]
       }
-      user_roles: {
+      user_capability_overrides: {
         Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
+          capability: string
+          enabled: boolean
+          reason: string | null
           tenant_id: string
+          updated_at: string
+          updated_by: string | null
           user_id: string
         }
         Insert: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          capability: string
+          enabled: boolean
+          reason?: string | null
           tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
           user_id: string
         }
         Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          capability?: string
+          enabled?: boolean
+          reason?: string | null
           tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "user_roles_tenant_id_fkey"
+            foreignKeyName: "user_capability_overrides_capability_fkey"
+            columns: ["capability"]
+            isOneToOne: false
+            referencedRelation: "capabilities"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "user_capability_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_tenant_roles: {
+        Row: {
+          role_id: string
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          role_id: string
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          role_id?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_tenant_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_tenant_roles_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -7097,6 +7468,7 @@ export type Database = {
       complete_onboarding: { Args: never; Returns: undefined }
       complete_password_change: { Args: never; Returns: undefined }
       complete_timesheet_onboarding: { Args: never; Returns: undefined }
+      complete_tour: { Args: never; Returns: undefined }
       count_employee_cost_business_days: {
         Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
         Returns: number
@@ -7161,6 +7533,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cron_secret: { Args: { p_name: string }; Returns: string }
       deallocate_project_member: {
         Args: { p_employee_id: string; p_project_id: string }
         Returns: undefined
@@ -7216,6 +7589,11 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      dismiss_owner_guide: { Args: never; Returns: undefined }
+      employee_id_for: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: string
       }
       employee_termination_date: {
         Args: { p_employee_id: string }
@@ -7435,20 +7813,12 @@ export type Database = {
       }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       gpo_report_is_editable: { Args: { _report_id: string }; Returns: boolean }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _tenant_id: string
-          _user_id: string
-        }
+      has_capability: {
+        Args: { _capability: string; _tenant_id: string; _user_id: string }
         Returns: boolean
       }
-      is_admin_or_manager: {
-        Args: { _tenant_id: string; _user_id: string }
-        Returns: boolean
-      }
-      is_manager_in_tenant: {
-        Args: { _tenant_id: string; _user_id: string }
+      has_capability_in_folder: {
+        Args: { _capability: string; _tenant_text: string; _user_id: string }
         Returns: boolean
       }
       is_project_team_member: {
@@ -7459,6 +7829,7 @@ export type Database = {
         Args: { _request_id: string; _user_id: string }
         Returns: boolean
       }
+      my_capabilities: { Args: { _tenant_id: string }; Returns: string[] }
       owns_work_item_state_source: {
         Args: {
           _employee_id: string
@@ -7533,6 +7904,22 @@ export type Database = {
         Args: { p_data_inicio: string; p_employee_id: string }
         Returns: undefined
       }
+      restart_tour: { Args: never; Returns: undefined }
+      restore_owner_guide: { Args: never; Returns: undefined }
+      seed_tenant_cost_centers: {
+        Args: { _tenant_id: string }
+        Returns: undefined
+      }
+      seed_tenant_defaults: { Args: { _tenant_id: string }; Returns: undefined }
+      seed_tenant_payroll_profile: {
+        Args: { _tenant_id: string }
+        Returns: undefined
+      }
+      seed_tenant_roles: { Args: { _tenant_id: string }; Returns: undefined }
+      seed_tenant_service_lines: {
+        Args: { _tenant_id: string }
+        Returns: undefined
+      }
       set_project_activity_task_status: {
         Args: { p_status: string; p_task_id: string }
         Returns: {
@@ -7573,6 +7960,11 @@ export type Database = {
           verdict: string
         }[]
       }
+      system_role_for_user: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: string
+      }
+      tenant_is_active: { Args: { _tenant_id: string }; Returns: boolean }
       update_overdue_installments: { Args: never; Returns: undefined }
       update_project_activity_task: {
         Args: {
@@ -7608,6 +8000,16 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      user_is_member_of_tenant: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
+      users_with_capability: {
+        Args: { _capability: string; _tenant_id: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
       vacation_request_is_admin: {
         Args: { _request_id: string; _user_id: string }
         Returns: boolean
@@ -7628,7 +8030,6 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user" | "manager" | "rh"
       budget_status:
         | "draft"
         | "sent"
@@ -7832,9 +8233,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
-      app_role: ["admin", "user", "manager", "rh"],
       budget_status: [
         "draft",
         "sent",

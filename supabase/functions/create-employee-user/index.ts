@@ -1,6 +1,15 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * ATENÇÃO ao autorizar aqui: use `has_capability`, NUNCA `has_role`.
+ *
+ * `has_role` e a tabela `user_roles` foram REMOVIDAS do banco pelo PUL-206, que trocou papel
+ * global por perfil de tenant e capacidade (ADR-0027). Esta função continuou chamando a RPC
+ * inexistente: a chamada falhava, caía no ramo de erro e a operação respondia erro para TODO
+ * mundo, inclusive admin. Só apareceu em 10/09, quando um cliente novo tentou usar (PUL-257).
+ */
+
 // Declare EdgeRuntime for background tasks
 declare const EdgeRuntime: {
   waitUntil: (promise: Promise<unknown>) => void;
@@ -183,11 +192,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Verify the requesting user is admin of the tenant
     const { data: isAdmin, error: adminCheckError } = await adminClient.rpc(
-      "has_role",
+      "has_capability",
       {
         _user_id: userId,
         _tenant_id: tenantId,
-        _role: "admin",
+        _capability: "pessoa:editar",
       },
     );
 
