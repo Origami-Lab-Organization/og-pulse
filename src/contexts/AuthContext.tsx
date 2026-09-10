@@ -154,7 +154,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return null;
     }
 
-    // Fetch employee data
+    // NUNCA adicione coluna nova a este select sem a migration já aplicada no banco: se a
+    // coluna não existir, o PostgREST recusa a consulta INTEIRA, `empError` cai no `return
+    // null` abaixo e todo mundo vê "não encontramos um funcionário ativo" — ou seja, uma
+    // feature não entregue tranca a base fora do sistema. Campo acessório se lê em consulta
+    // separada, com falha tolerada (ver `useOwnerGuide`).
     const { data: empData, error: empError } = await supabase
       .from('employees')
       .select('id, nome, email, cargo, tenant_id, must_change_password, jornada_diaria')
