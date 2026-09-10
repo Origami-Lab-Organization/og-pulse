@@ -20,6 +20,7 @@
 import { readFileSync } from 'node:fs';
 
 const GUIDE = 'src/lib/ownerGuide.ts';
+const TOUR = 'src/lib/tour.ts';
 const NAV = 'src/components/layout/sidebar-nav.ts';
 const SIDEBAR = 'src/components/layout/AppSidebar.tsx';
 
@@ -36,6 +37,43 @@ function navUrls(source) {
 }
 
 /**
+ * Mapa url -> capacidade exigida pelo item de menu, lido linha a linha. Item de grupo é
+ * declarado em várias linhas e não exige capacidade própria (aparece se alguma filha
+ * aparece), então cai fora naturalmente: a linha da `url` dele não tem `requiresCapability`.
+ */
+function navCapabilities(source) {
+  const map = new Map();
+  for (const line of source.split('\n')) {
+    const url = line.match(/url:\s*'([^']+)'/);
+    if (!url) continue;
+    const single = line.match(/requiresCapability:\s*'([^']+)'/);
+    const list = line.match(/requiresCapability:\s*\[([^\]]+)\]/);
+    if (single) map.set(url[1], [single[1]]);
+    else if (list) map.set(url[1], [...list[1].matchAll(/'([^']+)'/g)].map((m) => m[1]));
+  }
+  return map;
+}
+
+/** As capacidades que cada passo do tour declara, por id. */
+function tourSteps(source) {
+  const steps = [];
+  for (const block of source.split(/\n  \{\n/).slice(1)) {
+    const id = block.match(/id:\s*'([^']+)'/);
+    if (!id) continue;
+    const urls = [...block.matchAll(/\[data-tour="nav-(?:group-)?([^"]+)"\]/g)].map((m) => m[1]);
+    const single = block.match(/requiresCapability:\s*'([^']+)'/);
+    const list = block.match(/requiresCapability:\s*\[([^\]]+)\]/);
+    const caps = single
+      ? [single[1]]
+      : list
+        ? [...list[1].matchAll(/'([^']+)'/g)].map((m) => m[1])
+        : [];
+    steps.push({ id: id[1], urls, caps, hasFallback: /fallback:/.test(block) });
+  }
+  return steps;
+}
+
+/**
  * Confere que o AppSidebar realmente gera os dois formatos por template. Sem isto o gate
  * passaria a aprovar seletores que ninguém mais produz, caso alguém troque o template.
  */
@@ -45,11 +83,55 @@ function assertTemplates(source) {
   return missing;
 }
 
+/**
+ * A checagem que importa mais, e que o projete.app não tem: um passo do tour que apresenta
+ * uma tela restrita PRECISA exigir a mesma capacidade que o item de menu dela. Sem isso o
+ * tour promete ao Colaborador uma tela que a RLS vai negar — o defeito que lá só apareceu
+ * no Amplitude, depois de convidados se perderem num tour de dono.
+ */
+function tourCapabilityProblems(steps, navCaps) {
+  const problems = [];
+  for (const step of steps) {
+    for (const url of step.urls) {
+      const required = navCaps.get(url);
+      if (!required) continue;
+      const covered = required.some((cap) => step.caps.includes(cap));
+      if (!covered) {
+        problems.push(
+          `${TOUR}: o passo "${step.id}" apresenta "${url}", que no menu exige ` +
+            `${required.join(' ou ')}, mas o passo declara ${step.caps.length ? step.caps.join(' ou ') : 'nenhuma capacidade'}. ` +
+            `Quem nao tem acesso ouviria falar de uma tela que nao pode abrir.`,
+        );
+      }
+    }
+  }
+  return problems;
+}
+
 function main() {
   const selectors = guideSelectors(read(GUIDE));
-  const urls = navUrls(read(NAV));
+  const navSource = read(NAV);
+  const urls = navUrls(navSource);
   const templates = assertTemplates(read(SIDEBAR));
+  const steps = tourSteps(read(TOUR));
   const problems = [];
+
+  if (steps.length === 0) {
+    problems.push(`${TOUR}: nenhum passo encontrado — o tour perdeu a configuracao.`);
+  }
+
+  for (const step of steps) {
+    for (const url of step.urls) {
+      if (!urls.has(url)) {
+        problems.push(
+          `${TOUR}: o passo "${step.id}" aponta para a rota "${url}", que nao existe em ${NAV}.` +
+            (step.hasFallback ? ' Cairia no texto alternativo para sempre.' : ' E o passo nao tem fallback.'),
+        );
+      }
+    }
+  }
+
+  problems.push(...tourCapabilityProblems(steps, navCapabilities(navSource)));
 
   if (selectors.length === 0) {
     problems.push(`${GUIDE}: nenhum seletor [data-tour="..."] encontrado — o guia perdeu os alvos.`);
@@ -76,7 +158,10 @@ function main() {
     process.exit(1);
   }
 
-  console.log(`check:tour — ${selectors.length} ancoras do guia conferidas, todas com rota na navegacao.`);
+  console.log(
+    `check:tour — ${selectors.length} ancoras do guia e ${steps.length} passos do tour conferidos: ` +
+      `rota existe na navegacao e a capacidade do passo cobre a do menu.`,
+  );
 }
 
 main();

@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 import { AppFooter } from './AppFooter';
+import { GuidedTour } from '@/components/onboarding/GuidedTour';
 import { OwnerGuide } from '@/components/onboarding/OwnerGuide';
 import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
 import { OfflineBanner } from '@/components/pwa/OfflineBanner';
@@ -95,7 +96,10 @@ export function AppLayout({
           </div>
         </main>
         <AppFooter />
-        {/* Fora do <main> de propósito: é `fixed` no canto e não deve rolar com o conteúdo. */}
+        {/* Fora do <main> de propósito: são `fixed` e não devem rolar com o conteúdo.
+            O tour APRESENTA a casa na primeira entrada; o guia ACOMPANHA a montagem depois.
+            Convivem porque respondem perguntas diferentes (PUL-251 e PUL-250). */}
+        <GuidedTour />
         <OwnerGuide />
       </SidebarInset>
     </SidebarProvider>
