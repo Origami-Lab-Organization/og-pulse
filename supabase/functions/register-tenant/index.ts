@@ -32,7 +32,18 @@ import { Resend } from 'https://esm.sh/resend@4.0.0';
 const HttpMethod = { OPTIONS: 'OPTIONS', POST: 'POST' } as const;
 const PUBLIC_APP_ORIGIN = 'https://origamipulse.com.br';
 const CONFIRMATION_REDIRECT = `${PUBLIC_APP_ORIGIN}/boas-vindas`;
-const LIMITS = { perIpPerHour: 5, perEmailPerHour: 3 } as const;
+/**
+ * Limites do autocadastro por hora, em janela deslizante.
+ *
+ * Subiram de 5/3 para 20/10 em 10/09 por decisão do Italo: com 3 por e-mail, um cliente de
+ * verdade travava por uma hora ao somar "e-mail já cadastrado", "CNPJ já cadastrado" e um
+ * erro de rede. O IP é o dobro do e-mail porque um escritório inteiro sai por um IP só.
+ *
+ * O endpoint é público e ainda não tem captcha — pendência registrada no ADR-0028. Enquanto
+ * isso, estes números são a única barreira contra volume, e o custo de cada tentativa é
+ * baixo: o robô ainda precisa de um CNPJ válido e de um e-mail não cadastrado.
+ */
+const LIMITS = { perIpPerHour: 20, perEmailPerHour: 10 } as const;
 const ATTEMPT_RETENTION_HOURS = 24;
 
 /**
@@ -91,11 +102,17 @@ class RegistrationError extends Error {
   }
 }
 
-function json(body: Record<string, unknown>, status = 200): Response {
+function json(body: Record<string, unknown>, status = 200, extraHeaders: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json', ...extraHeaders },
   });
+}
+
+/** "3 minutos" / "1 hora": minuto a minuto acima de uma hora não ajuda ninguém a esperar. */
+function waitLabel(minutes: number): string {
+  if (minutes >= 60) return 'cerca de 1 hora';
+  return `${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
 }
 
 async function hmacHex(value: string, secret: string): Promise<string> {
@@ -118,22 +135,56 @@ function clientIp(req: Request): string {
   return forwarded?.split(',')[0]?.trim() || req.headers.get('cf-connecting-ip') || 'unknown';
 }
 
-async function countSince(admin: SupabaseClient, column: 'ip_hash' | 'email_hash', hash: string): Promise<number> {
-  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count } = await admin
+const WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * Horários das tentativas na janela de uma hora, em ordem crescente.
+ *
+ * `outcome = 'attempt'` filtra as recusadas de propósito: sem esse filtro, cada recusa
+ * também contava, e o bloqueio se estendia sozinho a cada vez que a pessoa tentava de novo.
+ * Quem insistia cinco vezes ficava mais tempo bloqueado do que quem desistia — o oposto do
+ * que um limite deve fazer. As recusas continuam gravadas, para auditoria.
+ */
+async function attemptsInWindow(
+  admin: SupabaseClient,
+  column: 'ip_hash' | 'email_hash',
+  hash: string,
+): Promise<number[]> {
+  const since = new Date(Date.now() - WINDOW_MS).toISOString();
+  const { data } = await admin
     .from('signup_attempts')
-    .select('id', { count: 'exact', head: true })
+    .select('created_at')
     .eq(column, hash)
-    .gte('created_at', since);
-  return count ?? 0;
+    .eq('outcome', 'attempt')
+    .gte('created_at', since)
+    .order('created_at', { ascending: true });
+  return (data ?? []).map((row) => new Date((row as { created_at: string }).created_at).getTime());
 }
 
-async function isRateLimited(admin: SupabaseClient, ipHash: string, emailHash: string): Promise<boolean> {
+/**
+ * Quantos minutos faltam para caber uma tentativa nova, ou `0` se já cabe.
+ *
+ * A janela é deslizante, então a liberação não é "uma hora depois da última": é quando saem
+ * tentativas suficientes para o total ficar abaixo do limite. Com `n` tentativas e limite
+ * `limit`, é a de índice `n - limit` que decide — as anteriores a ela precisam expirar.
+ */
+function minutesUntilFree(timestamps: readonly number[], limit: number): number {
+  if (timestamps.length < limit) return 0;
+  const deciding = timestamps[timestamps.length - limit];
+  const freeAt = deciding + WINDOW_MS;
+  return Math.max(1, Math.ceil((freeAt - Date.now()) / 60000));
+}
+
+/** `0` quando pode seguir; senão, os minutos de espera para informar a quem tentou. */
+async function retryAfterMinutes(admin: SupabaseClient, ipHash: string, emailHash: string): Promise<number> {
   const [byIp, byEmail] = await Promise.all([
-    countSince(admin, 'ip_hash', ipHash),
-    countSince(admin, 'email_hash', emailHash),
+    attemptsInWindow(admin, 'ip_hash', ipHash),
+    attemptsInWindow(admin, 'email_hash', emailHash),
   ]);
-  return byIp >= LIMITS.perIpPerHour || byEmail >= LIMITS.perEmailPerHour;
+  return Math.max(
+    minutesUntilFree(byIp, LIMITS.perIpPerHour),
+    minutesUntilFree(byEmail, LIMITS.perEmailPerHour),
+  );
 }
 
 async function recordAttempt(admin: SupabaseClient, ipHash: string, emailHash: string, outcome: string): Promise<void> {
@@ -382,9 +433,17 @@ async function handleRegistration(req: Request, { admin, anon, secret }: Clients
   if (input.website) return json({ success: true, confirmationEmailSent: true });
 
   const [ipHash, emailHash] = await Promise.all([hmacHex(clientIp(req), secret), hmacHex(input.email, secret)]);
-  if (await isRateLimited(admin, ipHash, emailHash)) {
+  const wait = await retryAfterMinutes(admin, ipHash, emailHash);
+  if (wait > 0) {
     await recordAttempt(admin, ipHash, emailHash, 'rate_limited');
-    return json({ error: 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo.' }, 429);
+    // O tempo real, não "alguns minutos": a janela é de uma hora, então quem lia a mensagem
+    // antiga tentava de novo em cinco minutos, era recusado outra vez e concluía que o
+    // cadastro estava quebrado.
+    return json(
+      { error: `Por segurança, limitamos as tentativas de cadastro. Tente de novo em ${waitLabel(wait)}.`, retryAfterMinutes: wait },
+      429,
+      { 'Retry-After': String(wait * 60) },
+    );
   }
   await recordAttempt(admin, ipHash, emailHash, 'attempt');
 
