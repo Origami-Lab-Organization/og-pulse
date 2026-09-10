@@ -1,4 +1,4 @@
-import { Footprints, LogOut, KeyRound, Moon, Sun, Shield, Sparkles } from 'lucide-react';
+import { Footprints, Gauge, LogOut, KeyRound, Moon, Sun, Shield, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
@@ -113,6 +113,13 @@ export function UserMenu() {
               <span>Portal do Admin</span>
             </DropdownMenuItem>
           </>
+        )}
+        {/* Só quem opera o produto: a capacidade existe apenas no tenant da Origami. */}
+        {can('plataforma:ler-uso') && (
+          <DropdownMenuItem onClick={() => navigate('/uso')}>
+            <Gauge className="mr-2 h-4 w-4" />
+            <span>Uso dos clientes</span>
+          </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">

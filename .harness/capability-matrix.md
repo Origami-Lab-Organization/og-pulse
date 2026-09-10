@@ -75,6 +75,25 @@ decisao pendente **P2**.
 | `remuneracao-pessoa:editar` | sim | sim `!` | — | — | `has_role('admin') OR is_manager_in_tenant` — **D1** |
 | `parametro-folha:ler` — `payroll_profiles` | sim | sim `!` | — | — | `is_admin_or_manager` — ver **P6** |
 
+## Plataforma (operacao do produto, nao do cliente)
+
+Dominio novo, e o unico que nao pertence ao produto que o cliente usa: e a Origami operando
+o Pulse. Uma capacidade, uma tela, e a UNICA leitura entre tenants que existe (ADR-0033).
+
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `plataforma:ler-uso` — tela `/uso` | sim, **so no tenant dono** | — | — | — | `platform_tenant_usage()` exige `tenants.is_platform_owner` + a capacidade nesse tenant |
+
+Tres coisas que a tornam diferente de todas as outras:
+
+- **Nao entra em `default_role_capabilities`.** Cliente novo nunca nasce com ela, e conceder
+  a mao no tenant de um cliente NAO da acesso: a funcao confere tambem que o tenant de quem
+  chama e o dono da plataforma.
+- **`is_sensitive = true`** no vocabulario. Atravessa tenant, o que nenhuma outra faz.
+- **O dado e pobre de proposito**: contagem, data e o contato comercial de quem se cadastrou.
+  Nunca nome de projeto, nome de cliente final, valor, margem, custo ou salario, e nunca a
+  lista de funcionarios do cliente.
+
 ## 3. Pessoas
 
 | Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |

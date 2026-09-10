@@ -10,6 +10,7 @@ import RoleProtectedRoute from "@/components/auth/RoleProtectedRoute";
 import RootEntry from "@/components/auth/RootEntry";
 import Index from "./pages/Index";
 import Ajuda from "./pages/Ajuda";
+import PlatformUsage from "./pages/PlatformUsage";
 import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -329,6 +330,16 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireCapability="alocacao:ler">
                     <EmployeeTimesheetPage />
+                  </RoleProtectedRoute>
+                }
+              />
+              {/* Operação do produto, não do cliente: única tela que lê outros tenants,
+                  atrás de `plataforma:ler-uso` aqui e da guarda da RPC no banco (ADR-0033). */}
+              <Route
+                path="/uso"
+                element={
+                  <RoleProtectedRoute requireCapability="plataforma:ler-uso">
+                    <PlatformUsage />
                   </RoleProtectedRoute>
                 }
               />

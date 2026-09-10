@@ -28,11 +28,11 @@
   ],
   "rewrites": [
     {
-      "source": "/:segment(admin|admin-dashboard|ajuda|alocacao|analises|analytics|boas-vindas|budgets|change-password|clients|comercial|confirme-seu-email|crm|dashboard|em-construcao|employees|esqueci-minha-senha|estrategia|inbox|jornada|landing|login|meus-emails|minha-agenda|minhas-ferias|my-kanban|my-projects|my-timesheet|pipeline|portfolio|primeiro-acesso|privacidade|projects|projetos|reenviar-primeiro-acesso|register|reset-password|rh|suppliers|termos|teste-encerrado|trabalhe-conosco)",
+      "source": "/:segment(admin|admin-dashboard|ajuda|alocacao|analises|analytics|boas-vindas|budgets|change-password|clients|comercial|confirme-seu-email|crm|dashboard|em-construcao|employees|esqueci-minha-senha|estrategia|inbox|jornada|landing|login|meus-emails|minha-agenda|minhas-ferias|my-kanban|my-projects|my-timesheet|pipeline|portfolio|primeiro-acesso|privacidade|projects|projetos|reenviar-primeiro-acesso|register|reset-password|rh|suppliers|termos|teste-encerrado|trabalhe-conosco|uso)",
       "destination": "/app.html"
     },
     {
-      "source": "/:segment(admin|admin-dashboard|ajuda|alocacao|analises|analytics|boas-vindas|budgets|change-password|clients|comercial|confirme-seu-email|crm|dashboard|em-construcao|employees|esqueci-minha-senha|estrategia|inbox|jornada|landing|login|meus-emails|minha-agenda|minhas-ferias|my-kanban|my-projects|my-timesheet|pipeline|portfolio|primeiro-acesso|privacidade|projects|projetos|reenviar-primeiro-acesso|register|reset-password|rh|suppliers|termos|teste-encerrado|trabalhe-conosco)/:rest*",
+      "source": "/:segment(admin|admin-dashboard|ajuda|alocacao|analises|analytics|boas-vindas|budgets|change-password|clients|comercial|confirme-seu-email|crm|dashboard|em-construcao|employees|esqueci-minha-senha|estrategia|inbox|jornada|landing|login|meus-emails|minha-agenda|minhas-ferias|my-kanban|my-projects|my-timesheet|pipeline|portfolio|primeiro-acesso|privacidade|projects|projetos|reenviar-primeiro-acesso|register|reset-password|rh|suppliers|termos|teste-encerrado|trabalhe-conosco|uso)/:rest*",
       "destination": "/app.html"
     }
   ]
