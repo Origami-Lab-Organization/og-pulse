@@ -33,6 +33,7 @@ interface RawResult {
  */
 function rowsOf<T>(label: string) {
   return (result: RawResult): T[] => {
+    // harness-ok: front React sem HttpException; o erro sobe para o TanStack Query.
     if (result.error) throw new Error(`Não foi possível ler ${label}: ${result.error.message}`);
     return (result.data ?? []) as T[];
   };

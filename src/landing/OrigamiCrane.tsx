@@ -1,9 +1,18 @@
+import { useId } from 'react';
 import type { OrigamiCraneProps } from '@/types/landing';
 
 /**
  * Tsuru de origami em SVG, só com tokens do tema: facetas em `--primary` e
- * `--primary-deep`, vincos em `--background`. Decorativo (a página já tem o texto),
- * por isso `aria-hidden`. Flutua com `data-motion="on"` (ver `.lp-crane` em landing.css).
+ * `--primary-deep`, vincos em `--background`. Decorativo (quem o acompanha sempre tem o
+ * texto ao lado), por isso `aria-hidden`.
+ *
+ * Onde ele aparece hoje: a página 404 (PUL-240) e o guia de primeiros passos do dono
+ * (PUL-250). A animação NÃO vem daqui: na landing é `.lp-crane__body` com
+ * `data-motion="on"` (landing.css), e no app é `animate-crane-float` no wrapper, porque
+ * `landing.css` não é carregado dentro do produto.
+ *
+ * O `id` do filtro é gerado por instância: com id fixo, dois tsurus na mesma página
+ * produziriam HTML inválido e o segundo herdaria o filtro do primeiro.
  */
 
 const LIGHT = 'hsl(var(--primary))';
@@ -12,14 +21,15 @@ const CREASE = 'hsl(var(--background))';
 
 export function OrigamiCrane(props: OrigamiCraneProps) {
   const { className = '' } = props;
+  const blurId = `crane-blur-${useId()}`;
   return (
     <svg viewBox="0 0 320 240" aria-hidden="true" focusable="false" className={className}>
       <defs>
-        <filter id="lp-crane-blur" x="-20%" y="-200%" width="140%" height="500%">
+        <filter id={blurId} x="-20%" y="-200%" width="140%" height="500%">
           <feGaussianBlur stdDeviation="5" />
         </filter>
       </defs>
-      <ellipse className="lp-crane__shadow" cx="160" cy="216" rx="92" ry="8" fill={DEEP} fillOpacity="0.55" filter="url(#lp-crane-blur)" />
+      <ellipse className="lp-crane__shadow" cx="160" cy="216" rx="92" ry="8" fill={DEEP} fillOpacity="0.55" filter={`url(#${blurId})`} />
       <g transform="rotate(-6 160 140)">
         <g className="lp-crane__body">
           {/* asa de trás */}

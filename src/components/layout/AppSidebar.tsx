@@ -91,6 +91,13 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
+      {/*
+        As âncoras `data-tour` são geradas em TODOS os ramos — link, grupo recolhido, grupo
+        aberto e filha — de propósito. No projete.app o atributo saiu só no ramo sem submenu,
+        e adicionar um submenu derrubava o passo do guia sem quebrar teste nenhum. Aqui a
+        prova é `npm run check:tour`, que falha se um seletor de `ownerGuide.ts` não tiver
+        âncora correspondente (PUL-250).
+      */}
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
@@ -101,7 +108,7 @@ export function AppSidebar() {
                   return (
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-                        <NavLink to={item.url} className="flex items-center gap-3">
+                        <NavLink to={item.url} className="flex items-center gap-3" data-tour={`nav-${item.url}`}>
                           <item.icon className="h-4 w-4" />
                           <span>{item.title}</span>
                         </NavLink>
@@ -119,6 +126,7 @@ export function AppSidebar() {
                       <SidebarMenuButton
                         isActive={groupActive}
                         tooltip={item.title}
+                        data-tour={`nav-group-${item.url}`}
                         onClick={() => {
                           toggleGroup(item.title, true);
                           setOpen(true);
@@ -141,6 +149,7 @@ export function AppSidebar() {
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton
                           tooltip={item.title}
+                          data-tour={`nav-group-${item.url}`}
                           className={cn(groupActive && 'text-sidebar-accent-foreground font-medium')}
                         >
                           <item.icon className="h-4 w-4" />
@@ -156,7 +165,7 @@ export function AppSidebar() {
                                 asChild
                                 isActive={isChildActive(child.url, location.pathname)}
                               >
-                                <NavLink to={child.url}>{child.title}</NavLink>
+                                <NavLink to={child.url} data-tour={`nav-${child.url}`}>{child.title}</NavLink>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           ))}

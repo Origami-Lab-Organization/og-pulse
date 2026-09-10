@@ -17,7 +17,7 @@
   "main": "eslint.config.js",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/check-app-routes.mjs && vite build && node scripts/prerender-landing.mjs",
+    "build": "node scripts/check-app-routes.mjs && node scripts/check-tour-anchors.mjs && vite build && node scripts/prerender-landing.mjs",
     "prerender": "node scripts/prerender-landing.mjs",
     "og:image": "node scripts/generate-og-image.mjs",
     "build:dev": "vite build --mode development",
@@ -29,7 +29,8 @@
     "gsc:sitemaps": "node scripts/search-console.mjs sitemaps",
     "gsc:submit": "node scripts/search-console.mjs submit",
     "gsc:inspect": "node scripts/search-console.mjs inspect",
-    "gsc:status": "node scripts/search-console.mjs status"
+    "gsc:status": "node scripts/search-console.mjs status",
+    "check:tour": "node scripts/check-tour-anchors.mjs"
   },
   "dependencies": {
     "@amplitude/analytics-browser": "^2.35.4",

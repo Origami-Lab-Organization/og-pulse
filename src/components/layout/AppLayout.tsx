@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 import { AppFooter } from './AppFooter';
+import { OwnerGuide } from '@/components/onboarding/OwnerGuide';
 import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
 import { OfflineBanner } from '@/components/pwa/OfflineBanner';
 import { CapabilitiesUnavailableBanner } from '@/components/access/CapabilitiesUnavailableBanner';
@@ -94,6 +95,8 @@ export function AppLayout({
           </div>
         </main>
         <AppFooter />
+        {/* Fora do <main> de propósito: é `fixed` no canto e não deve rolar com o conteúdo. */}
+        <OwnerGuide />
       </SidebarInset>
     </SidebarProvider>
   );
