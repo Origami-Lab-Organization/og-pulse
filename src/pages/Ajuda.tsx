@@ -37,6 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { HELP_GROUPS, type HelpTopic } from "@/content/helpTopics";
 import { McpSetupCard } from "@/components/help/McpSetupCard";
+import { OwnerGuideHelpCard } from "@/components/onboarding/OwnerGuideHelpCard";
 
 const ABA_MCP = "mcp";
 
@@ -200,6 +201,11 @@ export default function Ajuda() {
           de instalação. Os blocos internos usam grade responsiva para a largura virar duas
           colunas em telas grandes, em vez de linha de texto longa demais para ler. */}
       <div className="space-y-4">
+        {/* Antes da busca de propósito: quem administra uma empresa recém-criada vem aqui
+            perdido, e a trilha responde a pergunta que ele nem sabe formular para buscar.
+            Some sozinho para quem não administra (PUL-250). */}
+        <OwnerGuideHelpCard />
+
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input

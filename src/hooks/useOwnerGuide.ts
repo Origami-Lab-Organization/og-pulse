@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { buildOwnerGuideState, EMPTY_COUNTS } from '@/lib/ownerGuide';
 import { fetchOwnerGuideCounts } from '@/services/ownerGuideService';
 import type { OwnerGuideState } from '@/types/ownerGuide';
@@ -33,8 +34,20 @@ interface UseOwnerGuideResult {
   /** Só mostra quando há passo pendente E a pessoa não dispensou. */
   visible: boolean;
   dismissed: boolean;
+  /** Quem administra a empresa. Fora daqui, ninguém tem o que fazer com o guia. */
+  isOwner: boolean;
   dismiss: () => void;
   restore: () => void;
+}
+
+interface UseOwnerGuideOptions {
+  /**
+   * Conta mesmo com o guia dispensado. A Central de Ajuda pede isso: é lá que a pessoa vai
+   * quando quer o guia de volta, e para oferecer isso é preciso saber o que ainda falta. No
+   * dock do canto fica desligado, senão seriam seis contagens por carga para quem já
+   * dispensou e não vai ver nada.
+   */
+  alwaysCount?: boolean;
 }
 
 const OWNER_GUIDE_KEY = 'owner-guide-counts';
@@ -61,8 +74,9 @@ async function fetchDismissed(employeeId: string): Promise<boolean> {
  */
 const OWNER_CAPABILITY = 'configuracao:editar';
 
-export function useOwnerGuide(): UseOwnerGuideResult {
+export function useOwnerGuide(options?: UseOwnerGuideOptions): UseOwnerGuideResult {
   const { employee, can } = useAuth();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const tenantId = employee?.tenant_id;
   const employeeId = employee?.id;
@@ -80,7 +94,7 @@ export function useOwnerGuide(): UseOwnerGuideResult {
   // contagens por carga do app.
   const countsQuery = useQuery({
     queryKey: [OWNER_GUIDE_KEY, tenantId],
-    enabled: !!tenantId && !dismissed && isOwner,
+    enabled: !!tenantId && isOwner && (!dismissed || !!options?.alwaysCount),
     queryFn: () => fetchOwnerGuideCounts(tenantId as string),
   });
 
@@ -90,10 +104,23 @@ export function useOwnerGuide(): UseOwnerGuideResult {
       const { error } = await db.rpc(next ? 'dismiss_owner_guide' : 'restore_owner_guide');
       if (error) throw error;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, next) => {
       await queryClient.invalidateQueries({ queryKey: [OWNER_GUIDE_PREF_KEY] });
       await queryClient.invalidateQueries({ queryKey: [OWNER_GUIDE_KEY] });
+      // Dispensar sem dizer onde reencontrar é o mesmo que remover: o caminho de volta
+      // existe e ninguém acha. O aviso é o que liga um ao outro.
+      toast(
+        next
+          ? { title: 'Guia dispensado', description: 'Para trazer de volta, abra a Central de Ajuda.' }
+          : { title: 'Guia reativado', description: 'Ele volta a acompanhar você no canto da tela.' },
+      );
     },
+    onError: (error: Error, next) =>
+      toast({
+        title: next ? 'Não foi possível dispensar o guia' : 'Não foi possível reativar o guia',
+        description: error.message,
+        variant: 'destructive',
+      }),
   });
 
   const state = buildOwnerGuideState(countsQuery.data ?? EMPTY_COUNTS);
@@ -106,6 +133,7 @@ export function useOwnerGuide(): UseOwnerGuideResult {
     visible:
       isOwner && !dismissed && !countsQuery.isLoading && !countsQuery.isError && !state.complete,
     dismissed,
+    isOwner,
     dismiss: () => setDismissed.mutate(true),
     restore: () => setDismissed.mutate(false),
   };

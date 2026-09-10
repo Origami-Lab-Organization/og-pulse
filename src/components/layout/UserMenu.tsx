@@ -1,4 +1,4 @@
-import { LogOut, KeyRound, Moon, Sun, Shield, Sparkles } from 'lucide-react';
+import { Footprints, LogOut, KeyRound, Moon, Sun, Shield, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 
 export function UserMenu() {
-  const { employee, signOut } = useAuth();
+  const { employee, signOut, can } = useAuth();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { openOnboarding } = useOnboardingModal();
@@ -97,6 +97,14 @@ export function UserMenu() {
           <Sparkles className="mr-2 h-4 w-4" />
           <span>Refazer onboarding</span>
         </DropdownMenuItem>
+        {/* Navega em vez de reativar direto: a trilha vive na Ajuda, e reativar do menu sem
+            mostrar o que falta deixaria a pessoa sem saber o que voltou (PUL-250). */}
+        {can('configuracao:editar') && (
+          <DropdownMenuItem onClick={() => navigate('/ajuda')}>
+            <Footprints className="mr-2 h-4 w-4" />
+            <span>Primeiros passos</span>
+          </DropdownMenuItem>
+        )}
         {employee.isAdmin && (
           <>
             <DropdownMenuSeparator />
