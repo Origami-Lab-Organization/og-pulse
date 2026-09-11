@@ -114,18 +114,42 @@ else
   nao "não existe configuração em $CFG" "sem-config-desktop"
 fi
 
-# A pasta do Desktop só ganha logs/cache depois que o app abre pelo menos uma vez. Se ela
-# tem apenas o nosso JSON, o programa nunca rodou nesta máquina — e configuração sem
-# programa que a leia parece, de fora, exatamente igual a configuração errada.
-PASTA="$(dirname "$CFG")"
-if [ -d "$PASTA" ]; then
-  RASTROS="$(ls -A "$PASTA" 2>/dev/null | grep -viE '^claude_desktop_config\.json(\.bak)?$' | wc -l | tr -d ' ')"
-  if [ "${RASTROS:-0}" -eq 0 ]; then
-    nao "o Claude Desktop nunca abriu nesta máquina" "desktop-nunca-abriu"
-    nota "a pasta só tem o arquivo que o instalador criou — sem logs, sem cache."
+# O app está instalado? Esta pergunta se responde procurando o PROGRAMA, não contando
+# arquivos ao lado da configuração: no Windows o Claude Desktop instala em
+# %LOCALAPPDATA%\AnthropicClaude e apenas LÊ o config de %APPDATA%\Claude, então aquela
+# pasta pode estar enxuta com o app instalado e aberto. Contar rastros ali dava veredito
+# errado — "nunca abriu" para quem tinha acabado de instalar.
+case "$SISTEMA" in
+  MINGW*|MSYS*|CYGWIN*)
+    LA="${LOCALAPPDATA:-}"
+    [ -n "$LA" ] && command -v cygpath >/dev/null 2>&1 && LA="$(cygpath -u "$LA")"
+    [ -n "$LA" ] || LA="$HOME/AppData/Local"
+    APP="$LA/AnthropicClaude" ;;
+  Darwin) APP="/Applications/Claude.app" ;;
+  *)      APP="" ;;
+esac
+
+if [ -n "$APP" ]; then
+  if [ -e "$APP" ]; then
+    ok "aplicativo instalado"
   else
-    ok "o Claude Desktop já rodou aqui ($RASTROS itens na pasta)"
+    nao "não encontrei o aplicativo em $APP" "sem-desktop"
   fi
+fi
+
+# Os logs são a única fonte que diz por que um servidor não subiu DENTRO do Claude: o app
+# grava um arquivo por MCP. Quando existem, eles valem mais que todo o resto deste script.
+LOGS="$(dirname "$CFG")/logs"
+if [ -d "$LOGS" ]; then
+  ok "logs do Claude Desktop encontrados"
+  for L in "$LOGS"/*og-pulse*; do
+    [ -f "$L" ] || continue
+    nota "$(basename "$L"), últimas linhas:"
+    tail -n 6 "$L" 2>/dev/null | sed 's/^/       /'
+  done
+else
+  nota "sem pasta de logs em $LOGS"
+  nota "o Claude Desktop cria os logs ao abrir com um MCP configurado."
 fi
 
 # ------------------------------------------------------------------ 5. Claude Code
@@ -212,10 +236,12 @@ for p in "${PROBLEMAS[@]}"; do
     sem-servidores|download-incompleto)
       printf '   \033[1mOs servidores não estão na máquina.\033[0m Rode a instalação de novo,\n'
       printf '   pela Central de Ajuda do Pulse, em Ajuda → Usar o Pulse pelo chat.\n\n' ;;
-    desktop-nunca-abriu)
-      printf '   \033[1mO Claude Desktop nunca abriu aqui.\033[0m A configuração está pronta e\n'
-      printf '   correta, mas não há programa nenhum lendo ela. Instale o Claude Desktop em\n'
-      printf '   https://claude.ai/download e abra uma vez — ele lê a configuração ao abrir.\n\n' ;;
+    sem-desktop)
+      printf '   \033[1mO Claude Desktop não está instalado.\033[0m A configuração está pronta e\n'
+      printf '   correta, mas não há programa nenhum lendo ela. Instale em\n'
+      printf '   https://claude.ai/download e abra uma vez — ele lê a configuração ao abrir.\n'
+      printf '   Se você usa o Claude pelo navegador: os servidores rodam nesta máquina, e\n'
+      printf '   só o aplicativo ou o Claude Code conversam com eles. Pelo site não aparece.\n\n' ;;
     sem-config-desktop)
       printf '   \033[1mO Claude Desktop não foi configurado.\033[0m Rode a instalação de novo.\n\n' ;;
     sem-registro-desktop|sem-registro-code)
