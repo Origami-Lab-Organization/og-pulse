@@ -84,6 +84,20 @@ export function McpSetupCard() {
                 {copiado ? "Copiado" : "Copiar"}
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              <strong className="text-foreground">No Windows</strong>, cole no
+              Git Bash — o PowerShell e o Prompt de Comando não executam este
+              comando. Não tem o Git Bash?{" "}
+              <a
+                href="https://git-scm.com/download/win"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded font-medium text-primary-deep underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                Baixe o Git para Windows
+              </a>{" "}
+              — o Git Bash vem junto, e a instalação é avançar até o fim.
+            </p>
           </div>
 
           <div className="space-y-2 text-sm text-muted-foreground">
@@ -161,6 +175,21 @@ export function McpSetupCard() {
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
               <strong className="text-foreground">
+                “bash não é reconhecido”, ou o comando devolve um erro estranho
+              </strong>{" "}
+              — você está no PowerShell ou no Prompt de Comando. Abra o{" "}
+              <a
+                href="https://git-scm.com/download/win"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded font-medium text-primary-deep underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                Git Bash
+              </a>{" "}
+              (menu Iniciar, depois de instalar o Git para Windows) e cole lá.
+            </p>
+            <p>
+              <strong className="text-foreground">
                 “Node.js não encontrado”
               </strong>{" "}
               — instale em nodejs.org e rode o comando de novo.
@@ -175,7 +204,9 @@ export function McpSetupCard() {
             <p>
               <strong className="text-foreground">O chat não vê o Pulse</strong>{" "}
               — feche e abra o Claude Desktop por completo. A configuração só é
-              lida na abertura.
+              lida na abertura. No Windows, feche pelo ícone ao lado do relógio
+              (botão direito → Quit): o X da janela deixa o programa aberto, e
+              ele não relê a configuração.
             </p>
             <p>
               <strong className="text-foreground">

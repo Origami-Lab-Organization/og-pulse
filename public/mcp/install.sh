@@ -5,6 +5,11 @@
 #
 #   curl -fsSL https://origamipulse.com.br/mcp/install.sh | bash
 #
+# No Windows, dentro do Git Bash — vem com o Git para Windows, em
+# https://git-scm.com/download/win (o PowerShell não executa este arquivo). Ali o bash enxerga
+# /c/Users/Fulano enquanto o Claude, que é programa nativo do Windows, só abre
+# C:\Users\Fulano — a tradução entre os dois está marcada nos pontos em que acontece.
+#
 # O que este script faz, na ordem:
 #   1. confere o Node;
 #   2. baixa os dois servidores já empacotados, do mesmo site do Pulse;
@@ -35,6 +40,25 @@ MICROSOFT_TENANT_ID="a3d591d4-0b3e-4a17-9745-b78bcf007f74"
 
 falha() { printf '\n✗ %s\n' "$1" >&2; exit 1; }
 
+# No Windows este script só roda dentro do Git Bash, e ali o bash mente sobre o mundo: ele
+# enxerga /c/Users/Fulano, enquanto o Claude Desktop e o Claude Code são processos nativos
+# do Windows, que só abrem C:\Users\Fulano. Instalar sem traduzir isso grava uma
+# configuração que parece certa e nunca sobe — foi o que aconteceu.
+SISTEMA="$(uname -s)"
+case "$SISTEMA" in
+  MINGW*|MSYS*|CYGWIN*) WINDOWS=1 ;;
+  *)                    WINDOWS=0 ;;
+esac
+
+# Caminho como quem vai EXECUTAR o servidor precisa dele, não como o bash o escreve.
+para_o_cliente() {
+  if [ "$WINDOWS" = 1 ] && command -v cygpath >/dev/null 2>&1; then
+    cygpath -w "$1"
+  else
+    printf '%s' "$1"
+  fi
+}
+
 printf '→ Instalando o Pulse no seu chat\n\n'
 
 command -v node >/dev/null 2>&1 || falha "Node.js não encontrado. Instale em https://nodejs.org (versão 20 ou maior) e rode de novo."
@@ -42,8 +66,37 @@ NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 [ "$NODE_MAJOR" -ge 20 ] || falha "Node.js $NODE_MAJOR é antigo demais. Precisa da versão 20 ou maior."
 command -v curl >/dev/null 2>&1 || falha "curl não encontrado."
 
+# O Claude Desktop lança o servidor SEM shell: ele não tem o PATH do seu terminal. Quem
+# instalou o Node por nvm-windows ou fnm tem o node só no PATH da sessão, e o servidor
+# nunca sobe — "o chat não vê o Pulse", sem erro em lugar nenhum. Gravar o caminho absoluto
+# do node.exe fecha essa porta. Vale só para .exe: um atalho .cmd precisaria de `cmd /c`, e
+# aí o `node` puro erra menos.
+NODE_CLIENTE="node"
+if [ "$WINDOWS" = 1 ]; then
+  NODE_BIN="$(command -v node)"
+  case "$NODE_BIN" in
+    *.exe) : ;;
+    *.cmd|*.bat) NODE_BIN="" ;;
+    *) [ -f "$NODE_BIN.exe" ] && NODE_BIN="$NODE_BIN.exe" || NODE_BIN="" ;;
+  esac
+  if [ -n "$NODE_BIN" ]; then
+    NODE_CLIENTE="$(para_o_cliente "$NODE_BIN")"
+  fi
+fi
+
+# No WSL o instalador funciona, mas instala dentro do Linux: o Claude Desktop do Windows
+# não enxerga este disco nem este node. Sem este aviso o sintoma é idêntico ao de uma
+# instalação quebrada, e a pessoa procura o problema no lugar errado.
+if [ "$WINDOWS" = 0 ] && [ "$SISTEMA" = "Linux" ] && grep -qi microsoft /proc/version 2>/dev/null; then
+  printf '   ! Você está no WSL. Isto instala para o Claude Code do WSL.\n'
+  printf '     Para o Claude Desktop do Windows, rode este mesmo comando no Git Bash.\n\n'
+fi
+
 mkdir -p "$DEST"
 chmod 700 "$HOME/.og-pulse"
+
+DRIVE_CLIENTE="$(para_o_cliente "$DEST/og-pulse-drive.mjs")"
+ACTIVITIES_CLIENTE="$(para_o_cliente "$DEST/og-pulse-activities.mjs")"
 
 printf '→ Baixando os servidores de %s\n' "$BASE"
 for srv in og-pulse-drive og-pulse-activities; do
@@ -101,6 +154,8 @@ case "$HTTP_CODE" in
   *) falha "não consegui falar com o Pulse (HTTP $HTTP_CODE). Tente mais tarde." ;;
 esac
 
+REGISTROU=0
+
 registra_claude_code() {
   command -v claude >/dev/null 2>&1 || return 0
   printf '→ Registrando no Claude Code\n'
@@ -112,28 +167,51 @@ registra_claude_code() {
     -e "PULSE_PASSWORD=$PULSE_PASSWORD" \
     -e "MICROSOFT_CLIENT_ID=$MICROSOFT_CLIENT_ID" \
     -e "MICROSOFT_TENANT_ID=$MICROSOFT_TENANT_ID" \
-    -- node "$DEST/og-pulse-drive.mjs" >/dev/null
+    -- "$NODE_CLIENTE" "$DRIVE_CLIENTE" >/dev/null
   claude mcp remove og-pulse-activities >/dev/null 2>&1 || true
   claude mcp add og-pulse-activities \
     -e "SUPABASE_URL=$SUPABASE_URL" \
     -e "SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY" \
     -e "PULSE_EMAIL=$PULSE_EMAIL" \
     -e "PULSE_PASSWORD=$PULSE_PASSWORD" \
-    -- node "$DEST/og-pulse-activities.mjs" >/dev/null
+    -- "$NODE_CLIENTE" "$ACTIVITIES_CLIENTE" >/dev/null
+  REGISTROU=1
   printf '   ✓ Claude Code\n'
 }
 
 registra_claude_desktop() {
-  local cfg
-  case "$(uname -s)" in
+  local cfg roaming
+  case "$SISTEMA" in
     Darwin) cfg="$HOME/Library/Application Support/Claude/claude_desktop_config.json" ;;
     Linux)  cfg="$HOME/.config/Claude/claude_desktop_config.json" ;;
-    *)      return 0 ;;
+    MINGW*|MSYS*|CYGWIN*)
+      # %APPDATA% chega aqui no formato do Windows (C:\Users\...). O bash precisa da
+      # forma POSIX para criar a pasta; o node, logo abaixo, precisa da forma nativa.
+      roaming="${APPDATA:-}"
+      if [ -n "$roaming" ] && command -v cygpath >/dev/null 2>&1; then
+        roaming="$(cygpath -u "$roaming")"
+      fi
+      [ -n "$roaming" ] || roaming="$HOME/AppData/Roaming"
+      cfg="$roaming/Claude/claude_desktop_config.json"
+      ;;
+    *)
+      # Antes este ramo era `return 0`: em sistema desconhecido o script não gravava nada e
+      # ainda assim terminava com "✓ Pronto. Reinicie o Claude Desktop". A pessoa reiniciava
+      # e não achava o Pulse, sem nenhuma pista do motivo. Agora ele diz o que aconteceu.
+      printf '   ! não sei onde fica a configuração do Claude Desktop em %s — pulei esta parte.\n' "$SISTEMA"
+      return 0
+      ;;
   esac
   mkdir -p "$(dirname "$cfg")"
   printf '→ Registrando no Claude Desktop\n'
   # Mesclar com node, não sobrescrever: quem já tem outros MCPs não os perde.
-  CFG_PATH="$cfg" DEST="$DEST" SUPABASE_URL="$SUPABASE_URL" PUBLISHABLE_KEY="$PUBLISHABLE_KEY" \
+  #
+  # O node é o do sistema: no Git Bash é node.exe, que não abre "/c/Users/...". Argumento de
+  # linha de comando o MSYS converte sozinho, variável de ambiente NÃO — por isso o caminho
+  # da configuração e os dos servidores vão daqui já traduzidos.
+  CFG_PATH="$(para_o_cliente "$cfg")" \
+  DRIVE_PATH="$DRIVE_CLIENTE" ACTIVITIES_PATH="$ACTIVITIES_CLIENTE" NODE_CMD="$NODE_CLIENTE" \
+  SUPABASE_URL="$SUPABASE_URL" PUBLISHABLE_KEY="$PUBLISHABLE_KEY" \
   PULSE_EMAIL="$PULSE_EMAIL" PULSE_PASSWORD="$PULSE_PASSWORD" \
   MICROSOFT_CLIENT_ID="$MICROSOFT_CLIENT_ID" MICROSOFT_TENANT_ID="$MICROSOFT_TENANT_ID" node -e '
     const fs = require("fs");
@@ -155,13 +233,13 @@ registra_claude_desktop() {
       PULSE_PASSWORD: process.env.PULSE_PASSWORD,
     };
     cfg.mcpServers["og-pulse-drive"] = {
-      command: "node",
-      args: [process.env.DEST + "/og-pulse-drive.mjs"],
+      command: process.env.NODE_CMD,
+      args: [process.env.DRIVE_PATH],
       env: { ...comum, MICROSOFT_CLIENT_ID: process.env.MICROSOFT_CLIENT_ID, MICROSOFT_TENANT_ID: process.env.MICROSOFT_TENANT_ID },
     };
     cfg.mcpServers["og-pulse-activities"] = {
-      command: "node",
-      args: [process.env.DEST + "/og-pulse-activities.mjs"],
+      command: process.env.NODE_CMD,
+      args: [process.env.ACTIVITIES_PATH],
       env: { ...comum },
     };
     fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n", { mode: 0o600 });
@@ -169,11 +247,16 @@ registra_claude_desktop() {
     // arquivo passa a ter a sua senha do Pulse dentro.
     fs.chmodSync(p, 0o600);
   '
-  printf '   ✓ Claude Desktop\n'
+  REGISTROU=1
+  printf '   ✓ Claude Desktop — %s\n' "$cfg"
 }
 
 registra_claude_code
 registra_claude_desktop
+
+# Os servidores baixados não servem de nada se nenhum cliente sabe deles. Seguir daqui só
+# produziria o "✓ Pronto" que já enganou uma instalação inteira no Windows.
+[ "$REGISTROU" = 1 ] || falha "baixei os servidores, mas não encontrei onde registrá-los: nem o comando \`claude\` no PATH, nem a pasta de configuração do Claude Desktop. Instale um dos dois e rode de novo."
 
 printf '\n→ Testando\n'
 for srv in og-pulse-drive og-pulse-activities; do
@@ -204,11 +287,20 @@ for srv in og-pulse-drive og-pulse-activities; do
   printf '   ✓ %s — %s ferramentas\n' "$srv" "$N"
 done
 
-cat <<'FIM'
+# Fechar a janela no Windows deixa o app vivo na bandeja, e a configuração só é lida na
+# abertura de verdade: quem "reinicia" pelo X continua sem ver o Pulse.
+if [ "$WINDOWS" = 1 ]; then
+  FECHAR="Feche o Claude Desktop pelo ícone ao lado do relógio (botão direito → Quit),
+não só pelo X da janela, e abra de novo."
+else
+  FECHAR="Reinicie o Claude Desktop (feche e abra)."
+fi
+
+cat <<FIM
 
 ✓ Pronto.
 
-Reinicie o Claude Desktop (feche e abra) e experimente pedir:
+$FECHAR Depois experimente pedir:
 
    "Quais projetos eu tenho em andamento?"
    "Como está a sprint atual do projeto <nome>?"
