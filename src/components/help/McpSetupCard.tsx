@@ -32,6 +32,7 @@ function useComandoDeInstalacao() {
 
 export function McpSetupCard() {
   const comando = useComandoDeInstalacao();
+  const origem = typeof window === "undefined" ? "" : window.location.origin;
   const [copiado, setCopiado] = useState(false);
 
   const copiar = async () => {
@@ -226,6 +227,17 @@ export function McpSetupCard() {
               (botão direito → Quit): o X da janela deixa o programa aberto, e
               ele não relê a configuração.
             </p>
+            <p>
+              <strong className="text-foreground">
+                Nada acima resolveu
+              </strong>{" "}
+              — rode o diagnóstico, que confere tudo de uma vez e diz o que
+              fazer. Ele só lê, não altera nada, e a saída não contém a sua
+              senha:
+            </p>
+            <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-foreground">
+              <code>curl -fsSL {origem}/mcp/doctor.sh | bash</code>
+            </pre>
             <p>
               <strong className="text-foreground">
                 “Não encontrei o projeto”
