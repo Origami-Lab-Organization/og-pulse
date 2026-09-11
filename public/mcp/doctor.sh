@@ -75,15 +75,40 @@ done
 
 # ------------------------------------------------------- 4. quem deveria executá-los
 titulo '4. Claude Desktop'
+# Instalação pela Microsoft Store roda em container MSIX: o %APPDATA% do aplicativo é
+# redirecionado para %LOCALAPPDATA%\Packages\Claude_<id>\LocalCache\Roaming. Quando ela
+# existe, é DALI que o Claude Desktop lê — e uma configuração correta em %APPDATA%\Claude
+# não chega nele, sem erro nem log.
+MSIX=""
 case "$SISTEMA" in
   Darwin) CFG="$HOME/Library/Application Support/Claude/claude_desktop_config.json" ;;
   MINGW*|MSYS*|CYGWIN*)
     RO="${APPDATA:-}"
     [ -n "$RO" ] && command -v cygpath >/dev/null 2>&1 && RO="$(cygpath -u "$RO")"
     [ -n "$RO" ] || RO="$HOME/AppData/Roaming"
-    CFG="$RO/Claude/claude_desktop_config.json" ;;
+    CFG="$RO/Claude/claude_desktop_config.json"
+
+    LA="${LOCALAPPDATA:-}"
+    [ -n "$LA" ] && command -v cygpath >/dev/null 2>&1 && LA="$(cygpath -u "$LA")"
+    [ -n "$LA" ] || LA="$HOME/AppData/Local"
+    for PK in "$LA/Packages"/Claude_*; do
+      [ -d "$PK/LocalCache/Roaming" ] || continue
+      MSIX="$PK/LocalCache/Roaming/Claude/claude_desktop_config.json"
+      break
+    done ;;
   *) CFG="$HOME/.config/Claude/claude_desktop_config.json" ;;
 esac
+
+if [ -n "$MSIX" ]; then
+  nota "instalação pela Microsoft Store detectada"
+  if [ -f "$MSIX" ]; then
+    CFG="$MSIX"
+  else
+    nao "a configuração não está onde esta instalação lê" "config-fora-do-container"
+    nota "ela lê: $MSIX"
+    [ -f "$CFG" ] && nota "e o instalador gravou em: $CFG"
+  fi
+fi
 
 if [ -f "$CFG" ]; then
   ok "configuração encontrada"
@@ -119,22 +144,57 @@ fi
 # %LOCALAPPDATA%\AnthropicClaude e apenas LÊ o config de %APPDATA%\Claude, então aquela
 # pasta pode estar enxuta com o app instalado e aberto. Contar rastros ali dava veredito
 # errado — "nunca abriu" para quem tinha acabado de instalar.
+# O Claude Desktop no Windows não mora num lugar só: a instalação por usuário cai em
+# %LOCALAPPDATA%, a por máquina em Program Files, e o caminho já mudou entre versões.
+# Procurar num único diretório dava "não instalado" para quem tinha acabado de instalar —
+# por isso aqui a pergunta é feita de três maneiras, e a que vale mais é a última: se o
+# processo está rodando, o programa existe, esteja onde estiver.
+APP=""
 case "$SISTEMA" in
   MINGW*|MSYS*|CYGWIN*)
     LA="${LOCALAPPDATA:-}"
     [ -n "$LA" ] && command -v cygpath >/dev/null 2>&1 && LA="$(cygpath -u "$LA")"
     [ -n "$LA" ] || LA="$HOME/AppData/Local"
-    APP="$LA/AnthropicClaude" ;;
-  Darwin) APP="/Applications/Claude.app" ;;
-  *)      APP="" ;;
+    PF="/c/Program Files"; PFX="/c/Program Files (x86)"
+    for C in "$LA/AnthropicClaude" "$LA/Programs/Claude" "$LA/Programs/claude" \
+             "$PF/Claude" "$PF/AnthropicClaude" "$PFX/Claude"; do
+      [ -e "$C" ] && { APP="$C"; break; }
+    done ;;
+  Darwin)
+    for C in "/Applications/Claude.app" "$HOME/Applications/Claude.app"; do
+      [ -e "$C" ] && { APP="$C"; break; }
+    done ;;
 esac
 
-if [ -n "$APP" ]; then
-  if [ -e "$APP" ]; then
-    ok "aplicativo instalado"
-  else
-    nao "não encontrei o aplicativo em $APP" "sem-desktop"
-  fi
+# Atalho no Menu Iniciar: existe sempre que o instalador rodou, aponte ele para onde for.
+ATALHO=""
+case "$SISTEMA" in
+  MINGW*|MSYS*|CYGWIN*)
+    MI="${APPDATA:-}"
+    [ -n "$MI" ] && command -v cygpath >/dev/null 2>&1 && MI="$(cygpath -u "$MI")"
+    [ -n "$MI" ] || MI="$HOME/AppData/Roaming"
+    ATALHO="$(find "$MI/Microsoft/Windows/Start Menu" -iname '*claude*' 2>/dev/null | head -1)" ;;
+esac
+
+# Rodando agora? É a prova mais forte, e a única que não depende de adivinhar caminho.
+RODANDO=""
+case "$SISTEMA" in
+  MINGW*|MSYS*|CYGWIN*) RODANDO="$(tasklist 2>/dev/null | grep -i '^claude' | head -1)" ;;
+  Darwin)               RODANDO="$(pgrep -x Claude 2>/dev/null | head -1)" ;;
+esac
+
+if [ -n "$RODANDO" ]; then
+  ok "o Claude Desktop está aberto agora"
+  [ -n "$APP" ] && nota "instalado em $APP"
+elif [ -n "$APP" ]; then
+  ok "aplicativo instalado em $APP"
+  nota "não está aberto neste momento."
+elif [ -n "$ATALHO" ]; then
+  ok "instalado (atalho encontrado no Menu Iniciar)"
+  nota "$ATALHO"
+else
+  nao "não encontrei o Claude Desktop nesta máquina" "sem-desktop"
+  nota "procurei em %LOCALAPPDATA%, em Program Files, no Menu Iniciar e nos processos."
 fi
 
 # Os logs são a única fonte que diz por que um servidor não subiu DENTRO do Claude: o app
@@ -224,7 +284,10 @@ if [ ${#PROBLEMAS[@]} -eq 0 ]; then
   exit 0
 fi
 
-for p in "${PROBLEMAS[@]}"; do
+# Dois servidores faltando são um problema, não dois: repetir a mesma orientação faz o
+# relatório parecer pior do que é e esconde os outros vereditos.
+while IFS= read -r p; do
+  [ -n "$p" ] || continue
   case "$p" in
     sem-node)
       printf '   \033[1mFalta o Node.js.\033[0m Instale em https://nodejs.org/en/download (versão LTS).\n'
@@ -242,6 +305,12 @@ for p in "${PROBLEMAS[@]}"; do
       printf '   https://claude.ai/download e abra uma vez — ele lê a configuração ao abrir.\n'
       printf '   Se você usa o Claude pelo navegador: os servidores rodam nesta máquina, e\n'
       printf '   só o aplicativo ou o Claude Code conversam com eles. Pelo site não aparece.\n\n' ;;
+    config-fora-do-container)
+      printf '   \033[1mO Claude Desktop veio da Microsoft Store.\033[0m Essa versão roda isolada e lê\n'
+      printf '   a configuração de dentro do próprio pacote, não de %%APPDATA%%\\Claude — que é\n'
+      printf '   onde o instalador antigo gravava. Rode a instalação do Pulse de novo: a versão\n'
+      printf '   atual grava nos dois lugares. Depois encerre o Claude pelo ícone ao lado do\n'
+      printf '   relógio (botão direito → Quit) e abra outra vez.\n\n' ;;
     sem-config-desktop)
       printf '   \033[1mO Claude Desktop não foi configurado.\033[0m Rode a instalação de novo.\n\n' ;;
     sem-registro-desktop|sem-registro-code)
@@ -252,7 +321,7 @@ for p in "${PROBLEMAS[@]}"; do
     sistema-desconhecido)
       printf '   \033[1mSistema não reconhecido.\033[0m Mande esta saída para quem cuida do Pulse.\n\n' ;;
   esac
-done
+done <<< "$(printf '%s\n' "${PROBLEMAS[@]}" | awk '!visto[$0]++')"
 
 printf '   Se nada disso resolver, mande esta saída inteira para quem cuida do Pulse.\n'
 printf '   Ela não contém a sua senha.\n\n'

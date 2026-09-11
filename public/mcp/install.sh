@@ -206,31 +206,47 @@ registra_claude_code() {
   printf '   ✓ Claude Code — vale em qualquer pasta\n'
 }
 
-registra_claude_desktop() {
-  local cfg roaming
+# Onde o Claude Desktop procura a configuração. No Windows pode ser MAIS DE UM lugar, e foi
+# isso que derrubou a primeira instalação real: a versão baixada do site lê
+# %APPDATA%\Claude, mas a versão instalada pela Microsoft Store roda em container MSIX, e ali
+# o Windows REDIRECIONA o %APPDATA% do aplicativo para
+# %LOCALAPPDATA%\Packages\Claude_<id>\LocalCache\Roaming\Claude.
+#
+# Escrever só no caminho comum deixa quem instalou pela Store com uma configuração perfeita
+# num lugar que o programa nunca abre: nenhum erro, nenhum log, nenhuma pista — só o Pulse
+# que não aparece. Por isso aqui se escreve em todos os que existirem.
+caminhos_de_configuracao() {
+  local roaming local_app pkg
   case "$SISTEMA" in
-    Darwin) cfg="$HOME/Library/Application Support/Claude/claude_desktop_config.json" ;;
-    Linux)  cfg="$HOME/.config/Claude/claude_desktop_config.json" ;;
+    Darwin) printf '%s\n' "$HOME/Library/Application Support/Claude/claude_desktop_config.json" ;;
+    Linux)  printf '%s\n' "$HOME/.config/Claude/claude_desktop_config.json" ;;
     MINGW*|MSYS*|CYGWIN*)
-      # %APPDATA% chega aqui no formato do Windows (C:\Users\...). O bash precisa da
-      # forma POSIX para criar a pasta; o node, logo abaixo, precisa da forma nativa.
+      # %APPDATA% e %LOCALAPPDATA% chegam no formato do Windows (C:\Users\...). O bash precisa
+      # da forma POSIX para criar as pastas; o node recebe a nativa, mais adiante.
       roaming="${APPDATA:-}"
       if [ -n "$roaming" ] && command -v cygpath >/dev/null 2>&1; then
         roaming="$(cygpath -u "$roaming")"
       fi
       [ -n "$roaming" ] || roaming="$HOME/AppData/Roaming"
-      cfg="$roaming/Claude/claude_desktop_config.json"
-      ;;
-    *)
-      # Antes este ramo era `return 0`: em sistema desconhecido o script não gravava nada e
-      # ainda assim terminava com "✓ Pronto. Reinicie o Claude Desktop". A pessoa reiniciava
-      # e não achava o Pulse, sem nenhuma pista do motivo. Agora ele diz o que aconteceu.
-      printf '   ! não sei onde fica a configuração do Claude Desktop em %s — pulei esta parte.\n' "$SISTEMA"
-      return 0
+      printf '%s\n' "$roaming/Claude/claude_desktop_config.json"
+
+      local_app="${LOCALAPPDATA:-}"
+      if [ -n "$local_app" ] && command -v cygpath >/dev/null 2>&1; then
+        local_app="$(cygpath -u "$local_app")"
+      fi
+      [ -n "$local_app" ] || local_app="$HOME/AppData/Local"
+      # O glob não casa nada quando não há instalação da Store: o teste descarta o literal.
+      for pkg in "$local_app/Packages"/Claude_*; do
+        [ -d "$pkg/LocalCache/Roaming" ] || continue
+        printf '%s\n' "$pkg/LocalCache/Roaming/Claude/claude_desktop_config.json"
+      done
       ;;
   esac
+}
+
+grava_configuracao() {
+  local cfg="$1"
   mkdir -p "$(dirname "$cfg")"
-  printf '→ Registrando no Claude Desktop\n'
   # Mesclar com node, não sobrescrever: quem já tem outros MCPs não os perde.
   #
   # O node é o do sistema: no Git Bash é node.exe, que não abre "/c/Users/...". Argumento de
@@ -275,7 +291,24 @@ registra_claude_desktop() {
     fs.chmodSync(p, 0o600);
   '
   REGISTROU=1
-  printf '   ✓ Claude Desktop — %s\n' "$cfg"
+  printf '   ✓ %s\n' "$cfg"
+}
+
+registra_claude_desktop() {
+  local cfg achou=0
+  printf '→ Registrando no Claude Desktop\n'
+  # fd 3 em vez de stdin: o bloco de gravação não pode consumir a lista de caminhos.
+  while IFS= read -r cfg <&3; do
+    [ -n "$cfg" ] || continue
+    achou=1
+    grava_configuracao "$cfg"
+  done 3<<< "$(caminhos_de_configuracao)"
+
+  if [ "$achou" = 0 ]; then
+    # Em sistema desconhecido o script não grava nada; dizer isso evita o "✓ Pronto" que
+    # manda a pessoa reiniciar um programa que nunca recebeu configuração nenhuma.
+    printf '   ! não sei onde fica a configuração do Claude Desktop em %s — pulei esta parte.\n' "$SISTEMA"
+  fi
 }
 
 registra_claude_code
