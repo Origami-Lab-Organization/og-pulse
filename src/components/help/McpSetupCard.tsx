@@ -55,9 +55,18 @@ export function McpSetupCard() {
             Conectar o Pulse ao seu chat
           </CardTitle>
           <CardDescription>
-            Um comando, uma vez por computador. Não precisa de repositório, de
-            git nem de saber programar — só do Node instalado (versão 20 ou
-            maior, em nodejs.org).
+            Um comando, uma vez por computador. Não precisa de repositório nem
+            de saber programar. Precisa do{" "}
+            <a
+              href="https://nodejs.org/en/download"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded font-medium text-primary-deep underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              Node.js 20 ou maior
+            </a>{" "}
+            instalado — é ele que executa os servidores, e sem ele o chat não
+            tem o que abrir.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -192,7 +201,16 @@ export function McpSetupCard() {
               <strong className="text-foreground">
                 “Node.js não encontrado”
               </strong>{" "}
-              — instale em nodejs.org e rode o comando de novo.
+              — instale pelo{" "}
+              <a
+                href="https://nodejs.org/en/download"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded font-medium text-primary-deep underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                nodejs.org
+              </a>{" "}
+              e rode o comando de novo.
             </p>
             <p>
               <strong className="text-foreground">

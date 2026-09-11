@@ -61,27 +61,42 @@ para_o_cliente() {
 
 printf '→ Instalando o Pulse no seu chat\n\n'
 
-command -v node >/dev/null 2>&1 || falha "Node.js não encontrado. Instale em https://nodejs.org (versão 20 ou maior) e rode de novo."
+# "Instale em nodejs.org e rode de novo" é verdade e não ajuda: quem recebe essa linha não
+# sabe qual dos downloads pegar, e no Windows ainda cai na pegadinha de o Node não aparecer
+# no Git Bash que já estava aberto. Instrução que não desbloqueia é a mesma coisa que erro.
+falta_node() {
+  printf '\n✗ %s\n\n' "$1" >&2
+  printf 'O Node.js é o programa que executa os servidores do Pulse — sem ele o chat não tem\n' >&2
+  printf 'o que abrir. Instalar leva dois minutos, e é uma vez só nesta máquina:\n\n' >&2
+  printf '   1. abra https://nodejs.org/en/download\n' >&2
+  if [ "$WINDOWS" = 1 ]; then
+    printf '   2. baixe o instalador do Windows (LTS) e avance até o fim\n' >&2
+    printf '   3. FECHE este Git Bash e abra um novo — o Node só aparece em terminal novo\n' >&2
+  else
+    printf '   2. baixe a versão LTS do seu sistema e conclua a instalação\n' >&2
+    printf '   3. feche este terminal e abra um novo\n' >&2
+  fi
+  printf '   4. cole o comando do Pulse de novo\n\n' >&2
+  exit 1
+}
+
+command -v node >/dev/null 2>&1 || falta_node "Node.js não encontrado nesta máquina."
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
-[ "$NODE_MAJOR" -ge 20 ] || falha "Node.js $NODE_MAJOR é antigo demais. Precisa da versão 20 ou maior."
+[ "$NODE_MAJOR" -ge 20 ] || falta_node "Node.js $NODE_MAJOR é antigo demais — o Pulse precisa da versão 20 ou maior."
 command -v curl >/dev/null 2>&1 || falha "curl não encontrado."
 
 # O Claude Desktop lança o servidor SEM shell: ele não tem o PATH do seu terminal. Quem
-# instalou o Node por nvm-windows ou fnm tem o node só no PATH da sessão, e o servidor
-# nunca sobe — "o chat não vê o Pulse", sem erro em lugar nenhum. Gravar o caminho absoluto
-# do node.exe fecha essa porta. Vale só para .exe: um atalho .cmd precisaria de `cmd /c`, e
-# aí o `node` puro erra menos.
+# instalou o Node por fnm ou nvm-windows tem o node só no PATH da sessão, e o servidor nunca
+# sobe — "o chat não vê o Pulse", sem erro em lugar nenhum.
+#
+# Quem responde onde o node está é o próprio node, não uma heurística sobre `command -v`:
+# aquele devolve o atalho `.cmd` dos gerenciadores de versão, que o Claude Desktop não
+# executa; `process.execPath` devolve o executável de verdade, e no Git Bash já vem no
+# formato nativo do Windows, sem precisar de tradução.
 NODE_CLIENTE="node"
 if [ "$WINDOWS" = 1 ]; then
-  NODE_BIN="$(command -v node)"
-  case "$NODE_BIN" in
-    *.exe) : ;;
-    *.cmd|*.bat) NODE_BIN="" ;;
-    *) [ -f "$NODE_BIN.exe" ] && NODE_BIN="$NODE_BIN.exe" || NODE_BIN="" ;;
-  esac
-  if [ -n "$NODE_BIN" ]; then
-    NODE_CLIENTE="$(para_o_cliente "$NODE_BIN")"
-  fi
+  NODE_CLIENTE="$(node -p 'process.execPath' 2>/dev/null || printf 'node')"
+  [ -n "$NODE_CLIENTE" ] || NODE_CLIENTE="node"
 fi
 
 # No WSL o instalador funciona, mas instala dentro do Linux: o Claude Desktop do Windows
@@ -157,10 +172,21 @@ esac
 REGISTROU=0
 
 registra_claude_code() {
-  command -v claude >/dev/null 2>&1 || return 0
+  if ! command -v claude >/dev/null 2>&1; then
+    # Antes isto era um `return 0` mudo. Quem usa o Claude Code e o tem fora do PATH deste
+    # shell ficava sem registro nenhum e sem nenhuma pista disso.
+    printf '   ! não encontrei o comando `claude` neste terminal — pulei o Claude Code.\n'
+    printf '     Se você usa o Claude Code, abra o terminal onde ele funciona e rode de novo.\n'
+    return 0
+  fi
   printf '→ Registrando no Claude Code\n'
+  # `-s user`: sem isto o `claude mcp add` grava no escopo LOCAL, que vale só na pasta em que
+  # este terminal está aberto. O card promete "uma vez por computador", e escopo local
+  # entrega o oposto: a pessoa instala em C:\Users\Fulano, abre o Claude Code num projeto
+  # qualquer e o Pulse não existe ali. Foi assim que a instalação no Windows "sumiu".
+  claude mcp remove og-pulse-drive -s user >/dev/null 2>&1 || true
   claude mcp remove og-pulse-drive >/dev/null 2>&1 || true
-  claude mcp add og-pulse-drive \
+  claude mcp add -s user og-pulse-drive \
     -e "SUPABASE_URL=$SUPABASE_URL" \
     -e "SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY" \
     -e "PULSE_EMAIL=$PULSE_EMAIL" \
@@ -168,15 +194,16 @@ registra_claude_code() {
     -e "MICROSOFT_CLIENT_ID=$MICROSOFT_CLIENT_ID" \
     -e "MICROSOFT_TENANT_ID=$MICROSOFT_TENANT_ID" \
     -- "$NODE_CLIENTE" "$DRIVE_CLIENTE" >/dev/null
+  claude mcp remove og-pulse-activities -s user >/dev/null 2>&1 || true
   claude mcp remove og-pulse-activities >/dev/null 2>&1 || true
-  claude mcp add og-pulse-activities \
+  claude mcp add -s user og-pulse-activities \
     -e "SUPABASE_URL=$SUPABASE_URL" \
     -e "SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY" \
     -e "PULSE_EMAIL=$PULSE_EMAIL" \
     -e "PULSE_PASSWORD=$PULSE_PASSWORD" \
     -- "$NODE_CLIENTE" "$ACTIVITIES_CLIENTE" >/dev/null
   REGISTROU=1
-  printf '   ✓ Claude Code\n'
+  printf '   ✓ Claude Code — vale em qualquer pasta\n'
 }
 
 registra_claude_desktop() {
