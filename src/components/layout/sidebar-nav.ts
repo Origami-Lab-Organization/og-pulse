@@ -69,7 +69,16 @@ export const NAV_ITEMS: SidebarNavItem[] = [
   { kind: 'link', title: 'Agenda', url: '/minha-agenda', icon: CalendarDays, devOnly: true },
   { kind: 'link', title: 'E-mails', url: '/meus-emails', icon: Mail, devOnly: true },
   { kind: 'link', title: 'Meus Projetos', url: '/my-projects', icon: FolderOpen, hiddenWhenCan: 'portfolio:ler' },
-  { kind: 'link', title: 'Pipeline', url: '/pipeline', icon: Kanban, requiresCapability: 'pipeline:ler' },
+  {
+    kind: 'group',
+    title: 'Comercial',
+    url: '/pipeline',
+    icon: Kanban,
+    children: [
+      { title: 'Prospecção', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
+      { title: 'Oportunidades', url: '/pipeline', requiresCapability: 'pipeline:ler' },
+    ],
+  },
   {
     kind: 'group',
     title: 'Projetos',
