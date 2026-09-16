@@ -115,7 +115,7 @@ export function ProspectDetailDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[88vh] max-w-5xl flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="space-y-4 border-b p-4 pr-24 text-left">
+        <DialogHeader className="space-y-4 border-b p-4 pr-24 text-left sm:pr-24">
           <div className="flex items-start gap-3">
             <Avatar className="h-11 w-11 shrink-0">
               <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
@@ -151,6 +151,7 @@ export function ProspectDetailDialog({
             </div>
 
             <AcoesDoContato
+              className="absolute right-12 top-3"
               prospect={prospect}
               somenteLeitura={somenteLeitura}
               editando={editando}
@@ -244,6 +245,7 @@ export function ProspectDetailDialog({
 }
 
 function AcoesDoContato({
+  className,
   prospect,
   somenteLeitura,
   editando,
@@ -253,6 +255,7 @@ function AcoesDoContato({
   onReabrir,
   onExcluir,
 }: {
+  className?: string;
   prospect: ProspectWithCompany;
   somenteLeitura: boolean;
   editando: boolean;
@@ -266,7 +269,7 @@ function AcoesDoContato({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="shrink-0" aria-label="Ações do contato">
+        <Button variant="ghost" size="icon" className={cn('shrink-0', className)} aria-label="Ações do contato">
           <MoreVertical className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
@@ -613,7 +616,7 @@ function Resumo({ termo, valor }: { termo: string; valor?: string | null }) {
   return (
     <div className="min-w-0">
       <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{termo}</dt>
-      <dd className="truncate text-sm">{valor || '—'}</dd>
+      <dd className="break-words text-sm leading-snug">{valor || '—'}</dd>
     </div>
   );
 }

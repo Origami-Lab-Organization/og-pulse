@@ -81,7 +81,7 @@ export function ProspectActivityTimeline({
       ))}
 
       <li className="relative pl-8">
-        <Marcador />
+        <Marcador semFio />
         <p className="py-1 text-xs text-muted-foreground">
           Registro criado em {formatarData(prospect.created_at.slice(0, 10))}
           {prospect.lever ? ` · origem ${prospect.lever}` : ''}
@@ -95,10 +95,11 @@ export function ProspectActivityTimeline({
  * O ponto e o fio da linha do tempo. Só o mais recente vem preenchido — é o que o olho
  * procura ao abrir o card.
  */
-function Marcador({ destacado = false }: { destacado?: boolean }) {
+function Marcador({ destacado = false, semFio = false }: { destacado?: boolean; semFio?: boolean }) {
   return (
     <span aria-hidden="true">
-      <span className="absolute left-[7px] top-4 h-full w-px bg-border" />
+      {/* O último nó não puxa fio: linha que desce para o vazio sugere item que não veio. */}
+      {!semFio && <span className="absolute left-[7px] top-4 h-full w-px bg-border" />}
       <span
         className={cn(
           'absolute left-0 top-2 h-3.5 w-3.5 rounded-full border-2 bg-background',
