@@ -87,11 +87,11 @@ export function TimesheetOnboarding({ open, onDismiss }: TimesheetOnboardingProp
       },
     },
     {
-      title: 'Atividades internas ficam recolhidas',
+      title: 'Fora de projeto, por centro de custo',
       description:
-        'Essa seção já começa fechada para deixar a tela mais limpa. Clique na seta para expandir quando precisar lançar horas nela.',
+        'O que não é projeto aparece agrupado pelo centro de custo do item. Cada grupo começa fechado para deixar a tela limpa — clique na seta para abrir e lançar.',
       fallbackDescription:
-        'Quando você tiver atividades internas (ex.: administrativo, comercial), a seção aparece recolhida por padrão para simplificar a tela.',
+        'O que você lança fora de projeto fica agrupado pelo centro de custo do item (ex.: Administrativo, Comercial), e cada grupo começa recolhido.',
       findTarget: () => document.querySelector<HTMLElement>('[data-tour="activities-toggle"]'),
     },
     ],
