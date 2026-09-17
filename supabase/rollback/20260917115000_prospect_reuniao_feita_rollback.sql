@@ -1,4 +1,4 @@
--- Reversão de 20260917100000_prospect_reuniao_feita.sql.
+-- Reversão de 20260917115000_prospect_reuniao_feita.sql.
 --
 -- Os contatos que estiverem em `reuniao_feita` voltam para `reuniao_agendada`: a etapa
 -- deixa de existir e o CHECK antigo recusaria as linhas. Volta para a agendada, e não para
