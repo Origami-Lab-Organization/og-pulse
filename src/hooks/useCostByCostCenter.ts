@@ -20,9 +20,13 @@ import { CostOrigin } from '@/types/costCenter';
  *  - **atividade interna**: `activity_timesheets.cost_center_id`, gravado no lançamento pelo
  *    trigger a partir do item. É o centro do MOMENTO, então trocar o item de centro depois
  *    não reescreve o passado;
- *  - **projeto de cliente**: `projects.service_line` guarda o `service_id` (o nome da coluna
- *    mente, ver ADR-0031) e o serviço aponta para o centro. Derivado em leitura porque a
- *    hora de projeto ainda não persiste centro — é a pergunta P4 de PUL-216.
+ *  - **projeto de cliente**: `project_timesheets.cost_center_id`, gravado no lançamento pelo
+ *    trigger a partir do serviço que o projeto vende (PUL-246, decisão de 17/09). Mesma regra
+ *    da atividade, e pelo mesmo motivo: até 17/09 este centro era derivado em leitura pelo
+ *    serviço, então mover um serviço de centro reescrevia o custo histórico do projeto.
+ *
+ * As duas origens agora respondem igual: o centro é o do momento do lançamento, e mês fechado
+ * fecha sempre com o mesmo número.
  *
  * Custo da hora: `project_timesheets.cost_per_hour` quando existe (snapshot gravado no
  * lançamento); senão, o custo hora da pessoa no mês (`getFallbackHourlyCost`), mesma regra
@@ -213,10 +217,8 @@ function aggregate(input: CostInputs): CostByCostCenterData {
     ]),
   );
   const employeeName = new Map(input.employees.map((e) => [e.id, e.nome ?? UNKNOWN_PERSON]));
-  const serviceCenter = new Map(input.services.map((s) => [s.id, s.cost_center_id ?? null]));
-  const projectInfo = new Map(
-    input.projects.map((p) => [p.id, { name: p.name, center: serviceCenter.get(p.service_line ?? '') ?? null }]),
-  );
+  // Só o nome: o centro da hora de projeto vem da própria hora desde PUL-246, não do serviço.
+  const projectName = new Map(input.projects.map((p) => [p.id, p.name]));
   const memberEmployee = new Map(input.members.map((m) => [m.id, m.employee_id]));
   const activityName = new Map(input.activities.map((a) => [a.id, a.name]));
 
@@ -253,14 +255,13 @@ function aggregate(input: CostInputs): CostByCostCenterData {
     const snapshot = row.cost_per_hour != null ? Number(row.cost_per_hour) : null;
     const rate = snapshot ?? hourlyCostOf(employeeCost.get(employeeId ?? ''), row.work_date, input.holidays);
     const cost = hours * rate;
-    const project = projectInfo.get(row.project_id);
-    const bucket = bucketFor(project?.center ?? NO_CENTER);
+    const bucket = bucketFor(row.cost_center_id ?? NO_CENTER);
     bucket.projectHours += hours;
     bucket.projectCost += cost;
     addEntry(bucket, {
       origin: CostOrigin.PROJECT,
       id: row.project_id,
-      name: project?.name ?? 'Projeto',
+      name: projectName.get(row.project_id) ?? 'Projeto',
       hours,
       cost,
       ...personOf(employeeId, employeeName),
