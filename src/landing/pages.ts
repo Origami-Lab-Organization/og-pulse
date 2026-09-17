@@ -4,6 +4,7 @@ import { SITE, TRIAL } from '@/landing/site';
 import { SLUG } from '@/landing/slugs';
 import { PERSONA_PAGES } from '@/landing/pages-personas';
 import { GUIDE_PAGES } from '@/landing/pages-guias';
+import { ARTICLE_PAGES } from '@/landing/pages-artigos';
 
 /**
  * Páginas públicas de conteúdo (PUL-242): uma por intenção de busca, todas pré-renderizadas
@@ -16,6 +17,8 @@ import { GUIDE_PAGES } from '@/landing/pages-guias';
  */
 
 const UPDATED = '2026-09-09';
+/** Páginas revisadas na pesquisa de intenção de 16/09/2026. */
+const UPDATED_REVISAO = '2026-09-16';
 
 const psa: ContentPage = {
   slug: SLUG.PSA,
@@ -376,9 +379,14 @@ const custoHora: ContentPage = {
   ],
   faq: [
     {
+      question: 'Quanto custa um funcionário CLT para a empresa?',
+      answer:
+        'O salário mais os encargos patronais e as provisões de 13º e férias, mais benefícios e ferramentas. Em empresa do lucro presumido ou real, esse acréscimo costuma ficar em torno de 45% sobre o salário; no Simples Nacional, parte da contribuição previdenciária já está no DAS e o percentual cai. No exemplo desta página, um salário de R$ 8.000 custa R$ 12.800 por mês: R$ 3.600 de encargos e provisões, R$ 900 de benefícios e R$ 300 de ferramentas. O salário nominal nunca é o custo.',
+    },
+    {
       question: 'Custo hora é o mesmo que valor hora de venda?',
       answer:
-        'Não. Custo hora é quanto a hora custa para a empresa. Valor hora é quanto a empresa cobra por ela. A diferença entre os dois, descontados fornecedores e materiais, é a margem do projeto. Vender por um valor hora sem conhecer o custo hora é vender sem saber se há margem.',
+        'Não. Custo hora é quanto a hora custa para a empresa. Valor hora é quanto a empresa cobra por ela, e sai do custo hora corrigido pela taxa de ocupação, pelos impostos e pela margem-alvo. A diferença entre os dois, descontados fornecedores e materiais, é a margem do projeto. Vender por um valor hora sem conhecer o custo hora é vender sem saber se há margem.',
     },
     {
       question: 'Devo dividir o custo mensal por 220 horas?',
@@ -396,15 +404,15 @@ const custoHora: ContentPage = {
         'O custo dessas pessoas não entra no custo direto de nenhum projeto; é despesa da empresa, coberta pela margem bruta dos projetos. Por isso a meta de margem bruta por projeto precisa ser maior que zero com folga: ela paga quem não aponta hora.',
     },
   ],
-  related: [SLUG.MARGEM, SLUG.PSA, SLUG.CONSULTORIAS],
-  updatedAt: UPDATED,
+  related: [SLUG.VALOR_HORA, SLUG.MARGEM, SLUG.CONSULTORIAS],
+  updatedAt: UPDATED_REVISAO,
 };
 
 /**
  * Ordem = ordem no `llms.txt` e no sitemap. O rodapé agrupa por intenção (ver `content.ts`).
  * Segunda leva em `pages-guias.ts` (problema e definição) e `pages-personas.ts` (persona).
  */
-export const CONTENT_PAGES: readonly ContentPage[] = [psa, margem, custoHora, ...GUIDE_PAGES, consultorias, ...PERSONA_PAGES];
+export const CONTENT_PAGES: readonly ContentPage[] = [psa, margem, custoHora, ...GUIDE_PAGES, ...ARTICLE_PAGES, consultorias, ...PERSONA_PAGES];
 
 export function findContentPage(slug: string): ContentPage | undefined {
   return CONTENT_PAGES.find((page) => page.slug === slug);
