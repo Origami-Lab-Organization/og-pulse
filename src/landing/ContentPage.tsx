@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { AppLink } from '@/landing/AppLink';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { ContentPageProps, ContentSection, ContentTable, FaqItem } from '@/types/landing';
@@ -126,10 +127,10 @@ function Cta() {
       <p className="mt-3 text-muted-foreground">{FINAL_CTA.subtitle}</p>
       <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
         <Button size="lg" variant="gradient" asChild>
-          <Link to={NAV.register}>
+          <AppLink to={NAV.register}>
             {FINAL_CTA.cta}
             <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-          </Link>
+          </AppLink>
         </Button>
         <Button size="lg" variant="outline" asChild>
           <Link to="/">Conhecer o Origami Pulse</Link>

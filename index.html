@@ -10,6 +10,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="author" content="Origami Lab" />
+    <!-- Fontes: descobertas já no HTML, não por @import dentro do CSS. O @import obriga o
+         navegador a baixar e parsear o CSS antes de sequer saber que a fonte existe, o
+         que empurra o LCP. `preconnect` abre a conexão com o gstatic em paralelo. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" />
     <!--
       Home pública (landing). No build, scripts/prerender-landing.mjs substitui o
       bloco entre os marcadores pelas metatags e pelo JSON-LD gerados de
@@ -25,6 +31,6 @@
 
   <body>
     <div id="root"><!--LANDING_BODY--></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/landing-main.tsx"></script>
   </body>
 </html>
