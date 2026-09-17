@@ -25,6 +25,7 @@ import ClientDetail from "./pages/ClientDetail";
 import ClientFormPage from "./pages/ClientFormPage";
 import NotFound from "./pages/NotFound";
 import PublicContent from "./pages/PublicContent";
+import PublicGuides from "./pages/PublicGuides";
 import JobApplication from "./pages/JobApplication";
 import ProjectDetail from "./pages/ProjectDetail";
 import MyProjects from "./pages/MyProjects";
@@ -124,6 +125,8 @@ const App = () => (
               <Route path="/teste-encerrado" element={<TesteEncerrado />} />
               <Route path="/termos" element={<Terms />} />
               <Route path="/privacidade" element={<Privacy />} />
+              {/* Hub das páginas de conteúdo (PUL-242). Antes de `/:slug`. */}
+              <Route path="/guias" element={<PublicGuides />} />
               {/* Primeiro acesso — troca de senha obrigatória do convite (FUNC-J1) */}
               <Route
                 path="/primeiro-acesso"

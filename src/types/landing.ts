@@ -65,6 +65,8 @@ export interface ContentPage {
   related: readonly string[];
   /** ISO `YYYY-MM-DD`. */
   updatedAt: string;
+  /** ISO `YYYY-MM-DD` da primeira publicação. Sem ela, o JSON-LD usa `updatedAt`. */
+  publishedAt?: string;
 }
 
 export interface ContentPageProps {
@@ -78,6 +80,8 @@ export interface PublicRoute {
   indexable: boolean;
   changefreq?: 'daily' | 'weekly' | 'monthly';
   priority?: string;
+  /** Data real da última mudança do conteúdo (`YYYY-MM-DD`). Sem ela, o sitemap cai na data do build. */
+  lastmod?: string;
 }
 
 export interface LegalSection {

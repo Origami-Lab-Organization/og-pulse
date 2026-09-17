@@ -14,8 +14,9 @@ import LandingPage from '@/pages/LandingPage';
 import NotFound from '@/pages/NotFound';
 import Privacy from '@/pages/Privacy';
 import PublicContent from '@/pages/PublicContent';
+import PublicGuides from '@/pages/PublicGuides';
 import Terms from '@/pages/Terms';
-import { NAV, NOT_FOUND_ROUTE, PUBLIC_ROUTES, SITE, buildJsonLd, buildLlmsTxt, buildPageJsonLd, buildSitemap } from '@/landing/content';
+import { NAV, NOT_FOUND_ROUTE, PUBLIC_ROUTES, SITE, buildGuidesHubJsonLd, buildJsonLd, buildLlmsTxt, buildPageJsonLd, buildSitemap } from '@/landing/content';
 import { findContentPage } from '@/landing/pages';
 import type { JsonLd, PublicRoute } from '@/types/landing';
 
@@ -30,6 +31,7 @@ function PublicRoutes() {
       <Route path={HOME} element={<LandingPage />} />
       <Route path={NAV.terms} element={<Terms />} />
       <Route path={NAV.privacy} element={<Privacy />} />
+      <Route path={NAV.guides} element={<PublicGuides />} />
       <Route path="/:slug" element={<PublicContent />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -84,9 +86,10 @@ function jsonLdTags(docs: JsonLd[]): string[] {
   return docs.map((doc) => `<script type="application/ld+json">${JSON.stringify(doc).replace(/</g, '\\u003c')}</script>`);
 }
 
-/** Home leva Organization/WebSite/SoftwareApplication/FAQ; página de conteúdo leva WebPage/Breadcrumb/FAQ; as demais, nada. */
+/** Home leva Organization/WebSite/SoftwareApplication/FAQ; hub leva CollectionPage/ItemList; página de conteúdo leva WebPage/Breadcrumb/FAQ; as demais, nada. */
 function jsonLdFor(route: PublicRoute): JsonLd[] {
   if (route.path === HOME) return buildJsonLd();
+  if (route.path === NAV.guides) return buildGuidesHubJsonLd();
   const page = findContentPage(route.path);
   return page ? buildPageJsonLd(page) : [];
 }
