@@ -114,18 +114,21 @@ export function WeeklyTimesheetGrid({
   );
   const { data: holidays = [] } = useHolidays();
 
-  // Projeto do qual a pessoa saiu não pode receber hora nova, mas some da semana só quando não
-  // há nada lançado nela: apagar da tela o que já foi apontado antes da saída deixaria a semana
-  // sem bater com o que está gravado. Com hora, a linha fica — travada logo abaixo.
+  // Projeto do qual a pessoa saiu fica visível enquanto a semana tocar o tempo em que ela era
+  // da equipe, ou enquanto houver hora lançada nela. Os dois casos importam: o primeiro deixa
+  // apontar o que se trabalhou ANTES de sair (quem sai numa segunda ainda tem a segunda para
+  // lançar); o segundo evita apagar da tela hora que já está gravada.
   const projects = useMemo(() => {
     const lancouNaSemana = (memberId: string) =>
       timesheetEntries.some((e) => e.projectMemberId === memberId && Number(e.hours) > 0);
     return allProjects.filter((p) => {
       if (!p.isDeallocated) return true;
       const member = p.members[0];
-      return member ? lancouNaSemana(member.memberId) : false;
+      if (member && lancouNaSemana(member.memberId)) return true;
+      // Sem data de saída não dá para saber até quando valia; trata como fora da equipe.
+      return p.deallocatedAt ? startDate <= p.deallocatedAt : false;
     });
-  }, [allProjects, timesheetEntries]);
+  }, [allProjects, timesheetEntries, startDate]);
 
   const rawPrefill = useTimesheetPrefill(employee?.id, weekDays, projects);
   const prefillByProject = useMemo(
@@ -181,9 +184,13 @@ export function WeeklyTimesheetGrid({
       const member = project.members[0];
       if (!member) continue;
       const set = new Set<string>();
-      // Desalocado: a semana inteira trava. A hora que ele lançou antes de sair continua
-      // visível, e nenhuma nova entra.
-      if (project.isDeallocated) weekDays.forEach((d) => set.add(d.date));
+      // Desalocado: trava do dia seguinte à saída em diante. Sem data, trava a semana toda.
+      if (project.isDeallocated) {
+        const saiuEm = project.deallocatedAt;
+        weekDays.forEach((d) => {
+          if (!saiuEm || d.date > saiuEm) set.add(d.date);
+        });
+      }
       for (const e of timesheetEntries) {
         if (e.projectMemberId === member.memberId && e.isLocked) set.add(e.workDate);
       }

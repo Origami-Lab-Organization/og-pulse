@@ -21,10 +21,14 @@ export interface ProjectWithMembers {
   isContinuous?: boolean;
   /**
    * A pessoa saiu da equipe deste projeto (`project_team_rows.status = 'deallocated'`).
-   * Continua na lista só enquanto houver hora lançada na semana, e em leitura: some o que
-   * ela apontou antes de sair seria pior do que mostrar.
+   * Quem decide o que ela ainda pode lançar é `deallocatedAt`, não este flag sozinho: até
+   * o dia da saída a linha continua aberta, depois trava. Semana posterior à saída e sem
+   * nada lançado não mostra o projeto; com hora gravada mostra, porque apagar da tela o que
+   * ela apontou antes de sair seria pior do que exibir uma linha travada.
    */
   isDeallocated?: boolean;
+  /** Dia da saída (yyyy-MM-dd). Até ele a pessoa ainda pode lançar o que trabalhou. */
+  deallocatedAt?: string | null;
 }
 
 export interface TimesheetEntry {
