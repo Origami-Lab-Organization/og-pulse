@@ -38,7 +38,14 @@ export interface UpdateMilestoneInput {
   deliverables?: string;
   startDate?: string;
   endDate?: string;
-  completedDate?: string;
+  /**
+   * `null` APAGA a data; ausente deixa como está.
+   *
+   * A distinção importa porque o supabase-js remove chaves `undefined` do corpo da
+   * requisição: mandar `undefined` para limpar não gera UPDATE nenhum naquela coluna, e a
+   * data continua no banco como se o clique em Salvar não tivesse acontecido.
+   */
+  completedDate?: string | null;
   status?: MilestoneStatus;
   milestoneType?: MilestoneType;
 }

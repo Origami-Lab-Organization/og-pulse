@@ -242,9 +242,13 @@ export interface CreateInstallmentInput {
 
 export interface UpdateInstallmentInput {
   status?: InstallmentStatus;
-  invoiceNumber?: string;
-  invoiceDate?: string;
-  paymentDate?: string;
+  invoiceNumber?: string | null;
+  /**
+   * `null` APAGA a data; ausente deixa como está — `updateInstallment` pula chave
+   * `undefined` de propósito, para a edição de uma parcela não zerar o resto.
+   */
+  invoiceDate?: string | null;
+  paymentDate?: string | null;
   notes?: string;
   value?: number;
   dueDate?: string;
