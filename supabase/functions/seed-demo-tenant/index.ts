@@ -73,6 +73,9 @@ Deno.serve(async (req) => {
       admin_expenses_percent: 12,
       net_margin_percent: 20,
       gross_margin_target_percent: 45,
+      // Vigência no início dos tempos (PUL-260): o tenant de demonstração tem projeto com
+      // data antiga, e uma vigência de hoje deixaria esses projetos sem meta nenhuma.
+      effective_from: '1900-01-01',
     });
 
     // ═══════════════════════════════════════════════════════════════════════

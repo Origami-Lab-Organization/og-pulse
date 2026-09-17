@@ -14,8 +14,14 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useFinancialSettings, useUpsertFinancialSettings } from '@/hooks/useFinancialSettings';
-import { Loader2, Save, Percent, Building2, Receipt, Users, TrendingUp, Target } from 'lucide-react';
+import {
+  useFinancialSettings,
+  useFinancialSettingsHistory,
+  useSaveFinancialSettings,
+} from '@/hooks/useFinancialSettings';
+import { FinancialSettingsHistory } from '@/components/settings/FinancialSettingsHistory';
+import { todayLocalDateString } from '@/lib/formatters';
+import { Loader2, Save, Percent, Building2, Receipt, Users, TrendingUp, Target, CalendarClock } from 'lucide-react';
 
 const formSchema = z.object({
   admin_expenses_percent: z.coerce
@@ -38,13 +44,20 @@ const formSchema = z.object({
     .number()
     .min(0, 'Valor mínimo é 0%')
     .max(100, 'Valor máximo é 100%'),
+  // Data e não timestamp: percentual de markup não muda de manhã para a tarde (PUL-260).
+  effective_from: z
+    .string()
+    .min(1, 'Informe a partir de quando vale')
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
 export function FinancialSettingsForm() {
+  // O formulário abre com o que vale HOJE — é a configuração que a pessoa quer mudar.
   const { data: settings, isLoading } = useFinancialSettings();
-  const upsertMutation = useUpsertFinancialSettings();
+  const { data: historico = [] } = useFinancialSettingsHistory();
+  const saveMutation = useSaveFinancialSettings();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -54,6 +67,7 @@ export function FinancialSettingsForm() {
       commission_percent: 0,
       net_margin_percent: 0,
       gross_margin_target_percent: 0,
+      effective_from: todayLocalDateString(),
     },
   });
 
@@ -65,17 +79,21 @@ export function FinancialSettingsForm() {
         commission_percent: settings.commission_percent,
         net_margin_percent: settings.net_margin_percent ?? 0,
         gross_margin_target_percent: settings.gross_margin_target_percent ?? 0,
+        // A vigência NÃO herda a da versão aberta: salvar é decidir uma política nova, e
+        // repetir a data antiga sobrescreveria silenciosamente a versão que já valia.
+        effective_from: todayLocalDateString(),
       });
     }
   }, [settings, form]);
 
   const onSubmit = (data: FormData) => {
-    upsertMutation.mutate({
+    saveMutation.mutate({
       admin_expenses_percent: data.admin_expenses_percent,
       taxes_percent: data.taxes_percent,
       commission_percent: data.commission_percent,
       net_margin_percent: data.net_margin_percent,
       gross_margin_target_percent: data.gross_margin_target_percent,
+      effective_from: data.effective_from,
     });
   };
 
@@ -90,6 +108,42 @@ export function FinancialSettingsForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5" />
+              Vigência desta alteração
+            </CardTitle>
+            <CardDescription>
+              Salvar não corrige o passado: cria uma versão que passa a valer no dia informado.
+              Projeto e análise de antes continuam sendo lidos pela versão que valia lá.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <FormField
+                control={form.control}
+                name="effective_from"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                      Vale a partir de
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Salvar duas vezes com a mesma data corrige a versão do dia.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -287,8 +341,8 @@ export function FinancialSettingsForm() {
         </Card>
 
         <div className="flex justify-end">
-          <Button type="submit" disabled={upsertMutation.isPending}>
-            {upsertMutation.isPending ? (
+          <Button type="submit" disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Save className="mr-2 h-4 w-4" />
@@ -296,6 +350,8 @@ export function FinancialSettingsForm() {
             Salvar Configurações
           </Button>
         </div>
+
+        <FinancialSettingsHistory versoes={historico} />
       </form>
     </Form>
   );

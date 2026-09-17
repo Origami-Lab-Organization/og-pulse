@@ -142,11 +142,14 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .in('project_id', projectIds),
         fetchSuppliersWithActuals(projectIds),
         fetchMaterials(projectIds, { realizedOnly: true }),
+        // Versão vigente no fim do período analisado (PUL-260).
         supabase
           .from('financial_settings')
           .select('gross_margin_target_percent')
           .eq('tenant_id', tenantId)
-          .maybeSingle(),
+          .lte('effective_from', endStr)
+          .order('effective_from', { ascending: false })
+          .limit(1),
         supabase
           .from('company_holidays')
           .select('holiday_type, fixed_day, fixed_month, specific_date')
@@ -169,7 +172,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const members = (membersRes.data || []) as any[];
       const projectSuppliersWithActuals = suppliersRes as any[];
       const materials = materialsRes;
-      const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
+      const grossMarginTarget = settingsRes.data?.[0]?.gross_margin_target_percent ?? null;
       const holidays = holidaysRes.data || [];
       const commissions = commissionsRes.data || [];
       const workingDays = countWorkingDays(filters.startDate, filters.endDate, holidays);

@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveCostMonthIndex } from '@/lib/costRecognition';
+import { versaoVigenteEm } from '@/lib/financialSettingsVigencia';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import type { Holiday } from '@/lib/workingDays';
 import type { AnalyticsFilters } from './useAnalyticsData';
@@ -44,11 +45,18 @@ export interface FinancialMonthlyPoint {
   // Margin
   grossMarginPct: number | null;
   plannedGrossMarginPct: number | null;
+  /**
+   * A meta de margem bruta que valia NESTE mês (PUL-260). É por mês, e não do ano inteiro,
+   * porque a configuração financeira tem vigência: quem mudou a meta em outubro não mudou a
+   * meta de janeiro, e a linha do gráfico pode ter degrau.
+   */
+  grossMarginTargetPct: number | null;
 }
 
 export interface FinancialEvolutionData {
   year: number;
   months: FinancialMonthlyPoint[];
+  /** A meta vigente no fim do ano exibido. A do mês está em cada ponto. */
   grossMarginTarget: number | null;
 }
 
@@ -125,6 +133,19 @@ export function useFinancialEvolution(
       const { data: projects, error: projErr } = await projectsQuery;
       if (projErr) throw projErr;
 
+      // Todas as versões de uma vez: são poucas (uma por mudança de política) e assim os doze
+      // meses se resolvem sem doze idas ao banco.
+      const settingsRes = await supabase
+        .from('financial_settings')
+        .select('gross_margin_target_percent, effective_from')
+        .eq('tenant_id', tenantId)
+        .order('effective_from', { ascending: false });
+
+      const versoes = settingsRes.data ?? [];
+      const metaDoMes = (i: number): number | null =>
+        versaoVigenteEm(versoes, format(endOfMonth(new Date(year, i, 1)), 'yyyy-MM-dd'))
+          ?.gross_margin_target_percent ?? null;
+
       const buildEmpty = (): FinancialMonthlyPoint[] =>
         Array.from({ length: 12 }, (_, i) => ({
           monthIndex: i,
@@ -140,15 +161,10 @@ export function useFinancialEvolution(
           plannedCommissionCost: 0, plannedSubscriptionCost: 0, plannedEquipmentCost: 0,
           plannedReimbursementCost: 0, plannedTravelOtherCost: 0,
           grossMarginPct: null, plannedGrossMarginPct: null,
+          grossMarginTargetPct: metaDoMes(i),
         }));
 
-      const settingsRes = await supabase
-        .from('financial_settings')
-        .select('gross_margin_target_percent')
-        .eq('tenant_id', tenantId)
-        .maybeSingle();
-
-      const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
+      const grossMarginTarget = metaDoMes(11);
 
       if (!projects || projects.length === 0) {
         return { year, months: buildEmpty(), grossMarginTarget };

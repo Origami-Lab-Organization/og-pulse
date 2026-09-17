@@ -1608,6 +1608,8 @@ export type Database = {
           admin_expenses_percent: number
           commission_percent: number
           created_at: string
+          created_by: string | null
+          effective_from: string
           gross_margin_target_percent: number | null
           id: string
           margin_tolerance_pp: number
@@ -1620,6 +1622,8 @@ export type Database = {
           admin_expenses_percent?: number
           commission_percent?: number
           created_at?: string
+          created_by?: string | null
+          effective_from?: string
           gross_margin_target_percent?: number | null
           id?: string
           margin_tolerance_pp?: number
@@ -1632,6 +1636,8 @@ export type Database = {
           admin_expenses_percent?: number
           commission_percent?: number
           created_at?: string
+          created_by?: string | null
+          effective_from?: string
           gross_margin_target_percent?: number | null
           id?: string
           margin_tolerance_pp?: number
@@ -5169,6 +5175,8 @@ export type Database = {
       }
       projects: {
         Row: {
+          cost_center_id: string | null
+          is_billable: boolean
           budget_id: string | null
           cancellation_notes: string | null
           cancellation_reason: string | null
@@ -5207,6 +5215,8 @@ export type Database = {
           value_book_url: string | null
         }
         Insert: {
+          cost_center_id?: string | null
+          is_billable?: boolean
           budget_id?: string | null
           cancellation_notes?: string | null
           cancellation_reason?: string | null
@@ -5245,6 +5255,8 @@ export type Database = {
           value_book_url?: string | null
         }
         Update: {
+          cost_center_id?: string | null
+          is_billable?: boolean
           budget_id?: string | null
           cancellation_notes?: string | null
           cancellation_reason?: string | null
