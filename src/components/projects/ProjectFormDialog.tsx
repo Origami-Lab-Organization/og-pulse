@@ -42,6 +42,7 @@ import { BILLING_TYPE_LABELS } from '@/types/service';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useServices } from '@/hooks/useServices';
+import { useCostCenters } from '@/hooks/useCostCenters';
 import { formatCurrency, parseCurrency } from '@/lib/masks';
 
 const projectSchema = z.object({
@@ -61,9 +62,16 @@ const projectSchema = z.object({
   firstInvoiceDate: z.string().optional(),
   dueDay: z.coerce.number().min(1).max(90).default(10),
   successFeePercent: z.coerce.number().min(0).max(100).optional(),
+  isInternal: z.boolean().default(false),
+  costCenterId: z.string().optional(),
 }).refine((data) => data.isContinuous || (data.endDate && data.endDate.length > 0), {
   message: 'Data de fim é obrigatória para projetos com prazo determinado',
   path: ['endDate'],
+}).refine((data) => !data.isInternal || (data.costCenterId && data.costCenterId.length > 0), {
+  // Sem centro, o custo do projeto interno não tem onde ser lido (ADR-0035). O banco também
+  // recusa, por CHECK; aqui a pessoa descobre antes de salvar.
+  message: 'Escolha o centro de custo que recebe o custo deste projeto',
+  path: ['costCenterId'],
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -72,6 +80,8 @@ type ProjectFormExtras = ProjectWithRelations & {
   service?: { name?: string | null } | null;
   renewal_date?: string | null;
   success_fee_percent?: number | null;
+  is_billable?: boolean | null;
+  cost_center_id?: string | null;
 };
 
 interface ProjectFormDialogProps {
@@ -98,6 +108,7 @@ export function ProjectFormDialog({
   const { data: clients = [] } = useClients();
   const { data: employees = [] } = useEmployees();
   const { data: services = [] } = useServices();
+  const { data: costCenters = [] } = useCostCenters();
 
   // Filter managers - employees with manager or admin role
   const managers = employees.filter((e) => e.systemRole === 'manager' || e.systemRole === 'admin');
@@ -121,6 +132,8 @@ export function ProjectFormDialog({
       firstInvoiceDate: '',
       dueDay: 10,
       successFeePercent: undefined,
+      isInternal: false,
+      costCenterId: '',
     },
   });
 
@@ -159,6 +172,8 @@ export function ProjectFormDialog({
         firstInvoiceDate: project?.first_invoice_date || '',
         dueDay: project?.due_day || 10,
         successFeePercent: projectWithExtras?.success_fee_percent ?? undefined,
+        isInternal: projectWithExtras?.is_billable === false,
+        costCenterId: projectWithExtras?.cost_center_id || '',
       });
       setActiveTab('basic');
       setJustification('');
@@ -198,6 +213,8 @@ export function ProjectFormDialog({
       firstInvoiceDate: values.firstInvoiceDate || undefined,
       dueDay: values.dueDay,
       successFeePercent: values.successFeePercent,
+      isBillable: !values.isInternal,
+      costCenterId: values.isInternal ? values.costCenterId : undefined,
     }, requireJustification ? justification.trim() : undefined);
   };
 
@@ -266,6 +283,64 @@ export function ProjectFormDialog({
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="isInternal"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          className="border-primary-deep data-[state=checked]:bg-primary-deep data-[state=checked]:border-primary-deep data-[state=checked]:text-primary-deep-foreground"
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal cursor-pointer">Projeto interno, sem faturamento</FormLabel>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[260px]">
+                          <p>
+                            Trabalho que a casa faz para si mesma: nenhum cliente paga por ele. As horas
+                            contam como custo interno, e não como trabalho vendido.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </FormItem>
+                  )}
+                />
+
+                {form.watch('isInternal') && (
+                  <FormField
+                    control={form.control}
+                    name="costCenterId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Centro de Custo</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o centro de custo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {costCenters.filter((c) => c.is_active).map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          As horas deste projeto vão para este centro, em vez do centro do serviço.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={form.control}

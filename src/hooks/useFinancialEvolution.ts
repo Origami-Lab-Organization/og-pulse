@@ -112,7 +112,7 @@ export function useFinancialEvolution(
 
       let projectsQuery = supabase
         .from('projects')
-        .select('id, start_date')
+        .select('id, start_date, is_billable')
         .eq('tenant_id', tenantId);
 
       if (!isAdmin && currentEmployeeId) {
@@ -156,6 +156,12 @@ export function useFinancialEvolution(
 
       const projectIds = projects.map(p => p.id);
       const projectMap = new Map(projects.map(p => [p.id, p]));
+      // Projeto interno tem hora, time e prazo, mas ninguém paga por ele (ADR-0035). O custo
+      // dele é da empresa, como a atividade interna — contá-lo como billable diria que a casa
+      // fatura o que investe em si mesma.
+      const nonBillableProjects = new Set(
+        projects.filter((p) => (p as { is_billable?: boolean }).is_billable === false).map((p) => p.id),
+      );
 
       // Mão de obra interna (activity_timesheets) é custo da empresa, não de projeto:
       // só entra na visão-empresa (sem recorte por GP/projeto/cliente).
@@ -194,7 +200,7 @@ export function useFinancialEvolution(
           .lte('invoice_date', yearEnd),
         supabase
           .from('project_timesheets')
-          .select('project_member_id, work_date, hours, cost_per_hour')
+          .select('project_id, project_member_id, work_date, hours, cost_per_hour')
           .in('project_id', projectIds)
           .gte('work_date', yearStart)
           .lte('work_date', yearEnd),
@@ -279,7 +285,12 @@ export function useFinancialEvolution(
           : info
             ? getFallbackHourlyCost(info.monthlyCostEstimated, info.jornadaDiaria, year, monthIdx, holidays)
             : 0;
-        monthData[monthIdx].laborCost += Number(ts.hours) * hourlyCost;
+        const laborCost = Number(ts.hours) * hourlyCost;
+        if (nonBillableProjects.has((ts as { project_id?: string }).project_id ?? '')) {
+          monthData[monthIdx].internalLaborCost += laborCost;
+        } else {
+          monthData[monthIdx].laborCost += laborCost;
+        }
       }
 
       for (const allocation of plannedAllocations) {
@@ -380,7 +391,8 @@ export function useFinancialEvolution(
         else target.plannedTravelOtherCost += c.value; // travel + other
       }
 
-      // Mão de obra interna (não-billable): horas de activity_timesheets × custo-hora.
+      // Mão de obra interna (não-billable): horas de activity_timesheets × custo-hora, mais as
+      // horas de projeto interno somadas acima (ADR-0035).
       // Sem contrapartida de planejamento na base hoje — não entra em plannedTotalCosts.
       for (const ts of activityRows) {
         if (!ts.work_date) continue;

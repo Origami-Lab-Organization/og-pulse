@@ -188,6 +188,10 @@ export interface CreateProjectInput {
   renewalDate?: string;
   serviceLine?: string;
   successFeePercent?: number;
+  /** Falso = projeto interno: ninguém paga por ele, e a hora vira custo interno (ADR-0035). */
+  isBillable?: boolean;
+  /** Obrigatório quando `isBillable` é falso: o centro que recebe o custo (ADR-0035). */
+  costCenterId?: string;
   leadId?: string;
   valueBookUrl?: string;
   customInstallments?: {
