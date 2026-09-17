@@ -1,6 +1,7 @@
 ---
 sources:
   - src/main.tsx
+  - src/landing-main.tsx
   - src/lib/analytics.ts
   - src/lib/session.ts
   - src/App.tsx
@@ -27,10 +28,12 @@ sources:
   - src/landing/chrome.tsx
   - src/landing/pages.ts
   - src/landing/pages-guias.ts
+  - src/landing/pages-artigos.ts
   - src/landing/pages-personas.ts
   - src/landing/slugs.ts
   - src/landing/ContentPage.tsx
   - src/pages/PublicContent.tsx
+  - src/pages/PublicGuides.tsx
   - src/pages/NotFound.tsx
   - scripts/prerender-landing.mjs
   - scripts/check-app-routes.mjs
@@ -122,7 +125,8 @@ oferta (`SITE`, `TRIAL`) moram em `src/landing/site.ts`. As páginas de conteúd
 PUL-242) são dados em `src/landing/pages.ts`, `pages-guias.ts` (problema e definição) e
 `pages-personas.ts` (persona), com slugs em `slugs.ts` (`CONTENT_PAGES`: lead com resposta
 direta, seções, tabelas, FAQ, relacionadas), renderizados por `src/landing/ContentPage.tsx`;
-a lista alimenta sozinha o sitemap (12 URLs), o `llms.txt` (seção "Páginas de conteúdo"), as
+a lista alimenta sozinha o sitemap (20 URLs), o hub `/guias` (`PublicGuides`, índice de todas
+elas), o `llms.txt` (seção "Páginas de conteúdo"), as
 colunas "Para quem" e "Conteúdo" do rodapé e o JSON-LD por página (`buildPageJsonLd`:
 WebPage ou Article, BreadcrumbList, FAQPage). O prerender falha se uma página indexável sair sem JSON-LD. Cabeçalho, rodapé e a
 moldura `PublicPage` das páginas públicas vivem em `src/landing/chrome.tsx`; o rodapé
