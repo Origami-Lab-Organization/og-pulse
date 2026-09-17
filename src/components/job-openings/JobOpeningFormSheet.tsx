@@ -44,6 +44,7 @@ import {
   SENIORIDADE_OPTIONS,
   ABOUT_ORIGAMI_LAB_DEFAULT
 } from "@/types/jobOpening";
+import { areValuesHidden, HIDDEN_VALUE_MASK } from '@/lib/valueVisibility';
 
 const schema = z.object({
   titulo: z.string().min(1, "Título é obrigatório"),
@@ -109,6 +110,7 @@ function maskCurrency(raw: string): string {
   const digits = raw.replace(/\D/g, "");
   if (!digits) return "";
   const num = parseInt(digits, 10);
+  if (areValuesHidden()) return HIDDEN_VALUE_MASK;
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",

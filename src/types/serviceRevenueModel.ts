@@ -1,4 +1,5 @@
 import { truncateToCents } from '@/lib/formatters';
+import { areValuesHidden, HIDDEN_VALUE_MASK } from '@/lib/valueVisibility';
 
 export type RevenueModelType =
   | 'fixed'
@@ -101,10 +102,12 @@ export const modelValueText = (model: Pick<ServiceRevenueModel, 'baseValue' | 'b
   if (model.billingUnit === '%') {
     return `${model.baseValue.toFixed(2).replace('.', ',')}%`;
   }
-  const formatted = truncateToCents(model.baseValue).toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  });
+  const formatted = areValuesHidden()
+    ? HIDDEN_VALUE_MASK
+    : truncateToCents(model.baseValue).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      });
   const suffix = model.billingUnit ? PERIOD_LABELS[model.billingUnit] ?? '' : '';
   return `${formatted}${suffix}`;
 };

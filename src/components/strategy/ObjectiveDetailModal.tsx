@@ -43,6 +43,7 @@ import {
 } from '@/types/strategy';
 import { useDeleteStrategyObjective, useDeleteStrategyKeyResult } from '@/hooks/useStrategy';
 import { KeyResultFormDialog } from '@/components/strategy/KeyResultFormDialog';
+import { areValuesHidden, HIDDEN_VALUE_MASK } from '@/lib/valueVisibility';
 
 interface ObjectiveDetailModalProps {
   open: boolean;
@@ -97,6 +98,7 @@ function formatValue(value: number, unit: string | null): string {
   const num = value.toLocaleString('pt-BR');
   if (!unit) return num;
   if (unit === 'R$') {
+    if (areValuesHidden()) return HIDDEN_VALUE_MASK;
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',

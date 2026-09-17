@@ -8,6 +8,8 @@ import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
 import { OfflineBanner } from '@/components/pwa/OfflineBanner';
 import { CapabilitiesUnavailableBanner } from '@/components/access/CapabilitiesUnavailableBanner';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
+import { ValueVisibilityToggle } from '@/components/layout/ValueVisibilityToggle';
+import { useValuesHidden } from '@/hooks/useValuesHidden';
 
 // The shadcn SidebarProvider writes this cookie on every state change but never reads it.
 // Reading it here persists the collapsed/expanded state across page navigations.
@@ -52,6 +54,8 @@ export function AppLayout({
   actions,
   hideHeader = false,
 }: AppLayoutProps) {
+  const valuesHidden = useValuesHidden();
+
   return (
     <SidebarProvider defaultOpen={getSidebarDefaultOpen()}>
       <AppSidebar />
@@ -78,18 +82,22 @@ export function AppLayout({
                     <p className="text-muted-foreground mt-1">{description}</p>
                   )}
                 </div>
-                {actions && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    {actions}
-                  </div>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <ValueVisibilityToggle />
+                  {actions}
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto min-w-0">
+        {/* O `key` é o que faz o olho valer na tela inteira. `formatCurrency` é função pura
+            chamada ~600 vezes no JSX, então mudar o store não re-renderiza ninguém sozinho;
+            remontar o conteúdo da rota cobre tudo sem editar os 600 usos. O preço é perder o
+            estado da tela ao alternar — cabeçalho e menu ficam de fora do `key` justamente
+            para o clique não parecer um recarregamento. Ver `@/lib/valueVisibility`. */}
+        <main key={valuesHidden ? 'valores-ocultos' : 'valores-visiveis'} className="flex-1 overflow-auto min-w-0">
           <div className="py-4 px-4 sm:py-6 sm:px-6 max-w-full">
             <OnboardingBanner />
             {children}

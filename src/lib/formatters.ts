@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { areValuesHidden, HIDDEN_VALUE_MASK } from '@/lib/valueVisibility';
 
 /**
  * Converte texto para Title Case, preservando siglas empresariais
@@ -57,6 +58,10 @@ export function truncateToCents(value: number): number {
 }
 
 export function formatCurrency(value: number): string {
+  // O "olho" do cabeçalho (ver `@/lib/valueVisibility`). Fica aqui, e não em cada tela, porque
+  // esta função é o ponto por onde todo valor monetário EXIBIDO passa — a máscara de campo de
+  // edição vive em `@/lib/masks` e continua intocada de propósito.
+  if (areValuesHidden()) return HIDDEN_VALUE_MASK;
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',

@@ -11,8 +11,10 @@ import {
 } from '@/components/ui/tooltip';
 import { useCommercialDashboard } from '@/hooks/useCommercialDashboard';
 import { cn } from '@/lib/utils';
+import { areValuesHidden, HIDDEN_VALUE_MASK } from '@/lib/valueVisibility';
 
 function formatCurrency(value: number): string {
+  if (areValuesHidden()) return HIDDEN_VALUE_MASK;
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',

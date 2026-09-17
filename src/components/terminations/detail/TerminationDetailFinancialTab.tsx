@@ -22,6 +22,7 @@ import { calculateAutoCalcs } from '@/components/employees/termination-wizard/Te
 import { Employee } from '@/hooks/useEmployees';
 import { TerminationWizardData } from '@/components/employees/termination-wizard/types';
 import { truncateToCents } from '@/lib/formatters';
+import { areValuesHidden, HIDDEN_VALUE_MASK } from '@/lib/valueVisibility';
 
 interface Props {
   termination: TerminationWithEmployee;
@@ -238,7 +239,7 @@ export const TerminationDetailFinancialTab = ({ termination }: Props) => {
   };
 
   const fmt = (v: number) =>
-    truncateToCents(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    areValuesHidden() ? HIDDEN_VALUE_MASK : truncateToCents(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   // Compute totals from whichever source we have
   const totals = useMemo(() => {

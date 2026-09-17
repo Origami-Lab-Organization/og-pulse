@@ -1,5 +1,8 @@
+import { areValuesHidden, HIDDEN_VALUE_MASK } from '@/lib/valueVisibility';
+
 /** Formata BRL inteiro (sem centavos): 55000 → "R$ 55.000". */
 export function fmtBRL0(value: number): string {
+  if (areValuesHidden()) return HIDDEN_VALUE_MASK;
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
@@ -9,6 +12,7 @@ export function fmtBRL0(value: number): string {
 
 /** Formata BRL compacto em milhares: 34500 → "R$ 34,5k". */
 export function fmtBRLk(value: number): string {
+  if (areValuesHidden()) return HIDDEN_VALUE_MASK;
   const k = value / 1000;
   const n = new Intl.NumberFormat('pt-BR', {
     minimumFractionDigits: k % 1 === 0 ? 0 : 1,
