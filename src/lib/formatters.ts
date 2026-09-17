@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { valuesAreHidden } from '@/lib/hideValuesStore';
 
 /**
  * Converte texto para Title Case, preservando siglas empresariais
@@ -56,7 +57,19 @@ export function truncateToCents(value: number): number {
   return sign * parseFloat(fixed.slice(0, dotIndex + 3));
 }
 
+/** O que aparece no lugar do valor. Igual ao de `useMaskedCurrency`, para a tela não ter
+ *  dois disfarces diferentes lado a lado. */
+export const HIDDEN_VALUE_MASK = '•••••';
+
 export function formatCurrency(value: number): string {
+  // O olho de ocultar valores (ver `@/contexts/HideValuesContext`). Fica aqui, e não em cada
+  // tela, porque esta função é o ponto por onde todo valor monetário EXIBIDO passa — a
+  // máscara de campo de edição vive em `@/lib/masks` e continua intocada de propósito.
+  //
+  // Quem faz a tela REAGIR ao clique é a página: função pura não assina nada, então toda tela
+  // com dinheiro chama `useHideValues()` (uma linha) e re-renderiza a própria subárvore. É
+  // re-render, não remontagem: aba aberta, rolagem e filtro preenchido continuam onde estavam.
+  if (valuesAreHidden()) return HIDDEN_VALUE_MASK;
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',

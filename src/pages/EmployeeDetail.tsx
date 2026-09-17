@@ -53,6 +53,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
+import { useCostCenters } from '@/hooks/useCostCenters';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -123,6 +124,7 @@ const baseFormSchema = z.object({
   dataNascimento: z.string().min(1, "Data de nascimento é obrigatória"),
   fotoUrl: z.string().optional(),
   alocaEmProjetos: z.boolean(),
+  costCenterId: z.string().optional(),
   status: z.enum([
     "ativo",
     "aguardando_confirmacao",
@@ -188,6 +190,16 @@ const formSchema = baseFormSchema.superRefine((data, ctx) => {
       code: z.ZodIssueCode.custom,
       message: "Preencha o valor base conforme o tipo de contratação",
       path: ["salarioMensal"],
+    });
+  }
+
+  // Sem centro, o custo de quem não lança hora fica fora da leitura por centro (PUL-218). O
+  // banco também recusa, por CHECK; aqui a pessoa descobre antes de salvar.
+  if (!data.alocaEmProjetos && !data.costCenterId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Escolha o centro de custo que recebe o custo desta pessoa",
+      path: ["costCenterId"],
     });
   }
 
@@ -262,6 +274,7 @@ const EmployeeDetail = () => {
     useEmployeeVersions(id);
   const { data: payrollProfile } = usePayrollProfile();
   const { data: holidays = [] } = useHolidays();
+  const { data: costCenters = [] } = useCostCenters();
   const { data: employeeBenefits = [] } = useEmployeeBenefits(id);
   const { data: employeeTools = [] } = useEmployeeTools(id);
   const updateEmployee = useUpdateEmployee();
@@ -306,6 +319,7 @@ const EmployeeDetail = () => {
       dataNascimento: "",
       fotoUrl: "",
       alocaEmProjetos: true,
+      costCenterId: '',
       status: "aguardando_confirmacao",
       tipoContratacao: "CLT",
       jornadaMensal: 176,
@@ -360,6 +374,7 @@ const EmployeeDetail = () => {
       dataNascimento: employee.dataNascimento || "",
       fotoUrl: employee.fotoUrl || "",
       alocaEmProjetos: employee.alocaEmProjetos,
+      costCenterId: employee.costCenterId || '',
       status: employee.status,
       tipoContratacao: employee.tipoContratacao || "CLT",
       jornadaMensal: employee.jornadaMensal || 176,
@@ -744,7 +759,7 @@ const EmployeeDetail = () => {
                 </div>
                 <FormDescription>
                   Alterado em{' '}
-                  <Link to="/admin" className="underline underline-offset-2">
+                  <Link to="/admin/perfis" className="underline underline-offset-2">
                     Configurações → Perfis de Acesso
                   </Link>
                   , na aba Pessoas.
@@ -757,22 +772,59 @@ const EmployeeDetail = () => {
                 render={({ field }) => (
                   <FormItem className="sm:col-span-2 flex items-center justify-between rounded-lg border p-4">
                     <div>
-                      <FormLabel className="text-sm font-medium">Aloca em projetos</FormLabel>
+                      <FormLabel className="text-sm font-medium">Não lança horas</FormLabel>
                       <FormDescription className="text-xs">
-                        Desative para colaboradores que não lançam timesheet (RH, financeiro, backoffice). Eles deixam de aparecer no seletor de alocação e na grade de capacidade, mas continuam na folha e nos relatórios de pessoas.
+                        Marque para quem não preenche timesheet (RH, financeiro, backoffice). Deixa de aparecer no seletor de alocação e na grade de capacidade, e o custo da pessoa passa a ser lido pelo centro de custo escolhido abaixo, em vez das horas lançadas.
                         {!currentEmployee?.isAdmin && " Somente admin pode alterar."}
                       </FormDescription>
                     </div>
                     <FormControl>
+                      {/* O campo no banco é `aloca_em_projetos` e a pergunta na tela é a
+                          oposta. Inverter aqui, e não renomear a coluna, evita mexer nos
+                          dezenas de pontos que já leem o flag (ADR-0010). */}
                       <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
+                        checked={!field.value}
+                        onCheckedChange={(marcado) => field.onChange(!marcado)}
                         disabled={!currentEmployee?.isAdmin}
                       />
                     </FormControl>
                   </FormItem>
                 )}
               />
+
+              {!form.watch('alocaEmProjetos') && (
+                <FormField
+                  control={form.control}
+                  name="costCenterId"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>Centro de Custo</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || ''}
+                        disabled={!currentEmployee?.isAdmin}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o centro de custo" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {costCenters.filter((c) => c.is_active).map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription className="text-xs">
+                        O custo mensal desta pessoa é lido 100% neste centro.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
             </div>
         </CardContent>

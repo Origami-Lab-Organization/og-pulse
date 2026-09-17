@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Flag, Rocket, Layers, ClipboardCheck, LucideIcon } from 'lucide-react';
+import { Flag, Rocket, Layers, ClipboardCheck, X, LucideIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -169,7 +170,10 @@ export function MilestoneFormDialog({
             deliverables: data.deliverables,
             startDate,
             endDate,
-            completedDate: data.completedDate || undefined,
+            // `null`, e não `undefined`: campo vazio aqui quer dizer "apaga a data". Com
+            // `undefined` o supabase-js tira a chave do corpo, a coluna nem entra no UPDATE
+            // e a data volta intacta ao reabrir o diálogo.
+            completedDate: data.completedDate || null,
             status: data.status as MilestoneStatus,
             milestoneType: data.milestoneType,
           },
@@ -308,9 +312,28 @@ export function MilestoneFormDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Data de Conclusão</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
+                      {/* Botão de limpar porque apagar um campo de data nativo depende de
+                          selecionar cada pedaço e apertar Delete — dá para fazer, mas
+                          ninguém descobre sozinho. Some quando não há o que limpar. */}
+                      <div className="flex items-center gap-2">
+                        <FormControl>
+                          <Input type="date" className="flex-1" {...field} />
+                        </FormControl>
+                        {field.value && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Limpar data de conclusão"
+                            onClick={() => field.onChange('')}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <FormDescription>
+                        Deixe vazio enquanto o item não foi concluído.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

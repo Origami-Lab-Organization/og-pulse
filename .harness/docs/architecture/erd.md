@@ -10,7 +10,7 @@ sources:
   - supabase/migrations/20260915110000_prospect_companies.sql
   - supabase/migrations/20260915120000_prospects.sql
   - supabase/migrations/20260915130000_prospect_activities.sql
-  - supabase/migrations/20260917100000_prospect_reuniao_feita.sql
+  - supabase/migrations/20260917115000_prospect_reuniao_feita.sql
   - src/types/prospect.ts
   - src/types/lead.ts
   - src/types/portfolio.ts

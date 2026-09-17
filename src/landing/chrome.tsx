@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
+import { AppLink } from '@/landing/AppLink';
 import { Button } from '@/components/ui/button';
 import type { FooterLink, PublicPageProps, ScrollProgressProps, SiteHeaderProps } from '@/types/landing';
 import { FOOTER, FOOTER_COLUMNS, HERO, NAV, SITE, copyrightLine } from '@/landing/content';
@@ -79,10 +80,10 @@ export function SiteHeader(props: SiteHeaderProps) {
         </nav>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link to={NAV.login}>{HERO.secondaryCta}</Link>
+            <AppLink to={NAV.login}>{HERO.secondaryCta}</AppLink>
           </Button>
           <Button variant="gradient" asChild className="px-3 sm:px-4">
-            <Link to={NAV.register}>{HERO.primaryCta}</Link>
+            <AppLink to={NAV.register}>{HERO.primaryCta}</AppLink>
           </Button>
         </div>
       </div>

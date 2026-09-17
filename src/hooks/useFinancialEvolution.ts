@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { resolveCostMonthIndex } from '@/lib/costRecognition';
+import { versaoVigenteEm } from '@/lib/financialSettingsVigencia';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import type { Holiday } from '@/lib/workingDays';
 import type { AnalyticsFilters } from './useAnalyticsData';
@@ -44,11 +45,18 @@ export interface FinancialMonthlyPoint {
   // Margin
   grossMarginPct: number | null;
   plannedGrossMarginPct: number | null;
+  /**
+   * A meta de margem bruta que valia NESTE mês (PUL-260). É por mês, e não do ano inteiro,
+   * porque a configuração financeira tem vigência: quem mudou a meta em outubro não mudou a
+   * meta de janeiro, e a linha do gráfico pode ter degrau.
+   */
+  grossMarginTargetPct: number | null;
 }
 
 export interface FinancialEvolutionData {
   year: number;
   months: FinancialMonthlyPoint[];
+  /** A meta vigente no fim do ano exibido. A do mês está em cada ponto. */
   grossMarginTarget: number | null;
 }
 
@@ -112,7 +120,7 @@ export function useFinancialEvolution(
 
       let projectsQuery = supabase
         .from('projects')
-        .select('id, start_date')
+        .select('id, start_date, is_billable')
         .eq('tenant_id', tenantId);
 
       if (!isAdmin && currentEmployeeId) {
@@ -124,6 +132,19 @@ export function useFinancialEvolution(
 
       const { data: projects, error: projErr } = await projectsQuery;
       if (projErr) throw projErr;
+
+      // Todas as versões de uma vez: são poucas (uma por mudança de política) e assim os doze
+      // meses se resolvem sem doze idas ao banco.
+      const settingsRes = await supabase
+        .from('financial_settings')
+        .select('gross_margin_target_percent, effective_from')
+        .eq('tenant_id', tenantId)
+        .order('effective_from', { ascending: false });
+
+      const versoes = settingsRes.data ?? [];
+      const metaDoMes = (i: number): number | null =>
+        versaoVigenteEm(versoes, format(endOfMonth(new Date(year, i, 1)), 'yyyy-MM-dd'))
+          ?.gross_margin_target_percent ?? null;
 
       const buildEmpty = (): FinancialMonthlyPoint[] =>
         Array.from({ length: 12 }, (_, i) => ({
@@ -140,15 +161,10 @@ export function useFinancialEvolution(
           plannedCommissionCost: 0, plannedSubscriptionCost: 0, plannedEquipmentCost: 0,
           plannedReimbursementCost: 0, plannedTravelOtherCost: 0,
           grossMarginPct: null, plannedGrossMarginPct: null,
+          grossMarginTargetPct: metaDoMes(i),
         }));
 
-      const settingsRes = await supabase
-        .from('financial_settings')
-        .select('gross_margin_target_percent')
-        .eq('tenant_id', tenantId)
-        .maybeSingle();
-
-      const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
+      const grossMarginTarget = metaDoMes(11);
 
       if (!projects || projects.length === 0) {
         return { year, months: buildEmpty(), grossMarginTarget };
@@ -156,6 +172,12 @@ export function useFinancialEvolution(
 
       const projectIds = projects.map(p => p.id);
       const projectMap = new Map(projects.map(p => [p.id, p]));
+      // Projeto interno tem hora, time e prazo, mas ninguém paga por ele (ADR-0035). O custo
+      // dele é da empresa, como a atividade interna — contá-lo como billable diria que a casa
+      // fatura o que investe em si mesma.
+      const nonBillableProjects = new Set(
+        projects.filter((p) => (p as { is_billable?: boolean }).is_billable === false).map((p) => p.id),
+      );
 
       // Mão de obra interna (activity_timesheets) é custo da empresa, não de projeto:
       // só entra na visão-empresa (sem recorte por GP/projeto/cliente).
@@ -194,7 +216,7 @@ export function useFinancialEvolution(
           .lte('invoice_date', yearEnd),
         supabase
           .from('project_timesheets')
-          .select('project_member_id, work_date, hours, cost_per_hour')
+          .select('project_id, project_member_id, work_date, hours, cost_per_hour')
           .in('project_id', projectIds)
           .gte('work_date', yearStart)
           .lte('work_date', yearEnd),
@@ -279,7 +301,12 @@ export function useFinancialEvolution(
           : info
             ? getFallbackHourlyCost(info.monthlyCostEstimated, info.jornadaDiaria, year, monthIdx, holidays)
             : 0;
-        monthData[monthIdx].laborCost += Number(ts.hours) * hourlyCost;
+        const laborCost = Number(ts.hours) * hourlyCost;
+        if (nonBillableProjects.has((ts as { project_id?: string }).project_id ?? '')) {
+          monthData[monthIdx].internalLaborCost += laborCost;
+        } else {
+          monthData[monthIdx].laborCost += laborCost;
+        }
       }
 
       for (const allocation of plannedAllocations) {
@@ -380,7 +407,8 @@ export function useFinancialEvolution(
         else target.plannedTravelOtherCost += c.value; // travel + other
       }
 
-      // Mão de obra interna (não-billable): horas de activity_timesheets × custo-hora.
+      // Mão de obra interna (não-billable): horas de activity_timesheets × custo-hora, mais as
+      // horas de projeto interno somadas acima (ADR-0035).
       // Sem contrapartida de planejamento na base hoje — não entra em plannedTotalCosts.
       for (const ts of activityRows) {
         if (!ts.work_date) continue;

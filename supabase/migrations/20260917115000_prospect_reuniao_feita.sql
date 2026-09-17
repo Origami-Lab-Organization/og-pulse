@@ -13,7 +13,7 @@
 -- funil uma a uma, e um índice que não conhece a etapa nova deixaria de cobrir a consulta
 -- mais quente do módulo sem nenhum aviso — a query continuaria correta, só mais lenta.
 --
--- Rollback: supabase/rollback/20260917100000_prospect_reuniao_feita_rollback.sql
+-- Rollback: supabase/rollback/20260917115000_prospect_reuniao_feita_rollback.sql
 
 ALTER TABLE public.prospects DROP CONSTRAINT prospects_stage_valid;
 

@@ -8,6 +8,7 @@ import {
   DollarSign, Percent, Wallet, TrendingUp, Receipt,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { useHideValuesOnScreen } from '@/contexts/HideValuesContext';
 import { AdminDashboardFilters, type Granularity } from '@/components/admin-dashboard/AdminDashboardFilters';
 import { AdminMetricCard } from '@/components/admin-dashboard/AdminMetricCard';
 import { AdminBirthdaysCard } from '@/components/admin-dashboard/AdminBirthdaysCard';
@@ -56,6 +57,11 @@ export default function AdminDashboard() {
   }, [granularity, currentPeriodDate, customStart, customEnd]);
 
   // ── Dados (todos filtram tenant_id internamente via useAuth) ─────────────────
+  // Uma linha, e é o que faz o olho valer nesta tela: `formatCurrency` é função pura e não
+  // assina nada, então quem precisa reagir é a PÁGINA. Re-render, não remontagem — filtro de
+  // período e rolagem continuam onde estavam.
+  useHideValuesOnScreen();
+
   const { data: financialEvolution, isLoading: isFinancialLoading } =
     useFinancialEvolution(filters, { enabled: true });
   const { data: projects = [] } = useProjects();
@@ -128,6 +134,7 @@ export default function AdminDashboard() {
       title="Dashboard Executivo"
       description="A saúde financeira, operacional e de pessoas da empresa em um só lugar"
       breadcrumbs={[{ label: 'Dashboard' }]}
+      financialValues
     >
       <div className="space-y-6">
         {/* Filtro de período GLOBAL */}

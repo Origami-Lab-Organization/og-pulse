@@ -68,7 +68,8 @@ export function PlanningInstallmentsTable({
         id,
         projectId,
         updates: {
-          invoiceDate: editInvoiceDate || undefined,
+          // `null` apaga a data; `undefined` não geraria UPDATE na coluna.
+          invoiceDate: editInvoiceDate || null,
         },
       },
       {

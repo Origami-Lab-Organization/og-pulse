@@ -30,6 +30,7 @@
     "gsc:submit": "node scripts/search-console.mjs submit",
     "gsc:inspect": "node scripts/search-console.mjs inspect",
     "gsc:status": "node scripts/search-console.mjs status",
+    "gsc:query": "node scripts/search-console.mjs query",
     "check:tour": "node scripts/check-tour-anchors.mjs"
   },
   "dependencies": {

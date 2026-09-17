@@ -34,6 +34,7 @@ import {
 } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
 import { HideValuesProvider, useHideValuesPreference } from "@/contexts/HideValuesContext";
+import { HideValuesToggle } from "@/components/layout/HideValuesToggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CreateProjectInput } from "@/types/project";
 import { useState } from "react";
@@ -69,10 +70,12 @@ export default function ProjectDetail() {
   /** Alcanca projeto de que nao e o gerente responsavel — metade de `can_manage_project`. */
   const canManageAnyProject = can('projeto:gerir-qualquer');
   const canAccessFullProject = isAdmin || isManager;
+  const canAccessPortfolio = can('portfolio:ler');
+  const homeRoute = canAccessPortfolio ? '/projetos' : '/my-projects';
   const initialTab = canAccessFullProject
     ? searchParams.get("tab") || "overview"
     : "activities";
-  const { data: project, isLoading } = useProject(id);
+  const { data: project, isLoading, error: projectError, refetch } = useProject(id);
   const { data: allocations = [] } = useProjectAllocations(id ?? '', false);
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -131,6 +134,43 @@ export default function ProjectDetail() {
     );
   }
 
+  /**
+   * Falha e ausência são coisas diferentes, e a tela dizia a mesma frase para as duas.
+   *
+   * "Não foi encontrado" para um projeto que existe, e que a pessoa só não conseguiu
+   * carregar, manda procurar no lugar errado — e apagava a única pista do que aconteceu.
+   * O código do erro aparece de propósito: o DevTools é bloqueado por política nas máquinas
+   * do time, então sem isto a falha não deixa rastro nenhum que dê para reportar.
+   */
+  if (projectError) {
+    const codigo = (projectError as { code?: string }).code;
+    return (
+      <AppLayout
+        title="Não foi possível abrir o projeto"
+        breadcrumbs={[{ label: "Portfólio", href: "/projetos" }, { label: "Erro" }]}
+      >
+        <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
+          <p className="text-muted-foreground">
+            O projeto existe, mas os dados dele não vieram. Pode ser falta de permissão ou
+            uma falha momentânea.
+          </p>
+          {codigo && (
+            <p className="text-xs text-muted-foreground">
+              Código do erro: <code className="font-mono">{codigo}</code> — mande este código
+              para quem cuida do sistema.
+            </p>
+          )}
+          <div className="flex gap-2">
+            <Button onClick={() => refetch()}>Tentar de novo</Button>
+            <Button variant="outline" onClick={() => navigate(homeRoute)}>
+              Voltar
+            </Button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   if (!project) {
     return (
       <AppLayout
@@ -140,12 +180,14 @@ export default function ProjectDetail() {
           { label: "Não encontrado" },
         ]}
       >
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="flex h-64 flex-col items-center justify-center gap-4 text-center">
           <p className="text-muted-foreground">
-            O projeto solicitado não foi encontrado.
+            Você não tem acesso a este projeto, ou ele não existe mais.
           </p>
-          <Button onClick={() => navigate("/projetos")}>
-            Voltar para Portfólio
+          {/* O botão levava sempre ao Portfólio, que exige `portfolio:ler` — quem não tem a
+              capacidade caía de uma tela que não pode abrir em outra que também não pode. */}
+          <Button onClick={() => navigate(homeRoute)}>
+            {canAccessPortfolio ? "Voltar para Portfólio" : "Voltar para Meus Projetos"}
           </Button>
         </div>
       </AppLayout>
@@ -180,31 +222,14 @@ export default function ProjectDetail() {
   const cancellation = project as typeof project & ProjectCancellationFields;
 
   const showMenu = canAccessFullProject && (canEdit || isAdmin);
+  // O olho de ocultar valores vem do `AppLayout` agora — antes havia DOIS na mesma tela,
+  // com máscaras diferentes e preferências que não conversavam.
   const showHideValuesToggle = canAccessFullProject;
 
   const headerActions =
     showMenu || showHideValuesToggle ? (
       <div className="flex items-center gap-2">
-        {showHideValuesToggle && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setHideValues((v) => !v)}
-              >
-                {hideValues ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {hideValues ? "Mostrar valores" : "Ocultar valores"}
-            </TooltipContent>
-          </Tooltip>
-        )}
+        {showHideValuesToggle && <HideValuesToggle />}
         {showMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -335,7 +360,7 @@ export default function ProjectDetail() {
                 <ProjectRoadmapTab project={project} isReadOnly={isReadOnly} />
               </TabsContent>
 
-              <TabsContent value="team" className="mt-6">
+              <TabsContent value="team" className="mt-6 min-w-0">
                 <EquipeTab project={project} isReadOnly={isReadOnly} />
               </TabsContent>
 

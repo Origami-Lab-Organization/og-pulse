@@ -188,6 +188,10 @@ export interface CreateProjectInput {
   renewalDate?: string;
   serviceLine?: string;
   successFeePercent?: number;
+  /** Falso = projeto interno: ninguém paga por ele, e a hora vira custo interno (ADR-0035). */
+  isBillable?: boolean;
+  /** Obrigatório quando `isBillable` é falso: o centro que recebe o custo (ADR-0035). */
+  costCenterId?: string;
   leadId?: string;
   valueBookUrl?: string;
   customInstallments?: {
@@ -238,9 +242,13 @@ export interface CreateInstallmentInput {
 
 export interface UpdateInstallmentInput {
   status?: InstallmentStatus;
-  invoiceNumber?: string;
-  invoiceDate?: string;
-  paymentDate?: string;
+  invoiceNumber?: string | null;
+  /**
+   * `null` APAGA a data; ausente deixa como está — `updateInstallment` pula chave
+   * `undefined` de propósito, para a edição de uma parcela não zerar o resto.
+   */
+  invoiceDate?: string | null;
+  paymentDate?: string | null;
   notes?: string;
   value?: number;
   dueDate?: string;

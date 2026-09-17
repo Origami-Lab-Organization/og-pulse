@@ -1,7 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import { format, addDays, parseISO, isAfter, startOfDay } from 'date-fns';
 import {
-  Briefcase,
   Building2,
   Check,
   ChevronRight,
@@ -9,6 +8,7 @@ import {
   Folder,
   HelpCircle,
   Info,
+  Layers,
   Save,
   Send,
   Wand2,
@@ -97,7 +97,7 @@ export function WeeklyTimesheetGrid({
   const isFriday = new Date().getDay() === 5;
   const isCurrentWeek = !isFutureWeek && weekStart <= today;
 
-  const { data: projects = [], isLoading: loadingProjects } = useMyProjectMemberships(
+  const { data: allProjects = [], isLoading: loadingProjects } = useMyProjectMemberships(
     employee?.id,
     startDate,
     endDate
@@ -114,6 +114,22 @@ export function WeeklyTimesheetGrid({
   );
   const { data: holidays = [] } = useHolidays();
 
+  // Projeto do qual a pessoa saiu fica visível enquanto a semana tocar o tempo em que ela era
+  // da equipe, ou enquanto houver hora lançada nela. Os dois casos importam: o primeiro deixa
+  // apontar o que se trabalhou ANTES de sair (quem sai numa segunda ainda tem a segunda para
+  // lançar); o segundo evita apagar da tela hora que já está gravada.
+  const projects = useMemo(() => {
+    const lancouNaSemana = (memberId: string) =>
+      timesheetEntries.some((e) => e.projectMemberId === memberId && Number(e.hours) > 0);
+    return allProjects.filter((p) => {
+      if (!p.isDeallocated) return true;
+      const member = p.members[0];
+      if (member && lancouNaSemana(member.memberId)) return true;
+      // Sem data de saída não dá para saber até quando valia; trata como fora da equipe.
+      return p.deallocatedAt ? startDate <= p.deallocatedAt : false;
+    });
+  }, [allProjects, timesheetEntries, startDate]);
+
   const rawPrefill = useTimesheetPrefill(employee?.id, weekDays, projects);
   const prefillByProject = useMemo(
     () => (isFutureWeek ? {} : rawPrefill),
@@ -129,7 +145,14 @@ export function WeeklyTimesheetGrid({
 
   const [realValuesByRow, setRealValuesByRow] = useState<Record<string, Record<string, number>>>({});
   const [saveStatuses, setSaveStatuses] = useState<Record<string, SaveStatusInfo>>({});
-  const [activitiesExpanded, setActivitiesExpanded] = useState(false);
+  // Um colapso por centro, não um para tudo: a seção única "Atividades internas" deixou de
+  // existir (PUL-222). Começam fechados, como a seção antiga começava.
+  const [centrosAbertos, setCentrosAbertos] = useState<string[]>([]);
+  const alternarCentro = useCallback((chave: string) => {
+    setCentrosAbertos((atual) =>
+      atual.includes(chave) ? atual.filter((c) => c !== chave) : [...atual, chave]
+    );
+  }, []);
   const [resetNonce, setResetNonce] = useState(0);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
 
@@ -168,13 +191,20 @@ export function WeeklyTimesheetGrid({
       const member = project.members[0];
       if (!member) continue;
       const set = new Set<string>();
+      // Desalocado: trava do dia seguinte à saída em diante. Sem data, trava a semana toda.
+      if (project.isDeallocated) {
+        const saiuEm = project.deallocatedAt;
+        weekDays.forEach((d) => {
+          if (!saiuEm || d.date > saiuEm) set.add(d.date);
+        });
+      }
       for (const e of timesheetEntries) {
         if (e.projectMemberId === member.memberId && e.isLocked) set.add(e.workDate);
       }
       map[projectRowId(member.memberId)] = set;
     }
     return map;
-  }, [projects, timesheetEntries]);
+  }, [projects, timesheetEntries, weekDays]);
 
   const activityLockedByRow = useMemo(() => {
     const map: Record<string, Set<string>> = {};
@@ -273,9 +303,48 @@ export function WeeklyTimesheetGrid({
     else inputRefs.current.delete(key);
   }, []);
 
+  /**
+   * As linhas fora de projeto, agrupadas por CENTRO DE CUSTO (PUL-222).
+   *
+   * O centro vem do item e é o que a hora grava (PUL-221, ADR-0031). Agrupar aqui é
+   * organização da lista, nunca permissão: quem lança hora lança no item que quiser.
+   *
+   * Item sem centro cai num grupo próprio no fim, com nome explícito. Esconder seria pior:
+   * o catálogo aceita item sem centro por expand-contract (migration 20260910120000), e a
+   * hora dele vira lacuna de custo que alguém precisa ver para arrumar.
+   */
+  const gruposPorCentro = useMemo(() => {
+    const SEM_CENTRO = 'sem-centro';
+    const porCentro = new Map<string, { titulo: string; itens: typeof myActivityTypes }>();
+
+    for (const at of myActivityTypes) {
+      const chave = at.costCenterId ?? SEM_CENTRO;
+      const titulo = at.costCenterName
+        ? [at.costCenterCode, at.costCenterName].filter(Boolean).join(' · ')
+        : 'Sem centro de custo';
+      const grupo = porCentro.get(chave) ?? { titulo, itens: [] };
+      grupo.itens.push(at);
+      porCentro.set(chave, grupo);
+    }
+
+    return [...porCentro.entries()]
+      .map(([chave, grupo]) => ({ chave, ...grupo }))
+      .sort((a, b) => {
+        if (a.chave === SEM_CENTRO) return 1;
+        if (b.chave === SEM_CENTRO) return -1;
+        return a.titulo.localeCompare(b.titulo, 'pt-BR');
+      });
+  }, [myActivityTypes]);
+
+  /** A ordem achatada dos grupos: é ela que dá o índice de linha da navegação por teclado. */
+  const linhasForaDeProjeto = useMemo(
+    () => gruposPorCentro.flatMap((g) => g.itens),
+    [gruposPorCentro]
+  );
+
   // Limite seguro para a navegação por teclado: linhas de atividade colapsadas
   // e vazias simplesmente não têm ref registrada, então o loop as pula.
-  const orderedRowCount = projects.length + myActivityTypes.length;
+  const orderedRowCount = projects.length + linhasForaDeProjeto.length;
 
   const onArrowNavigate = useCallback(
     (rowIndex: number, dayIndex: number, dRow: number, dCol: number) => {
@@ -669,72 +738,79 @@ export function WeeklyTimesheetGrid({
               );
             })}
 
-            {/* Atividades internas — a seta colapsa só as linhas ainda vazias;
-                linhas com qualquer horas lançadas na semana ficam sempre visíveis. */}
-            {myActivityTypes.length > 0 && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setActivitiesExpanded((v) => !v)}
-                  className="flex w-full items-center justify-between gap-2 rounded-md pb-2 pt-5 text-left transition-colors hover:bg-muted/30"
-                  data-tour="activities-toggle"
-                >
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <span className="ui-h3">Atividades internas</span>
-                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
-                      {myActivityTypes.length}
-                    </span>
-                  </div>
-                  <ChevronRight
-                    className={cn(
-                      'h-4 w-4 text-muted-foreground transition-transform',
-                      activitiesExpanded && 'rotate-90'
-                    )}
-                  />
-                </button>
-
-                {myActivityTypes.map((at, ai) => {
-                  const rowId = activityRowId(at.id);
-                  const hasData = Object.keys(realValuesByRow[rowId] ?? {}).length > 0;
-                  if (!hasData && !activitiesExpanded) return null;
-
-                  return (
-                    <WeeklyGridRow
-                      key={`${rowId}:${resetNonce}`}
-                      rowId={rowId}
-                      rowIndex={projects.length + ai}
-                      name={at.name}
-                      subtitle="Atividade interna"
-                      weekDays={weekDays}
-                      weekdayLabels={WEEKDAY_LABELS}
-                      dateLabels={dateLabels}
-                      gridCols={GRID_COLS}
-                      isOnline={isOnline}
-                      trackSuggestions={false}
-                      entryHours={entryHoursByRow[rowId] ?? {}}
-                      persist={(date, hours) =>
-                        upsertActivity.mutateAsync({
-                          employeeId: employee!.id,
-                          activityTypeId: at.id,
-                          workDate: date,
-                          hours,
-                        })
-                      }
-                      cellMode={(date) => cellModeFor(date, activityLockedByRow[rowId])}
-                      holidayName={holidayName}
-                      overByDate={overByDate}
-                      statusContent={statusBadge(activityRowStatus(at.id))}
-                      onExceedMax={onExceedMax}
-                      onRealValuesChange={handleRealValuesChange}
-                      onSaveStatusChange={handleSaveStatusChange}
-                      registerRef={registerRef}
-                      onArrowNavigate={onArrowNavigate}
+            {/* Fora de projeto, uma seção por CENTRO DE CUSTO (PUL-222). A seção genérica
+                "Atividades internas" deixou de existir: o destino da hora é o item, e o
+                centro vem do item. A seta colapsa só as linhas ainda vazias — linha com
+                hora lançada na semana fica sempre visível, para a semana bater com o que
+                está gravado. */}
+            {gruposPorCentro.map((grupo) => {
+              const aberto = centrosAbertos.includes(grupo.chave);
+              return (
+                <Fragment key={grupo.chave}>
+                  <button
+                    type="button"
+                    onClick={() => alternarCentro(grupo.chave)}
+                    aria-expanded={aberto}
+                    className="flex w-full items-center justify-between gap-2 rounded-md pb-2 pt-5 text-left transition-colors hover:bg-muted/30"
+                    data-tour="activities-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-muted-foreground" />
+                      <span className="ui-h3">{grupo.titulo}</span>
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
+                        {grupo.itens.length}
+                      </span>
+                    </div>
+                    <ChevronRight
+                      className={cn(
+                        'h-4 w-4 text-muted-foreground transition-transform',
+                        aberto && 'rotate-90'
+                      )}
                     />
-                  );
-                })}
-              </>
-            )}
+                  </button>
+
+                  {grupo.itens.map((at) => {
+                    const rowId = activityRowId(at.id);
+                    const hasData = Object.keys(realValuesByRow[rowId] ?? {}).length > 0;
+                    if (!hasData && !aberto) return null;
+
+                    return (
+                      <WeeklyGridRow
+                        key={`${rowId}:${resetNonce}`}
+                        rowId={rowId}
+                        rowIndex={projects.length + linhasForaDeProjeto.indexOf(at)}
+                        name={at.name}
+                        subtitle={at.description || grupo.titulo}
+                        weekDays={weekDays}
+                        weekdayLabels={WEEKDAY_LABELS}
+                        dateLabels={dateLabels}
+                        gridCols={GRID_COLS}
+                        isOnline={isOnline}
+                        trackSuggestions={false}
+                        entryHours={entryHoursByRow[rowId] ?? {}}
+                        persist={(date, hours) =>
+                          upsertActivity.mutateAsync({
+                            employeeId: employee!.id,
+                            activityTypeId: at.id,
+                            workDate: date,
+                            hours,
+                          })
+                        }
+                        cellMode={(date) => cellModeFor(date, activityLockedByRow[rowId])}
+                        holidayName={holidayName}
+                        overByDate={overByDate}
+                        statusContent={statusBadge(activityRowStatus(at.id))}
+                        onExceedMax={onExceedMax}
+                        onRealValuesChange={handleRealValuesChange}
+                        onSaveStatusChange={handleSaveStatusChange}
+                        registerRef={registerRef}
+                        onArrowNavigate={onArrowNavigate}
+                      />
+                    );
+                  })}
+                </Fragment>
+              );
+            })}
 
             {/* Total / dia */}
             <div

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -59,16 +59,8 @@ export function HolidaysSettingsForm() {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <PartyPopper className="h-5 w-5" />
-              Feriados e Folgas
-            </CardTitle>
-            <CardDescription>
-              Configure os dias que não serão contabilizados nos timesheets
-            </CardDescription>
-          </div>
+        {/* Nome e explicação da tela vivem no cabeçalho da página, como no resto do sistema. */}
+        <CardHeader className="flex flex-row items-center justify-end space-y-0 pb-4">
           <Button onClick={handleAddNew} size="sm">
             <Plus className="h-4 w-4 mr-1" />
             Adicionar Feriado

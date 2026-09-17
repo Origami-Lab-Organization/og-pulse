@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
+import { AppLink } from '@/landing/AppLink';
 import type { LucideIcon } from 'lucide-react';
 import {
   ArrowRight,
@@ -112,13 +113,13 @@ function HeroSection() {
           </p>
           <div className="lp-enter mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center" style={delay(3)}>
             <Button variant="gradient" size="lg" asChild>
-              <Link to={NAV.register}>
+              <AppLink to={NAV.register}>
                 {HERO.primaryCta}
                 <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-              </Link>
+              </AppLink>
             </Button>
             <Button variant="outline" size="lg" asChild>
-              <Link to={NAV.login}>{HERO.secondaryCta}</Link>
+              <AppLink to={NAV.login}>{HERO.secondaryCta}</AppLink>
             </Button>
           </div>
           <p className="lp-enter mt-4 text-sm text-muted-foreground" style={delay(4)}>
@@ -370,10 +371,10 @@ function AiConnectionSection() {
           <div className="shrink-0 space-y-4 lg:max-w-[260px]">
             <p className="text-sm leading-relaxed text-muted-foreground">{AI_CONNECTION.note}</p>
             <Button asChild variant="gradient">
-              <Link to={NAV.register}>
+              <AppLink to={NAV.register}>
                 {AI_CONNECTION.cta}
                 <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-              </Link>
+              </AppLink>
             </Button>
           </div>
         </div>
@@ -497,10 +498,10 @@ function FinalCtaSection() {
           <p className="mt-6 text-lg text-muted-foreground">{FINAL_CTA.subtitle}</p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button variant="gradient" size="lg" asChild>
-              <Link to={NAV.register}>
+              <AppLink to={NAV.register}>
                 {FINAL_CTA.cta}
                 <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-              </Link>
+              </AppLink>
             </Button>
             <Button variant="outline" size="lg" asChild>
               <a href={contactHref}>Falar com a Origami Lab</a>

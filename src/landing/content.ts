@@ -43,6 +43,7 @@ export const NAV = {
   register: '/register',
   terms: '/termos',
   privacy: '/privacidade',
+  guides: '/guias',
   /** Âncoras absolutas (`/#secao`): funcionam na home e a partir de qualquer outra página pública. */
   features: '/#funcionalidades',
   ai: '/#conexao-ia',
@@ -388,7 +389,10 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
   },
   {
     title: 'Conteúdo',
-    links: CONTENT_PAGES.filter((page) => page.kind !== ContentKind.PERSONA).map((page) => ({ label: page.navLabel, href: page.slug })),
+    links: [
+      { label: 'Todos os guias', href: NAV.guides },
+      ...CONTENT_PAGES.filter((page) => page.kind !== ContentKind.PERSONA).map((page) => ({ label: page.navLabel, href: page.slug })),
+    ],
   },
   {
     title: 'Legal',
@@ -475,6 +479,31 @@ export function copyrightLine(now: Date = new Date()): string {
 }
 
 /* ------------------------------------------------------------------------ */
+/* Hub de conteúdo (/guias)                                                  */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Índice das páginas de conteúdo. Existe porque, sem ele, as páginas só eram
+ * alcançáveis pelo rodapé e pelo "Leia também": um rastreador que chega numa página
+ * de conteúdo não tinha como descobrir as outras em um salto, e o leitor também não.
+ */
+export const GUIDES_HUB = {
+  eyebrow: 'Guias',
+  title: 'Guias de rentabilidade para empresas de serviços',
+  seoTitle: 'Guias | Origami Pulse',
+  description:
+    'Como calcular custo hora, valor hora de venda, margem por projeto, alocação e apontamento de horas em empresas de serviços. Guias com fórmula, exemplo numérico e perguntas frequentes.',
+  lead:
+    'Reunimos aqui o que uma empresa de serviços precisa saber para descobrir se o projeto dá lucro: quanto custa a hora de quem executa, quanto cobrar por ela, como planejar a alocação, como registrar o que foi feito e como comparar a margem planejada com a realizada. Cada guia responde uma pergunta inteira, com a conta aberta.',
+  groups: [
+    { kind: ContentKind.DEFINITION, title: 'Começar pelo conceito', description: 'O vocabulário que o resto assume.' },
+    { kind: ContentKind.GUIDE, title: 'Fazer a conta', description: 'Fórmula, exemplo numérico e o erro comum de cada cálculo.' },
+    { kind: ContentKind.PROBLEM, title: 'Resolver o problema', description: 'O que fazer quando o número não fecha.' },
+    { kind: ContentKind.PERSONA, title: 'Pelo seu tipo de empresa', description: 'O mesmo problema, no vocabulário do seu segmento.' },
+  ],
+} as const;
+
+/* ------------------------------------------------------------------------ */
 /* Artefatos derivados: JSON-LD, llms.txt e sitemap                          */
 /* ------------------------------------------------------------------------ */
 
@@ -546,6 +575,44 @@ export function buildJsonLd(): JsonLd[] {
 
 const pageUrl = (page: ContentPage) => `${SITE.origin}${page.slug}`;
 
+/** JSON-LD do hub: coleção + a lista ordenada das páginas, que é o que um motor lê para descobrir o conjunto. */
+export function buildGuidesHubJsonLd(): JsonLd[] {
+  const url = `${SITE.origin}${NAV.guides}`;
+  return [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      '@id': url,
+      url,
+      name: GUIDES_HUB.seoTitle,
+      headline: GUIDES_HUB.title,
+      description: GUIDES_HUB.description,
+      inLanguage: SITE.language,
+      isPartOf: { '@id': `${SITE.origin}/#website` },
+      publisher: { '@id': `${SITE.maker.url}/#organization` },
+      about: { '@id': `${SITE.origin}/#software` },
+      mainEntity: {
+        '@type': 'ItemList',
+        numberOfItems: CONTENT_PAGES.length,
+        itemListElement: CONTENT_PAGES.map((page, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          name: page.title,
+          url: pageUrl(page),
+        })),
+      },
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Início', item: `${SITE.origin}/` },
+        { '@type': 'ListItem', position: 2, name: GUIDES_HUB.eyebrow, item: url },
+      ],
+    },
+  ];
+}
+
 /**
  * JSON-LD de uma página de conteúdo (PUL-242): WebPage (Article nos guias), trilha de
  * navegação e FAQPage quando há perguntas. Publisher e site apontam para os `@id` da home.
@@ -561,9 +628,11 @@ export function buildPageJsonLd(page: ContentPage): JsonLd[] {
     headline: page.title,
     description: page.description,
     inLanguage: SITE.language,
+    datePublished: page.publishedAt ?? page.updatedAt,
     dateModified: page.updatedAt,
     isPartOf: { '@id': `${SITE.origin}/#website` },
     publisher: { '@id': `${SITE.maker.url}/#organization` },
+    author: { '@id': `${SITE.maker.url}/#organization` },
     about: { '@id': `${SITE.origin}/#software` },
   };
   const breadcrumb: JsonLd = {
@@ -598,11 +667,21 @@ export function buildPageJsonLd(page: ContentPage): JsonLd[] {
  * Quando o texto entrar, basta virar a chave aqui.
  */
 function contentRoute(page: ContentPage): PublicRoute {
-  return { path: page.slug, title: page.seoTitle, description: page.description, indexable: true, changefreq: 'monthly', priority: '0.7' };
+  return { path: page.slug, title: page.seoTitle, description: page.description, indexable: true, changefreq: 'monthly', priority: '0.7', lastmod: page.updatedAt };
 }
 
 export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { path: '/', title: SEO.title, description: SEO.description, indexable: true, changefreq: 'weekly', priority: '1.0' },
+  {
+    path: NAV.guides,
+    title: GUIDES_HUB.seoTitle,
+    description: GUIDES_HUB.description,
+    indexable: true,
+    changefreq: 'weekly',
+    priority: '0.8',
+    /** Muda sempre que uma página de conteúdo muda: o hub lista todas. */
+    lastmod: CONTENT_PAGES.reduce((maisRecente, page) => (page.updatedAt > maisRecente ? page.updatedAt : maisRecente), CONTENT_PAGES[0].updatedAt),
+  },
   {
     path: NAV.terms,
     title: 'Termos de uso | Origami Pulse',
@@ -632,10 +711,15 @@ export const NOT_FOUND_ROUTE: PublicRoute = {
   indexable: false,
 };
 
-export function buildSitemap(lastmod: string): string {
+/**
+ * `lastmod` é a data real de mudança da página (`updatedAt`), não a do build: um
+ * sitemap que diz "tudo mudou hoje" a cada deploy ensina o Google a ignorar o sinal.
+ * O parâmetro `buildDate` só atende quem não tem data própria (home e legais).
+ */
+export function buildSitemap(buildDate: string): string {
   const urls = PUBLIC_ROUTES.filter((r) => r.indexable).map(
     (r) =>
-      `  <url>\n    <loc>${SITE.origin}${r.path}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${r.changefreq ?? 'monthly'}</changefreq>\n    <priority>${r.priority ?? '0.5'}</priority>\n  </url>`,
+      `  <url>\n    <loc>${SITE.origin}${r.path}</loc>\n    <lastmod>${r.lastmod ?? buildDate}</lastmod>\n    <changefreq>${r.changefreq ?? 'monthly'}</changefreq>\n    <priority>${r.priority ?? '0.5'}</priority>\n  </url>`,
   ).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
@@ -692,6 +776,7 @@ export function buildLlmsTxt(): string {
     '## Links canônicos',
     '',
     `- Página inicial: ${SITE.origin}/`,
+    `- Todos os guias: ${SITE.origin}${NAV.guides}`,
     `- Entrar: ${SITE.origin}${NAV.login}`,
     `- Cadastrar empresa: ${SITE.origin}${NAV.register}`,
     `- Termos de uso: ${SITE.origin}${NAV.terms}`,

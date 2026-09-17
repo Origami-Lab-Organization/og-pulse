@@ -124,8 +124,9 @@ export function ProjectInstallmentsTable({
     const updates: Record<string, unknown> = {
       status: editData.status,
       invoiceNumber: editData.invoiceNumber || undefined,
-      invoiceDate: editData.invoiceDate || undefined,
-      paymentDate: editData.paymentDate || undefined,
+      // `null` apaga a data; `undefined` não geraria UPDATE na coluna.
+      invoiceDate: editData.invoiceDate || null,
+      paymentDate: editData.paymentDate || null,
       value: editData.value,
     };
 

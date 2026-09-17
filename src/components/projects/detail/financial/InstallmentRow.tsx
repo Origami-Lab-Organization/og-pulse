@@ -72,9 +72,11 @@ export function InstallmentRow({
     onSave({
       value: Number(value) || 0,
       dueDate,
-      invoiceNumber: nf || undefined,
-      invoiceDate: invoiceDate || undefined,
-      paymentDate: paymentDate || undefined,
+      // `null` apaga; `undefined` seria descartado por `updateInstallment` e o campo
+      // limpo pela pessoa voltaria intacto ao recarregar.
+      invoiceNumber: nf || null,
+      invoiceDate: invoiceDate || null,
+      paymentDate: paymentDate || null,
       status,
     });
   };

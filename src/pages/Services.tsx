@@ -135,7 +135,7 @@ const Services = () => {
       <AppLayout
         title="Linhas de Serviço"
         description="O catálogo de tudo que a empresa vende, organizado em Linhas de Serviço. Cada linha agrupa serviços com modelos de cobrança definidos."
-        breadcrumbs={[{ label: 'Comercial', href: '/comercial' }, { label: 'Linhas de Serviço' }]}
+        breadcrumbs={[{ label: 'Configurações', href: '/admin' }, { label: 'Linhas de Serviço' }]}
       >
         <div className="space-y-2">
           <Skeleton className="h-10 w-64" />
@@ -151,7 +151,7 @@ const Services = () => {
     <AppLayout
       title="Linhas de Serviço"
       description="O catálogo de tudo que a empresa vende, organizado em Linhas de Serviço. Cada linha agrupa serviços com modelos de cobrança definidos."
-      breadcrumbs={[{ label: 'Comercial', href: '/comercial' }, { label: 'Linhas de Serviço' }]}
+      breadcrumbs={[{ label: 'Configurações', href: '/admin' }, { label: 'Linhas de Serviço' }]}
       actions={
         canManage ? (
           <Button onClick={openNew} size="sm">
@@ -271,7 +271,7 @@ const Services = () => {
                 <TableRow
                   key={line.id}
                   className={cn('cursor-pointer', !line.isActive && 'opacity-60')}
-                  onClick={() => navigate(`/comercial/servicos/${line.id}`)}
+                  onClick={() => navigate(`/admin/servicos/${line.id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-2.5">

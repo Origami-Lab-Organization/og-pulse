@@ -125,7 +125,9 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     plannedLaborFromAllocations.total,
   ]);
 
-  const { data: financialSettings } = useFinancialSettings();
+  // A meta e os percentuais que julgam ESTE projeto são os que valiam quando ele começou
+  // (PUL-260). Mudar a política em setembro não muda o que um projeto de janeiro assinou.
+  const { data: financialSettings } = useFinancialSettings(project.start_date);
   const { data: budget } = useBudget(project.budget_id);
   const { data: commissions = [] } = useProjectCommissions(project.id);
 

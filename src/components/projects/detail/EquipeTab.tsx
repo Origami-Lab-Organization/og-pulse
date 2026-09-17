@@ -42,7 +42,9 @@ export function EquipeTab({ project, isReadOnly = false }: EquipeTabProps) {
   };
 
   return (
-    <div className="space-y-4">
+    // `min-w-0`: a tabela de alocação é larga, e sem isto ela empurra a largura do painel
+    // inteiro em vez de rolar dentro do próprio contêiner.
+    <div className="min-w-0 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Equipe</h2>

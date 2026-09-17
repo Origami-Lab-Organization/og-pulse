@@ -71,13 +71,18 @@ export function useProjectFinancials(
     queryFn: async (): Promise<ProjectFinancialsData> => {
       if (!tenantId) throw new Error('No tenant');
 
+      // A configuração financeira tem vigência (PUL-260): a meta que julga um período é a
+      // que valia no FIM dele, não a decidida depois. Sem o `lte`, mudar a meta hoje
+      // reescreveria o veredito de todo mês passado.
       const settingsRes = await supabase
         .from('financial_settings')
         .select('gross_margin_target_percent')
         .eq('tenant_id', tenantId)
-        .maybeSingle();
+        .lte('effective_from', endStr)
+        .order('effective_from', { ascending: false })
+        .limit(1);
 
-      const grossMarginTarget = settingsRes.data?.gross_margin_target_percent ?? null;
+      const grossMarginTarget = settingsRes.data?.[0]?.gross_margin_target_percent ?? null;
 
       const { data: servicesData } = await supabase
         .from('services' as any)

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Layers, Pencil, Plus, Power, PowerOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
@@ -122,17 +122,8 @@ export function CostCentersSettings() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <CardTitle className="flex items-center gap-2">
-            <Layers className="h-5 w-5 text-primary" aria-hidden="true" />
-            Centros de custo
-          </CardTitle>
-          <CardDescription className="mt-1">
-            Onde custo e receita são lidos. Serviços, atividades internas e pessoas apontam para um centro; toda pessoa vê a
-            lista, e só quem configura a empresa edita.
-          </CardDescription>
-        </div>
+      {/* Nome e explicação da tela vivem no cabeçalho da página, como no resto do sistema. */}
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex flex-wrap items-center gap-4">
           {inactiveCount > 0 && (
             <div className="flex items-center gap-2">

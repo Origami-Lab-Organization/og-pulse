@@ -26,6 +26,25 @@ export const useProjects = () => {
   });
 };
 
+/**
+ * Falha que NÃO adianta tentar de novo: permissão negada, tabela sem privilégio, entrada
+ * inválida. O padrão do TanStack são três tentativas com espera crescente, o que transforma
+ * uma negativa instantânea do banco em vários segundos de spinner antes de a tela dizer
+ * qualquer coisa. Erro de rede continua sendo repetido — esse sim costuma passar.
+ */
+const CODIGOS_SEM_RETENTATIVA = new Set([
+  '42501', // permissão negada na tabela
+  'PGRST116', // zero linhas onde se esperava uma
+  'PGRST301', // JWT inválido ou expirado
+  '22P02', // id malformado
+]);
+
+function valeTentarDeNovo(tentativa: number, erro: unknown): boolean {
+  const codigo = (erro as { code?: string } | null)?.code;
+  if (codigo && CODIGOS_SEM_RETENTATIVA.has(codigo)) return false;
+  return tentativa < 2;
+}
+
 export const useProject = (id: string | undefined) => {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
@@ -33,6 +52,7 @@ export const useProject = (id: string | undefined) => {
     queryKey: ['project', id],
     queryFn: () => projectService.getById(id!, tenantId),
     enabled: !!id && !!tenantId,
+    retry: valeTentarDeNovo,
   });
 };
 

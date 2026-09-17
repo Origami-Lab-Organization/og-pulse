@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
@@ -95,13 +95,8 @@ export function TimesheetReminderSettings() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Lembretes de Timesheet</CardTitle>
-        <CardDescription>
-          Configure os lembretes automáticos enviados aos funcionários e gerentes sobre horas pendentes.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+      {/* Nome e explicação da tela vivem no cabeçalho da página, como no resto do sistema. */}
+      <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 

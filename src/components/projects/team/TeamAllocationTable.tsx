@@ -407,8 +407,14 @@ export function TeamAllocationTable({ project, canEdit, isAdmin, currentEmployee
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border bg-card shadow-card">
-        <table className="w-full min-w-[900px] table-fixed border-collapse">
+      {/* `max-w-full` + `min-w-0`: sem isso a tabela larga empurra o contêiner, quem passa a
+          rolar e a PÁGINA, e a coluna fixa gruda na borda esquerda do wrapper — que já saiu
+          da tela, indo parar debaixo do menu lateral. O wrapper precisa ser o único que rola.
+          A tabela usa `w-max min-w-full`, e não `w-full`: com doze meses de 120px a soma
+          passa da largura disponível, e `w-full` faz o navegador estourar o contêiner em vez
+          de deixar o wrapper rolar. */}
+      <div className="w-full min-w-0 max-w-full overflow-x-auto rounded-lg border bg-card shadow-card">
+        <table className="w-max min-w-full table-fixed border-collapse">
           <thead>
             <tr>
               <th className="sticky left-0 z-20 w-[220px] border-b border-r bg-muted p-3 text-left">

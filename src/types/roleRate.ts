@@ -1,9 +1,24 @@
-export type RoleRateStatus = 'active' | 'inactive' | 'archived';
+/** Estado de um papel na tabela de preços. Comparar sempre pelo membro (ADR-030). */
+export const RoleRateStatus = {
+  ACTIVE: 'active',
+  INACTIVE: 'inactive',
+  ARCHIVED: 'archived',
+} as const;
+export type RoleRateStatus = (typeof RoleRateStatus)[keyof typeof RoleRateStatus];
+
+/** O filtro da lista é o estado mais "todos" — que não é estado de papel nenhum. */
+export const RoleRateStatusFilter = {
+  ALL: 'all',
+  ACTIVE: RoleRateStatus.ACTIVE,
+  INACTIVE: RoleRateStatus.INACTIVE,
+  ARCHIVED: RoleRateStatus.ARCHIVED,
+} as const;
+export type RoleRateStatusFilter = (typeof RoleRateStatusFilter)[keyof typeof RoleRateStatusFilter];
 
 export const ROLE_RATE_STATUS_OPTIONS = [
-  { value: 'active', label: 'Ativo' },
-  { value: 'inactive', label: 'Inativo' },
-  { value: 'archived', label: 'Arquivado' },
+  { value: RoleRateStatus.ACTIVE, label: 'Ativo' },
+  { value: RoleRateStatus.INACTIVE, label: 'Inativo' },
+  { value: RoleRateStatus.ARCHIVED, label: 'Arquivado' },
 ] as const;
 
 export interface RoleRateDB {

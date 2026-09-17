@@ -202,11 +202,14 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
           .select('id, project_id, progress_percent, project_key_results(confidence_level)')
           .in('project_id', projectIds),
 
+        // Versão vigente no fim do período analisado (PUL-260).
         supabase
           .from('financial_settings')
           .select('gross_margin_target_percent, taxes_percent')
           .eq('tenant_id', tenantId)
-          .maybeSingle(),
+          .lte('effective_from', endStr)
+          .order('effective_from', { ascending: false })
+          .limit(1),
 
         supabase
           .from('company_holidays')
@@ -226,7 +229,7 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
       const materials        = materialsRes;
       const stakeholders     = stakeholdersRes.data || [];
       const okrs             = (okrsRes.data || []) as any[];
-      const marginTarget     = settingsRes.data?.gross_margin_target_percent ?? null;
+      const marginTarget     = settingsRes.data?.[0]?.gross_margin_target_percent ?? null;
       const holidays         = holidaysRes.data || [];
 
       // ── Lookup maps ───────────────────────────────────────────────────────────

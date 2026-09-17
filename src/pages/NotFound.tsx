@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
+import { AppLink } from '@/landing/AppLink';
 import { ArrowRight, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PublicPage } from '@/landing/chrome';
@@ -33,10 +34,10 @@ const NotFound = () => (
             </Link>
           </Button>
           <Button size="lg" variant="outline" asChild>
-            <Link to={NAV.login}>
+            <AppLink to={NAV.login}>
               <LogIn className="mr-2 h-4 w-4" aria-hidden="true" />
               {NOT_FOUND.secondaryCta}
-            </Link>
+            </AppLink>
           </Button>
         </div>
         <p className="mt-8 text-sm text-muted-foreground">

@@ -8,6 +8,8 @@ import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
 import { OfflineBanner } from '@/components/pwa/OfflineBanner';
 import { CapabilitiesUnavailableBanner } from '@/components/access/CapabilitiesUnavailableBanner';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
+import { HideValuesToggle } from '@/components/layout/HideValuesToggle';
+import { HideValuesProvider, useHideValuesPreference } from '@/contexts/HideValuesContext';
 
 // The shadcn SidebarProvider writes this cookie on every state change but never reads it.
 // Reading it here persists the collapsed/expanded state across page navigations.
@@ -43,6 +45,14 @@ interface AppLayoutProps {
   breadcrumbs?: { label: string; href?: string }[];
   actions?: ReactNode;
   hideHeader?: boolean;
+  /**
+   * A página mostra dinheiro. Liga o olho de ocultar valores no cabeçalho.
+   *
+   * É declaração da página, e não algo que o layout adivinha: só quem monta a tela sabe se
+   * ela tem valor monetário. Sem isto o olho apareceria no Timesheet e na Ajuda, oferecendo
+   * esconder o que não existe.
+   */
+  financialValues?: boolean;
 }
 
 export function AppLayout({
@@ -51,7 +61,12 @@ export function AppLayout({
   description,
   actions,
   hideHeader = false,
+  financialValues = false,
 }: AppLayoutProps) {
+  // O provider mora aqui para a página não precisar refazer a fiação: qualquer tela pode
+  // chamar `useMaskedCurrency()` e reagir ao olho, tenha ou não o botão no cabeçalho.
+  const [hideValues] = useHideValuesPreference();
+
   return (
     <SidebarProvider defaultOpen={getSidebarDefaultOpen()}>
       <AppSidebar />
@@ -78,8 +93,9 @@ export function AppLayout({
                     <p className="text-muted-foreground mt-1">{description}</p>
                   )}
                 </div>
-                {actions && (
+                {(financialValues || actions) && (
                   <div className="flex items-center gap-2 shrink-0">
+                    {financialValues && <HideValuesToggle />}
                     {actions}
                   </div>
                 )}
@@ -92,7 +108,9 @@ export function AppLayout({
         <main className="flex-1 overflow-auto min-w-0">
           <div className="py-4 px-4 sm:py-6 sm:px-6 max-w-full">
             <OnboardingBanner />
-            {children}
+            {/* Sem `key` de remontagem: quem faz a tela reagir é o contexto, então alternar o
+                olho não perde aba aberta, rolagem nem filtro preenchido. */}
+            <HideValuesProvider value={hideValues}>{children}</HideValuesProvider>
           </div>
         </main>
         <AppFooter />

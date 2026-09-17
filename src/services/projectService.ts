@@ -143,12 +143,17 @@ export const projectService = {
       `)
       .eq('id', id);
     if (tenantId) query = query.eq('tenant_id', tenantId);
-    const { data, error } = await query.single();
+    // `maybeSingle`, e não `single`: projeto invisível para quem pediu é um RESULTADO
+    // ("não achei"), não uma falha. Com `single` o PostgREST devolvia erro, o serviço
+    // lançava, e a tela não tinha como distinguir "não existe" de "deu ruim" — as duas
+    // viravam "Projeto não encontrado", depois de a query tentar de novo três vezes.
+    const { data, error } = await query.maybeSingle();
 
     if (error) {
       console.error('Error fetching project:', error);
       throw error;
     }
+    if (!data) return null;
 
     // Fetch members separately with cost data
     const { data: members } = await supabase
@@ -236,6 +241,10 @@ export const projectService = {
         renewal_date: input.renewalDate || null,
         service_line: input.serviceLine || null,
         success_fee_percent: input.successFeePercent ?? null,
+        // Projeto nasce faturável salvo dito o contrário; sem centro quando é de cliente,
+        // porque aí a hora herda o centro do serviço (ADR-0035).
+        is_billable: input.isBillable ?? true,
+        cost_center_id: input.isBillable === false ? (input.costCenterId ?? null) : null,
         lead_id: input.leadId || null,
       })
       .select()
@@ -316,6 +325,14 @@ export const projectService = {
     if (updates.durationMonths !== undefined) updateData.duration_months = updates.durationMonths;
     if (updates.serviceLine !== undefined) updateData.service_line = updates.serviceLine;
     if (updates.successFeePercent !== undefined) updateData.success_fee_percent = updates.successFeePercent;
+    if (updates.isBillable !== undefined) {
+      updateData.is_billable = updates.isBillable;
+      // Voltar a ser faturável limpa o centro junto: deixá-lo para trás faria a hora seguinte
+      // continuar indo para o centro do projeto, ignorando o serviço (ADR-0035).
+      updateData.cost_center_id = updates.isBillable ? null : (updates.costCenterId ?? null);
+    } else if (updates.costCenterId !== undefined) {
+      updateData.cost_center_id = updates.costCenterId || null;
+    }
     if (updates.valueBookUrl !== undefined) updateData.value_book_url = updates.valueBookUrl || null;
 
     const { data, error } = await supabase

@@ -3,9 +3,20 @@ export type InterestLevel = 'high' | 'medium' | 'low';
 export type SponsorshipLevel = 'promoter' | 'neutral' | 'detractor';
 export type StakeholderAction = 'keep_satisfied' | 'keep_informed' | 'manage_closely' | 'involve_in_rituals';
 
+/**
+ * Uma pessoa da organização do cliente.
+ *
+ * `project_id` nulo = cadastro da CONTA: a pessoa existe no cliente, independente de projeto.
+ * `project_id` preenchido = a mesma pessoa NAQUELE projeto, com a influência, o interesse e a
+ * ação que valem ali — quem é promotor num projeto pode ser detrator no seguinte.
+ *
+ * `client_id` é carimbado pelo banco quando a linha é de projeto (ver a migration
+ * `20260917150000_stakeholder_do_cliente`), então a aba do cliente lê sem join.
+ */
 export interface ProjectStakeholder {
   id: string;
-  project_id: string;
+  project_id: string | null;
+  client_id: string | null;
   name: string;
   job_title: string | null;
   role: string;
@@ -21,7 +32,9 @@ export interface ProjectStakeholder {
 }
 
 export interface CreateStakeholderInput {
-  projectId: string;
+  /** Um dos dois é obrigatório: projeto (stakeholder do projeto) ou cliente (da conta). */
+  projectId?: string;
+  clientId?: string;
   name: string;
   jobTitle?: string;
   role: string;

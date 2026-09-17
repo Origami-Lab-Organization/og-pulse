@@ -25,7 +25,9 @@ export function ProjectExpectedResultTab({ project, canManageInstallments = fals
 
   const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
-  const { data: financialSettings } = useFinancialSettings();
+  // A meta e os percentuais que julgam ESTE projeto são os que valiam quando ele começou
+  // (PUL-260). Mudar a política em setembro não muda o que um projeto de janeiro assinou.
+  const { data: financialSettings } = useFinancialSettings(project.start_date);
   const { data: holidays = [] } = useHolidays();
   const plannedLaborFromAllocations = useProjectPlannedLaborCost(
     project,

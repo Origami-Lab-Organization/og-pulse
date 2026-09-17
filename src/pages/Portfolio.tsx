@@ -13,11 +13,10 @@ import {
   PortfolioProject,
 } from '@/hooks/usePortfolioProjects'
 import { useDeleteProject, useArchiveProject } from '@/hooks/useProjects'
-import { Search, Eye, EyeOff } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth } from '@/contexts/AuthContext'
 import { useHideValuesPreference } from '@/contexts/HideValuesContext'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export default function Portfolio() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -26,7 +25,7 @@ export default function Portfolio() {
   const [managerId, setManagerId] = useState('')
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban')
-  const [hideValues, setHideValues] = useHideValuesPreference()
+  const [hideValues] = useHideValuesPreference()
   const [removeProject, setRemoveProject] = useState<PortfolioProject | null>(
     null,
   )
@@ -82,35 +81,16 @@ export default function Portfolio() {
     </Badge>
   )
 
-  const headerActions = (
-    <div className='flex items-center gap-2'>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant='outline'
-            size='icon'
-            onClick={() => setHideValues(!hideValues)}
-          >
-            {hideValues ? (
-              <EyeOff className='h-4 w-4' />
-            ) : (
-              <Eye className='h-4 w-4' />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {hideValues ? 'Mostrar valores' : 'Ocultar valores'}
-        </TooltipContent>
-      </Tooltip>
-      {scopeBadge}
-    </div>
-  )
+  // O olho de ocultar valores agora vem do `AppLayout` (`financialValues`), igual em toda
+  // tela que tem dinheiro. Aqui sobrou só o que é do Portfólio.
+  const headerActions = <div className='flex items-center gap-2'>{scopeBadge}</div>
 
   return (
     <AppLayout
       title='Portfólio de Projetos'
       description='Acompanhe os projetos por status, cliente e gerente.'
       actions={headerActions}
+      financialValues
     >
       <div className='flex flex-col gap-4 h-[calc(100vh-10rem)]'>
         {isLoading ? (

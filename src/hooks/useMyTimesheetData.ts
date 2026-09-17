@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectWithMembers } from '@/hooks/useTimesheetData';
-import { parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 /** Conjunto de meses (`ano-mês`, mês 1–12) cobertos pela semana; mês vigente se ausente. */
 function monthsInRange(weekStart?: string, weekEnd?: string): Set<string> {
@@ -95,14 +95,39 @@ export const useMyProjectMemberships = (employeeId: string | undefined, weekStar
           .eq('employee_id', employeeId)
           .neq('projects.portfolio_stage', 'completed'),
         (supabase.from('project_team_rows' as any) as any)
-          .select('project_id')
+          .select('project_id, deallocated_at')
           .eq('employee_id', employeeId)
           .eq('row_type', 'member_status')
           .eq('status', 'deallocated'),
         supabase.from('employees').select('nome, foto_url').eq('id', employeeId).maybeSingle(),
       ]);
 
-      const deallocatedProjectIds = new Set<string>((deallocRows || []).map((r: any) => r.project_id));
+      // `project_team_rows` não está nos tipos gerados do Supabase (por isso o `as any` na
+      // query acima), então o contrato da linha é declarado aqui, uma vez, em vez de `any`
+      // solto em cada uso.
+      const saidas = (deallocRows || []) as { project_id: string; deallocated_at: string | null }[];
+
+      const deallocatedProjectIds = new Set<string>(saidas.map((r) => r.project_id));
+      // A DATA da saída é o que separa "trabalhou e ainda não apontou" de "não é mais da
+      // equipe". Sem ela, quem fosse desalocado no meio da semana perderia a hora que já
+      // tinha trabalhado — e hora não lançada continua sendo paga, só some do custo (PUL-182).
+      const deallocatedAtByProject = new Map<string, string>();
+      saidas.forEach((r) => {
+        if (r.deallocated_at) {
+          deallocatedAtByProject.set(r.project_id, format(parseISO(r.deallocated_at), 'yyyy-MM-dd'));
+        }
+      });
+
+      // `project_members` é o modelo antigo (ADR-0006, TD-0014) e nunca soube de saída da
+      // equipe: uma vez membro, o projeto aparecia para sempre na grade semanal. Quem foi
+      // desalocado continuava podendo lançar hora em projeto do qual saiu. A marca vai junto
+      // e quem decide o que fazer com ela é a grade, que conhece as horas da semana.
+      for (const [projectId, project] of projectMap) {
+        if (deallocatedProjectIds.has(projectId)) {
+          project.isDeallocated = true;
+          project.deallocatedAt = deallocatedAtByProject.get(projectId) ?? null;
+        }
+      }
 
       // Projetos com plan > 0 no período visível, não desalocados, ainda sem
       // linha em project_members (os que já têm caem em `projectMap`).

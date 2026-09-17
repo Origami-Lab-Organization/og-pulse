@@ -80,9 +80,9 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: 'catalog',
     title: 'Clientes e o que você vende',
-    body: 'Em Cadastros ficam os clientes e o catálogo de serviços. O serviço é o que liga o projeto ao centro de custo.',
-    selectors: ['[data-tour="nav-/clients"]', '[data-tour="nav-group-/clients"]'],
-    fallback: 'Cadastros, no menu lateral, tem Clientes e Serviços.',
+    body: 'Clientes tem entrada própria no menu; o catálogo de serviços fica em Configurações. O serviço é o que liga o projeto ao centro de custo.',
+    selectors: ['[data-tour="nav-/clients"]', '[data-tour="nav-/admin/servicos"]'],
+    fallback: 'Clientes, no menu lateral; o catálogo de serviços fica em Configurações.',
     requiresCapability: ['cliente:ler', 'catalogo:editar'],
   },
   {
@@ -96,9 +96,9 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: 'admin',
     title: 'A casa por dentro',
-    body: 'Perfis de acesso, encargos, feriados e centros de custo. Sua empresa já nasceu com o essencial preenchido, e você ajusta o que for seu.',
-    selectors: ['[data-tour="nav-/admin"]'],
-    fallback: 'Configurações, no menu lateral, reúne os cadastros base da empresa.',
+    body: 'Perfis de acesso, catálogo de serviços, encargos, feriados e centros de custo. Sua empresa já nasceu com o essencial preenchido, e você ajusta o que for seu.',
+    selectors: ['[data-tour="nav-group-/admin"]'],
+    fallback: 'Configurações, no menu lateral, reúne os parâmetros da empresa.',
     requiresCapability: 'configuracao:editar',
   },
   {

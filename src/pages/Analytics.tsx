@@ -6,6 +6,8 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { HideValuesToggle } from '@/components/layout/HideValuesToggle';
+import { useHideValuesOnScreen } from '@/contexts/HideValuesContext';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -31,6 +33,11 @@ function capitalize(s: string) {
 }
 
 export default function Analytics() {
+  // Uma linha, e é o que faz o olho valer nesta tela: `formatCurrency` é função pura e não
+  // assina nada, então quem reage é a PÁGINA. Re-render, não remontagem — período, filtros e
+  // rolagem continuam onde estavam.
+  useHideValuesOnScreen();
+
   const today = useMemo(() => new Date(), []);
 
   const periodOptions = useMemo<{ value: PeriodPreset; label: string }[]>(
@@ -176,6 +183,10 @@ export default function Analytics() {
             {period !== 'custom' && (
               <span className="hidden font-mono text-[11px] tabular-nums text-muted-foreground lg:inline">{periodLabelFull}</span>
             )}
+
+            {/* O olho fica ao lado do PDF de propósito: o PDF leva os valores para fora da
+                tela, e esconder na tela não esconde no arquivo. Ver `HideValuesToggle`. */}
+            <HideValuesToggle />
 
             <Button type="button" variant="outline" size="sm" className="h-9 gap-2" disabled={isRequestingPdf || !data} onClick={handleExportPdf}>
               {isRequestingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -84,13 +84,8 @@ export function ActivityTypesSettings() {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between">
-          <div>
-            <CardTitle>Atividades Internas</CardTitle>
-            <CardDescription>
-              Categorias para lançamento de horas fora de projetos (Administrativo, Marketing, etc.)
-            </CardDescription>
-          </div>
+        {/* Nome e explicação da tela vivem no cabeçalho da página, como no resto do sistema. */}
+        <CardHeader className="flex flex-row items-center justify-end">
           <Button onClick={handleCreate} size="sm">
             <Plus className="h-4 w-4 mr-1.5" />
             Nova atividade
