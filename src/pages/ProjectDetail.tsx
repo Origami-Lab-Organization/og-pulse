@@ -376,7 +376,7 @@ export default function ProjectDetail() {
                 <ProjectRoadmapTab project={project} isReadOnly={isReadOnly} />
               </TabsContent>
 
-              <TabsContent value="team" className="mt-6">
+              <TabsContent value="team" className="mt-6 min-w-0">
                 <EquipeTab project={project} isReadOnly={isReadOnly} />
               </TabsContent>
 
