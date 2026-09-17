@@ -9,7 +9,6 @@ import {
   discardProspect,
   fetchProspectById,
   fetchProspects,
-  fetchTodayProspects,
   reopenProspect,
   updateProspect,
   updateProspectStage,
@@ -19,7 +18,6 @@ import {
 } from '@/services/prospectService';
 import {
   getProspectStageLabel,
-  toISODate,
   type ProspectStage,
   type ProspectWithCompany,
 } from '@/types/prospect';
@@ -30,17 +28,6 @@ export function useProspects() {
     queryKey: ['prospects', employee?.tenant_id],
     queryFn: () => fetchProspects(employee!.tenant_id),
     enabled: !!employee?.tenant_id,
-  });
-}
-
-/** A lista do dia: o que vence hoje, meu. Vazia = dia de prospecção encerrado. */
-export function useTodayProspects() {
-  const { employee } = useAuth();
-  const hoje = toISODate(new Date());
-  return useQuery<ProspectWithCompany[]>({
-    queryKey: ['prospects-today', employee?.tenant_id, employee?.id, hoje],
-    queryFn: () => fetchTodayProspects(employee!.tenant_id, employee!.id, hoje),
-    enabled: !!employee?.tenant_id && !!employee?.id,
   });
 }
 
@@ -56,7 +43,6 @@ export function useProspect(id: string | null) {
 /** Toda mutação do módulo mexe nas mesmas três listas; invalidar por prefixo pega o tenant. */
 function invalidarProspeccao(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['prospects'] });
-  qc.invalidateQueries({ queryKey: ['prospects-today'] });
   qc.invalidateQueries({ queryKey: ['prospect'] });
 }
 

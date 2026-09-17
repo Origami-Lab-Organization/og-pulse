@@ -278,15 +278,6 @@ export function canConvertToLead(prospect: Pick<ProspectDB, 'stage' | 'converted
   return prospect.stage === 'qualificado' && !prospect.converted_lead_id;
 }
 
-/**
- * Está na lista de hoje? A regra é a mesma da query — repetida aqui só para a tela
- * destacar o atraso sem uma segunda ida ao banco.
- */
-export function isDueToday(prospect: Pick<ProspectDB, 'next_activity_on'>, today = new Date()): boolean {
-  if (!prospect.next_activity_on) return false;
-  return prospect.next_activity_on <= toISODate(today);
-}
-
 export function isOverdue(prospect: Pick<ProspectDB, 'next_activity_on'>, today = new Date()): boolean {
   if (!prospect.next_activity_on) return false;
   return prospect.next_activity_on < toISODate(today);

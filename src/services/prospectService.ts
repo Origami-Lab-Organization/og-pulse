@@ -41,32 +41,6 @@ export async function fetchProspects(tenantId: string): Promise<ProspectWithComp
   return (data || []) as unknown as ProspectWithCompany[];
 }
 
-/**
- * A view que sustenta o módulo: o que vence hoje, meu.
- *
- * Vazia significa que o dia de prospecção acabou; cheia, que está atrasado. Contato
- * recém-criado entra sozinho porque `next_activity_on` nasce com a data de hoje.
- */
-export async function fetchTodayProspects(
-  tenantId: string,
-  ownerId: string,
-  today: string = toISODate(new Date()),
-): Promise<ProspectWithCompany[]> {
-  const { data, error } = await tabela('prospects')
-    .select(PROSPECT_SELECT)
-    .eq('tenant_id', tenantId)
-    .eq('owner_id', ownerId)
-    // O filtro de etapa casa com o índice parcial `prospects_today_idx` e diz a intenção:
-    // desfecho não tem dia de trabalho. Os três já zeram `next_activity_on`, então isto é
-    // redundante por construção — e é justamente por isso que é barato deixar explícito.
-    .in('stage', [...PROSPECT_FUNNEL_STAGES])
-    .not('next_activity_on', 'is', null)
-    .lte('next_activity_on', today)
-    .order('next_activity_on');
-  if (error) throw error;
-  return (data || []) as unknown as ProspectWithCompany[];
-}
-
 export async function fetchProspectById(id: string): Promise<ProspectWithCompany | null> {
   const { data, error } = await tabela('prospects')
     .select(PROSPECT_SELECT)

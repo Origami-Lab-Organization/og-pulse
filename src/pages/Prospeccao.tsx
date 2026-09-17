@@ -20,8 +20,7 @@ import { ProspectDetailDialog } from '@/components/prospeccao/ProspectDetailDial
 import { ProspectFormDialog } from '@/components/prospeccao/ProspectFormDialog';
 import { ProspectKanbanBoard } from '@/components/prospeccao/ProspectKanbanBoard';
 import { ProspectMetrics } from '@/components/prospeccao/ProspectMetrics';
-import { ProspectTodayList } from '@/components/prospeccao/ProspectTodayList';
-import { useProspects, useTodayProspects } from '@/hooks/useProspects';
+import { useProspects } from '@/hooks/useProspects';
 import {
   PROSPECT_FUNNEL_STAGES,
   getDiscardReasonLabel,
@@ -34,12 +33,11 @@ import {
 /**
  * Prospecção — pipeline frio, separado do comercial.
  *
- * A aba padrão é "Atividades de hoje" de propósito: é a única coisa que a planilha não
- * fazia e a razão de o módulo existir. O Kanban é consulta; a lista de hoje é o trabalho.
+ * O Pipeline abre primeiro: com a lista diária removida (17/09/2026), é pelo board que a
+ * pessoa encontra o que precisa de ação — a data de vencimento fica no card.
  */
 export default function Prospeccao() {
   const { data: todos = [], isLoading } = useProspects();
-  const { data: deHoje = [], isLoading: carregandoHoje } = useTodayProspects();
 
   const [novoAberto, setNovoAberto] = useState(false);
   const [selecionado, setSelecionado] = useState<ProspectWithCompany | null>(null);
@@ -70,21 +68,12 @@ export default function Prospeccao() {
         </Button>
       }
     >
-      <Tabs defaultValue="hoje" className="space-y-4">
+      <Tabs defaultValue="pipeline" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="hoje">Atividades</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="encerrados">Encerrados</TabsTrigger>
           <TabsTrigger value="metricas">Métricas</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="hoje">
-          <ProspectTodayList
-            prospects={deHoje}
-            isLoading={carregandoHoje}
-            onOpen={setSelecionado}
-          />
-        </TabsContent>
 
         <TabsContent value="pipeline">
           {isLoading ? (

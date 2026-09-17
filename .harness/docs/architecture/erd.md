@@ -115,7 +115,7 @@ erDiagram
         text lever "Alavanca / origem da lista"
         date first_touch_at "imutável (trigger)"
         int activity_count "mantido pelo trigger"
-        date next_activity_on "alimenta Atividades de hoje"
+        date next_activity_on "prazo: sinal de atraso no card + Próximo passo"
         text discard_reason "lista fechada no CHECK"
     }
     prospect_activities {
@@ -133,8 +133,14 @@ cópia em TypeScript, para não repetir TD-0022.
 
 Etapa nova custa duas escritas no mesmo lugar: o CHECK **e** o índice parcial
 `prospects_today_idx`, que lista as etapas do funil uma a uma. Esquecer o índice não
-quebra nada — só tira a cobertura da consulta mais quente do módulo, em silêncio
-(foi o que a `20260917100000` teve de recriar ao acrescentar `reuniao_feita`).
+quebra nada — só tira a cobertura da consulta, em silêncio (foi o que a `20260917100000`
+teve de recriar ao acrescentar `reuniao_feita`).
+
+**`prospects_today_idx` não serve mais consulta nenhuma**: a aba "Atividades de hoje", que
+filtrava `next_activity_on <= hoje AND owner_id = eu`, foi removida em 17/09/2026. O índice
+segue no banco, custando escrita sem pagar leitura — derrubá-lo é uma migration pendente.
+Hoje `next_activity_on` é lido só em memória: sinal de atraso no card do Kanban
+(`isOverdue`) e caixa "Próximo passo" do card do contato.
 
 ## Cluster 2 — Orçamento → Projeto → Financeiro
 

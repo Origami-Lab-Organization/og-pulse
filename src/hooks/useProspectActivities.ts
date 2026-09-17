@@ -50,7 +50,6 @@ export function useRegisterActivity() {
       qc.invalidateQueries({ queryKey: ['prospect-activities', variables.prospect_id] });
       qc.invalidateQueries({ queryKey: ['prospect-activities-metrics'] });
       qc.invalidateQueries({ queryKey: ['prospects'] });
-      qc.invalidateQueries({ queryKey: ['prospects-today'] });
       qc.invalidateQueries({ queryKey: ['prospect'] });
     },
     onError: (err: unknown) => {
@@ -78,7 +77,6 @@ export function useDeleteProspectActivity() {
       qc.invalidateQueries({ queryKey: ['prospect-activities', variables.prospect_id] });
       qc.invalidateQueries({ queryKey: ['prospect-activities-metrics'] });
       qc.invalidateQueries({ queryKey: ['prospects'] });
-      qc.invalidateQueries({ queryKey: ['prospects-today'] });
       qc.invalidateQueries({ queryKey: ['prospect'] });
     },
     onError: (err: unknown) => {
