@@ -327,8 +327,6 @@ export default function BudgetForm() {
       const { data: adminEmps } = await supabase
         .from('employees').select('id').in('auth_id', adminUserIds);
       if (!adminEmps || adminEmps.length === 0) return;
-      // Sem o olho de proposito: este texto vai para `notifications`, e valor mascarado
-      // viraria "R$ ****" gravado no banco, visivel para quem receber depois.
       const fmtCurrency = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(truncateToCents(v));
       const effectiveMargin = calculation.effectiveMarginPercent.toFixed(1);
       const discountDisplay = isMonthlyMode ? fmtCurrency(discountValue) + '/mês' : fmtCurrency(discountValue);

@@ -14,7 +14,6 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { useUpdateProjectCost } from "@/hooks/useProjectCostItems";
 import type { ProjectCostDB } from "@/types/project";
 import { truncateToCents } from "@/lib/formatters";
-import { areValuesHidden, HIDDEN_VALUE_MASK } from '@/lib/valueVisibility';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -26,7 +25,7 @@ interface ProjectCostPayDialogProps {
 }
 
 const brl = (value: number) =>
-  areValuesHidden() ? HIDDEN_VALUE_MASK : truncateToCents(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  truncateToCents(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function ProjectCostPayDialog({
   open,

@@ -34,6 +34,7 @@ import {
 } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
 import { HideValuesProvider, useHideValuesPreference } from "@/contexts/HideValuesContext";
+import { HideValuesToggle } from "@/components/layout/HideValuesToggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CreateProjectInput } from "@/types/project";
 import { useState } from "react";
@@ -221,31 +222,14 @@ export default function ProjectDetail() {
   const cancellation = project as typeof project & ProjectCancellationFields;
 
   const showMenu = canAccessFullProject && (canEdit || isAdmin);
+  // O olho de ocultar valores vem do `AppLayout` agora — antes havia DOIS na mesma tela,
+  // com máscaras diferentes e preferências que não conversavam.
   const showHideValuesToggle = canAccessFullProject;
 
   const headerActions =
     showMenu || showHideValuesToggle ? (
       <div className="flex items-center gap-2">
-        {showHideValuesToggle && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setHideValues((v) => !v)}
-              >
-                {hideValues ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {hideValues ? "Mostrar valores" : "Ocultar valores"}
-            </TooltipContent>
-          </Tooltip>
-        )}
+        {showHideValuesToggle && <HideValuesToggle />}
         {showMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
