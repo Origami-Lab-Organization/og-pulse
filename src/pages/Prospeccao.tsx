@@ -17,10 +17,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConvertProspectDialog } from '@/components/prospeccao/ConvertProspectDialog';
 import { DiscardProspectDialog } from '@/components/prospeccao/DiscardProspectDialog';
 import { ProspectDetailDialog } from '@/components/prospeccao/ProspectDetailDialog';
+import { ProspectFilterButton } from '@/components/prospeccao/ProspectFilterButton';
 import { ProspectFormDialog } from '@/components/prospeccao/ProspectFormDialog';
 import { ProspectKanbanBoard } from '@/components/prospeccao/ProspectKanbanBoard';
 import { ProspectMetrics } from '@/components/prospeccao/ProspectMetrics';
 import { useProspects } from '@/hooks/useProspects';
+import {
+  applyProspectFilter,
+  countActiveFilters,
+  FILTRO_VAZIO,
+  type ProspectFilter,
+} from '@/lib/prospecting/filters';
 import {
   PROSPECT_FUNNEL_STAGES,
   getDiscardReasonLabel,
@@ -43,12 +50,17 @@ export default function Prospeccao() {
   const [selecionado, setSelecionado] = useState<ProspectWithCompany | null>(null);
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
   const [convertendo, setConvertendo] = useState<ProspectWithCompany | null>(null);
+  const [filtro, setFiltro] = useState<ProspectFilter>(FILTRO_VAZIO);
+  // Tabs controladas só para saber em qual aba o filtro faz sentido.
+  const [aba, setAba] = useState('pipeline');
 
   const noFunil = useMemo(
     () => todos.filter((p) => PROSPECT_FUNNEL_STAGES.includes(p.stage)),
     [todos],
   );
   const encerrados = useMemo(() => todos.filter((p) => isProspectClosed(p.stage)), [todos]);
+  const noFunilFiltrado = useMemo(() => applyProspectFilter(noFunil, filtro), [noFunil, filtro]);
+  const filtrando = countActiveFilters(filtro) > 0;
 
   // O detalhe precisa refletir a linha recém-invalidada, não a cópia do clique.
   const selecionadoAtual = useMemo(
@@ -68,18 +80,34 @@ export default function Prospeccao() {
         </Button>
       }
     >
-      <Tabs defaultValue="pipeline" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-          <TabsTrigger value="encerrados">Encerrados</TabsTrigger>
-          <TabsTrigger value="metricas">Métricas</TabsTrigger>
-        </TabsList>
+      <Tabs value={aba} onValueChange={setAba} className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList>
+            <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+            <TabsTrigger value="encerrados">Encerrados</TabsTrigger>
+            <TabsTrigger value="metricas">Métricas</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="pipeline">
+          {/* Só no Pipeline: nas outras abas o filtro não age sobre nada, e um controle
+              visível que não muda a tela é pior que controle ausente. */}
+          {aba === 'pipeline' && (
+            <div className="flex flex-wrap items-center gap-2">
+              {filtrando && (
+                <p className="text-sm text-muted-foreground">
+                  {noFunilFiltrado.length} de {noFunil.length}{' '}
+                  {noFunil.length === 1 ? 'contato' : 'contatos'}
+                </p>
+              )}
+              <ProspectFilterButton filtro={filtro} onChange={setFiltro} />
+            </div>
+          )}
+        </div>
+
+        <TabsContent value="pipeline" className="space-y-3">
           {isLoading ? (
             <Skeleton className="h-96 w-full" />
           ) : (
-            <ProspectKanbanBoard prospects={noFunil} onOpen={setSelecionado} />
+            <ProspectKanbanBoard prospects={noFunilFiltrado} onOpen={setSelecionado} />
           )}
         </TabsContent>
 

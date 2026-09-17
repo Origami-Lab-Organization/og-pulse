@@ -5,8 +5,7 @@ import { useRegisterActivity } from '@/hooks/useProspectActivities';
 import { useUpdateProspectStage } from '@/hooks/useProspects';
 import {
   PROSPECT_NEXT_STAGE,
-  PROSPECT_STAGES_BY_RESPONSE,
-  PROSPECT_STAGES_WITH_PROMPT,
+  advanceModeFor,
   canConvertToLead,
   getProspectStageLabel,
   type ProspectStage,
@@ -49,33 +48,33 @@ export function ProspectAdvanceButton({
     );
   }
 
-  const avancar = () => {
-    if (PROSPECT_STAGES_BY_RESPONSE.includes(proxima)) {
-      registrarResposta();
-      return;
-    }
-    if (PROSPECT_STAGES_WITH_PROMPT.includes(proxima)) {
-      onPrompt(proxima);
-      return;
-    }
-    moverEtapa.mutate({ id: prospect.id, stage: proxima });
-  };
-
   /**
-   * Quem move o card para "Respondeu" é o trigger, a partir da atividade com resposta —
-   * a tela não escreve a etapa. É a mesma fonte que decide a cadência.
+   * Quem move para "Em cadência" e "Respondeu" é o trigger, a partir da atividade — a tela
+   * não escreve essas etapas. É a mesma fonte que decide a cadência.
    */
-  const registrarResposta = () =>
+  const registrarAtividade = (comResposta: boolean) =>
     registrar.mutate(
-      { prospect_id: prospect.id, channel: prospect.primary_channel, got_response: true },
+      { prospect_id: prospect.id, channel: prospect.primary_channel, got_response: comResposta },
       {
-        onSuccess: () =>
+        onSuccess: (atividade) =>
           toast({
-            title: 'Resposta registrada',
-            description: 'O contato foi para "Respondeu" e saiu da cadência automática.',
+            title: comResposta
+              ? 'Resposta registrada'
+              : `Atividade nº ${atividade.sequence_no} registrada`,
+            description: comResposta
+              ? 'O contato foi para "Respondeu" e saiu da cadência automática.'
+              : 'O contato entrou em cadência e já tem a próxima data agendada.',
           }),
       },
     );
+
+  const avancar = () => {
+    const modo = advanceModeFor(proxima);
+    if (modo === 'activity') return registrarAtividade(false);
+    if (modo === 'response') return registrarAtividade(true);
+    if (modo === 'prompt') return onPrompt(proxima);
+    moverEtapa.mutate({ id: prospect.id, stage: proxima });
+  };
 
   return (
     <Botao
@@ -98,10 +97,13 @@ function Botao({
   disabled?: boolean;
   size: 'sm' | 'default';
 }) {
+  // Secundário de propósito: o primário desta tela é "Registrar", no compositor. Dois botões
+  // preenchidos lado a lado disputariam o olho sem dizer qual é o caminho comum — e o comum
+  // é registrar a atividade, não mudar a etapa.
   return (
-    <Button type="button" size={size} onClick={onClick} disabled={disabled}>
+    <Button type="button" variant="outline" size={size} onClick={onClick} disabled={disabled}>
       {label}
-      <ArrowRight className="ml-1.5 h-4 w-4 opacity-80" aria-hidden="true" />
+      <ArrowRight className="ml-1.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
     </Button>
   );
 }

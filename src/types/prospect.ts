@@ -130,14 +130,6 @@ export const PROSPECT_MANUAL_STAGES: readonly ProspectStage[] = [
 ];
 
 /**
- * Etapas que abrem um registro antes de avançar.
- *
- * Reunião feita pergunta como a reunião foi — sem obrigar resposta. O que aconteceu na
- * conversa é a informação que some primeiro e que ninguém volta para escrever depois.
- */
-export const PROSPECT_STAGES_WITH_PROMPT: readonly ProspectStage[] = ['reuniao_feita'];
-
-/**
  * O próximo passo de cada etapa do funil. A tela oferece UM botão, sempre.
  *
  * `a_abordar` e `em_cadencia` apontam para `respondeu`, e não para a etapa seguinte na
@@ -145,7 +137,7 @@ export const PROSPECT_STAGES_WITH_PROMPT: readonly ProspectStage[] = ['reuniao_f
  * para "Reunião agendada" descreveria um funil que não aconteceu.
  */
 export const PROSPECT_NEXT_STAGE: Partial<Record<ProspectStage, ProspectStage>> = {
-  a_abordar: 'respondeu',
+  a_abordar: 'em_cadencia',
   em_cadencia: 'respondeu',
   respondeu: 'reuniao_agendada',
   reuniao_agendada: 'reuniao_feita',
@@ -153,14 +145,56 @@ export const PROSPECT_NEXT_STAGE: Partial<Record<ProspectStage, ProspectStage>> 
 };
 
 /**
- * Etapas que NÃO se alcança escrevendo a etapa: alcança-se registrando o evento.
+ * COMO se chega em cada etapa. Ausente = a tela escreve a etapa direto.
  *
- * "Respondeu" é a regra dura do módulo — o card só avança por evento verificável. O botão
- * registra uma atividade com resposta e quem move o card é o trigger no banco, a mesma
- * fonte que decide a cadência. Se a tela escrevesse a etapa direto, existiriam dois donos
- * da mesma regra e a taxa de resposta passaria a medir otimismo.
+ * Três etapas não se alcança escrevendo a etapa, e essa é a regra dura do módulo — o card
+ * avança por evento verificável, nunca por impressão:
+ *
+ * - `em_cadencia` e `respondeu` nascem de uma atividade registrada; quem move o card é o
+ *   trigger no banco, a mesma fonte que decide a cadência. Se a tela escrevesse a etapa,
+ *   existiriam dois donos da mesma regra e a taxa de resposta mediria otimismo;
+ * - `reuniao_feita` abre o registro de como a reunião foi, antes de mover.
  */
-export const PROSPECT_STAGES_BY_RESPONSE: readonly ProspectStage[] = ['respondeu'];
+export type ProspectAdvanceMode = 'activity' | 'response' | 'prompt' | 'stage';
+
+const PROSPECT_ADVANCE_MODE: Partial<Record<ProspectStage, ProspectAdvanceMode>> = {
+  em_cadencia: 'activity',
+  respondeu: 'response',
+  reuniao_feita: 'prompt',
+};
+
+export function advanceModeFor(stage: ProspectStage): ProspectAdvanceMode {
+  return PROSPECT_ADVANCE_MODE[stage] ?? 'stage';
+}
+
+
+
+/**
+ * Alavancas — lista FECHADA (17/09/2026). É o corte que explica O QUE faz responder.
+ *
+ * Guardado em slug: o rótulo é da interface e muda ("Rede dos Sócios" virou "Rede Origami"
+ * no dia em que a lista foi definida). Com rótulo no banco, toda renomeação seria migration.
+ */
+export const PROSPECT_LEVERS = [
+  { value: 'rede_origami', label: 'Rede Origami' },
+  { value: 'outbound', label: 'Outbound' },
+  { value: 'inbound', label: 'Inbound' },
+  { value: 'abm', label: 'ABM' },
+  { value: 'indicacao_parceiros', label: 'Indicação de Parceiros' },
+  { value: 'recomendacao', label: 'Recomendação' },
+  { value: 'feira', label: 'Feira' },
+  { value: 'sindicato', label: 'Sindicato' },
+  { value: 'expansao', label: 'Expansão' },
+] as const;
+
+export const PROSPECT_LEVER_LABELS: Record<string, string> = Object.fromEntries(
+  PROSPECT_LEVERS.map((l) => [l.value, l.label])
+);
+
+export function getLeverLabel(lever: string | null | undefined): string | null {
+  if (!lever) return null;
+  return PROSPECT_LEVER_LABELS[lever] ?? lever;
+}
 
 /**
  * Motivos de descarte — lista FECHADA, nunca texto livre.
@@ -238,6 +272,8 @@ export interface ProspectWithCompany extends ProspectDB {
   owner?: { id: string; nome: string } | null;
 }
 
+import type { ProspectAttachment } from '@/lib/prospectAttachments';
+
 export interface ProspectActivityDB {
   id: string;
   tenant_id: string;
@@ -248,6 +284,7 @@ export interface ProspectActivityDB {
   sequence_no: number;
   got_response: boolean;
   notes: string | null;
+  attachments: ProspectAttachment[];
   created_by: string | null;
   created_at: string;
 }

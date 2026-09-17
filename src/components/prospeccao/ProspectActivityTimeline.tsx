@@ -1,16 +1,18 @@
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
-import { getChannelLabel } from '@/lib/interactionChannels';
 import { cn } from '@/lib/utils';
-import { iniciaisDe } from '@/lib/prospecting/iniciais';
-import type { ProspectActivityWithOwner, ProspectWithCompany } from '@/types/prospect';
+import {
+  getLeverLabel,
+  type ProspectActivityWithOwner,
+  type ProspectWithCompany,
+} from '@/types/prospect';
+import { ProspectActivityItem } from './ProspectActivityItem';
 
 interface ProspectActivityTimelineProps {
   prospect: ProspectWithCompany;
   activities: ProspectActivityWithOwner[];
   isLoading: boolean;
+  podeEditar: boolean;
 }
 
 /** O histórico de atividades: é daqui que sai toda métrica do módulo. */
@@ -18,6 +20,7 @@ export function ProspectActivityTimeline({
   prospect,
   activities,
   isLoading,
+  podeEditar,
 }: ProspectActivityTimelineProps) {
   const { byId } = useEmployeeDirectoryMap();
 
@@ -40,43 +43,12 @@ export function ProspectActivityTimeline({
       {activities.map((atividade, indice) => (
         <li key={atividade.id} className="relative pl-8">
           <Marcador destacado={indice === 0} />
-          <article className="rounded-lg border bg-card p-3 shadow-sm">
-            <header className="flex flex-wrap items-center gap-2">
-              <h4 className="text-sm font-semibold">Atividade nº {atividade.sequence_no}</h4>
-              <Badge variant="outline" className="font-normal">
-                {getChannelLabel(atividade.channel)}
-              </Badge>
-              <Badge
-                variant="outline"
-                className={cn(
-                  'font-normal',
-                  atividade.got_response
-                    ? 'border-transparent bg-success-subtle text-success-emphasis'
-                    : 'border-transparent bg-muted text-muted-foreground',
-                )}
-              >
-                {atividade.got_response ? 'Teve resposta' : 'Sem resposta'}
-              </Badge>
-              <time className="ml-auto text-xs text-muted-foreground" dateTime={atividade.activity_date}>
-                {formatarData(atividade.activity_date)}
-              </time>
-            </header>
-
-            {atividade.notes && <p className="mt-2 text-sm">{atividade.notes}</p>}
-
-            {atividade.owner_id && byId.get(atividade.owner_id) && (
-              <footer className="mt-3 flex items-center gap-2">
-                <Avatar className="h-5 w-5">
-                  <AvatarFallback className="text-[10px]">
-                    {iniciaisDe(byId.get(atividade.owner_id)!.nome)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-xs text-muted-foreground">
-                  {byId.get(atividade.owner_id)!.nome}
-                </span>
-              </footer>
-            )}
-          </article>
+          <ProspectActivityItem
+            activity={atividade}
+            prospectId={prospect.id}
+            autorNome={atividade.owner_id ? byId.get(atividade.owner_id)?.nome : undefined}
+            podeEditar={podeEditar}
+          />
         </li>
       ))}
 
@@ -84,7 +56,7 @@ export function ProspectActivityTimeline({
         <Marcador semFio />
         <p className="py-1 text-xs text-muted-foreground">
           Registro criado em {formatarData(prospect.created_at.slice(0, 10))}
-          {prospect.lever ? ` · origem ${prospect.lever}` : ''}
+          {prospect.lever ? ` · origem ${getLeverLabel(prospect.lever)}` : ''}
         </p>
       </li>
     </ol>

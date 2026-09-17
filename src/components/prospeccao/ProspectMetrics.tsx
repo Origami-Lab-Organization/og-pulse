@@ -24,7 +24,7 @@ import {
   type ProspectCut,
 } from '@/lib/prospecting/metrics';
 import { cn } from '@/lib/utils';
-import { toISODate, type ProspectWithCompany } from '@/types/prospect';
+import { getLeverLabel, toISODate, type ProspectWithCompany } from '@/types/prospect';
 
 const PERIODOS = [
   { value: '7', label: 'Últimos 7 dias' },
@@ -80,8 +80,11 @@ export function ProspectMetrics({ prospects }: ProspectMetricsProps) {
     return <Skeleton className="h-96 w-full" aria-label="Carregando o funil" />;
   }
 
-  const nomeDoGrupo = (chave: string) =>
-    corte === 'owner' ? byId.get(chave)?.nome ?? 'Sem responsável' : chave;
+  const nomeDoGrupo = (chave: string) => {
+    if (corte === 'owner') return byId.get(chave)?.nome ?? 'Sem responsável';
+    if (corte === 'lever') return getLeverLabel(chave) ?? chave;
+    return chave;
+  };
 
   return (
     <div className="space-y-4">

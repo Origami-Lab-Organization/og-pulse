@@ -4,10 +4,12 @@ import { toast } from '@/hooks/use-toast';
 import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import {
   deleteActivity,
+  updateActivity,
   fetchActivitiesForMetrics,
   fetchProspectActivities,
   registerActivity,
   type RegisterActivityInput,
+  type UpdateActivityInput,
 } from '@/services/prospectService';
 import type { ProspectActivityWithOwner } from '@/types/prospect';
 
@@ -58,6 +60,22 @@ export function useRegisterActivity() {
         description: mensagemParaUsuario(err),
         variant: 'destructive',
       });
+    },
+  });
+}
+
+export function useUpdateProspectActivity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ input }: { input: UpdateActivityInput; prospect_id: string }) =>
+      updateActivity(input),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['prospect-activities', variables.prospect_id] });
+      qc.invalidateQueries({ queryKey: ['prospect-activities-metrics'] });
+      toast({ title: 'Atividade atualizada' });
+    },
+    onError: (err: unknown) => {
+      toast({ title: 'Erro ao salvar', description: mensagemParaUsuario(err), variant: 'destructive' });
     },
   });
 }

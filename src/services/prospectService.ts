@@ -1,7 +1,9 @@
 import { tabela } from '@/services/prospectingTables';
 import { createLead } from '@/services/leadService';
 import { getChannelLabel } from '@/lib/interactionChannels';
+import type { ProspectAttachment } from '@/lib/prospectAttachments';
 import {
+  getLeverLabel,
   PROSPECT_FUNNEL_STAGES,
   toISODate,
   type ProspectActivityWithOwner,
@@ -118,6 +120,7 @@ export interface RegisterActivityInput {
   got_response?: boolean;
   activity_date?: string;
   notes?: string | null;
+  attachments?: ProspectAttachment[];
   owner_id?: string | null;
   created_by?: string | null;
 }
@@ -137,6 +140,7 @@ export async function registerActivity(input: RegisterActivityInput): Promise<Pr
       got_response: input.got_response ?? false,
       activity_date: input.activity_date ?? toISODate(new Date()),
       notes: input.notes ?? null,
+      attachments: input.attachments ?? [],
       owner_id: input.owner_id ?? null,
       created_by: input.created_by ?? null,
     })
@@ -144,6 +148,33 @@ export async function registerActivity(input: RegisterActivityInput): Promise<Pr
     .single();
   if (error) throw error;
   return data as unknown as ProspectActivityWithOwner;
+}
+
+export interface UpdateActivityInput {
+  id: string;
+  channel: string;
+  notes: string | null;
+  attachments: ProspectAttachment[];
+}
+
+/**
+ * Edita o conteúdo de uma atividade: canal, relato e anexos.
+ *
+ * `got_response`, `sequence_no` e `activity_date` ficam de FORA de propósito. Os três já
+ * produziram efeito quando a atividade foi criada — o trigger contou o toque, agendou a
+ * próxima data e, se houve resposta, moveu a etapa. Reescrevê-los aqui mudaria a métrica
+ * sem desfazer o efeito, e a linha do tempo passaria a contar uma história que o card não
+ * viveu. Corrigir um desses exige apagar a atividade e registrar de novo.
+ */
+export async function updateActivity(input: UpdateActivityInput): Promise<void> {
+  const { error } = await tabela('prospect_activities')
+    .update({
+      channel: input.channel,
+      notes: input.notes,
+      attachments: input.attachments,
+    })
+    .eq('id', input.id);
+  if (error) throw error;
 }
 
 export async function fetchProspectActivities(prospectId: string): Promise<ProspectActivityWithOwner[]> {
@@ -239,7 +270,7 @@ function montarNotaDeOrigem(
   activitiesUntilResponse?: number | null,
 ): string {
   const linhas = ['Origem: prospecção.'];
-  if (prospect.lever) linhas.push(`Alavanca: ${prospect.lever}.`);
+  if (prospect.lever) linhas.push(`Alavanca: ${getLeverLabel(prospect.lever)}.`);
   if (prospect.first_touch_at) linhas.push(`1º toque em ${formatarData(prospect.first_touch_at)}.`);
   if (activitiesUntilResponse) linhas.push(`Atividades até responder: ${activitiesUntilResponse}.`);
   linhas.push(`Canal principal: ${getChannelLabel(prospect.primary_channel)}.`);

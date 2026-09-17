@@ -43,8 +43,10 @@ import {
   canConvertToLead,
   getDiscardReasonLabel,
   getProspectStageColor,
+  getLeverLabel,
   getProspectStageLabel,
   isProspectReadOnly,
+  PROSPECT_LEVERS,
   type ProspectCompanyDB,
   type ProspectWithCompany,
 } from '@/types/prospect';
@@ -52,7 +54,7 @@ import { ProspectActivityTimeline } from './ProspectActivityTimeline';
 import { ProspectAdvanceButton } from './ProspectAdvanceButton';
 import { ProspectStageStepper } from './ProspectStageStepper';
 import { RegisterMeetingDialog } from './RegisterMeetingDialog';
-import { RegisterActivityButtons } from './RegisterActivityButtons';
+import { ProspectActivityComposer } from './ProspectActivityComposer';
 
 interface ProspectDetailDialogProps {
   prospect: ProspectWithCompany | null;
@@ -169,17 +171,6 @@ export function ProspectDetailDialog({
             />
           </div>
 
-          {/* Acima da régua: a ação vem antes do diagnóstico de onde o contato está. */}
-          {!somenteLeitura && (
-            <div className="flex justify-end">
-              <ProspectAdvanceButton
-                prospect={prospect}
-                onPrompt={() => setReuniaoAberta(true)}
-                onConvert={() => onConvert(prospect)}
-              />
-            </div>
-          )}
-
           <ProspectStageStepper stage={prospect.stage} />
         </DialogHeader>
 
@@ -240,7 +231,14 @@ export function ProspectDetailDialog({
                   Atividades
                   <Badge variant="secondary">{atividades.length}</Badge>
                 </h3>
-                {!somenteLeitura && <RegisterActivityButtons prospect={prospect} />}
+                {!somenteLeitura && (
+                  <ProspectAdvanceButton
+                    prospect={prospect}
+                    onPrompt={() => setReuniaoAberta(true)}
+                    onConvert={() => onConvert(prospect)}
+                    size="sm"
+                  />
+                )}
               </div>
             </div>
 
@@ -249,8 +247,17 @@ export function ProspectDetailDialog({
                 prospect={prospect}
                 activities={atividades}
                 isLoading={isLoading}
+                podeEditar={!somenteLeitura}
               />
             </div>
+
+            {/* Fixa no rodapé, como um compositor: a escrita fica sempre alcançável,
+                mesmo com a linha do tempo longa. */}
+            {!somenteLeitura && (
+              <div className="border-t p-4">
+                <ProspectActivityComposer prospect={prospect} />
+              </div>
+            )}
           </section>
         </div>
 
@@ -502,7 +509,18 @@ function CartaoContato({
           <Campo label="E-mail" draft={rascunho.contact_email} onChange={definir('contact_email')} />
           <Campo label="Telefone" draft={rascunho.contact_phone} onChange={definir('contact_phone')} />
           <Campo label="LinkedIn" draft={rascunho.linkedin_url} onChange={definir('linkedin_url')} />
-          <Campo label="Alavanca / origem" draft={rascunho.lever} onChange={definir('lever')} />
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Alavanca / origem</Label>
+            <Select value={rascunho.lever} onValueChange={definir('lever')}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                {PROSPECT_LEVERS.map((l) => (
+                  <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Canal principal</Label>
@@ -559,7 +577,7 @@ function CartaoContato({
           <Separator />
 
           <dl className="grid grid-cols-3 gap-2">
-            <Resumo termo="Alavanca" valor={prospect.lever} />
+            <Resumo termo="Alavanca" valor={getLeverLabel(prospect.lever)} />
             <Resumo termo="Canal principal" valor={getChannelLabel(prospect.primary_channel)} />
             <Resumo termo="Responsável" valor={responsavel} />
           </dl>

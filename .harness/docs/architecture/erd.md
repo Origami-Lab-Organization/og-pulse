@@ -15,9 +15,9 @@ sources:
   - src/types/lead.ts
   - src/types/portfolio.ts
 # Conferido contra a fonte em 17/09/2026: ProspectStage = 9 valores (6 do funil +
-# 3 desfechos), batendo com o CHECK de 20260917100000. As mudancas seguintes em
-# src/types/prospect.ts foram constantes de transicao de UI (PROSPECT_NEXT_STAGE,
-# PROSPECT_STAGES_BY_RESPONSE), sem efeito em schema.
+# 3 desfechos), batendo com o CHECK de 20260917100000; prospect_activities.attachments
+# confere com 20260917110000. Constantes de transicao de UI em src/types/prospect.ts
+# (PROSPECT_NEXT_STAGE, PROSPECT_STAGES_BY_RESPONSE) nao afetam este diagrama.
 verified: 2026-09-17
 ---
 
@@ -127,6 +127,7 @@ erDiagram
         int sequence_no "preenchido pelo trigger; único por prospect"
         text channel "mesma lista de lead_interactions"
         bool got_response "base de toda métrica"
+        jsonb attachments "[{path,name,size,type}] no bucket prospect-attachments"
     }
 ```
 
@@ -146,6 +147,12 @@ filtrava `next_activity_on <= hoje AND owner_id = eu`, foi removida em 17/09/202
 segue no banco, custando escrita sem pagar leitura — derrubá-lo é uma migration pendente.
 Hoje `next_activity_on` é lido só em memória: sinal de atraso no card do Kanban
 (`isOverdue`) e caixa "Próximo passo" do card do contato.
+
+Anexos vivem no bucket privado `prospect-attachments` (path `{tenant_id}/{prospect_id}/…`,
+10 MB, PDF/PNG/JPG/WebP), com `prospect_activities.attachments` guardando só os metadados.
+As policies de `storage.objects` decidem por **capacidade** (`prospeccao:ler` / `:editar`),
+e não por `user_belongs_to_tenant` como o bucket `lead-attachments` — lá o arquivo fica mais
+aberto que a linha que o referencia, divergência conhecida e ainda não corrigida.
 
 ## Cluster 2 — Orçamento → Projeto → Financeiro
 

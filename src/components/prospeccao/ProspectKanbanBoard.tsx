@@ -11,9 +11,9 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { useUpdateProspectStage } from '@/hooks/useProspects';
 import {
+  advanceModeFor,
   PROSPECT_FUNNEL_STAGES,
   PROSPECT_MANUAL_STAGES,
-  PROSPECT_STAGES_WITH_PROMPT,
   PROSPECT_STAGE_META,
   getProspectStageLabel,
   type ProspectStage,
@@ -62,7 +62,7 @@ export function ProspectKanbanBoard({ prospects, onOpen }: ProspectKanbanBoardPr
 
     // Reunião feita não move em silêncio: abre o registro do que aconteceu na conversa,
     // que é a informação que some primeiro se não for capturada na hora.
-    if (PROSPECT_STAGES_WITH_PROMPT.includes(destino)) {
+    if (advanceModeFor(destino) === 'prompt') {
       setReuniaoPara(prospect);
       return;
     }
@@ -74,7 +74,7 @@ export function ProspectKanbanBoard({ prospects, onOpen }: ProspectKanbanBoardPr
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       {/* Colunas derivadas das etapas: acrescentar uma etapa não pode exigir lembrar deste grid. */}
       <div
-        className="grid gap-3 h-[calc(100vh-280px)] overflow-x-auto"
+        className="grid gap-3 h-[calc(100vh-290px)] overflow-x-auto"
         style={{ gridTemplateColumns: `repeat(${PROSPECT_FUNNEL_STAGES.length}, minmax(210px, 1fr))` }}
       >
         {PROSPECT_FUNNEL_STAGES.map((stage) => (

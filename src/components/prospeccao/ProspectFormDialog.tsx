@@ -30,7 +30,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { INTERACTION_CHANNELS } from '@/lib/interactionChannels';
 import { formatCNPJ, unformatCNPJ, validateCNPJ } from '@/lib/masks';
 import { ProspectCompanySelect } from './ProspectCompanySelect';
-import type { ProspectCompanyDB } from '@/types/prospect';
+import { PROSPECT_LEVERS, type ProspectCompanyDB } from '@/types/prospect';
 
 const schema = z.object({
   contact_name: z.string().min(2, 'Informe o nome do contato'),
@@ -346,7 +346,16 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Alavanca / origem da lista</FormLabel>
-                    <FormControl><Input {...field} value={field.value ?? ''} placeholder="Ex.: lista do evento X" /></FormControl>
+                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PROSPECT_LEVERS.map((l) => (
+                          <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormDescription>
                       É o corte que explica o que faz responder.
                     </FormDescription>
