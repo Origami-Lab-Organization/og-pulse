@@ -67,6 +67,8 @@ export interface Employee {
   isGerente: boolean;
   systemRole: SystemRole;
   alocaEmProjetos: boolean;
+  /** Centro de lotacao, obrigatorio para quem NAO lanca hora (PUL-218). */
+  costCenterId?: string | null;
   status: 'ativo' | 'inativo' | 'aguardando_confirmacao';
   salarioMensal: number;
   beneficios: number;

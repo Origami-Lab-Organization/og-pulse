@@ -29,6 +29,7 @@ export interface EmployeeDB {
   is_gerente: boolean;
   system_role: string;
   aloca_em_projetos: boolean;
+  cost_center_id?: string | null;
   status: string;
   salario_mensal: number;
   beneficios: number;
@@ -83,6 +84,7 @@ export interface CreateEmployeeInput {
   isGerente: boolean;
   systemRole: SystemRole;
   alocaEmProjetos: boolean;
+  costCenterId?: string | null;
   status: string;
   salarioMensal: number;
   beneficios: number;
@@ -216,8 +218,14 @@ export const employeeService = {
     // trigger `enforce_employee_display_role`, e a ilusão de que a tela manda no papel é
     // exatamente o que causava a divergência entre exibição e RLS. Quem muda papel muda
     // `user_roles`, logo abaixo.
-    if (updates.alocaEmProjetos !== undefined)
+    if (updates.alocaEmProjetos !== undefined) {
       dbUpdates.aloca_em_projetos = updates.alocaEmProjetos;
+      // Voltar a lancar hora limpa o centro junto: deixa-lo para tras faria o custo da pessoa
+      // continuar sendo lido pelo centro de lotacao, somado ao das horas dela (PUL-218).
+      dbUpdates.cost_center_id = updates.alocaEmProjetos ? null : (updates.costCenterId ?? null);
+    } else if (updates.costCenterId !== undefined) {
+      dbUpdates.cost_center_id = updates.costCenterId || null;
+    }
     if (updates.status !== undefined) dbUpdates.status = updates.status;
     if (updates.salarioMensal !== undefined)
       dbUpdates.salario_mensal = updates.salarioMensal;

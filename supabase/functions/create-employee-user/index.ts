@@ -31,6 +31,7 @@ interface CreateEmployeeRequest {
   isGerente: boolean;
   systemRole: "admin" | "manager" | "rh" | "user";
   alocaEmProjetos?: boolean;
+  costCenterId?: string | null;
   status: string;
   salarioMensal: number;
   beneficios: number;
@@ -150,6 +151,7 @@ const handler = async (req: Request): Promise<Response> => {
       isGerente,
       systemRole,
       alocaEmProjetos,
+      costCenterId,
       status,
       salarioMensal,
       beneficios,
@@ -309,6 +311,8 @@ const handler = async (req: Request): Promise<Response> => {
         salario_mensal: salarioMensal,
         system_role: systemRole || "user",
         aloca_em_projetos: alocaEmProjetos ?? true,
+        // Obrigatorio para quem nao lanca hora; o CHECK do banco recusa sem ele (PUL-218).
+        cost_center_id: alocaEmProjetos === false ? (costCenterId ?? null) : null,
         beneficios,
         encargos,
         tipo_contratacao: tipoContratacao || "CLT",
