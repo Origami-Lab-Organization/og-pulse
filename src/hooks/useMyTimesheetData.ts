@@ -104,6 +104,14 @@ export const useMyProjectMemberships = (employeeId: string | undefined, weekStar
 
       const deallocatedProjectIds = new Set<string>((deallocRows || []).map((r: any) => r.project_id));
 
+      // `project_members` é o modelo antigo (ADR-0006, TD-0014) e nunca soube de saída da
+      // equipe: uma vez membro, o projeto aparecia para sempre na grade semanal. Quem foi
+      // desalocado continuava podendo lançar hora em projeto do qual saiu. A marca vai junto
+      // e quem decide o que fazer com ela é a grade, que conhece as horas da semana.
+      for (const [projectId, project] of projectMap) {
+        if (deallocatedProjectIds.has(projectId)) project.isDeallocated = true;
+      }
+
       // Projetos com plan > 0 no período visível, não desalocados, ainda sem
       // linha em project_members (os que já têm caem em `projectMap`).
       const allocByProject = new Map<string, { role: string; project: any }>();

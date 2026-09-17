@@ -19,6 +19,12 @@ export interface ProjectWithMembers {
   startDate?: string;
   endDate?: string | null;
   isContinuous?: boolean;
+  /**
+   * A pessoa saiu da equipe deste projeto (`project_team_rows.status = 'deallocated'`).
+   * Continua na lista só enquanto houver hora lançada na semana, e em leitura: some o que
+   * ela apontou antes de sair seria pior do que mostrar.
+   */
+  isDeallocated?: boolean;
 }
 
 export interface TimesheetEntry {

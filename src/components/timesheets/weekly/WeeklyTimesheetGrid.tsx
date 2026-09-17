@@ -97,7 +97,7 @@ export function WeeklyTimesheetGrid({
   const isFriday = new Date().getDay() === 5;
   const isCurrentWeek = !isFutureWeek && weekStart <= today;
 
-  const { data: projects = [], isLoading: loadingProjects } = useMyProjectMemberships(
+  const { data: allProjects = [], isLoading: loadingProjects } = useMyProjectMemberships(
     employee?.id,
     startDate,
     endDate
@@ -113,6 +113,19 @@ export function WeeklyTimesheetGrid({
     endDate
   );
   const { data: holidays = [] } = useHolidays();
+
+  // Projeto do qual a pessoa saiu não pode receber hora nova, mas some da semana só quando não
+  // há nada lançado nela: apagar da tela o que já foi apontado antes da saída deixaria a semana
+  // sem bater com o que está gravado. Com hora, a linha fica — travada logo abaixo.
+  const projects = useMemo(() => {
+    const lancouNaSemana = (memberId: string) =>
+      timesheetEntries.some((e) => e.projectMemberId === memberId && Number(e.hours) > 0);
+    return allProjects.filter((p) => {
+      if (!p.isDeallocated) return true;
+      const member = p.members[0];
+      return member ? lancouNaSemana(member.memberId) : false;
+    });
+  }, [allProjects, timesheetEntries]);
 
   const rawPrefill = useTimesheetPrefill(employee?.id, weekDays, projects);
   const prefillByProject = useMemo(
@@ -168,13 +181,16 @@ export function WeeklyTimesheetGrid({
       const member = project.members[0];
       if (!member) continue;
       const set = new Set<string>();
+      // Desalocado: a semana inteira trava. A hora que ele lançou antes de sair continua
+      // visível, e nenhuma nova entra.
+      if (project.isDeallocated) weekDays.forEach((d) => set.add(d.date));
       for (const e of timesheetEntries) {
         if (e.projectMemberId === member.memberId && e.isLocked) set.add(e.workDate);
       }
       map[projectRowId(member.memberId)] = set;
     }
     return map;
-  }, [projects, timesheetEntries]);
+  }, [projects, timesheetEntries, weekDays]);
 
   const activityLockedByRow = useMemo(() => {
     const map: Record<string, Set<string>> = {};
