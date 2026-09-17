@@ -143,12 +143,17 @@ export const projectService = {
       `)
       .eq('id', id);
     if (tenantId) query = query.eq('tenant_id', tenantId);
-    const { data, error } = await query.single();
+    // `maybeSingle`, e não `single`: projeto invisível para quem pediu é um RESULTADO
+    // ("não achei"), não uma falha. Com `single` o PostgREST devolvia erro, o serviço
+    // lançava, e a tela não tinha como distinguir "não existe" de "deu ruim" — as duas
+    // viravam "Projeto não encontrado", depois de a query tentar de novo três vezes.
+    const { data, error } = await query.maybeSingle();
 
     if (error) {
       console.error('Error fetching project:', error);
       throw error;
     }
+    if (!data) return null;
 
     // Fetch members separately with cost data
     const { data: members } = await supabase
