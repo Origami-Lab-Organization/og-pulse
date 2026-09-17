@@ -12,7 +12,7 @@
 ## Sumário Executivo
 
 ### Persona Funcionário / Consultor (12 jornadas)
-
+ 
 | # | Jornada | Status | % aprox. | Resumo |
 |---|---------|--------|----------|--------|
 | J1 | Convite e Primeiro Acesso | 🟡 PARCIAL | ~50% | Infra de convite + guard prontos; falta tela `/primeiro-acesso` dedicada, e-mail melhorado e expiração de link |

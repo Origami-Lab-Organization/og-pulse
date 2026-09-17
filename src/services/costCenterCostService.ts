@@ -53,16 +53,9 @@ export interface EmployeeCostRow {
   data_admissao: string | null;
 }
 
-export interface ServiceCenterRow {
-  id: string;
-  cost_center_id: string | null;
-}
-
 export interface ProjectServiceRow {
   id: string;
   name: string;
-  /** Guarda `service_id` como texto; o nome da coluna mente (ADR-0031). */
-  service_line: string | null;
 }
 
 export interface ProjectMemberRow {
@@ -90,13 +83,14 @@ export interface ProjectHourRow {
   hours: number | null;
   cost_per_hour: number | null;
   work_date: string;
+  /** Centro do momento do lançamento, copiado do serviço do projeto pelo trigger (PUL-246). */
+  cost_center_id: string | null;
 }
 
 export interface CostInputs {
   centers: CostCenterRow[];
   employees: EmployeeCostRow[];
   holidays: Holiday[];
-  services: ServiceCenterRow[];
   projects: ProjectServiceRow[];
   members: ProjectMemberRow[];
   activities: ActivityTypeNameRow[];
@@ -125,14 +119,9 @@ export async function fetchCostInputs(tenantId: string, startDate: string, endDa
     .eq('tenant_id', tenantId)
     .eq('is_active', true)
     .then(rowsOf<Holiday>('os feriados da empresa'));
-  const servicesP = db
-    .from('services')
-    .select('id, cost_center_id')
-    .eq('tenant_id', tenantId)
-    .then(rowsOf<ServiceCenterRow>('os serviços'));
   const projectsP = db
     .from('projects')
-    .select('id, name, service_line')
+    .select('id, name')
     .eq('tenant_id', tenantId)
     .then(rowsOf<ProjectServiceRow>('os projetos'));
   // Sem `tenant_id`: `project_members` se isola pelo projeto (e pela RLS), como
@@ -156,7 +145,7 @@ export async function fetchCostInputs(tenantId: string, startDate: string, endDa
     .then(rowsOf<ActivityHourRow>('as horas de atividade interna'));
   const projectHoursP = db
     .from('project_timesheets')
-    .select('project_id, project_member_id, hours, cost_per_hour, work_date')
+    .select('project_id, project_member_id, hours, cost_per_hour, work_date, cost_center_id')
     .gte('work_date', startDate)
     .lte('work_date', endDate)
     .then(rowsOf<ProjectHourRow>('as horas de projeto'));
@@ -165,7 +154,6 @@ export async function fetchCostInputs(tenantId: string, startDate: string, endDa
     centers: await centersP,
     employees: await employeesP,
     holidays: await holidaysP,
-    services: await servicesP,
     projects: await projectsP,
     members: await membersP,
     activities: await activitiesP,

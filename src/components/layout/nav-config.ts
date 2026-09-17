@@ -28,9 +28,12 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'Pipeline',
+    label: 'Comercial',
     url: '/pipeline',
-    requiresCapability: 'pipeline:ler',
+    tabs: [
+      { title: 'Prospecção', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
+      { title: 'Oportunidades', url: '/pipeline', requiresCapability: 'pipeline:ler' },
+    ],
   },
   {
     label: 'Projetos',

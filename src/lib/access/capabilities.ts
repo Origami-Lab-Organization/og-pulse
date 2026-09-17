@@ -65,6 +65,8 @@ export const CAPABILITY_KEYS = [
   'projeto:editar',
   'projeto:gerir-qualquer',
   'projeto:ler',
+  'prospeccao:editar',
+  'prospeccao:ler',
   'remuneracao-pessoa:editar',
   'remuneracao-pessoa:ler',
   'timesheet-proprio:apontar',

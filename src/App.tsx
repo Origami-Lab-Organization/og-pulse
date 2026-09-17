@@ -35,6 +35,7 @@ import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import Suppliers from "./pages/Suppliers";
 import CRM from "./pages/CRM";
+import Prospeccao from "./pages/Prospeccao";
 import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
 import MinhaEquipeAlocacaoPage from "./pages/MinhaEquipeAlocacaoPage";
@@ -389,6 +390,14 @@ const App = () => (
               />
               {/* Perdas viram uma aba dentro do Pipeline — a tela dedicada foi removida. */}
               <Route path="/pipeline/archived" element={<Navigate to="/pipeline" replace />} />
+              <Route
+                path="/comercial/prospeccao"
+                element={
+                  <RoleProtectedRoute requireCapability="prospeccao:ler">
+                    <Prospeccao />
+                  </RoleProtectedRoute>
+                }
+              />
               {/* Cadastros */}
               <Route
                 path="/comercial/servicos"

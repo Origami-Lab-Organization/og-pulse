@@ -113,8 +113,28 @@ export const HELP_GROUPS: HelpGroup[] = [
   },
   {
     id: 'comercial',
-    label: 'Pipeline e Orçamentos',
+    label: 'Comercial',
     topics: [
+      {
+        id: 'prospeccao',
+        title: 'Prospecção — pipeline frio',
+        route: '/comercial/prospeccao',
+        requiresCapability: 'prospeccao:ler',
+        what:
+          'O pipeline de quem ainda não é oportunidade. Mede atenção conquistada, não receita: não tem valor de negócio nem entra na previsão.',
+        how: [
+          'A aba "Atividades de hoje" é o trabalho do dia: o que vence hoje e é seu. Vazia, o dia de prospecção acabou.',
+          'Registrar uma atividade é um clique — o botão usa o canal principal do contato. O sistema conta o toque e agenda a próxima data pela cadência.',
+          'Esgotada a cadência sem resposta, o contato vai sozinho para "Sem resposta". O card só avança por evento verificável: "Respondeu" entra pelo registro, não pelo arraste.',
+          'A empresa é cadastrada uma vez e reaproveitada: a partir do segundo contato dela, os dados vêm preenchidos.',
+          'Contato qualificado vira oportunidade por "Converter em oportunidade", levando a data do 1º toque — é o que faz o tempo de ciclo ser real.',
+        ],
+        mcp: {
+          server: null,
+          note:
+            'Prospecção não passa pelo chat nesta versão. A escrita de Oportunidade já tem duas implementações que divergem em silêncio (tela e MCP); criar a segunda aqui repetiria o problema antes de a primeira estar resolvida.',
+        },
+      },
       {
         id: 'pipeline',
         title: 'Pipeline — oportunidades por etapa',

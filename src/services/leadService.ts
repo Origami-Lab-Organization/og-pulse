@@ -69,15 +69,21 @@ export interface CreateLeadInput {
   created_by?: string;
   service_line?: string;
   responsible_id?: string;
+  /** Contato de prospecção que originou a oportunidade, quando veio do pipeline frio. */
+  prospect_id?: string;
+  /** Data do 1º toque herdada da prospecção — base do tempo de ciclo real. */
+  first_touch_at?: string;
 }
 
 export async function createLead(input: CreateLeadInput) {
   const { data, error } = await supabase
     .from('leads')
+    // `as any`: prospect_id e first_touch_at entraram pela migration 20260915130000 e
+    // ainda não constam dos tipos gerados em src/integrations/supabase/types.ts.
     .insert({
       ...input,
       crm_stage: 'screening',
-    })
+    } as any)
     .select()
     .single();
 

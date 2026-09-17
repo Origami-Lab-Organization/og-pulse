@@ -7,6 +7,11 @@ sources:
   - supabase/migrations/20260909130000_tenant_plan_enforced_in_rls.sql
   - supabase/migrations/20260910100000_cost_centers.sql
   - supabase/migrations/20260910120000_cost_center_on_catalog_items.sql
+  - supabase/migrations/20260915110000_prospect_companies.sql
+  - supabase/migrations/20260915120000_prospects.sql
+  - supabase/migrations/20260915130000_prospect_activities.sql
+  - supabase/migrations/20260917115000_prospect_reuniao_feita.sql
+  - src/types/prospect.ts
   - src/types/lead.ts
   - src/types/portfolio.ts
 ---
@@ -64,6 +69,8 @@ erDiagram
         numeric estimated_value ""
         bool archived "perda arquiva (lead.ts:118-126)"
         timestamptz closed_at ""
+        uuid prospect_id "origem na prospecção (Cluster 1b)"
+        date first_touch_at "1º toque herdado — tempo de ciclo real"
     }
     clients {
         text company_name ""
@@ -78,6 +85,62 @@ Fontes: `leads` L1919, `lead_services` L1861, `lead_interactions` L1790,
 `leads.crm_stage` é **text sem CHECK** — o contrato de valores vive no front
 (`src/types/lead.ts:1-8`): `screening | qualification | proposal | negotiation
 | closed | closed_lost | stand_by`.
+
+## Cluster 1b — Prospecção (pipeline frio)
+
+Separado do Cluster 1 de propósito (15/09/2026): mede atenção conquistada, não
+receita. **Nenhuma coluna de valor, probabilidade ou peso de forecast** — é a
+separação que mantém a Receita Prevista limpa. Toca o Cluster 1 em um único
+ponto: a conversão, que cria o `leads` e guarda o elo nos dois sentidos.
+
+```mermaid
+erDiagram
+    tenants ||--o{ prospect_companies : ""
+    tenants ||--o{ prospects : ""
+    clients |o--o{ prospect_companies : "client_id (quando já é cliente)"
+    prospect_companies ||--o{ prospects : "company_id"
+    prospects ||--o{ prospect_activities : ""
+    employees ||--o{ prospects : "owner_id"
+    prospects |o--o| leads : "converted_lead_id / leads.prospect_id"
+
+    prospect_companies {
+        text name ""
+        text cnpj "único por tenant (índice parcial)"
+        text linkedin_url "único por tenant (índice parcial)"
+        text ring "Anel — livre, editável no card"
+        text tier "Tier — livre, editável no card"
+    }
+    prospects {
+        text stage "CHECK de 9 valores: 6 do funil + 3 desfechos (src/types/prospect.ts)"
+        text lever "Alavanca / origem da lista"
+        date first_touch_at "imutável (trigger)"
+        int activity_count "mantido pelo trigger"
+        date next_activity_on "prazo: sinal de atraso no card + Próximo passo"
+        text discard_reason "lista fechada no CHECK"
+    }
+    prospect_activities {
+        int sequence_no "preenchido pelo trigger; único por prospect"
+        text channel "mesma lista de lead_interactions"
+        bool got_response "base de toda métrica"
+    }
+```
+
+Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000` e `20260917100000`.
+
+Ao contrário de `leads.crm_stage`, `prospects.stage` **tem CHECK** no banco, e a
+cadência (`ARRAY[3,4,5]`) vive só na função `prospect_activities_advance` — sem
+cópia em TypeScript, para não repetir TD-0022.
+
+Etapa nova custa duas escritas no mesmo lugar: o CHECK **e** o índice parcial
+`prospects_today_idx`, que lista as etapas do funil uma a uma. Esquecer o índice não
+quebra nada — só tira a cobertura da consulta, em silêncio (foi o que a `20260917100000`
+teve de recriar ao acrescentar `reuniao_feita`).
+
+**`prospects_today_idx` não serve mais consulta nenhuma**: a aba "Atividades de hoje", que
+filtrava `next_activity_on <= hoje AND owner_id = eu`, foi removida em 17/09/2026. O índice
+segue no banco, custando escrita sem pagar leitura — derrubá-lo é uma migration pendente.
+Hoje `next_activity_on` é lido só em memória: sinal de atraso no card do Kanban
+(`isOverdue`) e caixa "Próximo passo" do card do contato.
 
 ## Cluster 2 — Orçamento → Projeto → Financeiro
 

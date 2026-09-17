@@ -93,11 +93,11 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 | Clientes / Fornecedores | `/clients*`, `/suppliers` | Manager | 241, 249, 257, 265, 273 |
 | Projetos | `/projetos` (Portfolio), `/projects/:id` | Manager / **apenas Protected** | 282, 290, 307, 315, 323 |
 | Análises | `/analises/meu-time`, `/analises/alocacoes*`, `/analises/financeiro`, `/analises/comercial`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 299, 331, 339, 347, 355, 395-397 |
-| Pipeline Comercial | `/pipeline`, `/comercial/servicos*`, `/comercial/ticket-medio`, `/budgets/:id*` | Manager | 364, 372-375, 383, 403, 411, 419 |
+| Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/pipeline` (Oportunidades — `pipeline:ler`), `/comercial/servicos*`, `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 381, 391, 400, 408, 428, 436, 444 |
 | Estratégia | `/estrategia` | Manager | 457 |
 | Admin | `/admin`, `/admin-dashboard` | Admin | 143, 427 |
 
-Redirects de compatibilidade (`App.tsx:391-393, 399`): `/crm`→`/pipeline`,
+Redirects de compatibilidade (`App.tsx:389, 416-417, 425-426`): `/crm`→`/pipeline`,
 `/portfolio`→`/projetos`, `/analytics`→`/analises/financeiro`,
 `/budgets`→`/pipeline`, entre outros.
 

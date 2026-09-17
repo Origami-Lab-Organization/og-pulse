@@ -8,6 +8,19 @@
 
 ## Aberto
 
+- TD-0028 (achado ao conferir as historias da onda S2 contra producao, 17/09): `supabase
+  migration list` mostra QUATRO migrations aplicadas em producao **sem arquivo no
+  repositorio** — `20260915100000`, `20260915110000`, `20260915120000` e `20260915130000`,
+  todas de 15/09, com a coluna `Local` vazia nas quatro. Fura o boundary "nao alterar schema
+  Supabase sem migration versionada": o schema de producao carrega quatro alteracoes que
+  ninguem consegue ler, revisar ou reproduzir a partir do repo, e a proxima migration nasce
+  sobre um estado desconhecido. Tambem quebra a paridade que o stub de teste depende (ver
+  `db-testing`): um stub montado pelo repo nao e mais igual a producao. Nao investigado — o
+  Italo optou por olhar depois (17/09). Proximo passo, ANTES de escrever qualquer migration
+  nova: descobrir a origem (branch ou outra maquina com os arquivos? aplicadas pelo
+  dashboard?) e, se nao houver arquivo em lugar nenhum, extrair o SQL de
+  `supabase_migrations.schema_migrations` (coluna `statements`) e versionar as quatro no repo.
+
 - TD-0027 (achado ao investigar "editei projeto que nao gerencia", 04/09): existem DOIS
   tenants com o nome "Origami Lab". O de 21/01 tem 3 funcionarios, 0 projetos e 5 pessoas com
   perfil; o de 27/01 tem 20 funcionarios e 24 projetos, e e o real. O primeiro parece residuo

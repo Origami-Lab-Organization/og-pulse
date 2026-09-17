@@ -32,7 +32,7 @@ describe('navegação superior por capacidade', () => {
 
   it('gerente vê tudo o que via', () => {
     expect(NAV_SECTIONS.filter((s) => isSectionVisible(s, GERENTE)).map((s) => s.label)).toEqual([
-      'Início', 'Pipeline', 'Projetos', 'Análises', 'Cadastros',
+      'Início', 'Comercial', 'Projetos', 'Análises', 'Cadastros',
     ]);
   });
 
@@ -47,6 +47,9 @@ describe('navegação superior por capacidade', () => {
     expect(getActiveTabs('/analises/financeiro', GERENTE)?.map((t) => t.title)).toEqual(['Meu Time', 'Financeiro', 'Comercial']);
     expect(getActiveTabs('/analises/financeiro', canFromCapabilities(['financeiro:ler']))?.map((t) => t.title)).toEqual(['Financeiro']);
     expect(getActiveTabs('/analises/financeiro')?.length).toBe(3);
-    expect(getActiveTabs('/pipeline')).toBeNull();
+    // Pipeline deixou de ser seção solta: virou aba de "Comercial", ao lado de Prospecção.
+    // Quem só tem pipeline:ler continua vendo uma aba só.
+    expect(getActiveTabs('/pipeline')?.map((t) => t.title)).toEqual(['Prospecção', 'Oportunidades']);
+    expect(getActiveTabs('/pipeline', GERENTE)?.map((t) => t.title)).toEqual(['Oportunidades']);
   });
 });
