@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -10,6 +10,21 @@ import {
   SponsorshipLevel,
   StakeholderAction,
 } from '@/types/projectStakeholder';
+
+/**
+ * Mexer num stakeholder mexe em duas telas: a do projeto e a da conta do cliente. Esquecer
+ * uma delas deixa a outra mostrando dado velho até o cache expirar, sem erro nenhum.
+ */
+function invalidarStakeholders(
+  queryClient: QueryClient,
+  projectId: string | undefined,
+  clientId: string | null | undefined,
+) {
+  if (projectId) queryClient.invalidateQueries({ queryKey: ['project-stakeholders', projectId] });
+  if (clientId) {
+    queryClient.invalidateQueries({ queryKey: ['client-stakeholder-directory', clientId] });
+  }
+}
 
 export const useProjectStakeholders = (projectId: string | undefined) => {
   return useQuery({
@@ -43,7 +58,8 @@ export const useCreateStakeholder = () => {
       const { data, error } = await supabase
         .from('project_stakeholders')
         .insert({
-          project_id: input.projectId,
+          project_id: input.projectId ?? null,
+          client_id: input.clientId ?? null,
           name: input.name,
           job_title: input.jobTitle || null,
           role: input.role,
@@ -62,8 +78,8 @@ export const useCreateStakeholder = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['project-stakeholders', variables.projectId] });
+    onSuccess: (linha, variables) => {
+      invalidarStakeholders(queryClient, variables.projectId, linha?.client_id);
       toast({
         title: 'Stakeholder adicionado',
         description: 'O stakeholder foi adicionado com sucesso.',
@@ -90,7 +106,7 @@ export const useUpdateStakeholder = () => {
       updates,
     }: {
       id: string;
-      projectId: string;
+      projectId?: string;
       updates: UpdateStakeholderInput;
     }) => {
       const { data, error } = await supabase
@@ -116,7 +132,7 @@ export const useUpdateStakeholder = () => {
       return { data, projectId };
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['project-stakeholders', result.projectId] });
+      invalidarStakeholders(queryClient, result.projectId, result.data?.client_id);
       toast({
         title: 'Stakeholder atualizado',
         description: 'O stakeholder foi atualizado com sucesso.',
@@ -137,13 +153,21 @@ export const useDeleteStakeholder = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => {
+    mutationFn: async ({ id, projectId }: { id: string; projectId?: string }) => {
+      // O cliente sai da própria linha, antes de apagá-la: assim a aba da conta é
+      // invalidada mesmo quando quem apagou foi a aba do projeto, que não sabe o cliente.
+      const { data: linha } = await supabase
+        .from('project_stakeholders')
+        .select('client_id')
+        .eq('id', id)
+        .maybeSingle();
+
       const { error } = await supabase.from('project_stakeholders').delete().eq('id', id);
       if (error) throw error;
-      return { projectId };
+      return { projectId, clientId: linha?.client_id ?? null };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['project-stakeholders', data.projectId] });
+      invalidarStakeholders(queryClient, data.projectId, data.clientId);
       toast({
         title: 'Stakeholder removido',
         description: 'O stakeholder foi removido com sucesso.',

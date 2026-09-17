@@ -60,7 +60,10 @@ type FormData = z.infer<typeof formSchema>;
 interface StakeholderFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  projectId: string;
+  /** Stakeholder DO PROJETO. Ausente quando o cadastro é da conta do cliente. */
+  projectId?: string;
+  /** Stakeholder DA CONTA, cadastrado na tela do cliente e sem projeto. */
+  clientId?: string;
   stakeholder: ProjectStakeholder | null;
 }
 
@@ -68,6 +71,7 @@ export function StakeholderFormDialog({
   open,
   onOpenChange,
   projectId,
+  clientId,
   stakeholder,
 }: StakeholderFormDialogProps) {
   const createStakeholder = useCreateStakeholder();
@@ -130,7 +134,7 @@ export function StakeholderFormDialog({
       updateStakeholder.mutate(
         {
           id: stakeholder.id,
-          projectId,
+          projectId: stakeholder.project_id ?? undefined,
           updates: {
             name: data.name,
             jobTitle: data.jobTitle,
@@ -151,6 +155,7 @@ export function StakeholderFormDialog({
       createStakeholder.mutate(
         {
           projectId,
+          clientId,
           name: data.name,
           jobTitle: data.jobTitle,
           role: data.role,

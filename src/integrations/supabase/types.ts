@@ -4713,7 +4713,8 @@ export type Database = {
           notes: string | null
           organization: string | null
           phone: string | null
-          project_id: string
+          project_id: string | null
+          client_id: string | null
           role: string
           sponsorship_level: string | null
         }
@@ -4729,7 +4730,8 @@ export type Database = {
           notes?: string | null
           organization?: string | null
           phone?: string | null
-          project_id: string
+          project_id: string | null
+          client_id: string | null
           role: string
           sponsorship_level?: string | null
         }
@@ -4745,7 +4747,8 @@ export type Database = {
           notes?: string | null
           organization?: string | null
           phone?: string | null
-          project_id?: string
+          project_id?: string | null
+          client_id?: string | null
           role?: string
           sponsorship_level?: string | null
         }
