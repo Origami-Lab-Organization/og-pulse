@@ -8,6 +8,7 @@
  *   submit [url]               envia o sitemap (padrão: <origem>/sitemap.xml)
  *   inspect <url>              inspeção de URL: estado no índice, canônica do Google, último rastreio
  *   status                     inspeciona as páginas do sitemap publicado (fallback: a home)
+ *   query [dias]               impressões, cliques e posição no período (padrão: 90 dias)
  *
  * Configuração (variáveis de ambiente, nunca no repositório):
  *   GSC_CREDENTIALS  caminho do JSON da conta de serviço (padrão ~/.config/gsc/pulse.json)
@@ -200,8 +201,48 @@ async function cmdStatus(token) {
   }
 }
 
+/** `YYYY-MM-DD` de N dias atrás. A API do Search Console só aceita data, não timestamp. */
+function diasAtras(n) {
+  return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+}
+
+async function searchAnalytics(token, corpo) {
+  return api(token, 'POST', `${WEBMASTERS}/sites/${enc(SITE)}/searchAnalytics/query`, corpo);
+}
+
+function linhaDeDesempenho(chaves, r) {
+  const rotulo = chaves.length ? `${chaves.join(' | ')} → ` : '';
+  return `${rotulo}impressões=${r.impressions} cliques=${r.clicks} ctr=${(r.ctr * 100).toFixed(1)}% posição=${r.position.toFixed(1)}`;
+}
+
+/**
+ * Desempenho real na busca: é o que diz se o trabalho de conteúdo virou alguma coisa.
+ * Zero impressão não é ranqueamento ruim — é ausência, e tem causa diferente.
+ */
+async function cmdQuery(token, dias = '90') {
+  const periodo = { startDate: diasAtras(Number(dias)), endDate: diasAtras(0) };
+  console.log(`Período: ${periodo.startDate} a ${periodo.endDate} — ${SITE}\n`);
+
+  const total = await searchAnalytics(token, { ...periodo, rowLimit: 1 });
+  const resumo = total.rows?.[0];
+  console.log(resumo ? `TOTAL: ${linhaDeDesempenho([], resumo)}` : 'TOTAL: nenhum dado no período.');
+
+  if (!resumo || resumo.impressions === 0) {
+    console.log('\nSem impressões: as páginas não estão aparecendo para ninguém. Verifique a indexação com `status`.');
+    return;
+  }
+
+  for (const [dimensao, titulo] of [['query', 'CONSULTAS'], ['page', 'PÁGINAS']]) {
+    const dados = await searchAnalytics(token, { ...periodo, dimensions: [dimensao], rowLimit: 25 });
+    console.log(`\n${titulo}`);
+    for (const linha of dados.rows ?? []) console.log(`  ${linhaDeDesempenho(linha.keys, linha)}`);
+    if (!dados.rows?.length) console.log('  (vazio)');
+  }
+}
+
 const COMMANDS = {
   sites: cmdSites,
+  query: cmdQuery,
   sitemaps: cmdSitemaps,
   submit: cmdSubmit,
   inspect: cmdInspect,
