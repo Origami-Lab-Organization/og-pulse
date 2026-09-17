@@ -200,7 +200,7 @@ export const HELP_GROUPS: HelpGroup[] = [
       {
         id: 'servicos',
         title: 'Serviços e catálogo',
-        route: '/comercial/servicos',
+        route: '/admin/servicos',
         requiresCapability: 'catalogo:editar',
         what:
           'A árvore de serviços e atividades que alimenta orçamento e apontamento. Mexer aqui muda o que aparece para todo mundo.',
@@ -445,7 +445,7 @@ export const HELP_GROUPS: HelpGroup[] = [
       {
         id: 'perfis',
         title: 'Perfis de Acesso — quem vê o quê',
-        route: '/admin',
+        route: '/admin/perfis',
         requiresCapability: 'configuracao:editar',
         what:
           'Os perfis do tenant e as capacidades que cada um concede. Ligar uma capacidade aqui muda o acesso no banco, não só na tela — passou a ser configuração, não deploy.',
@@ -463,13 +463,13 @@ export const HELP_GROUPS: HelpGroup[] = [
       },
       {
         id: 'admin',
-        title: 'Portal do Admin — parâmetros da empresa',
-        route: '/admin',
+        title: 'Configurações — parâmetros da empresa',
+        route: '/admin/precos',
         requiresCapability: 'configuracao:editar',
         what:
-          'Tabela de preços por cargo, encargos e perfil de folha, configurações financeiras, feriados, tipos de atividade e lembretes.',
+          'Tabela de preços por cargo, encargos e perfil de folha, configurações financeiras, feriados, centros de custo, tipos de atividade e lembretes.',
         how: [
-          'Cada aba é um parâmetro que o resto do sistema consome — mudança aqui reflete em orçamento, custo e folha.',
+          'Cada item do menu Configurações é um parâmetro que o resto do sistema consome — mudança aqui reflete em orçamento, custo e folha.',
           'Feriado cadastrado entra no cálculo de capacidade e de dias úteis.',
           'Lembrete de timesheet dispara para quem tem apontamento faltando.',
         ],

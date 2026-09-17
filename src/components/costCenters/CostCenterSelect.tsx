@@ -32,8 +32,11 @@ export function CostCenterSelect(props: CostCenterSelectProps) {
         <Layers className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         <span>
           Nenhum centro de custo cadastrado. Cadastre em{' '}
-          <Link to="/admin" className="font-medium text-primary underline-offset-4 hover:underline">
-            Portal do Admin, aba Centros de custo
+          <Link
+            to="/admin/centros-de-custo"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Configurações, em Centros de custo
           </Link>
           .
         </span>

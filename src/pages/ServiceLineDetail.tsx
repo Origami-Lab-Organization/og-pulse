@@ -241,8 +241,8 @@ const ServiceLineDetail = () => {
       <AppLayout
         title="Serviços"
         breadcrumbs={[
-          { label: 'Comercial', href: '/comercial' },
-          { label: 'Linhas de Serviço', href: '/comercial/servicos' },
+          { label: 'Configurações', href: '/admin' },
+          { label: 'Linhas de Serviço', href: '/admin/servicos' },
         ]}
       >
         <div className="space-y-2">
@@ -259,14 +259,14 @@ const ServiceLineDetail = () => {
       <AppLayout
         title="Linha não encontrada"
         breadcrumbs={[
-          { label: 'Comercial', href: '/comercial' },
-          { label: 'Linhas de Serviço', href: '/comercial/servicos' },
+          { label: 'Configurações', href: '/admin' },
+          { label: 'Linhas de Serviço', href: '/admin/servicos' },
         ]}
       >
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <p className="text-base font-semibold">Linha de serviço não encontrada</p>
           <p className="text-sm text-muted-foreground mt-1">Ela pode ter sido removida.</p>
-          <Button className="mt-5" variant="outline" onClick={() => navigate('/comercial/servicos')}>
+          <Button className="mt-5" variant="outline" onClick={() => navigate('/admin/servicos')}>
             <ArrowLeft className="h-4 w-4 mr-1.5" />
             Voltar para Linhas de Serviço
           </Button>
@@ -280,8 +280,8 @@ const ServiceLineDetail = () => {
       title={lineName}
       description={lineDescription}
       breadcrumbs={[
-        { label: 'Comercial', href: '/comercial' },
-        { label: 'Linhas de Serviço', href: '/comercial/servicos' },
+        { label: 'Configurações', href: '/admin' },
+        { label: 'Linhas de Serviço', href: '/admin/servicos' },
         { label: lineName },
       ]}
       actions={
@@ -298,7 +298,7 @@ const ServiceLineDetail = () => {
           variant="ghost"
           size="sm"
           className="gap-1.5 -ml-2 text-muted-foreground"
-          onClick={() => navigate('/comercial/servicos')}
+          onClick={() => navigate('/admin/servicos')}
         >
           <ArrowLeft className="h-4 w-4" />
           Linhas de Serviço

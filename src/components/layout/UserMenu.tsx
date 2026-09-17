@@ -108,9 +108,9 @@ export function UserMenu() {
         {employee.isAdmin && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/admin')}>
+            <DropdownMenuItem onClick={() => navigate('/admin/perfis')}>
               <Shield className="mr-2 h-4 w-4" />
-              <span>Portal do Admin</span>
+              <span>Configurações</span>
             </DropdownMenuItem>
           </>
         )}

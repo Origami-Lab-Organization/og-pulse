@@ -759,7 +759,7 @@ const EmployeeDetail = () => {
                 </div>
                 <FormDescription>
                   Alterado em{' '}
-                  <Link to="/admin" className="underline underline-offset-2">
+                  <Link to="/admin/perfis" className="underline underline-offset-2">
                     Configurações → Perfis de Acesso
                   </Link>
                   , na aba Pessoas.

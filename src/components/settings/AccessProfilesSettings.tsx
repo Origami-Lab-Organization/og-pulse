@@ -177,15 +177,8 @@ export function AccessProfilesSettings() {
   return (
     <TooltipProvider>
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-          <div className="space-y-1.5">
-            <CardTitle>Perfis de acesso</CardTitle>
-            <CardDescription>
-              Cada pessoa tem um perfil. Abra um para ver e editar o que ele permite. Para quem
-              acumula funções, crie um perfil com as duas atribuições em vez de dar exceções
-              individuais.
-            </CardDescription>
-          </div>
+        {/* Nome e explicação da tela vivem no cabeçalho da página, como no resto do sistema. */}
+        <CardHeader className="flex flex-row items-center justify-end gap-4 space-y-0">
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Novo perfil

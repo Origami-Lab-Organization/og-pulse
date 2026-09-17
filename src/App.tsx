@@ -30,7 +30,15 @@ import JobApplication from "./pages/JobApplication";
 import ProjectDetail from "./pages/ProjectDetail";
 import MyProjects from "./pages/MyProjects";
 import MyProjectDetail from "./pages/MyProjectDetail";
-import AdminPortal from "./pages/AdminPortal";
+import AdminPerfis from "./pages/AdminPerfis";
+import AdminExcecoes from "./pages/AdminExcecoes";
+import AdminPrecos from "./pages/AdminPrecos";
+import AdminFinanceiro from "./pages/AdminFinanceiro";
+import AdminEncargos from "./pages/AdminEncargos";
+import AdminFeriados from "./pages/AdminFeriados";
+import AdminCentrosCusto from "./pages/AdminCentrosCusto";
+import AdminAtividades from "./pages/AdminAtividades";
+import AdminLembretes from "./pages/AdminLembretes";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import Suppliers from "./pages/Suppliers";
@@ -89,6 +97,13 @@ function RedirectAlocacaoEmployee() {
 function RedirectAlocacaoPessoa() {
   const { employeeId } = useParams();
   return <Navigate to={`/projetos/alocacoes/pessoa/${employeeId}`} replace />;
+}
+
+// O catálogo saiu de Cadastros e virou uma tela de Configurações; `/comercial/servicos`
+// continua respondendo porque link salvo e favorito não sabem que o menu mudou.
+function RedirectLinhaServico() {
+  const { lineId } = useParams();
+  return <Navigate to={`/admin/servicos/${lineId}`} replace />;
 }
 
 /**
@@ -398,23 +413,8 @@ const App = () => (
                   </RoleProtectedRoute>
                 }
               />
-              {/* Cadastros */}
-              <Route
-                path="/comercial/servicos"
-                element={
-                  <RoleProtectedRoute requireCapability="catalogo:editar">
-                    <Services />
-                  </RoleProtectedRoute>
-                }
-              />
-              <Route
-                path="/comercial/servicos/:lineId"
-                element={
-                  <RoleProtectedRoute requireCapability="catalogo:editar">
-                    <ServiceLineDetail />
-                  </RoleProtectedRoute>
-                }
-              />
+              <Route path="/comercial/servicos" element={<Navigate to="/admin/servicos" replace />} />
+              <Route path="/comercial/servicos/:lineId" element={<RedirectLinhaServico />} />
               {/* Backward compat redirects */}
               <Route path="/crm" element={<Navigate to="/pipeline" replace />} />
               <Route path="/crm/archived" element={<Navigate to="/pipeline/archived" replace />} />
@@ -451,13 +451,96 @@ const App = () => (
                   </RoleProtectedRoute>
                 } 
               />
-              <Route 
-                path="/admin" 
+              {/* Configurações — uma tela por parâmetro da empresa. Eram nove abas de
+                  /admin, sem URL própria: não dava para favoritar nem mandar o link. */}
+              <Route path="/admin" element={<Navigate to="/admin/perfis" replace />} />
+              <Route
+                path="/admin/perfis"
                 element={
                   <RoleProtectedRoute requireCapability="configuracao:editar">
-                    <AdminPortal />
+                    <AdminPerfis />
                   </RoleProtectedRoute>
-                } 
+                }
+              />
+              <Route
+                path="/admin/excecoes"
+                element={
+                  <RoleProtectedRoute requireCapability="configuracao:editar">
+                    <AdminExcecoes />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/servicos"
+                element={
+                  <RoleProtectedRoute requireCapability="catalogo:editar">
+                    <Services />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/servicos/:lineId"
+                element={
+                  <RoleProtectedRoute requireCapability="catalogo:editar">
+                    <ServiceLineDetail />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/precos"
+                element={
+                  <RoleProtectedRoute requireCapability="configuracao:editar">
+                    <AdminPrecos />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/financeiro"
+                element={
+                  <RoleProtectedRoute requireCapability="configuracao:editar">
+                    <AdminFinanceiro />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/encargos"
+                element={
+                  <RoleProtectedRoute requireCapability="configuracao:editar">
+                    <AdminEncargos />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/feriados"
+                element={
+                  <RoleProtectedRoute requireCapability="configuracao:editar">
+                    <AdminFeriados />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/centros-de-custo"
+                element={
+                  <RoleProtectedRoute requireCapability="configuracao:editar">
+                    <AdminCentrosCusto />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/atividades"
+                element={
+                  <RoleProtectedRoute requireCapability="configuracao:editar">
+                    <AdminAtividades />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/lembretes"
+                element={
+                  <RoleProtectedRoute requireCapability="configuracao:editar">
+                    <AdminLembretes />
+                  </RoleProtectedRoute>
+                }
               />
               <Route 
                 path="/rh/funcionarios-desligados" 

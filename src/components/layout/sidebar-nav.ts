@@ -1,9 +1,9 @@
 import {
   BarChart3,
   CircleHelp,
+  Building2,
   CalendarDays,
   Clock,
-  Database,
   FolderKanban,
   FolderOpen,
   Kanban,
@@ -101,16 +101,7 @@ export const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Custo x Hora', url: '/analises/custo-hora', requiresCapability: 'custo-hora:ler-relatorio' },
     ],
   },
-  {
-    kind: 'group',
-    title: 'Cadastros',
-    url: '/clients',
-    icon: Database,
-    children: [
-      { title: 'Serviços', url: '/comercial/servicos', requiresCapability: 'catalogo:editar' },
-      { title: 'Clientes', url: '/clients', requiresCapability: 'cliente:ler' },
-    ],
-  },
+  { kind: 'link', title: 'Clientes', url: '/clients', icon: Building2, requiresCapability: 'cliente:ler' },
   {
     kind: 'group',
     title: 'Pessoas',
@@ -136,10 +127,32 @@ export const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Configurações', url: '/jornada/configuracoes', requiresCapability: 'ponto:configurar' },
     ],
   },
-  // O Portal do Admin concentra 7 abas de configuração (perfis de acesso, tabela de
-  // preços, financeiro, encargos, feriados, atividades, lembretes) e só era alcançável
-  // pelo menu do avatar — dois cliques, sem nada no menu lateral sugerindo que existisse.
-  { kind: 'link', title: 'Configurações', url: '/admin', icon: Settings, requiresCapability: 'configuracao:editar' },
+  // As configurações eram nove abas dentro de uma tela só ("Portal do Admin"), fora do
+  // padrão de todo o resto do menu e sem URL própria: não dava para favoritar "Feriados"
+  // nem mandar o link de "Centros de custo" para alguém. Agora cada uma é uma tela, e o
+  // menu mostra o que existe antes de a pessoa clicar.
+  //
+  // Serviços mora aqui, e não mais em Cadastros, porque catálogo é parâmetro: é ele que
+  // diz o que a empresa vende, por qual centro de custo e sob qual modelo de cobrança —
+  // o resto do sistema consome isso do mesmo jeito que consome feriado e encargo.
+  {
+    kind: 'group',
+    title: 'Configurações',
+    url: '/admin',
+    icon: Settings,
+    children: [
+      { title: 'Perfis de Acesso', url: '/admin/perfis', requiresCapability: 'configuracao:editar' },
+      { title: 'Exceções', url: '/admin/excecoes', requiresCapability: 'configuracao:editar' },
+      { title: 'Serviços', url: '/admin/servicos', requiresCapability: 'catalogo:editar' },
+      { title: 'Tabela de Preços', url: '/admin/precos', requiresCapability: 'configuracao:editar' },
+      { title: 'Financeiro', url: '/admin/financeiro', requiresCapability: 'configuracao:editar' },
+      { title: 'Encargos/Folha', url: '/admin/encargos', requiresCapability: 'configuracao:editar' },
+      { title: 'Feriados/Folgas', url: '/admin/feriados', requiresCapability: 'configuracao:editar' },
+      { title: 'Centros de custo', url: '/admin/centros-de-custo', requiresCapability: 'configuracao:editar' },
+      { title: 'Atividades', url: '/admin/atividades', requiresCapability: 'configuracao:editar' },
+      { title: 'Lembretes', url: '/admin/lembretes', requiresCapability: 'configuracao:editar' },
+    ],
+  },
   // Ajuda não declara capacidade de propósito: é a única entrada que todo mundo precisa
   // alcançar, e o conteúdo dela já se filtra pelo que a pessoa acessa.
   { kind: 'link', title: 'Ajuda', url: '/ajuda', icon: CircleHelp },

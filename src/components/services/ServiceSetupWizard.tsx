@@ -135,7 +135,7 @@ export function ServiceSetupWizard({
           billingUnit,
         });
         onCompleted?.();
-        navigate(`/comercial/servicos/${line.id}`);
+        navigate(`/admin/servicos/${line.id}`);
         doClose();
       } catch {
         // each hook shows its own error toast

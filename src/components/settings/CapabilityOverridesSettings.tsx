@@ -137,15 +137,8 @@ export function CapabilityOverridesSettings() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold">Exceções de acesso</h2>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Capacidade concedida ou revogada para uma pessoa específica, por cima do perfil dela. Vale
-            no banco, não só na tela. Se a mesma exceção aparecer em várias pessoas, o que falta é um
-            perfil.
-          </p>
-        </div>
+      {/* Nome e explicação da tela vivem no cabeçalho da página, como no resto do sistema. */}
+      <div className="flex justify-end">
         <Button onClick={() => setDialogOpen(true)} className="shrink-0">
           <Plus className="mr-2 h-4 w-4" />
           Nova exceção

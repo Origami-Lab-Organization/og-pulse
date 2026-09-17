@@ -5,7 +5,7 @@ import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
-import { NAV_ITEMS, isNavItemVisible, visibleChildren, type GroupItem } from './sidebar-nav';
+import { NAV_ITEMS, isNavItemVisible, visibleChildren, type GroupItem, type NavChild } from './sidebar-nav';
 import logo from '@/assets/logo.png';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -27,6 +27,22 @@ import {
 
 function isChildActive(url: string, pathname: string) {
   return pathname === url || pathname.startsWith(url + '/');
+}
+
+/**
+ * Qual filha do grupo marcar como ativa — a de caminho MAIS ESPECÍFICO que casa com a rota.
+ *
+ * Marcar toda filha que casa acende duas de uma vez sempre que uma url é prefixo da outra:
+ * em `/projetos/alocacoes`, Portfólio (`/projetos`) acendia junto com Alocações. O menu
+ * passava a dizer que a pessoa está em dois lugares ao mesmo tempo.
+ */
+function activeChildUrl(children: readonly NavChild[], pathname: string): string | null {
+  let ativa: string | null = null;
+  for (const child of children) {
+    if (!isChildActive(child.url, pathname)) continue;
+    if (ativa === null || child.url.length > ativa.length) ativa = child.url;
+  }
+  return ativa;
 }
 
 function isGroupActive(item: GroupItem, pathname: string) {
@@ -163,7 +179,7 @@ export function AppSidebar() {
                             <SidebarMenuSubItem key={child.url}>
                               <SidebarMenuSubButton
                                 asChild
-                                isActive={isChildActive(child.url, location.pathname)}
+                                isActive={child.url === activeChildUrl(item.children, location.pathname)}
                               >
                                 <NavLink to={child.url} data-tour={`nav-${child.url}`}>{child.title}</NavLink>
                               </SidebarMenuSubButton>
