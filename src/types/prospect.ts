@@ -12,6 +12,7 @@ export type ProspectStage =
   | 'em_cadencia'
   | 'respondeu'
   | 'reuniao_agendada'
+  | 'reuniao_feita'
   | 'qualificado'
   | 'sem_resposta'
   | 'descartado'
@@ -54,9 +55,15 @@ export const PROSPECT_STAGE_META: Record<ProspectStage, ProspectStageMeta> = {
     color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
     stallDays: 3,
   },
+  reuniao_feita: {
+    id: 'reuniao_feita',
+    label: 'Reunião feita',
+    color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
+    stallDays: 5,
+  },
   qualificado: {
     id: 'qualificado',
-    label: 'Qualificado',
+    label: 'Oportunidade qualificada',
     color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
     stallDays: null,
   },
@@ -81,7 +88,10 @@ export const PROSPECT_STAGE_META: Record<ProspectStage, ProspectStageMeta> = {
 };
 
 /**
- * As cinco etapas do funil, em ordem — e nem uma a mais. São as colunas do Kanban.
+ * As etapas do funil, em ordem. São as colunas do Kanban.
+ *
+ * "Reunião feita" entrou em 17/09/2026: é a separação entre agenda cheia e conversa que
+ * de fato aconteceu, e sem ela a taxa de comparecimento não existe.
  *
  * "Sem resposta", "Descartado" e "Convertido" ficam de fora de propósito: são desfechos,
  * não avanço, e virariam progresso aparente se aparecessem como coluna.
@@ -91,6 +101,7 @@ export const PROSPECT_FUNNEL_STAGES: readonly ProspectStage[] = [
   'em_cadencia',
   'respondeu',
   'reuniao_agendada',
+  'reuniao_feita',
   'qualificado',
 ];
 
@@ -114,8 +125,29 @@ export const PROSPECT_KANBAN_COLUMNS: readonly ProspectStageMeta[] =
 export const PROSPECT_MANUAL_STAGES: readonly ProspectStage[] = [
   'a_abordar',
   'reuniao_agendada',
+  'reuniao_feita',
   'qualificado',
 ];
+
+/**
+ * Etapas que abrem um registro antes de avançar.
+ *
+ * Reunião feita pergunta como a reunião foi — sem obrigar resposta. O que aconteceu na
+ * conversa é a informação que some primeiro e que ninguém volta para escrever depois.
+ */
+export const PROSPECT_STAGES_WITH_PROMPT: readonly ProspectStage[] = ['reuniao_feita'];
+
+/**
+ * O próximo passo de cada etapa, para a tela oferecer UM botão em vez de um menu.
+ *
+ * `a_abordar` e `em_cadencia` ficam de fora: quem as move é o registro de atividade, no
+ * banco. Oferecer um botão de avanço ali competiria com a cadência.
+ */
+export const PROSPECT_NEXT_STAGE: Partial<Record<ProspectStage, ProspectStage>> = {
+  respondeu: 'reuniao_agendada',
+  reuniao_agendada: 'reuniao_feita',
+  reuniao_feita: 'qualificado',
+};
 
 /**
  * Motivos de descarte — lista FECHADA, nunca texto livre.

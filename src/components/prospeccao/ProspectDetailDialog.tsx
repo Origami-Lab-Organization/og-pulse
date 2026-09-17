@@ -49,7 +49,9 @@ import {
   type ProspectWithCompany,
 } from '@/types/prospect';
 import { ProspectActivityTimeline } from './ProspectActivityTimeline';
+import { ProspectAdvanceButton } from './ProspectAdvanceButton';
 import { ProspectStageStepper } from './ProspectStageStepper';
+import { RegisterMeetingDialog } from './RegisterMeetingDialog';
 import { RegisterActivityButtons } from './RegisterActivityButtons';
 
 interface ProspectDetailDialogProps {
@@ -82,6 +84,7 @@ export function ProspectDetailDialog({
   const excluir = useDeleteProspect();
 
   const [editando, setEditando] = useState(false);
+  const [reuniaoAberta, setReuniaoAberta] = useState(false);
   const [rascunho, setRascunho] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -167,6 +170,12 @@ export function ProspectDetailDialog({
           </div>
 
           <ProspectStageStepper stage={prospect.stage} />
+
+          {!somenteLeitura && (
+            <div className="flex justify-end">
+              <ProspectAdvanceButton prospect={prospect} onPrompt={() => setReuniaoAberta(true)} />
+            </div>
+          )}
         </DialogHeader>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,370px)_1fr]">
@@ -239,6 +248,12 @@ export function ProspectDetailDialog({
             </div>
           </section>
         </div>
+
+        <RegisterMeetingDialog
+          prospect={prospect}
+          open={reuniaoAberta}
+          onOpenChange={setReuniaoAberta}
+        />
       </DialogContent>
     </Dialog>
   );

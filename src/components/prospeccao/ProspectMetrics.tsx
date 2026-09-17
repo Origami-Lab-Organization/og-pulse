@@ -125,14 +125,15 @@ export function ProspectMetrics({ prospects }: ProspectMetricsProps) {
                 <TableHead>{CORTES.find((c) => c.value === corte)?.label}</TableHead>
                 <TableHead className="text-right">Contatos</TableHead>
                 <TableHead className="text-right">Conversas</TableHead>
-                <TableHead className="text-right">Reuniões</TableHead>
+                <TableHead className="text-right">Agendadas</TableHead>
+                <TableHead className="text-right">Feitas</TableHead>
                 <TableHead className="text-right">Qualificadas</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {grupos.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     Nenhuma atividade no período.
                   </TableCell>
                 </TableRow>
@@ -142,7 +143,8 @@ export function ProspectMetrics({ prospects }: ProspectMetricsProps) {
                   <TableCell>{nomeDoGrupo(linha.key)}</TableCell>
                   <TableCell className="text-right">{linha.contatos}</TableCell>
                   <TableCell className="text-right">{linha.conversas}</TableCell>
-                  <TableCell className="text-right">{linha.reunioes}</TableCell>
+                  <TableCell className="text-right">{linha.agendadas}</TableCell>
+                  <TableCell className="text-right">{linha.feitas}</TableCell>
                   <TableCell className="text-right font-medium">{linha.qualificadas}</TableCell>
                 </TableRow>
               ))}
@@ -154,8 +156,8 @@ export function ProspectMetrics({ prospects }: ProspectMetricsProps) {
       <p className="text-xs text-muted-foreground">
         Contas e contatos contam quem teve atividade no período. As três últimas etapas leem a
         etapa ATUAL do contato — o módulo não guarda histórico de mudança de etapa, então um
-        contato que avançou antes do período conta aqui se foi tocado dentro dele.
-        &ldquo;Reuniões realizadas&rdquo; não aparece porque presença em reunião não é registrada.
+        contato que avançou antes do período conta aqui se foi tocado dentro dele. O funil é
+        acumulado: quem está em Qualificada também conta em Agendadas e Feitas.
       </p>
     </div>
   );

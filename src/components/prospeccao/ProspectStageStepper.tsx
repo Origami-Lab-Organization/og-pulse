@@ -24,7 +24,11 @@ export function ProspectStageStepper({ stage }: ProspectStageStepperProps) {
   if (atual < 0) return null;
 
   return (
-    <ol className="grid grid-cols-5 gap-2" aria-label="Etapa do funil de prospecção">
+    <ol
+      className="grid gap-2"
+      style={{ gridTemplateColumns: `repeat(${PROSPECT_FUNNEL_STAGES.length}, minmax(0, 1fr))` }}
+      aria-label="Etapa do funil de prospecção"
+    >
       {PROSPECT_FUNNEL_STAGES.map((etapa, indice) => {
         const percorrida = indice <= atual;
         const ehAtual = indice === atual;

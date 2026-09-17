@@ -7,16 +7,23 @@ import type { ProspectActivityWithOwner, ProspectWithCompany } from '@/types/pro
  * valor de pipeline são do comercial e não entram aqui — pôr receita neste módulo é
  * exatamente o que a separação entre os dois pipelines existe para impedir.
  *
- * "Reuniões realizadas" (taxa de comparecimento) fica de fora: o módulo não guarda
- * presença em reunião, e um passo que ninguém alimenta viraria número decorativo.
+ * Desde 17/09/2026 o funil separa reunião AGENDADA de reunião FEITA, o que torna a taxa
+ * de comparecimento calculável — é ela que mostra quando a agenda enche e a conversa não
+ * acontece.
  *
  * Todas as taxas dividem por CONTATO, nunca por atividade: a pergunta é "de cada dez
  * pessoas abordadas, quantas responderam". Dividir por atividade faria quem insiste mais
  * parecer pior do que é.
  */
 
-/** Etapas que provam que a reunião foi agendada — ou que o contato já passou disso. */
-const REUNIAO_ALCANCADA = new Set(['reuniao_agendada', 'qualificado', 'convertido']);
+/**
+ * Cada etapa é "alcançada" por quem está nela OU adiante — o funil é acumulado, senão
+ * avançar um contato o faria sumir do passo anterior e a conversão passaria de 100%.
+ */
+const AGENDAMENTO_ALCANCADO = new Set([
+  'reuniao_agendada', 'reuniao_feita', 'qualificado', 'convertido',
+]);
+const REUNIAO_FEITA_ALCANCADA = new Set(['reuniao_feita', 'qualificado', 'convertido']);
 const QUALIFICACAO_ALCANCADA = new Set(['qualificado', 'convertido']);
 
 export interface FunnelStep {
@@ -52,7 +59,8 @@ export function calculateProspectingFunnel(
   const contas = new Set(tocados.map((p) => p.company_id)).size;
   const contatos = tocados.length;
   const conversas = tocados.filter((p) => responderamIds.has(p.id)).length;
-  const reunioes = tocados.filter((p) => REUNIAO_ALCANCADA.has(p.stage)).length;
+  const agendadas = tocados.filter((p) => AGENDAMENTO_ALCANCADO.has(p.stage)).length;
+  const feitas = tocados.filter((p) => REUNIAO_FEITA_ALCANCADA.has(p.stage)).length;
   const qualificadas = tocados.filter((p) => QUALIFICACAO_ALCANCADA.has(p.stage)).length;
 
   return {
@@ -76,10 +84,16 @@ export function calculateProspectingFunnel(
         question: 'A lista e a mensagem de abertura estão certas?',
       },
       {
-        key: 'reunioes',
+        key: 'agendadas',
         label: 'Reuniões agendadas',
-        value: reunioes,
+        value: agendadas,
         question: 'O esforço da semana virou agenda?',
+      },
+      {
+        key: 'feitas',
+        label: 'Reuniões feitas',
+        value: feitas,
+        question: 'O trabalho virou conversa real com quem pode comprar?',
       },
       {
         key: 'qualificadas',
@@ -91,8 +105,9 @@ export function calculateProspectingFunnel(
     rates: [
       { value: formatRatio(contatos, contas), label: 'contatos por conta' },
       { value: formatRate(taxa(conversas, contatos)), label: 'taxa de resposta' },
-      { value: formatRate(taxa(reunioes, conversas)), label: 'taxa de agendamento' },
-      { value: formatRate(taxa(qualificadas, reunioes)), label: 'taxa de qualificação' },
+      { value: formatRate(taxa(agendadas, conversas)), label: 'taxa de agendamento' },
+      { value: formatRate(taxa(feitas, agendadas)), label: 'taxa de comparecimento' },
+      { value: formatRate(taxa(qualificadas, feitas)), label: 'taxa de qualificação' },
     ],
   };
 }
@@ -146,7 +161,8 @@ export interface CutRow {
   key: string;
   contatos: number;
   conversas: number;
-  reunioes: number;
+  agendadas: number;
+  feitas: number;
   qualificadas: number;
 }
 
@@ -167,12 +183,13 @@ export function funnelByCut(
       const ids = new Set(lista.map((p) => p.id));
       const doGrupo = activities.filter((a) => ids.has(a.prospect_id));
       const funil = calculateProspectingFunnel(lista, doGrupo);
-      const [, contatos, conversas, reunioes, qualificadas] = funil.steps;
+      const [, contatos, conversas, agendadas, feitas, qualificadas] = funil.steps;
       return {
         key,
         contatos: contatos.value,
         conversas: conversas.value,
-        reunioes: reunioes.value,
+        agendadas: agendadas.value,
+        feitas: feitas.value,
         qualificadas: qualificadas.value,
       };
     })

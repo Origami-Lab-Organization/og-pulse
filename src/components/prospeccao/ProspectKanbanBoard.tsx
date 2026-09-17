@@ -13,6 +13,7 @@ import { useUpdateProspectStage } from '@/hooks/useProspects';
 import {
   PROSPECT_FUNNEL_STAGES,
   PROSPECT_MANUAL_STAGES,
+  PROSPECT_STAGES_WITH_PROMPT,
   PROSPECT_STAGE_META,
   getProspectStageLabel,
   type ProspectStage,
@@ -20,6 +21,7 @@ import {
 } from '@/types/prospect';
 import { ProspectKanbanCard } from './ProspectKanbanCard';
 import { ProspectKanbanColumn } from './ProspectKanbanColumn';
+import { RegisterMeetingDialog } from './RegisterMeetingDialog';
 
 interface ProspectKanbanBoardProps {
   prospects: ProspectWithCompany[];
@@ -29,6 +31,7 @@ interface ProspectKanbanBoardProps {
 export function ProspectKanbanBoard({ prospects, onOpen }: ProspectKanbanBoardProps) {
   const atualizarEtapa = useUpdateProspectStage();
   const [arrastando, setArrastando] = useState<ProspectWithCompany | null>(null);
+  const [reuniaoPara, setReuniaoPara] = useState<ProspectWithCompany | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const porEtapa = useMemo(() => {
@@ -57,12 +60,23 @@ export function ProspectKanbanBoard({ prospects, onOpen }: ProspectKanbanBoardPr
       return;
     }
 
+    // Reunião feita não move em silêncio: abre o registro do que aconteceu na conversa,
+    // que é a informação que some primeiro se não for capturada na hora.
+    if (PROSPECT_STAGES_WITH_PROMPT.includes(destino)) {
+      setReuniaoPara(prospect);
+      return;
+    }
+
     atualizarEtapa.mutate({ id: prospect.id, stage: destino });
   };
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-[repeat(5,minmax(220px,1fr))] gap-3 h-[calc(100vh-280px)] overflow-x-auto">
+      {/* Colunas derivadas das etapas: acrescentar uma etapa não pode exigir lembrar deste grid. */}
+      <div
+        className="grid gap-3 h-[calc(100vh-280px)] overflow-x-auto"
+        style={{ gridTemplateColumns: `repeat(${PROSPECT_FUNNEL_STAGES.length}, minmax(210px, 1fr))` }}
+      >
         {PROSPECT_FUNNEL_STAGES.map((stage) => (
           <ProspectKanbanColumn
             key={stage}
@@ -73,6 +87,12 @@ export function ProspectKanbanBoard({ prospects, onOpen }: ProspectKanbanBoardPr
           />
         ))}
       </div>
+
+      <RegisterMeetingDialog
+        prospect={reuniaoPara}
+        open={!!reuniaoPara}
+        onOpenChange={(aberto) => !aberto && setReuniaoPara(null)}
+      />
 
       <DragOverlay>
         {arrastando && (

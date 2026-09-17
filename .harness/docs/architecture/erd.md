@@ -10,6 +10,7 @@ sources:
   - supabase/migrations/20260915110000_prospect_companies.sql
   - supabase/migrations/20260915120000_prospects.sql
   - supabase/migrations/20260915130000_prospect_activities.sql
+  - supabase/migrations/20260917100000_prospect_reuniao_feita.sql
   - src/types/prospect.ts
   - src/types/lead.ts
   - src/types/portfolio.ts
@@ -110,7 +111,7 @@ erDiagram
         text tier "Tier — livre, editável no card"
     }
     prospects {
-        text stage "CHECK de 8 valores (src/types/prospect.ts)"
+        text stage "CHECK de 9 valores: 6 do funil + 3 desfechos (src/types/prospect.ts)"
         text lever "Alavanca / origem da lista"
         date first_touch_at "imutável (trigger)"
         int activity_count "mantido pelo trigger"
@@ -124,11 +125,16 @@ erDiagram
     }
 ```
 
-Fontes: migrations `20260915110000`, `20260915120000` e `20260915130000`.
+Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000` e `20260917100000`.
 
 Ao contrário de `leads.crm_stage`, `prospects.stage` **tem CHECK** no banco, e a
 cadência (`ARRAY[3,4,5]`) vive só na função `prospect_activities_advance` — sem
 cópia em TypeScript, para não repetir TD-0022.
+
+Etapa nova custa duas escritas no mesmo lugar: o CHECK **e** o índice parcial
+`prospects_today_idx`, que lista as etapas do funil uma a uma. Esquecer o índice não
+quebra nada — só tira a cobertura da consulta mais quente do módulo, em silêncio
+(foi o que a `20260917100000` teve de recriar ao acrescentar `reuniao_feita`).
 
 ## Cluster 2 — Orçamento → Projeto → Financeiro
 
