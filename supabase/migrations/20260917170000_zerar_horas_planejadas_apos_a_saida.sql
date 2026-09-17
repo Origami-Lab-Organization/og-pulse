@@ -17,6 +17,13 @@
 -- apontado — o mesmo raciocínio do lançamento de hora até a data de saída. Zera-se do mês
 -- SEGUINTE em diante.
 --
+-- SÓ MÊS ABERTO. `enforce_past_month_allocation_edit` recusa alterar hora planejada de mês
+-- já fechado para quem não tem `alocacao:editar-mes-fechado`. Esta migration RESPEITA essa
+-- regra em vez de contorná-la: mês fechado é passado liquidado, com GPO já calculado e
+-- reportado, e reescrevê-lo mudaria número que alguém já assinou. A consequência honesta é
+-- que quem saiu há muito tempo pode manter planejado residual em meses antigos — quem tem a
+-- capacidade corrige pela tela, que é para isso que ela existe.
+--
 -- ZERA, NÃO APAGA. A linha continua existindo com `planned_hours = 0`. Apagar perderia o
 -- registro de que aquela pessoa esteve planejada ali, e a aba Equipe deixaria de mostrar a
 -- linha — que é justamente o que a regra quer preservar ("deve permanecer no projeto").
@@ -49,7 +56,13 @@ BEGIN
      AND (p_employee_id IS NULL OR a.employee_id = p_employee_id)
      AND a.planned_hours > 0
      -- Comparação por (ano, mês) e não por data: o mês da saída fica inteiro.
-     AND make_date(a.year, a.month, 1) > date_trunc('month', p_ate)::date;
+     AND make_date(a.year, a.month, 1) > date_trunc('month', p_ate)::date
+     -- E SÓ MÊS ABERTO. `enforce_past_month_allocation_edit` recusa mexer em hora planejada
+     -- de mês já fechado para quem não tem `alocacao:editar-mes-fechado`. Sem esta linha,
+     -- desalocar alguém com planejado em mês fechado explodiria na cara do usuário: o
+     -- trigger dispara dentro da transação dele, e o `SECURITY DEFINER` daqui não muda o
+     -- `auth.uid()` que a guarda consulta.
+     AND make_date(a.year, a.month, 1) >= date_trunc('month', now())::date;
 
   GET DIAGNOSTICS v_afetadas = ROW_COUNT;
   RETURN v_afetadas;
@@ -145,7 +158,7 @@ FOR EACH ROW EXECUTE FUNCTION public.zerar_planejado_ao_concluir_projeto();
 -- Os triggers só valem daqui para frente. Quem já saiu, já foi desligado ou já teve o projeto
 -- concluído continuaria com o planejado residual — que é exatamente a distorção relatada.
 -- As três passagens abaixo são idempotentes: rodar de novo não muda nada, porque só tocam
--- linha com `planned_hours > 0` em mês posterior à saída.
+-- linha com `planned_hours > 0` em mês posterior à saída E ainda aberto.
 
 -- 5a. Desalocados
 UPDATE public.project_role_allocations a
@@ -157,7 +170,8 @@ UPDATE public.project_role_allocations a
    AND t.status = 'deallocated'
    AND a.planned_hours > 0
    AND make_date(a.year, a.month, 1)
-       > date_trunc('month', COALESCE(t.deallocated_at::date, CURRENT_DATE))::date;
+       > date_trunc('month', COALESCE(t.deallocated_at::date, CURRENT_DATE))::date
+   AND make_date(a.year, a.month, 1) >= date_trunc('month', now())::date;
 
 -- 5b. Desligados
 UPDATE public.project_role_allocations a
@@ -165,7 +179,8 @@ UPDATE public.project_role_allocations a
   FROM public.employee_terminations e
  WHERE e.employee_id = a.employee_id
    AND a.planned_hours > 0
-   AND make_date(a.year, a.month, 1) > date_trunc('month', e.termination_date)::date;
+   AND make_date(a.year, a.month, 1) > date_trunc('month', e.termination_date)::date
+   AND make_date(a.year, a.month, 1) >= date_trunc('month', now())::date;
 
 -- 5c. Projetos concluídos
 UPDATE public.project_role_allocations a
@@ -175,4 +190,5 @@ UPDATE public.project_role_allocations a
    AND p.portfolio_stage = 'completed'
    AND a.planned_hours > 0
    AND make_date(a.year, a.month, 1)
-       > date_trunc('month', COALESCE(p.completed_date, CURRENT_DATE))::date;
+       > date_trunc('month', COALESCE(p.completed_date, CURRENT_DATE))::date
+   AND make_date(a.year, a.month, 1) >= date_trunc('month', now())::date;

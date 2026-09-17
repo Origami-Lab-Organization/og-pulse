@@ -8,7 +8,7 @@ import {
   DollarSign, Percent, Wallet, TrendingUp, Receipt,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useHideValues } from '@/contexts/HideValuesContext';
+import { useHideValuesOnScreen } from '@/contexts/HideValuesContext';
 import { AdminDashboardFilters, type Granularity } from '@/components/admin-dashboard/AdminDashboardFilters';
 import { AdminMetricCard } from '@/components/admin-dashboard/AdminMetricCard';
 import { AdminBirthdaysCard } from '@/components/admin-dashboard/AdminBirthdaysCard';
@@ -60,7 +60,7 @@ export default function AdminDashboard() {
   // Uma linha, e é o que faz o olho valer nesta tela: `formatCurrency` é função pura e não
   // assina nada, então quem precisa reagir é a PÁGINA. Re-render, não remontagem — filtro de
   // período e rolagem continuam onde estavam.
-  useHideValues();
+  useHideValuesOnScreen();
 
   const { data: financialEvolution, isLoading: isFinancialLoading } =
     useFinancialEvolution(filters, { enabled: true });

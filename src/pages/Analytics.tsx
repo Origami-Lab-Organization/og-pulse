@@ -7,7 +7,7 @@ import {
 import { ptBR } from 'date-fns/locale';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { HideValuesToggle } from '@/components/layout/HideValuesToggle';
-import { useHideValues } from '@/contexts/HideValuesContext';
+import { useHideValuesOnScreen } from '@/contexts/HideValuesContext';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -36,7 +36,7 @@ export default function Analytics() {
   // Uma linha, e é o que faz o olho valer nesta tela: `formatCurrency` é função pura e não
   // assina nada, então quem reage é a PÁGINA. Re-render, não remontagem — período, filtros e
   // rolagem continuam onde estavam.
-  useHideValues();
+  useHideValuesOnScreen();
 
   const today = useMemo(() => new Date(), []);
 

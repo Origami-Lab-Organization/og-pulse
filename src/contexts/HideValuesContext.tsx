@@ -50,8 +50,29 @@ export function HideValuesProvider({
   );
 }
 
+/**
+ * Para quem está DENTRO do conteúdo da página (componentes, widgets, gráficos).
+ *
+ * Lê o contexto, que o `AppLayout` provê em volta de `children`.
+ */
 export function useHideValues(): boolean {
   return useContext(HideValuesContext);
+}
+
+/**
+ * Para a PÁGINA, no corpo do componente de rota.
+ *
+ * Assina o store direto, e não o contexto, porque o provider é renderizado DENTRO do
+ * `AppLayout` — que é filho da página. Chamar `useHideValues()` no corpo da página lê o
+ * contexto de CIMA do provider, onde não há nenhum, e devolve `false` para sempre: o botão
+ * alternava e nada acontecia até recarregar a tela.
+ *
+ * Serve para a página re-renderizar quando o olho muda, fazendo `formatCurrency` rodar de
+ * novo na subárvore inteira. Re-render, não remontagem.
+ */
+export function useHideValuesOnScreen(): boolean {
+  const [hidden] = useHideValuesPreference();
+  return hidden;
 }
 
 /**
