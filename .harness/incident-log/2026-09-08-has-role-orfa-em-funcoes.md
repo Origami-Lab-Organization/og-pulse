@@ -54,3 +54,36 @@ permissão, e o resto vira texto acionável com o detalhe no console.
 Duas linhas novas em `.harness/ai-review-checklist.md`: inventário de remoção de função
 tem de varrer `pg_get_functiondef`, e mensagem que chega ao usuário tem de ter sido
 escrita para ele.
+
+## Segundo round: as Edge Functions — 10/09/2026
+
+O inventário de 08/09 varreu `pg_get_functiondef` e fechou as cinco funções do banco. **Não
+varreu `supabase/functions/`.** Dois dias depois, um cliente novo entrou e foi convidar o
+time: cadastrar funcionário respondia "Edge Function returned a non-2xx status code" para
+todo mundo, inclusive admin.
+
+Três Edge Functions autorizavam pela mesma RPC removida, cada uma travando uma operação
+inteira:
+
+| função | passou a exigir |
+|---|---|
+| `create-employee-user` | `has_capability('pessoa:editar')` |
+| `decide-time-adjustment` | `has_capability('ponto:aprovar')` |
+| `register-absence-period` | `has_capability('pessoa:editar')` |
+
+A capacidade de cada uma veio da `capability-matrix.md`, não de chute. O último funcionário
+criado por convite na base era de 23/07, o que explica os quase dois meses sem ninguém
+notar.
+
+**Detalhe desconfortável:** `src/lib/errors/userMessage.ts` — a "segunda metade" registrada
+acima — nasceu porque um usuário leu `function public.has_role(...) does not exist` num
+toast. A resposta na época foi escrever uma mensagem amigável para o erro, sem ir atrás da
+função que não existia. Mensagem amigável sobre causa não investigada esconde o defeito em
+vez de resolvê-lo, e foi exatamente o que aconteceu aqui.
+
+**Regra que faltava na de 08/09:** inventário de remoção de RPC tem de varrer
+`supabase/functions/` junto com `pg_get_functiondef`. O Deno não quebra em build — quebra em
+produção, na primeira chamada.
+
+Correção no commit `748cc55e`; as três funções estão em produção na v4 desde 10/09 10:47.
+Ver PUL-257.

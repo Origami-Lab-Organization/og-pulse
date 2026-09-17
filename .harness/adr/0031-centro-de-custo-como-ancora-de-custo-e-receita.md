@@ -54,9 +54,9 @@ Um seletor a menos.
 Alternativas descartadas:
 
 - **Centro na pessoa.** Rejeitada: a mesma pessoa trabalha em frentes diferentes no mesmo
-  dia; o centro da pessoa mediria lotação, não onde a hora foi gasta. A associação pessoa ×
-  centro continua existindo (PUL-218), mas para dizer **onde ela pode lançar**, não para
-  classificar a hora.
+  dia; o centro da pessoa mediria lotação, não onde a hora foi gasta. **Continua rejeitada para
+  classificar a hora.** A associação pessoa × centro, que aqui se dizia servir para "onde ela
+  pode lançar", foi revista em 17/09 — ver a atualização no fim deste ADR.
 - **Centro no lançamento, escolhido a cada hora.** Rejeitada: dois seletores por linha na
   grade semanal, e nada garantiria coerência entre item e centro.
 - **Centro no projeto.** Rejeitada como regra geral: não resolve a hora fora de projeto, que
@@ -212,3 +212,55 @@ esperado.
   serviços, modelos, atividades, horas e o conteúdo de `projects.service_line`.
 - Relacionados: ADR-0003 (catálogo), ADR-0008 (`employees` sem departamento), ADR-0023
   (leituras por papel), ADR-0027 (capacidade por papel).
+
+## Atualização 17/09/2026 — a pessoa só tem centro quando não lança hora
+
+**Provocação do Italo, ao revisar a PUL-218:** se a hora carrega o centro do item, para que a
+pessoa precisa de centro? Ela pode lançar onde for; o lançamento é que diz o centro.
+
+Está correto, e a decisão 1 deste ADR já dizia isso — mas mantinha a associação pessoa ×
+centro (N:N) com outra justificativa: dizer **onde ela pode lançar**. Essa justificativa não
+se sustentou em revisão:
+
+- **Filtrar a lista de itens é ordenação de tela, não regra de negócio.** E tinha efeito
+  colateral ruim: pelo Cenário 4 da PUL-222, quem não fosse associado a nenhum centro veria
+  estado vazio — ou seja, **esquecer de cadastrar alguém impediria essa pessoa de lançar
+  hora**. Trava operacional para resolver um problema de lista com 10 itens.
+- **"Está em mais de um centro" nunca foi a distinção certa.** A própria PUL-182 dizia que "a
+  exceção é do papel, não da pessoa". O que separa é **lançar hora ou não**, que é atributo,
+  não relacionamento.
+
+### Decisão
+
+Substitui o parêntese da decisão 1 sobre PUL-218:
+
+| A pessoa | O custo dela é lido | Centro na pessoa |
+|---|---|---|
+| lança hora | pelos centros dos itens que ela lançou | não se aplica |
+| não lança hora | 100% no centro de lotação dela | **obrigatório** |
+
+O vínculo é **1:1 e só existe para quem não lança hora**. É isso que garante a exclusividade:
+o custo de uma pessoa entra na leitura por um caminho só, e o mesmo salário não tem como
+aparecer duas vezes. A regra se defende no dado, não na disciplina de quem lê.
+
+Isso também fecha o buraco que a decisão original deixava em aberto: pela regra "custo =
+horas × custo/hora", quem nunca lança hora — o administrativo puro — simplesmente sumia da
+leitura de custo, que é exatamente o problema que PUL-182 existe para resolver.
+
+**Consequência para a tela de lançamento (PUL-222):** a lista passa a mostrar todos os itens
+ativos do tenant, agrupados por centro. Agrupamento é organização, não permissão.
+
+### Aberto nesta atualização
+
+- **Vigência do centro da pessoa.** A decisão 3 deste ADR protege o histórico da hora gravando
+  o centro do momento. O custo rateado precisa da mesma proteção: se `employees.cost_center_id`
+  guardar só o estado atual, mudar o centro de alguém em 2027 reclassifica o custo de 2026 e
+  nenhum fechamento passado fecha de novo. **Recomendação: fechar o custo mensal por centro em
+  snapshot**, pela mesma lógica da decisão 3.
+- **Resíduo de quem lança parcialmente.** Quem é obrigado a lançar e lançou só parte do mês:
+  o resto vira custo em que centro? **Recomendação: nenhum** — fica como hora não lançada e o
+  relatório de PUL-182 cobra. Resíduo que cai sozinho em algum centro mascara justamente o que
+  se quer enxergar.
+
+Decisão de produto do Italo em 17/09/2026. Issues ajustadas no mesmo dia: PUL-218 (reescrita),
+PUL-182 (premissa e título) e PUL-222 (Resultado esperado, Cenários 1 e 4).
