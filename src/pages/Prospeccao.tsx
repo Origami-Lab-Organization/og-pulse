@@ -72,7 +72,7 @@ export default function Prospeccao() {
     >
       <Tabs defaultValue="hoje" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="hoje">Atividades de hoje</TabsTrigger>
+          <TabsTrigger value="hoje">Atividades</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="encerrados">Encerrados</TabsTrigger>
           <TabsTrigger value="metricas">Métricas</TabsTrigger>
