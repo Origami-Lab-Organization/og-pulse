@@ -205,7 +205,11 @@ function coverageGap(bucket: Bucket | undefined): CostCenterCoverageGap {
   };
 }
 
-function aggregate(input: CostInputs): CostByCostCenterData {
+/**
+ * Agregação pura: as linhas cruas entram, a leitura por centro sai. Exportada porque é aqui
+ * que mora a regra — de qual campo vem o centro de cada hora — e regra se prova sem banco.
+ */
+export function aggregateCostByCostCenter(input: CostInputs): CostByCostCenterData {
   const employeeCost = new Map<string, EmployeeCost>(
     input.employees.map((e) => [
       e.id,
@@ -294,7 +298,7 @@ export function useCostByCostCenter(filters: AnalyticsFilters, options?: { enabl
     enabled: !!tenantId && (options?.enabled ?? true),
     queryFn: async (): Promise<CostByCostCenterData> => {
       if (!tenantId) throw new Error('Empresa não identificada na sessão.');
-      return aggregate(await fetchCostInputs(tenantId, startStr, endStr));
+      return aggregateCostByCostCenter(await fetchCostInputs(tenantId, startStr, endStr));
     },
   });
 }
