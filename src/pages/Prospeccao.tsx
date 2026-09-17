@@ -72,12 +72,7 @@ export default function Prospeccao() {
     >
       <Tabs defaultValue="hoje" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="hoje">
-            Atividades de hoje
-            {deHoje.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{deHoje.length}</Badge>
-            )}
-          </TabsTrigger>
+          <TabsTrigger value="hoje">Atividades de hoje</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="encerrados">Encerrados</TabsTrigger>
           <TabsTrigger value="metricas">Métricas</TabsTrigger>
