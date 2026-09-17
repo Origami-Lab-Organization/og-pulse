@@ -138,16 +138,29 @@ export const PROSPECT_MANUAL_STAGES: readonly ProspectStage[] = [
 export const PROSPECT_STAGES_WITH_PROMPT: readonly ProspectStage[] = ['reuniao_feita'];
 
 /**
- * O próximo passo de cada etapa, para a tela oferecer UM botão em vez de um menu.
+ * O próximo passo de cada etapa do funil. A tela oferece UM botão, sempre.
  *
- * `a_abordar` e `em_cadencia` ficam de fora: quem as move é o registro de atividade, no
- * banco. Oferecer um botão de avanço ali competiria com a cadência.
+ * `a_abordar` e `em_cadencia` apontam para `respondeu`, e não para a etapa seguinte na
+ * régua: a única saída da cadência é a pessoa responder. Pular de "Em cadência" direto
+ * para "Reunião agendada" descreveria um funil que não aconteceu.
  */
 export const PROSPECT_NEXT_STAGE: Partial<Record<ProspectStage, ProspectStage>> = {
+  a_abordar: 'respondeu',
+  em_cadencia: 'respondeu',
   respondeu: 'reuniao_agendada',
   reuniao_agendada: 'reuniao_feita',
   reuniao_feita: 'qualificado',
 };
+
+/**
+ * Etapas que NÃO se alcança escrevendo a etapa: alcança-se registrando o evento.
+ *
+ * "Respondeu" é a regra dura do módulo — o card só avança por evento verificável. O botão
+ * registra uma atividade com resposta e quem move o card é o trigger no banco, a mesma
+ * fonte que decide a cadência. Se a tela escrevesse a etapa direto, existiriam dois donos
+ * da mesma regra e a taxa de resposta passaria a medir otimismo.
+ */
+export const PROSPECT_STAGES_BY_RESPONSE: readonly ProspectStage[] = ['respondeu'];
 
 /**
  * Motivos de descarte — lista FECHADA, nunca texto livre.

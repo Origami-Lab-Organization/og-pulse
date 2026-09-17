@@ -14,6 +14,11 @@ sources:
   - src/types/prospect.ts
   - src/types/lead.ts
   - src/types/portfolio.ts
+# Conferido contra a fonte em 17/09/2026: ProspectStage = 9 valores (6 do funil +
+# 3 desfechos), batendo com o CHECK de 20260917100000. As mudancas seguintes em
+# src/types/prospect.ts foram constantes de transicao de UI (PROSPECT_NEXT_STAGE,
+# PROSPECT_STAGES_BY_RESPONSE), sem efeito em schema.
+verified: 2026-09-17
 ---
 
 # ERD — Entidades e Relações

@@ -1,50 +1,59 @@
-import { ArrowRight, CalendarCheck, CircleCheck, Handshake } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
+import { useRegisterActivity } from '@/hooks/useProspectActivities';
 import { useUpdateProspectStage } from '@/hooks/useProspects';
 import {
   PROSPECT_NEXT_STAGE,
+  PROSPECT_STAGES_BY_RESPONSE,
   PROSPECT_STAGES_WITH_PROMPT,
+  canConvertToLead,
+  getProspectStageLabel,
   type ProspectStage,
   type ProspectWithCompany,
 } from '@/types/prospect';
-
-/**
- * O rótulo diz a AÇÃO, não a etapa de destino: "Reunião feita" é o que a pessoa fez,
- * "Reunião agendada" seria o nome da coluna. Botão nomeado por coluna obriga a traduzir
- * mentalmente antes de clicar.
- */
-const ACAO: Partial<Record<ProspectStage, { label: string; icon: LucideIcon }>> = {
-  reuniao_agendada: { label: 'Agendar reunião', icon: CalendarCheck },
-  reuniao_feita: { label: 'Marcar reunião feita', icon: Handshake },
-  qualificado: { label: 'Qualificar oportunidade', icon: CircleCheck },
-};
 
 interface ProspectAdvanceButtonProps {
   prospect: ProspectWithCompany;
   /** Chamado quando a etapa de destino abre um registro antes de avançar. */
   onPrompt: (stage: ProspectStage) => void;
-  size?: 'sm' | 'default';
+  /** Chamado no fim do funil, onde o próximo passo é sair para o comercial. */
+  onConvert: () => void;
 }
 
 /**
- * Um botão só, sempre com o próximo passo daquele contato.
+ * Um botão só, sempre com o próximo passo daquele contato, nomeado pela etapa de destino.
  *
- * É a alternativa ao arraste para quem está dentro do card — e o caminho principal no
- * celular, onde arrastar entre seis colunas não é uma interação honesta.
+ * É o caminho principal de avanço; arrastar no Kanban continua valendo como alternativa.
+ * Concentrar tudo aqui foi o que permitiu tirar o botão "Respondeu" de perto de
+ * "Registrar": os dois ficavam lado a lado parecendo variações da mesma ação, quando um
+ * anota um toque e o outro muda a etapa do contato.
  *
- * Não aparece em "A abordar" nem em "Em cadência": quem move as duas é o registro de
- * atividade, decidido pela cadência no banco. Um botão de avanço ali ofereceria um
- * segundo dono para a mesma regra.
+ * Cada destino tem sua regra, e elas não são intercambiáveis:
+ * registrar resposta (o banco move), abrir o registro da reunião, ou mover direto.
  */
-export function ProspectAdvanceButton({ prospect, onPrompt, size = 'sm' }: ProspectAdvanceButtonProps) {
+export function ProspectAdvanceButton({
+  prospect,
+  onPrompt,
+  onConvert,
+  size = 'default',
+}: ProspectAdvanceButtonProps & { size?: 'sm' | 'default' }) {
+  const registrar = useRegisterActivity();
   const moverEtapa = useUpdateProspectStage();
   const proxima = PROSPECT_NEXT_STAGE[prospect.stage];
-  const acao = proxima ? ACAO[proxima] : undefined;
 
-  if (!proxima || !acao) return null;
+  if (!proxima) {
+    if (!canConvertToLead(prospect)) return null;
+    return (
+      <Botao size={size} onClick={onConvert} label="Converter em oportunidade" />
+    );
+  }
 
   const avancar = () => {
+    if (PROSPECT_STAGES_BY_RESPONSE.includes(proxima)) {
+      registrarResposta();
+      return;
+    }
     if (PROSPECT_STAGES_WITH_PROMPT.includes(proxima)) {
       onPrompt(proxima);
       return;
@@ -52,13 +61,47 @@ export function ProspectAdvanceButton({ prospect, onPrompt, size = 'sm' }: Prosp
     moverEtapa.mutate({ id: prospect.id, stage: proxima });
   };
 
-  const Icone = acao.icon;
+  /**
+   * Quem move o card para "Respondeu" é o trigger, a partir da atividade com resposta —
+   * a tela não escreve a etapa. É a mesma fonte que decide a cadência.
+   */
+  const registrarResposta = () =>
+    registrar.mutate(
+      { prospect_id: prospect.id, channel: prospect.primary_channel, got_response: true },
+      {
+        onSuccess: () =>
+          toast({
+            title: 'Resposta registrada',
+            description: 'O contato foi para "Respondeu" e saiu da cadência automática.',
+          }),
+      },
+    );
 
   return (
-    <Button type="button" size={size} onClick={avancar} disabled={moverEtapa.isPending}>
-      <Icone className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-      {acao.label}
-      <ArrowRight className="ml-1.5 h-3.5 w-3.5 opacity-70" aria-hidden="true" />
+    <Botao
+      size={size}
+      onClick={avancar}
+      label={getProspectStageLabel(proxima)}
+      disabled={registrar.isPending || moverEtapa.isPending}
+    />
+  );
+}
+
+function Botao({
+  label,
+  onClick,
+  disabled,
+  size,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  size: 'sm' | 'default';
+}) {
+  return (
+    <Button type="button" size={size} onClick={onClick} disabled={disabled}>
+      {label}
+      <ArrowRight className="ml-1.5 h-4 w-4 opacity-80" aria-hidden="true" />
     </Button>
   );
 }

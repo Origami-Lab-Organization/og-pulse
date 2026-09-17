@@ -169,13 +169,18 @@ export function ProspectDetailDialog({
             />
           </div>
 
-          <ProspectStageStepper stage={prospect.stage} />
-
+          {/* Acima da régua: a ação vem antes do diagnóstico de onde o contato está. */}
           {!somenteLeitura && (
             <div className="flex justify-end">
-              <ProspectAdvanceButton prospect={prospect} onPrompt={() => setReuniaoAberta(true)} />
+              <ProspectAdvanceButton
+                prospect={prospect}
+                onPrompt={() => setReuniaoAberta(true)}
+                onConvert={() => onConvert(prospect)}
+              />
             </div>
           )}
+
+          <ProspectStageStepper stage={prospect.stage} />
         </DialogHeader>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,370px)_1fr]">
