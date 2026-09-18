@@ -15,7 +15,7 @@
 -- `prospeccao:editar`, iguais às policies de `prospect_activities`. O checklist de review
 -- pede exatamente isso: policy de storage equivalente ou mais restritiva que a capacidade.
 --
--- Rollback: supabase/rollback/20260917110000_prospect_activity_attachments_rollback.sql
+-- Rollback: supabase/rollback/20260917180000_prospect_activity_attachments_rollback.sql
 
 ALTER TABLE public.prospect_activities
   ADD COLUMN IF NOT EXISTS attachments jsonb NOT NULL DEFAULT '[]'::jsonb;

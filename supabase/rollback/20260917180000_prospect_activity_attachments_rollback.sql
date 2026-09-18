@@ -1,4 +1,4 @@
--- Reversão de 20260917110000_prospect_activity_attachments.sql.
+-- Reversão de 20260917180000_prospect_activity_attachments.sql.
 --
 -- ATENÇÃO: os arquivos já enviados são apagados junto. `DELETE FROM storage.buckets` falha
 -- enquanto houver objeto, por isso os objetos saem primeiro — e isso é destrutivo e não tem

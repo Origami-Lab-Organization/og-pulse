@@ -1,4 +1,4 @@
--- Reversão de 20260917120000_prospect_lever_closed_list.sql.
+-- Reversão de 20260917190000_prospect_lever_closed_list.sql.
 --
 -- Devolve os slugs aos rótulos, para o campo voltar a fazer sentido como texto livre.
 -- "Rede Origami" NÃO volta a ser "Rede do Sócio": a renomeação foi decisão de negócio, não

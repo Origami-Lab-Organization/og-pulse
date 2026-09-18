@@ -11,12 +11,14 @@ sources:
   - supabase/migrations/20260915120000_prospects.sql
   - supabase/migrations/20260915130000_prospect_activities.sql
   - supabase/migrations/20260917115000_prospect_reuniao_feita.sql
+  - supabase/migrations/20260917180000_prospect_activity_attachments.sql
+  - supabase/migrations/20260917190000_prospect_lever_closed_list.sql
   - src/types/prospect.ts
   - src/types/lead.ts
   - src/types/portfolio.ts
 # Conferido contra a fonte em 17/09/2026: ProspectStage = 9 valores (6 do funil +
-# 3 desfechos), batendo com o CHECK de 20260917100000; prospect_activities.attachments
-# confere com 20260917110000. Constantes de transicao de UI em src/types/prospect.ts
+# 3 desfechos), batendo com o CHECK de 20260917115000; prospect_activities.attachments
+# confere com 20260917180000. Constantes de transicao de UI em src/types/prospect.ts
 # (PROSPECT_NEXT_STAGE, PROSPECT_STAGES_BY_RESPONSE) nao afetam este diagrama.
 verified: 2026-09-17
 ---
@@ -131,7 +133,8 @@ erDiagram
     }
 ```
 
-Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000` e `20260917100000`.
+Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000`, `20260917115000`,
+`20260917180000` e `20260917190000`.
 
 Ao contrário de `leads.crm_stage`, `prospects.stage` **tem CHECK** no banco, e a
 cadência (`ARRAY[3,4,5]`) vive só na função `prospect_activities_advance` — sem
@@ -139,7 +142,7 @@ cópia em TypeScript, para não repetir TD-0022.
 
 Etapa nova custa duas escritas no mesmo lugar: o CHECK **e** o índice parcial
 `prospects_today_idx`, que lista as etapas do funil uma a uma. Esquecer o índice não
-quebra nada — só tira a cobertura da consulta, em silêncio (foi o que a `20260917100000`
+quebra nada — só tira a cobertura da consulta, em silêncio (foi o que a `20260917115000`
 teve de recriar ao acrescentar `reuniao_feita`).
 
 **`prospects_today_idx` não serve mais consulta nenhuma**: a aba "Atividades de hoje", que

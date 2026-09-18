@@ -12,7 +12,7 @@
 --
 -- As nove alavancas são a lista do time (17/09/2026).
 --
--- Rollback: supabase/rollback/20260917120000_prospect_lever_closed_list_rollback.sql
+-- Rollback: supabase/rollback/20260917190000_prospect_lever_closed_list_rollback.sql
 
 -- 1) Normaliza o que já existe. Variantes com e sem acento listadas explicitamente para não
 --    depender da extensão `unaccent`, que não está instalada.
@@ -62,6 +62,8 @@ BEGIN
       desconhecidos;
   END IF;
 END $$;
+
+ALTER TABLE public.prospects DROP CONSTRAINT IF EXISTS prospects_lever_valid;
 
 ALTER TABLE public.prospects ADD CONSTRAINT prospects_lever_valid CHECK (
   lever IS NULL OR lever IN (

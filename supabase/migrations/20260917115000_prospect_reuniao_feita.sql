@@ -15,7 +15,7 @@
 --
 -- Rollback: supabase/rollback/20260917115000_prospect_reuniao_feita_rollback.sql
 
-ALTER TABLE public.prospects DROP CONSTRAINT prospects_stage_valid;
+ALTER TABLE public.prospects DROP CONSTRAINT IF EXISTS prospects_stage_valid;
 
 ALTER TABLE public.prospects ADD CONSTRAINT prospects_stage_valid CHECK (stage IN (
   'a_abordar', 'em_cadencia', 'respondeu', 'reuniao_agendada', 'reuniao_feita', 'qualificado',
