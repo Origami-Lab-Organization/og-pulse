@@ -249,7 +249,7 @@ function EditorDeAtividade({
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          aria-label={`Anexar arquivo — ${ALLOWED_ATTACHMENT_LABEL}`}
+          aria-label={`Anexar arquivo: ${ALLOWED_ATTACHMENT_LABEL}`}
           title={ALLOWED_ATTACHMENT_LABEL}
           disabled={ocupado}
           onClick={() => inputArquivo.current?.click()}

@@ -64,7 +64,7 @@ export function ConvertProspectDialog({ prospect, open, onOpenChange }: ConvertP
           <DialogDescription>
             {jaConvertido
               ? 'Este contato já gerou uma oportunidade. Abrir a existente em vez de criar outra.'
-              : 'O contato é encerrado como Convertido e passa a ser somente leitura — nunca dois lugares editáveis para o mesmo contato.'}
+              : 'O contato é encerrado como Convertido e passa a ser somente leitura, para que não existam dois lugares editáveis para o mesmo contato.'}
           </DialogDescription>
         </DialogHeader>
 

@@ -158,9 +158,9 @@ export function ProspectMetrics({ prospects }: ProspectMetricsProps) {
 
       <p className="text-xs text-muted-foreground">
         Contas e contatos contam quem teve atividade no período. As três últimas etapas leem a
-        etapa ATUAL do contato — o módulo não guarda histórico de mudança de etapa, então um
+        etapa atual do contato. O módulo não guarda histórico de mudança de etapa, portanto um
         contato que avançou antes do período conta aqui se foi tocado dentro dele. O funil é
-        acumulado: quem está em Qualificada também conta em Agendadas e Feitas.
+        acumulado: quem está em Qualificadas também conta em Agendadas e Feitas.
       </p>
     </div>
   );
@@ -201,9 +201,8 @@ function CoberturaDeContas({ cobertura }: { cobertura: AccountCoverage }) {
             <strong>{cobertura.nuncaAbordadas}</strong>{' '}
             <span className="text-muted-foreground">
               {cobertura.nuncaAbordadas === 1
-                ? 'conta nunca foi abordada'
-                : 'contas nunca foram abordadas'}{' '}
-              — nenhum contato delas tem atividade registrada, em nenhum período.
+                ? 'conta nunca foi abordada. Nenhum contato dela chegou a ter atividade registrada.'
+                : 'contas nunca foram abordadas. Nenhum contato delas chegou a ter atividade registrada.'}
             </span>
           </p>
         )}

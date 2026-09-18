@@ -96,7 +96,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') registrarAtividade();
         }}
         rows={3}
-        placeholder="O que aconteceu? (opcional — dá para registrar só o toque)"
+        placeholder="O que aconteceu? (opcional: dá para registrar apenas o toque)"
         className="resize-none border-0 p-2 shadow-none focus-visible:ring-0"
         disabled={ocupado}
       />
@@ -142,7 +142,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          aria-label={`Anexar arquivo — ${ALLOWED_ATTACHMENT_LABEL}`}
+          aria-label={`Anexar arquivo: ${ALLOWED_ATTACHMENT_LABEL}`}
           title={ALLOWED_ATTACHMENT_LABEL}
           disabled={ocupado}
           onClick={() => inputArquivo.current?.click()}

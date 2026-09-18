@@ -131,8 +131,8 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
         <DialogHeader>
           <DialogTitle>Novo contato de prospecção</DialogTitle>
           <DialogDescription>
-            Escolha a empresa ou cadastre uma nova. O contato entra em &ldquo;A abordar&rdquo; e já
-            aparece nas atividades de hoje.
+            Escolha a empresa ou cadastre uma nova. O contato entra na etapa
+            &ldquo;A abordar&rdquo; do Pipeline.
           </DialogDescription>
         </DialogHeader>
 

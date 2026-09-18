@@ -117,17 +117,17 @@ export const HELP_GROUPS: HelpGroup[] = [
     topics: [
       {
         id: 'prospeccao',
-        title: 'Prospecção — pipeline frio',
+        title: 'Prospecção: pipeline frio',
         route: '/comercial/prospeccao',
         requiresCapability: 'prospeccao:ler',
         what:
           'O pipeline de quem ainda não é oportunidade. Mede atenção conquistada, não receita: não tem valor de negócio nem entra na previsão.',
         how: [
-          'A aba "Atividades de hoje" é o trabalho do dia: o que vence hoje e é seu. Vazia, o dia de prospecção acabou.',
-          'Registrar uma atividade é um clique — o botão usa o canal principal do contato. O sistema conta o toque e agenda a próxima data pela cadência.',
+          'A aba Pipeline mostra o funil em colunas. O card avisa em vermelho quando a próxima atividade já venceu, e o filtro ao lado das abas recorta por empresa, contato, responsável, alavanca e canal.',
+          'Registrar uma atividade custa um clique: a caixa no rodapé do card envia com o canal escolhido, e tanto o texto quanto o anexo são opcionais. O sistema conta o toque e agenda a próxima data pela cadência.',
           'Esgotada a cadência sem resposta, o contato vai sozinho para "Sem resposta". O card só avança por evento verificável: "Respondeu" entra pelo registro, não pelo arraste.',
           'A empresa é cadastrada uma vez e reaproveitada: a partir do segundo contato dela, os dados vêm preenchidos.',
-          'Contato qualificado vira oportunidade por "Converter em oportunidade", levando a data do 1º toque — é o que faz o tempo de ciclo ser real.',
+          'Contato qualificado vira oportunidade pelo botão "Converter em oportunidade", que leva junto a data do 1º toque e faz o tempo de ciclo ser real.',
         ],
         mcp: {
           server: null,

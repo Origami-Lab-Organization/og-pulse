@@ -114,7 +114,7 @@ export function RegisterMeetingDialog({ prospect, open, onOpenChange }: Register
               rows={4}
               value={relato}
               onChange={(e) => setRelato(e.target.value)}
-              placeholder="Opcional — o que foi discutido, quem estava, qual o próximo passo"
+              placeholder="Opcional: o que foi discutido, quem estava e qual o próximo passo"
             />
             <p className="text-xs text-muted-foreground">
               Vira uma atividade na linha do tempo do contato.
