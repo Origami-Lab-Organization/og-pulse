@@ -198,3 +198,36 @@ export const COBERTURA_LABELS: Record<CoberturaStatus, string> = {
   [CoberturaStatus.CRITICO]: 'Crítico',
   [CoberturaStatus.SEM_COBRANCA]: 'Sem cobrança',
 };
+
+/**
+ * Quanto do período já passou, em dias úteis (ADR-0018).
+ *
+ * O planejado de um projeto é do MÊS inteiro, mas no dia 21 só uma parte dele podia ter
+ * virado hora. Comparar o planejado cheio com o apontado parcial faz todo projeto parecer
+ * abandonado no começo do mês — é a mesma distorção que a aba Equipe resolveu com pro-rata,
+ * e a regra aqui é a mesma para as duas telas não discordarem.
+ *
+ * Em mês fechado `decorridos` é igual a `doPeriodo` e a fração é 1: nada muda.
+ */
+export interface Decorrido {
+  diasUteis: number;
+  diasUteisDecorridos: number;
+  /** De 0 a 1. Multiplica o planejado para chegar ao esperado até hoje. */
+  fracao: number;
+  /** O período ainda está aberto: vale avisar na tela que o número é parcial. */
+  emAndamento: boolean;
+}
+
+export function decorridoDoPeriodo(inicio: Date, fim: Date, feriados: Holiday[]): Decorrido {
+  const diasUteis = countWorkingDays(inicio, fim, feriados);
+  const hoje = hojeSemHora();
+  const ate = fim < hoje ? fim : hoje;
+  const diasUteisDecorridos = ate < inicio ? 0 : countWorkingDays(inicio, ate, feriados);
+
+  return {
+    diasUteis,
+    diasUteisDecorridos,
+    fracao: diasUteis > 0 ? diasUteisDecorridos / diasUteis : 0,
+    emAndamento: hoje <= fim,
+  };
+}

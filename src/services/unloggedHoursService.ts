@@ -25,6 +25,14 @@ export interface DadosDeCobranca {
   ausenciasPorPessoa: Map<string, PeriodoDeAusencia[]>;
   /** Onde cada um planejou e apontou, para a linha poder abrir. */
   frentesPorPessoa: Map<string, FrenteDaPessoa[]>;
+  /**
+   * Projetos que já tinham acabado ANTES do período pedido.
+   *
+   * É o estado no período, e não o de hoje: um projeto concluído em novembro estava vivo em
+   * setembro, e sumir dele reescreveria o passado a cada encerramento — mesmo raciocínio de
+   * quem foi desligado.
+   */
+  encerradosAntesDoPeriodo: Set<string>;
 }
 
 interface Janela {
@@ -68,14 +76,16 @@ export async function buscarDadosDeCobranca(
       planejadoPorPessoa: new Map(),
       ausenciasPorPessoa: new Map(),
       frentesPorPessoa: new Map(),
+      encerradosAntesDoPeriodo: new Set(),
     };
   }
 
-  const [projeto, atividade, planejado, ausencias] = await Promise.all([
+  const [projeto, atividade, planejado, ausencias, encerrados] = await Promise.all([
     horasDeProjeto(ids, janela),
     horasDeAtividade(ids, janela),
     planejadoDeProjeto(ids, janela),
     buscarAusenciasAprovadas(ids, janela),
+    projetosEncerradosAntesDe(tenantId, janela.inicio),
   ]);
 
   const nomes = new Map([...projeto.nomes, ...atividade.nomes, ...planejado.nomes]);
@@ -86,6 +96,7 @@ export async function buscarDadosDeCobranca(
     planejadoPorPessoa: somarFrentes(ids, [planejado.porPessoa]),
     ausenciasPorPessoa: ausencias,
     frentesPorPessoa: montarFrentes(ids, { projeto, atividade, planejado }, nomes),
+    encerradosAntesDoPeriodo: encerrados,
   };
 }
 
@@ -150,6 +161,32 @@ function frentesDeUmaPessoa(
   return [...projetos, ...internas].sort(
     (a, b) => b.planejado - a.planejado || b.apontado - a.apontado,
   );
+}
+
+/**
+ * Projetos que já estavam encerrados quando o período começou.
+ *
+ * Concluído SEM data de conclusão conta como encerrado: se o sistema não sabe quando acabou,
+ * o mais próximo da verdade é que já tinha acabado — e a alternativa, mantê-lo vivo para
+ * sempre, encheria a lista de projeto morto.
+ */
+async function projetosEncerradosAntesDe(tenantId: string, inicio: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id, status, portfolio_stage, completed_date')
+    .eq('tenant_id', tenantId)
+    .or('status.eq.cancelled,status.eq.completed,portfolio_stage.eq.completed');
+
+  if (error) {
+    console.error('Error fetching finished projects:', error);
+    throw error;
+  }
+
+  const encerrados = new Set<string>();
+  for (const p of data ?? []) {
+    if (!p.completed_date || p.completed_date < inicio) encerrados.add(p.id);
+  }
+  return encerrados;
 }
 
 /**

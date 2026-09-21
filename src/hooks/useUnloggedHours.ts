@@ -4,7 +4,12 @@ import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHolidays } from '@/hooks/useHolidays';
 import { buscarDadosDeCobranca } from '@/services/unloggedHoursService';
-import { montarLinha, type LinhaDeHorasNaoLancadas } from '@/lib/unloggedHours';
+import {
+  decorridoDoPeriodo,
+  montarLinha,
+  type Decorrido,
+  type LinhaDeHorasNaoLancadas,
+} from '@/lib/unloggedHours';
 
 export interface PeriodoDeCobranca {
   startDate: Date;
@@ -18,7 +23,12 @@ export interface LinhaDeFrente {
   tipo: 'projeto' | 'atividade';
   planejado: number;
   apontado: number;
-  /** Planejado que não virou hora. Só faz sentido onde existe planejamento. */
+  /**
+   * O quanto do planejado já devia ter virado hora, em pro-rata por dias úteis (ADR-0018).
+   * Em mês fechado é igual ao planejado.
+   */
+  esperadoAteHoje: number;
+  /** Esperado até hoje que não virou hora. Só faz sentido onde existe planejamento. */
   naoRealizado: number;
   pessoas: { employeeId: string; nome: string; planejado: number; apontado: number }[];
 }
@@ -27,6 +37,8 @@ export interface RelatorioDeHorasNaoLancadas {
   linhas: LinhaDeHorasNaoLancadas[];
   /** A mesma verdade, vista por projeto. Alimenta o modo "Por projeto". */
   frentes: LinhaDeFrente[];
+  /** Quanto do mês já passou. A tela avisa quando o número ainda é parcial. */
+  decorrido: Decorrido;
   totalCapacidade: number;
   totalLancado: number;
   totalNaoLancadas: number;
@@ -37,6 +49,7 @@ export interface RelatorioDeHorasNaoLancadas {
 const VAZIO: RelatorioDeHorasNaoLancadas = {
   linhas: [],
   frentes: [],
+  decorrido: { diasUteis: 0, diasUteisDecorridos: 0, fracao: 0, emAndamento: false },
   totalCapacidade: 0,
   totalLancado: 0,
   totalNaoLancadas: 0,
@@ -70,8 +83,14 @@ export function useUnloggedHours(periodo: PeriodoDeCobranca) {
   const relatorio = useMemo<RelatorioDeHorasNaoLancadas>(() => {
     if (!consulta.data) return VAZIO;
 
-    const { pessoas, lancadoPorPessoa, planejadoPorPessoa, ausenciasPorPessoa, frentesPorPessoa } =
-      consulta.data;
+    const {
+      pessoas,
+      lancadoPorPessoa,
+      planejadoPorPessoa,
+      ausenciasPorPessoa,
+      frentesPorPessoa,
+      encerradosAntesDoPeriodo,
+    } = consulta.data;
 
     const linhas = pessoas
       .map((pessoa) =>
@@ -93,9 +112,12 @@ export function useUnloggedHours(periodo: PeriodoDeCobranca) {
       .filter((linha) => linha.capacidade > 0)
       .sort((a, b) => b.naoLancadas - a.naoLancadas);
 
+    const decorrido = decorridoDoPeriodo(periodo.startDate, periodo.endDate, feriados);
+
     return {
       linhas,
-      frentes: pivotarPorFrente(linhas),
+      frentes: pivotarPorFrente(linhas, decorrido, encerradosAntesDoPeriodo),
+      decorrido,
       totalCapacidade: linhas.reduce((s, l) => s + l.capacidade, 0),
       totalLancado: linhas.reduce((s, l) => s + l.lancado, 0),
       totalNaoLancadas: linhas.reduce((s, l) => s + l.naoLancadas, 0),
@@ -113,17 +135,26 @@ export function useUnloggedHours(periodo: PeriodoDeCobranca) {
  * diferentes: a jornada é da pessoa e o planejamento é do projeto. Alguém pode estar em dia
  * com a jornada e ainda assim ter deixado um projeto sem as horas que ele esperava.
  */
-function pivotarPorFrente(linhas: LinhaDeHorasNaoLancadas[]): LinhaDeFrente[] {
+function pivotarPorFrente(
+  linhas: LinhaDeHorasNaoLancadas[],
+  decorrido: Decorrido,
+  encerrados: Set<string>,
+): LinhaDeFrente[] {
   const porFrente = new Map<string, LinhaDeFrente>();
 
   for (const linha of linhas) {
     for (const frente of linha.frentes) {
+      // Projeto que já tinha acabado antes do período não é cobrança, é ruído. Se tem hora
+      // apontada dentro do período ele FICA: significa que ainda recebeu trabalho, e sumir
+      // com ela esconderia custo real.
+      if (encerrados.has(frente.id) && frente.apontado === 0) continue;
       const atual = porFrente.get(frente.id) ?? {
         id: frente.id,
         nome: frente.nome,
         tipo: frente.tipo,
         planejado: 0,
         apontado: 0,
+        esperadoAteHoje: 0,
         naoRealizado: 0,
         pessoas: [],
       };
@@ -141,7 +172,11 @@ function pivotarPorFrente(linhas: LinhaDeHorasNaoLancadas[]): LinhaDeFrente[] {
 
   const frentes = [...porFrente.values()];
   for (const frente of frentes) {
-    frente.naoRealizado = Math.max(0, frente.planejado - frente.apontado);
+    // Pro-rata por dias úteis (ADR-0018): no dia útil 15 de 22, só ~68% do planejado do mês
+    // podia ter virado hora. Cobrar o planejado cheio faria todo projeto parecer abandonado
+    // no começo do mês — a mesma distorção que a aba Equipe já resolve assim.
+    frente.esperadoAteHoje = frente.planejado * decorrido.fracao;
+    frente.naoRealizado = Math.max(0, frente.esperadoAteHoje - frente.apontado);
     frente.pessoas.sort((a, b) => b.planejado - a.planejado || b.apontado - a.apontado);
   }
 

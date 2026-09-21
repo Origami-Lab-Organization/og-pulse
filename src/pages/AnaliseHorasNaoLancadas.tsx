@@ -150,6 +150,14 @@ export default function AnaliseHorasNaoLancadas() {
                   Aqui o buraco é outro: o que o projeto <strong>planejou</strong> e não
                   recebeu de hora. Uma pessoa pode estar em dia com a jornada e ainda assim
                   ter deixado um projeto a descoberto.
+                  {relatorio.decorrido.emAndamento && (
+                    <>
+                      {' '}
+                      O mês ainda está aberto, então a cobrança é <strong>pro-rata</strong>:
+                      dia útil {relatorio.decorrido.diasUteisDecorridos} de{' '}
+                      {relatorio.decorrido.diasUteis}.
+                    </>
+                  )}
                 </>
               )}
             </CardDescription>
@@ -418,9 +426,10 @@ function TabelaPorFrente({
           <TableRow>
             <TableHead className="w-10" />
             <TableHead>Frente</TableHead>
-            <TableHead className="text-right">Planejado</TableHead>
+            <TableHead className="text-right">Planejado no mês</TableHead>
+            <TableHead className="text-right">Esperado até hoje</TableHead>
             <TableHead className="text-right">Apontado</TableHead>
-            <TableHead className="text-right">Planejado sem hora</TableHead>
+            <TableHead className="text-right">Faltando</TableHead>
             <TableHead className="text-right">Pessoas</TableHead>
           </TableRow>
         </TableHeader>
@@ -473,7 +482,13 @@ function LinhaDaFrente({
           </Badge>
         </TableCell>
         <TableCell className="text-right tabular-nums text-muted-foreground">
-          {formatHours(frente.planejado)}
+          {frente.tipo === 'projeto' ? formatHours(frente.planejado) : '—'}
+        </TableCell>
+        {/* O esperado é o planejado em pro-rata pelos dias úteis já decorridos (ADR-0018).
+            Ele aparece ao lado do planejado cheio, e não no lugar dele: esconder o plano do
+            mês para mostrar só a fatia faria a tela discordar da aba Equipe do projeto. */}
+        <TableCell className="text-right tabular-nums text-muted-foreground">
+          {frente.tipo === 'projeto' ? formatHours(frente.esperadoAteHoje) : '—'}
         </TableCell>
         <TableCell className="text-right tabular-nums">{formatHours(frente.apontado)}</TableCell>
         <TableCell
@@ -494,7 +509,7 @@ function LinhaDaFrente({
       {aberta && (
         <TableRow className="bg-muted/30 hover:bg-muted/30">
           <TableCell />
-          <TableCell colSpan={5} className="py-3">
+          <TableCell colSpan={6} className="py-3">
             <p className="ol-label mb-2 text-muted-foreground">Quem está nesta frente</p>
             <ul className="space-y-1">
               {frente.pessoas.map((pessoa) => (
