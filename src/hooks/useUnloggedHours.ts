@@ -52,7 +52,8 @@ export function useUnloggedHours(periodo: PeriodoDeCobranca) {
   const relatorio = useMemo<RelatorioDeHorasNaoLancadas>(() => {
     if (!consulta.data) return VAZIO;
 
-    const { pessoas, lancadoPorPessoa, planejadoPorPessoa, ausenciasPorPessoa } = consulta.data;
+    const { pessoas, lancadoPorPessoa, planejadoPorPessoa, ausenciasPorPessoa, frentesPorPessoa } =
+      consulta.data;
 
     const linhas = pessoas
       .map((pessoa) =>
@@ -62,6 +63,7 @@ export function useUnloggedHours(periodo: PeriodoDeCobranca) {
             lancado: lancadoPorPessoa.get(pessoa.id) ?? 0,
             planejado: planejadoPorPessoa.get(pessoa.id) ?? 0,
             ausencias: ausenciasPorPessoa.get(pessoa.id) ?? [],
+            frentes: frentesPorPessoa.get(pessoa.id) ?? [],
           },
           periodo.startDate,
           periodo.endDate,

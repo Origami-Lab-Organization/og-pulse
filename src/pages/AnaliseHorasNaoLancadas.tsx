@@ -21,6 +21,7 @@ import {
   COBERTURA_LABELS,
   CoberturaStatus,
   statusDaCobertura,
+  type FrenteDaLinha,
   type LinhaDeHorasNaoLancadas,
 } from '@/lib/unloggedHours';
 import { formatHours } from '@/lib/formatters';
@@ -35,6 +36,7 @@ const VARIANTE_POR_STATUS: Record<CoberturaStatus, 'default' | 'secondary' | 'de
 
 export default function AnaliseHorasNaoLancadas() {
   const [mes, setMes] = useState(() => startOfMonth(new Date()));
+  const [abertas, setAbertas] = useState<string[]>([]);
 
   const periodo = useMemo(
     () => ({ startDate: startOfMonth(mes), endDate: endOfMonth(mes) }),
@@ -125,6 +127,7 @@ export default function AnaliseHorasNaoLancadas() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10" />
                       <TableHead>Pessoa</TableHead>
                       <TableHead className="text-right">Dias úteis</TableHead>
                       <TableHead className="text-right">Jornada esperada</TableHead>
@@ -136,7 +139,18 @@ export default function AnaliseHorasNaoLancadas() {
                   </TableHeader>
                   <TableBody>
                     {relatorio.linhas.map((linha) => (
-                      <LinhaDaPessoa key={linha.employeeId} linha={linha} />
+                      <LinhaDaPessoa
+                        key={linha.employeeId}
+                        linha={linha}
+                        aberta={abertas.includes(linha.employeeId)}
+                        onAlternar={() =>
+                          setAbertas((atual) =>
+                            atual.includes(linha.employeeId)
+                              ? atual.filter((id) => id !== linha.employeeId)
+                              : [...atual, linha.employeeId],
+                          )
+                        }
+                      />
                     ))}
                   </TableBody>
                 </Table>
@@ -176,11 +190,40 @@ function Indicador({
   );
 }
 
-function LinhaDaPessoa({ linha }: { linha: LinhaDeHorasNaoLancadas }) {
+function LinhaDaPessoa({
+  linha,
+  aberta,
+  onAlternar,
+}: {
+  linha: LinhaDeHorasNaoLancadas;
+  aberta: boolean;
+  onAlternar: () => void;
+}) {
   const status = statusDaCobertura(linha);
+  const temDetalhe = linha.frentes.length > 0;
 
   return (
-    <TableRow>
+    <>
+    <TableRow className={cn(temDetalhe && 'cursor-pointer')} onClick={temDetalhe ? onAlternar : undefined}>
+      <TableCell className="pr-0">
+        {temDetalhe && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            aria-expanded={aberta}
+            aria-label={aberta ? `Recolher ${linha.nome}` : `Ver onde ${linha.nome} planejou e apontou`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAlternar();
+            }}
+          >
+            <ChevronRight
+              className={cn('h-4 w-4 transition-transform', aberta && 'rotate-90')}
+            />
+          </Button>
+        )}
+      </TableCell>
       <TableCell>
         <div className="min-w-0">
           <p className="truncate font-medium text-foreground">{linha.nome}</p>
@@ -217,6 +260,48 @@ function LinhaDaPessoa({ linha }: { linha: LinhaDeHorasNaoLancadas }) {
           </Badge>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">{COBERTURA_LABELS[status]}</p>
+      </TableCell>
+    </TableRow>
+    {aberta && <DetalheDaPessoa frentes={linha.frentes} />}
+    </>
+  );
+}
+
+/**
+ * Onde a pessoa planejou e apontou no mês.
+ *
+ * Projeto com planejado e SEM apontamento aparece com 0h de propósito: é o caso que responde
+ * "onde era para ter hora e não teve", que é a pergunta que traz alguém a esta tela.
+ */
+function DetalheDaPessoa({ frentes }: { frentes: readonly FrenteDaLinha[] }) {
+  return (
+    <TableRow className="bg-muted/30 hover:bg-muted/30">
+      <TableCell />
+      <TableCell colSpan={7} className="py-3">
+        <p className="ol-label mb-2 text-muted-foreground">Onde planejou e apontou</p>
+        <ul className="space-y-1">
+          {frentes.map((frente) => (
+            <li key={frente.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+              <span className="min-w-0 flex-1 truncate text-foreground">{frente.nome}</span>
+              <Badge variant="outline" className="shrink-0 font-normal">
+                {frente.tipo === 'projeto' ? 'Projeto' : 'Atividade interna'}
+              </Badge>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                planejado {formatHours(frente.planejado)}
+              </span>
+              <span
+                className={cn(
+                  'shrink-0 tabular-nums',
+                  frente.apontado === 0 && frente.planejado > 0
+                    ? 'font-medium text-destructive'
+                    : 'text-foreground',
+                )}
+              >
+                apontado {formatHours(frente.apontado)}
+              </span>
+            </li>
+          ))}
+        </ul>
       </TableCell>
     </TableRow>
   );

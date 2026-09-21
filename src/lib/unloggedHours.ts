@@ -17,6 +17,10 @@ import { countWorkingDays, type Holiday } from '@/lib/workingDays';
  * descontar férias, quem volta de um mês fora aparece como o maior devedor da lista, e o
  * relatório perde a credibilidade no primeiro uso.
  *
+ * MÊS ABERTO SÓ COBRA O QUE JÁ PASSOU. No dia 21, a jornada esperada vai até o dia 21, não
+ * até o fim do mês. Sem isso todo mundo aparece em atraso todo dia 1º, e o relatório vira
+ * ruído. Em mês fechado o corte não muda nada.
+ *
  * O RESÍDUO NÃO VAI PARA CENTRO NENHUM (decisão da PUL-182). Mandar a hora que faltou para
  * um centro automático mascara o problema que este relatório existe para mostrar: se some
  * sozinha, ninguém sente falta dela.
@@ -52,6 +56,17 @@ export interface LinhaDeHorasNaoLancadas {
   naoLancadas: number;
   /** Quanto da capacidade foi lançado, de 0 a 100. */
   cobertura: number;
+  /** Onde a pessoa planejou e apontou. Alimenta a linha expandida. */
+  frentes: readonly FrenteDaLinha[];
+}
+
+/** Uma frente na linha expandida. Espelha `FrenteDaPessoa` do serviço. */
+export interface FrenteDaLinha {
+  id: string;
+  nome: string;
+  planejado: number;
+  apontado: number;
+  tipo: 'projeto' | 'atividade';
 }
 
 /** Jornada padrão de quem não tem uma definida. Mesmo default do resto do sistema. */
@@ -79,12 +94,23 @@ export function diasUteisDaPessoa(
   if (desligamento && desligamento < inicio) return 0;
 
   const de = admissao && admissao > inicio ? admissao : inicio;
-  const ate = desligamento && desligamento < fim ? desligamento : fim;
+  const fimDoVinculo = desligamento && desligamento < fim ? desligamento : fim;
+  // MÊS ABERTO VAI ATÉ HOJE. Cobrar o mês inteiro no dia 21 acusaria a empresa toda de
+  // atraso todo dia 1º, e um relatório que sempre grita deixa de ser lido. O que se cobra é
+  // a jornada que JÁ passou. Em mês fechado `hoje` é maior que o fim e nada muda.
+  const hoje = hojeSemHora();
+  const ate = fimDoVinculo < hoje ? fimDoVinculo : hoje;
   if (de > ate) return 0;
 
   const uteis = countWorkingDays(de, ate, feriados);
   const forade = diasDeAusenciaNoPeriodo(ausencias, de, ate, feriados);
   return Math.max(0, uteis - forade);
+}
+
+/** Hoje, zerado na meia-noite local, para comparar com datas sem hora. */
+function hojeSemHora(): Date {
+  const agora = new Date();
+  return new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
 }
 
 /** Dias úteis cobertos por ausência aprovada dentro da janela. */
@@ -111,6 +137,7 @@ export interface EntradaDeCobranca {
   lancado: number;
   planejado: number;
   ausencias: readonly PeriodoDeAusencia[];
+  frentes?: readonly FrenteDaLinha[];
 }
 
 /**
@@ -126,7 +153,7 @@ export function montarLinha(
   fim: Date,
   feriados: Holiday[],
 ): LinhaDeHorasNaoLancadas {
-  const { pessoa, lancado, planejado, ausencias } = entrada;
+  const { pessoa, lancado, planejado, ausencias, frentes = [] } = entrada;
   const diasUteis = diasUteisDaPessoa(pessoa, inicio, fim, feriados, ausencias);
   const jornada = pessoa.jornadaDiaria > 0 ? pessoa.jornadaDiaria : JORNADA_PADRAO;
   const capacidade = diasUteis * jornada;
@@ -141,6 +168,7 @@ export function montarLinha(
     planejado,
     naoLancadas: Math.max(0, capacidade - lancado),
     cobertura: capacidade > 0 ? (lancado / capacidade) * 100 : 0,
+    frentes,
   };
 }
 
