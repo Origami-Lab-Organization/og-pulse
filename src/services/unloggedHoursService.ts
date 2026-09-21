@@ -26,13 +26,14 @@ export interface DadosDeCobranca {
   /** Onde cada um planejou e apontou, para a linha poder abrir. */
   frentesPorPessoa: Map<string, FrenteDaPessoa[]>;
   /**
-   * Projetos que já tinham acabado ANTES do período pedido.
+   * Quando cada projeto encerrado parou, em yyyy-MM-dd.
    *
-   * É o estado no período, e não o de hoje: um projeto concluído em novembro estava vivo em
-   * setembro, e sumir dele reescreveria o passado a cada encerramento — mesmo raciocínio de
-   * quem foi desligado.
+   * É a DATA, e não um sim/não: um projeto concluído no meio do mês esteve vivo metade dele,
+   * e deve ser cobrado só por essa metade. Concluído sem data registrada entra com o início
+   * dos tempos, porque se o sistema não sabe quando acabou, o mais próximo da verdade é que
+   * já tinha acabado.
    */
-  encerradosAntesDoPeriodo: Set<string>;
+  fimDoProjeto: Map<string, string>;
 }
 
 interface Janela {
@@ -76,7 +77,7 @@ export async function buscarDadosDeCobranca(
       planejadoPorPessoa: new Map(),
       ausenciasPorPessoa: new Map(),
       frentesPorPessoa: new Map(),
-      encerradosAntesDoPeriodo: new Set(),
+      fimDoProjeto: new Map(),
     };
   }
 
@@ -85,7 +86,7 @@ export async function buscarDadosDeCobranca(
     horasDeAtividade(ids, janela),
     planejadoDeProjeto(ids, janela),
     buscarAusenciasAprovadas(ids, janela),
-    projetosEncerradosAntesDe(tenantId, janela.inicio),
+    buscarFimDosProjetos(tenantId),
   ]);
 
   const nomes = new Map([...projeto.nomes, ...atividade.nomes, ...planejado.nomes]);
@@ -96,7 +97,7 @@ export async function buscarDadosDeCobranca(
     planejadoPorPessoa: somarFrentes(ids, [planejado.porPessoa]),
     ausenciasPorPessoa: ausencias,
     frentesPorPessoa: montarFrentes(ids, { projeto, atividade, planejado }, nomes),
-    encerradosAntesDoPeriodo: encerrados,
+    fimDoProjeto: encerrados,
   };
 }
 
@@ -163,17 +164,20 @@ function frentesDeUmaPessoa(
   );
 }
 
+/** Data-sentinela para projeto encerrado sem data: já tinha acabado. */
+const SEMPRE_ENCERRADO = '1900-01-01';
+
 /**
- * Projetos que já estavam encerrados quando o período começou.
+ * Quando cada projeto encerrado parou de pedir hora.
  *
- * Concluído SEM data de conclusão conta como encerrado: se o sistema não sabe quando acabou,
- * o mais próximo da verdade é que já tinha acabado — e a alternativa, mantê-lo vivo para
- * sempre, encheria a lista de projeto morto.
+ * Concluído ou cancelado SEM data conta como encerrado desde sempre: se o sistema não sabe
+ * quando acabou, o mais próximo da verdade é que já tinha acabado — mantê-lo vivo para
+ * sempre encheria a lista de projeto morto.
  */
-async function projetosEncerradosAntesDe(tenantId: string, inicio: string): Promise<Set<string>> {
+async function buscarFimDosProjetos(tenantId: string): Promise<Map<string, string>> {
   const { data, error } = await supabase
     .from('projects')
-    .select('id, status, portfolio_stage, completed_date')
+    .select('id, completed_date')
     .eq('tenant_id', tenantId)
     .or('status.eq.cancelled,status.eq.completed,portfolio_stage.eq.completed');
 
@@ -182,11 +186,7 @@ async function projetosEncerradosAntesDe(tenantId: string, inicio: string): Prom
     throw error;
   }
 
-  const encerrados = new Set<string>();
-  for (const p of data ?? []) {
-    if (!p.completed_date || p.completed_date < inicio) encerrados.add(p.id);
-  }
-  return encerrados;
+  return new Map((data ?? []).map((p) => [p.id, p.completed_date ?? SEMPRE_ENCERRADO]));
 }
 
 /**

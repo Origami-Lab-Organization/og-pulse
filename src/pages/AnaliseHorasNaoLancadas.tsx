@@ -149,7 +149,9 @@ export default function AnaliseHorasNaoLancadas() {
                 <>
                   Aqui o buraco é outro: o que o projeto <strong>planejou</strong> e não
                   recebeu de hora. Uma pessoa pode estar em dia com a jornada e ainda assim
-                  ter deixado um projeto a descoberto.
+                  ter deixado um projeto a descoberto. Projeto já concluído fica de fora — ele
+                  não espera mais hora, e a hora dele continua nos totais e na visão por
+                  pessoa.
                   {relatorio.decorrido.emAndamento && (
                     <>
                       {' '}

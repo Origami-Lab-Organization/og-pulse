@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHolidays } from '@/hooks/useHolidays';
+import type { Holiday } from '@/lib/workingDays';
 import { buscarDadosDeCobranca } from '@/services/unloggedHoursService';
 import {
   decorridoDoPeriodo,
@@ -89,7 +90,7 @@ export function useUnloggedHours(periodo: PeriodoDeCobranca) {
       planejadoPorPessoa,
       ausenciasPorPessoa,
       frentesPorPessoa,
-      encerradosAntesDoPeriodo,
+      fimDoProjeto,
     } = consulta.data;
 
     const linhas = pessoas
@@ -116,14 +117,14 @@ export function useUnloggedHours(periodo: PeriodoDeCobranca) {
 
     return {
       linhas,
-      frentes: pivotarPorFrente(linhas, decorrido, encerradosAntesDoPeriodo),
+      frentes: pivotarPorFrente(linhas, periodo, feriados, fimDoProjeto),
       decorrido,
       totalCapacidade: linhas.reduce((s, l) => s + l.capacidade, 0),
       totalLancado: linhas.reduce((s, l) => s + l.lancado, 0),
       totalNaoLancadas: linhas.reduce((s, l) => s + l.naoLancadas, 0),
       pessoasEmAtraso: linhas.filter((l) => l.cobertura < 90).length,
     };
-  }, [consulta.data, feriados, periodo.startDate, periodo.endDate]);
+  }, [consulta.data, feriados, periodo]);
 
   return { ...consulta, relatorio };
 }
@@ -137,17 +138,35 @@ export function useUnloggedHours(periodo: PeriodoDeCobranca) {
  */
 function pivotarPorFrente(
   linhas: LinhaDeHorasNaoLancadas[],
-  decorrido: Decorrido,
-  encerrados: Set<string>,
+  periodo: PeriodoDeCobranca,
+  feriados: Holiday[],
+  fimDoProjeto: Map<string, string>,
 ): LinhaDeFrente[] {
   const porFrente = new Map<string, LinhaDeFrente>();
+  const fimDoPeriodo = format(periodo.endDate, 'yyyy-MM-dd');
+  const jaEncerrado = (projectId: string) => {
+    const fim = fimDoProjeto.get(projectId);
+    return !!fim && fim <= fimDoPeriodo;
+  };
+
+  // A fração é POR FRENTE, e não uma só para a tela: projeto que ainda vai acabar depois do
+  // período é cobrado até hoje, como qualquer outro.
+  const fracaoDe = (projectId: string) =>
+    decorridoDaFrente(periodo, feriados, fimDoProjeto.get(projectId)).fracao;
 
   for (const linha of linhas) {
     for (const frente of linha.frentes) {
-      // Projeto que já tinha acabado antes do período não é cobrança, é ruído. Se tem hora
-      // apontada dentro do período ele FICA: significa que ainda recebeu trabalho, e sumir
-      // com ela esconderia custo real.
-      if (encerrados.has(frente.id) && frente.apontado === 0) continue;
+      // PROJETO JÁ CONCLUÍDO NÃO APARECE. Esta visão lista as frentes que ainda esperam
+      // hora, e projeto encerrado não espera mais nada.
+      //
+      // O corte é "concluído até o fim do período OLHADO", não "concluído hoje": olhando
+      // junho, um projeto encerrado em dezembro ainda estava vivo e continua na lista. Sem
+      // isso o passado mudaria de resposta a cada encerramento.
+      //
+      // O preço: hora lançada num projeto já concluído some DESTA visão. Ela continua na
+      // visão por pessoa e nos totais do topo — e, se existir, é problema de dado (alguém
+      // apontando em projeto encerrado), não de leitura.
+      if (frente.tipo === 'projeto' && jaEncerrado(frente.id)) continue;
       const atual = porFrente.get(frente.id) ?? {
         id: frente.id,
         nome: frente.nome,
@@ -175,10 +194,40 @@ function pivotarPorFrente(
     // Pro-rata por dias úteis (ADR-0018): no dia útil 15 de 22, só ~68% do planejado do mês
     // podia ter virado hora. Cobrar o planejado cheio faria todo projeto parecer abandonado
     // no começo do mês — a mesma distorção que a aba Equipe já resolve assim.
-    frente.esperadoAteHoje = frente.planejado * decorrido.fracao;
+    frente.esperadoAteHoje = frente.planejado * fracaoDe(frente.id);
     frente.naoRealizado = Math.max(0, frente.esperadoAteHoje - frente.apontado);
     frente.pessoas.sort((a, b) => b.planejado - a.planejado || b.apontado - a.apontado);
   }
 
   return frentes.sort((a, b) => b.naoRealizado - a.naoRealizado || b.planejado - a.planejado);
+}
+
+/**
+ * Quanto do período uma FRENTE podia consumir.
+ *
+ * O corte é o menor entre hoje e a data em que o projeto acabou. Sem isso, um projeto
+ * concluído no dia 5 seria cobrado pelo mês inteiro — e era exatamente o caso do Moneteen,
+ * concluído em setembro e ainda pedindo 88h. A migration de zeramento preserva o mês da
+ * conclusão de propósito (a pessoa trabalhou parte dele), então quem tem de aparar o resto
+ * é a leitura.
+ */
+function decorridoDaFrente(
+  periodo: PeriodoDeCobranca,
+  feriados: Holiday[],
+  fim: string | undefined,
+): Decorrido {
+  if (!fim) return decorridoDoPeriodo(periodo.startDate, periodo.endDate, feriados);
+  const fimDoProjeto = new Date(fim + 'T00:00:00');
+  const ate = fimDoProjeto < periodo.endDate ? fimDoProjeto : periodo.endDate;
+  if (ate < periodo.startDate) {
+    return { diasUteis: 0, diasUteisDecorridos: 0, fracao: 0, emAndamento: false };
+  }
+  const recorte = decorridoDoPeriodo(periodo.startDate, ate, feriados);
+  const total = decorridoDoPeriodo(periodo.startDate, periodo.endDate, feriados);
+  // A fração é sobre o MÊS inteiro, não sobre o recorte: o planejado que se divide é o do mês.
+  return {
+    ...recorte,
+    diasUteis: total.diasUteis,
+    fracao: total.diasUteis > 0 ? recorte.diasUteisDecorridos / total.diasUteis : 0,
+  };
 }
