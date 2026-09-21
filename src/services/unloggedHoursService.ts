@@ -32,6 +32,18 @@ interface Janela {
   fim: string;
 }
 
+/**
+ * O recorte de quem aparece.
+ *
+ * `managerId` nulo = a empresa inteira, que é o que o admin vê. Preenchido, a lista se
+ * fecha nas pessoas alocadas nos projetos em que essa pessoa é o GP — mesmo recorte que
+ * `useAnalyticsData` já aplica no resto das Análises, para as duas telas não discordarem
+ * sobre o que é "meu time".
+ */
+export interface EscopoDaCobranca {
+  managerId: string | null;
+}
+
 /** Horas de uma pessoa quebradas por frente: id da frente -> horas. */
 type PorFrente = Map<string, Map<string, number>>;
 
@@ -43,8 +55,11 @@ interface Colhido {
 export async function buscarDadosDeCobranca(
   tenantId: string,
   janela: Janela,
+  escopo: EscopoDaCobranca,
 ): Promise<DadosDeCobranca> {
-  const pessoas = await buscarQuemLancaHora(tenantId);
+  const doMeuTime = escopo.managerId ? await pessoasDosMeusProjetos(escopo.managerId) : null;
+  const todas = await buscarQuemLancaHora(tenantId);
+  const pessoas = doMeuTime ? todas.filter((p) => doMeuTime.has(p.id)) : todas;
   const ids = pessoas.map((p) => p.id);
   if (ids.length === 0) {
     return {
@@ -135,6 +150,40 @@ function frentesDeUmaPessoa(
   return [...projetos, ...internas].sort(
     (a, b) => b.planejado - a.planejado || b.apontado - a.apontado,
   );
+}
+
+/**
+ * Quem está alocado nos projetos em que esta pessoa é o GP.
+ *
+ * Vem de `project_members`, e não da alocação planejada, porque o vínculo com o projeto é o
+ * que define o time — alguém sem planejamento neste mês continua sendo do time e continua
+ * devendo hora.
+ */
+async function pessoasDosMeusProjetos(managerId: string): Promise<Set<string>> {
+  const { data: projetos, error: erroProjetos } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('manager_id', managerId);
+
+  if (erroProjetos) {
+    console.error('Error fetching managed projects:', erroProjetos);
+    throw erroProjetos;
+  }
+
+  const ids = (projetos ?? []).map((p) => p.id);
+  if (ids.length === 0) return new Set();
+
+  const { data, error } = await supabase
+    .from('project_members')
+    .select('employee_id')
+    .in('project_id', ids);
+
+  if (error) {
+    console.error('Error fetching team of managed projects:', error);
+    throw error;
+  }
+
+  return new Set((data ?? []).map((m) => m.employee_id));
 }
 
 /**

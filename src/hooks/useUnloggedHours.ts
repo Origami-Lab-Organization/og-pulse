@@ -11,8 +11,22 @@ export interface PeriodoDeCobranca {
   endDate: Date;
 }
 
+/** Uma frente vista de cima: o projeto (ou a atividade) com o time todo dentro. */
+export interface LinhaDeFrente {
+  id: string;
+  nome: string;
+  tipo: 'projeto' | 'atividade';
+  planejado: number;
+  apontado: number;
+  /** Planejado que não virou hora. Só faz sentido onde existe planejamento. */
+  naoRealizado: number;
+  pessoas: { employeeId: string; nome: string; planejado: number; apontado: number }[];
+}
+
 export interface RelatorioDeHorasNaoLancadas {
   linhas: LinhaDeHorasNaoLancadas[];
+  /** A mesma verdade, vista por projeto. Alimenta o modo "Por projeto". */
+  frentes: LinhaDeFrente[];
   totalCapacidade: number;
   totalLancado: number;
   totalNaoLancadas: number;
@@ -22,6 +36,7 @@ export interface RelatorioDeHorasNaoLancadas {
 
 const VAZIO: RelatorioDeHorasNaoLancadas = {
   linhas: [],
+  frentes: [],
   totalCapacidade: 0,
   totalLancado: 0,
   totalNaoLancadas: 0,
@@ -38,14 +53,17 @@ const VAZIO: RelatorioDeHorasNaoLancadas = {
 export function useUnloggedHours(periodo: PeriodoDeCobranca) {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
+  // Admin vê a empresa; quem não é admin vê o time dos projetos que gerencia. Mesmo recorte
+  // que o resto das Análises aplica, para as telas não discordarem sobre o que é "meu time".
+  const managerId = employee?.isAdmin ? null : (employee?.id ?? null);
   const { data: feriados = [] } = useHolidays();
 
   const inicio = format(periodo.startDate, 'yyyy-MM-dd');
   const fim = format(periodo.endDate, 'yyyy-MM-dd');
 
   const consulta = useQuery({
-    queryKey: ['unlogged-hours', tenantId, inicio, fim],
-    queryFn: () => buscarDadosDeCobranca(tenantId!, { inicio, fim }),
+    queryKey: ['unlogged-hours', tenantId, inicio, fim, managerId],
+    queryFn: () => buscarDadosDeCobranca(tenantId!, { inicio, fim }, { managerId }),
     enabled: !!tenantId,
   });
 
@@ -77,6 +95,7 @@ export function useUnloggedHours(periodo: PeriodoDeCobranca) {
 
     return {
       linhas,
+      frentes: pivotarPorFrente(linhas),
       totalCapacidade: linhas.reduce((s, l) => s + l.capacidade, 0),
       totalLancado: linhas.reduce((s, l) => s + l.lancado, 0),
       totalNaoLancadas: linhas.reduce((s, l) => s + l.naoLancadas, 0),
@@ -85,4 +104,46 @@ export function useUnloggedHours(periodo: PeriodoDeCobranca) {
   }, [consulta.data, feriados, periodo.startDate, periodo.endDate]);
 
   return { ...consulta, relatorio };
+}
+
+/**
+ * A mesma verdade, do outro lado: o que cada projeto planejou e o que recebeu de hora.
+ *
+ * Aqui o buraco é `planejado - apontado`, e NÃO "horas não lançadas". São perguntas
+ * diferentes: a jornada é da pessoa e o planejamento é do projeto. Alguém pode estar em dia
+ * com a jornada e ainda assim ter deixado um projeto sem as horas que ele esperava.
+ */
+function pivotarPorFrente(linhas: LinhaDeHorasNaoLancadas[]): LinhaDeFrente[] {
+  const porFrente = new Map<string, LinhaDeFrente>();
+
+  for (const linha of linhas) {
+    for (const frente of linha.frentes) {
+      const atual = porFrente.get(frente.id) ?? {
+        id: frente.id,
+        nome: frente.nome,
+        tipo: frente.tipo,
+        planejado: 0,
+        apontado: 0,
+        naoRealizado: 0,
+        pessoas: [],
+      };
+      atual.planejado += frente.planejado;
+      atual.apontado += frente.apontado;
+      atual.pessoas.push({
+        employeeId: linha.employeeId,
+        nome: linha.nome,
+        planejado: frente.planejado,
+        apontado: frente.apontado,
+      });
+      porFrente.set(frente.id, atual);
+    }
+  }
+
+  const frentes = [...porFrente.values()];
+  for (const frente of frentes) {
+    frente.naoRealizado = Math.max(0, frente.planejado - frente.apontado);
+    frente.pessoas.sort((a, b) => b.planejado - a.planejado || b.apontado - a.apontado);
+  }
+
+  return frentes.sort((a, b) => b.naoRealizado - a.naoRealizado || b.planejado - a.planejado);
 }
