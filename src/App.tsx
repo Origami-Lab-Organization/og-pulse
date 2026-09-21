@@ -47,6 +47,7 @@ import Prospeccao from "./pages/Prospeccao";
 import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
 import MinhaEquipeAlocacaoPage from "./pages/MinhaEquipeAlocacaoPage";
+import AnaliseHorasNaoLancadas from "./pages/AnaliseHorasNaoLancadas";
 import EmployeeTimesheetPage from "./pages/EmployeeTimesheetPage";
 import EmployeeAllocationDetailPage from "./pages/EmployeeAllocationDetailPage";
 import Analytics from "./pages/Analytics";
@@ -325,6 +326,16 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireCapability="timesheet-terceiro:ler">
                     <MinhaEquipeAlocacaoPage />
+                  </RoleProtectedRoute>
+                }
+              />
+              {/* Quem pode ler hora de terceiro pode ver quem não lançou: é a mesma
+                  pergunta, do outro lado (PUL-182). */}
+              <Route
+                path="/analises/horas-nao-lancadas"
+                element={
+                  <RoleProtectedRoute requireCapability="timesheet-terceiro:ler">
+                    <AnaliseHorasNaoLancadas />
                   </RoleProtectedRoute>
                 }
               />

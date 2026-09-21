@@ -96,6 +96,7 @@ export const NAV_ITEMS: SidebarNavItem[] = [
     icon: BarChart3,
     children: [
       { title: 'Meu Time', url: '/analises/meu-time', requiresCapability: 'timesheet-terceiro:ler' },
+      { title: 'Horas não lançadas', url: '/analises/horas-nao-lancadas', requiresCapability: 'timesheet-terceiro:ler' },
       { title: 'Financeiro', url: '/analises/financeiro', requiresCapability: 'financeiro:ler' },
       { title: 'Comercial', url: '/analises/comercial', requiresCapability: 'pipeline:ler' },
       { title: 'Custo x Hora', url: '/analises/custo-hora', requiresCapability: 'custo-hora:ler-relatorio' },
