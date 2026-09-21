@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,7 @@ export default function AnaliseHorasNaoLancadas() {
     [mes],
   );
 
-  const { relatorio, isLoading } = useUnloggedHours(periodo);
+  const { relatorio, isLoading, error, refetch } = useUnloggedHours(periodo);
 
   const ehMesCorrente = format(mes, 'yyyy-MM') === format(new Date(), 'yyyy-MM');
 
@@ -78,7 +78,7 @@ export default function AnaliseHorasNaoLancadas() {
       actions={seletorDeMes}
     >
       <div className="min-w-0 space-y-6">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className={cn('grid gap-4 md:grid-cols-4', error && 'hidden')}>
           <Indicador titulo="Jornada esperada" valor={formatHours(relatorio.totalCapacidade)} />
           <Indicador titulo="Apontado" valor={formatHours(relatorio.totalLancado)} />
           <Indicador
@@ -108,11 +108,17 @@ export default function AnaliseHorasNaoLancadas() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {/* Falha e vazio são coisas diferentes, e uma tela que mostra 0h nos dois casos
+                mente. O código do erro aparece porque o DevTools é bloqueado por política
+                nas máquinas do time — sem ele a falha não deixa rastro que dê para reportar. */}
+            {error ? (
+              <FalhouAoCarregar erro={error} onTentarDeNovo={() => refetch()} />
+            ) : isLoading ? (
               <Skeleton className="h-64 rounded-md" />
             ) : relatorio.linhas.length === 0 ? (
               <p className="py-10 text-center text-sm text-muted-foreground">
-                Ninguém com jornada a apontar neste mês.
+                Ninguém com jornada a apontar neste mês. Ou ninguém está marcado como quem
+                lança hora, ou o mês inteiro caiu em férias, feriado ou fora do vínculo.
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -213,5 +219,31 @@ function LinhaDaPessoa({ linha }: { linha: LinhaDeHorasNaoLancadas }) {
         <p className="mt-1 text-xs text-muted-foreground">{COBERTURA_LABELS[status]}</p>
       </TableCell>
     </TableRow>
+  );
+}
+
+function FalhouAoCarregar({
+  erro,
+  onTentarDeNovo,
+}: {
+  erro: unknown;
+  onTentarDeNovo: () => void;
+}) {
+  const codigo = (erro as { code?: string } | null)?.code;
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+      <AlertTriangle className="h-6 w-6 text-destructive" aria-hidden="true" />
+      <p className="text-sm text-muted-foreground">
+        Não foi possível montar o relatório. Os números acima ficariam errados, então foram
+        escondidos em vez de mostrar zero.
+      </p>
+      {codigo && (
+        <p className="text-xs text-muted-foreground">
+          Código do erro: <code className="font-mono">{codigo}</code> — mande este código para
+          quem cuida do sistema.
+        </p>
+      )}
+      <Button onClick={onTentarDeNovo}>Tentar de novo</Button>
+    </div>
   );
 }

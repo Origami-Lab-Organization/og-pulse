@@ -63,10 +63,11 @@ async function buscarQuemLancaHora(tenantId: string): Promise<PessoaParaCobranca
     .select('id, nome, cargo, jornada_diaria, data_admissao, termination:employee_terminations(termination_date)')
     .eq('tenant_id', tenantId)
     .eq('aloca_em_projetos', true)
-    // `inativo` e `aguardando_confirmacao` ficam de fora: o primeiro não trabalha mais, o
-    // segundo ainda não entrou. Nem um nem outro tem jornada a apontar, e cobrar deles
-    // encheria a lista de gente que ninguém vai procurar.
-    .eq('status', 'ativo')
+    // Quem trabalha e lança hora. `em_desligamento` ENTRA de propósito: está cumprindo
+    // aviso, trabalhando e sendo pago — a hora dele é exatamente a que não pode sumir do
+    // custo. Ficam de fora `desligado`, `arquivado`, `bloqueado` (não consegue nem entrar
+    // no sistema) e `aguardando_confirmacao` (ainda não começou).
+    .in('status', ['ativo', 'em_desligamento'])
     .order('nome');
 
   if (error) {
