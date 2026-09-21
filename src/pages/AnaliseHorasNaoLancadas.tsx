@@ -229,7 +229,10 @@ function FalhouAoCarregar({
   erro: unknown;
   onTentarDeNovo: () => void;
 }) {
-  const codigo = (erro as { code?: string } | null)?.code;
+  const { code: codigo, message: mensagem } = (erro ?? {}) as {
+    code?: string;
+    message?: string;
+  };
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
       <AlertTriangle className="h-6 w-6 text-destructive" aria-hidden="true" />
@@ -237,11 +240,23 @@ function FalhouAoCarregar({
         Não foi possível montar o relatório. Os números acima ficariam errados, então foram
         escondidos em vez de mostrar zero.
       </p>
-      {codigo && (
-        <p className="text-xs text-muted-foreground">
-          Código do erro: <code className="font-mono">{codigo}</code> — mande este código para
-          quem cuida do sistema.
-        </p>
+      {/* A MENSAGEM vai junto do código, e não só o código. `PGRST201` sozinho não diz qual
+          consulta falhou nem por quê — custou uma caçada. A mensagem do PostgREST nomeia as
+          tabelas e o motivo, e é ela que resolve em um minuto. */}
+      {(codigo || mensagem) && (
+        <div className="max-w-xl space-y-1">
+          {codigo && (
+            <p className="text-xs text-muted-foreground">
+              Código: <code className="font-mono">{codigo}</code>
+            </p>
+          )}
+          {mensagem && (
+            <p className="break-words text-xs text-muted-foreground">{mensagem}</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Mande isto para quem cuida do sistema.
+          </p>
+        </div>
       )}
       <Button onClick={onTentarDeNovo}>Tentar de novo</Button>
     </div>

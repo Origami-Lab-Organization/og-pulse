@@ -60,7 +60,11 @@ export async function buscarDadosDeCobranca(
 async function buscarQuemLancaHora(tenantId: string): Promise<PessoaParaCobranca[]> {
   const { data, error } = await supabase
     .from('employees')
-    .select('id, nome, cargo, jornada_diaria, data_admissao, termination:employee_terminations(termination_date)')
+    // A chave vai NOMEADA porque existem DUAS relações entre as tabelas, em direções
+    // opostas: `employee_terminations.employee_id -> employees` (esta) e
+    // `employees.termination_id -> employee_terminations`. Sem o nome, o PostgREST não
+    // adivinha qual o embed quer e devolve PGRST201.
+    .select('id, nome, cargo, jornada_diaria, data_admissao, termination:employee_terminations!employee_terminations_employee_id_fkey(termination_date)')
     .eq('tenant_id', tenantId)
     .eq('aloca_em_projetos', true)
     // Quem trabalha e lança hora. `em_desligamento` ENTRA de propósito: está cumprindo
