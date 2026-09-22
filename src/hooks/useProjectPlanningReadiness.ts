@@ -109,6 +109,7 @@ export function useProjectPlanningReadiness() {
     projectId: string
   ): Promise<
     ReadinessResult & {
+      warnings: string[];
       pendingInstallmentsCount: number;
       totalInstallmentsCount: number;
       pendingMilestonesCount: number;
@@ -140,15 +141,19 @@ export function useProjectPlanningReadiness() {
       );
     }
 
+    // ADR-0038: pagamento pendente não impede a conclusão — vira aviso, e o recebimento é
+    // atualizado depois no projeto já concluído.
+    const warnings: string[] = [];
     if (pendingInstallments.length > 0) {
-      missing.push(
-        `Todos os pagamentos recebidos (${pendingInstallments.length} de ${installments.length} pendentes)`
+      warnings.push(
+        `${pendingInstallments.length} de ${installments.length} pagamentos ainda não recebidos`
       );
     }
 
     return {
       ready: missing.length === 0,
       missing,
+      warnings,
       pendingInstallmentsCount: pendingInstallments.length,
       totalInstallmentsCount: installments.length,
       pendingMilestonesCount: pendingMilestones.length,

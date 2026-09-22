@@ -171,6 +171,7 @@ describe('PortfolioKanbanBoard', () => {
     checkCompletionReadiness.mockResolvedValue({
       ready: true,
       missing: [],
+      warnings: [],
       pendingInstallmentsCount: 0,
       totalInstallmentsCount: 0,
       pendingMilestonesCount: 0,
@@ -237,6 +238,7 @@ describe('PortfolioKanbanBoard', () => {
     checkCompletionReadiness.mockResolvedValueOnce({
       ready: false,
       missing: ['Todas as etapas do cronograma concluídas (1 de 2 pendentes)'],
+      warnings: [],
       pendingInstallmentsCount: 0,
       totalInstallmentsCount: 0,
       pendingMilestonesCount: 1,
@@ -255,10 +257,12 @@ describe('PortfolioKanbanBoard', () => {
     expect(updateStageMutate).not.toHaveBeenCalled();
   });
 
-  it('bloqueia conclusao com parcela pendente', async () => {
-    checkCompletionReadiness.mockResolvedValueOnce({
-      ready: false,
-      missing: ['Todos os pagamentos recebidos (1 de 3 pendentes)'],
+  // ADR-0038: parcela pendente avisa, mas nao bloqueia a conclusao.
+  it('avisa e conclui mesmo com parcela pendente', async () => {
+    checkCompletionReadiness.mockResolvedValue({
+      ready: true,
+      missing: [],
+      warnings: ['1 de 3 pagamentos ainda não recebidos'],
       pendingInstallmentsCount: 1,
       totalInstallmentsCount: 3,
       pendingMilestonesCount: 0,
@@ -267,14 +271,21 @@ describe('PortfolioKanbanBoard', () => {
     renderBoard();
     await dropProject('completed');
 
+    expect(await screen.findByText(/1 de 3 pagamentos ainda não recebidos/)).toBeInTheDocument();
+
+    const completionDate = todayInputValue();
+    fireEvent.change(screen.getByLabelText('Data real de conclusão'), {
+      target: { value: completionDate },
+    });
     fireEvent.click(screen.getByText('Concluir projeto'));
 
     await waitFor(() => {
-      expect(toast).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'Projeto não pode ser concluído',
-      }));
+      expect(updateStageMutate).toHaveBeenCalledWith({
+        projectId: 'project-1',
+        newStage: 'completed',
+        completedDate: completionDate,
+      });
     });
-    expect(updateStageMutate).not.toHaveBeenCalled();
   });
 
   it('conclui quando todas as etapas e parcelas estao finalizadas', async () => {
@@ -300,6 +311,7 @@ describe('PortfolioKanbanBoard', () => {
     checkCompletionReadiness.mockResolvedValueOnce({
       ready: true,
       missing: [],
+      warnings: [],
       pendingInstallmentsCount: 0,
       totalInstallmentsCount: 0,
       pendingMilestonesCount: 0,

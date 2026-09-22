@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,6 +34,7 @@ import { format } from 'date-fns';
 interface CompletionDialogState {
   projectId: string;
   projectName: string;
+  warnings: string[];
 }
 
 interface PortfolioKanbanBoardProps {
@@ -155,6 +157,13 @@ export function PortfolioKanbanBoard({
       setCompletionDialog({
         projectId,
         projectName: project.name,
+        warnings: [],
+      });
+      // Avisos (ex.: pagamento pendente) aparecem antes de confirmar, sem impedir a conclusão.
+      void checkCompletionReadiness(projectId).then(({ warnings }) => {
+        setCompletionDialog((current) =>
+          current?.projectId === projectId ? { ...current, warnings } : current
+        );
       });
       return;
     }
@@ -238,10 +247,17 @@ export function PortfolioKanbanBoard({
             <AlertDialogTitle>Concluir projeto?</AlertDialogTitle>
             <AlertDialogDescription>
               Informe a data real de conclusão de <strong>{completionDialog?.projectName}</strong>.
-              O projeto só será concluído se todas as etapas do cronograma estiverem concluídas e
-              todos os pagamentos aplicáveis estiverem recebidos.
+              O projeto só será concluído se todas as etapas do cronograma estiverem concluídas.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {completionDialog?.warnings.length ? (
+            <Alert variant="warning">
+              <AlertDescription>
+                {completionDialog.warnings.join(' · ')}. Você pode concluir agora e registrar o
+                recebimento depois, no projeto já concluído.
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <div className="space-y-2 py-2">
             <Label htmlFor="completion-date">Data real de conclusão</Label>
             <Input
