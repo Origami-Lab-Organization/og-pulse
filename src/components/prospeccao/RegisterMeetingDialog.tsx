@@ -73,7 +73,7 @@ export function RegisterMeetingDialog({ prospect, open, onOpenChange }: Register
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Reunião feita</DialogTitle>
           <DialogDescription>
@@ -111,7 +111,8 @@ export function RegisterMeetingDialog({ prospect, open, onOpenChange }: Register
             <Label htmlFor="reuniao-relato">Como foi a reunião</Label>
             <Textarea
               id="reuniao-relato"
-              rows={4}
+              rows={12}
+              className="min-h-[240px] resize-y"
               value={relato}
               onChange={(e) => setRelato(e.target.value)}
               placeholder="Opcional: o que foi discutido, quem estava e qual o próximo passo"

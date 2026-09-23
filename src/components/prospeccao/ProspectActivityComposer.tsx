@@ -24,10 +24,9 @@ interface ProspectActivityComposerProps {
 /**
  * A caixa de registro, no rodapé da linha do tempo.
  *
- * O teste de aceite do módulo continua de pé: registrar uma atividade custa UM clique —
- * texto e anexo são opcionais, e clicar em "Registrar" com a caixa vazia grava a atividade
- * no canal selecionado, como o botão antigo fazia. O que mudou é que agora cabe contexto
- * sem passar por um diálogo.
+ * "Registrar" só habilita com texto em "O que aconteceu?" (23/09/2026, Guilherme): o
+ * toque sem relato enchia a linha do tempo de atividades que não diziam nada. Anexo
+ * continua opcional, mas sozinho não basta — o texto é o que explica o anexo.
  *
  * O canal fica à esquerda do envio porque é decisão da atividade, não do contato: o canal
  * principal só define o valor inicial.
@@ -57,6 +56,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
   };
 
   const registrarAtividade = async () => {
+    if (!texto.trim()) return;
     setEnviando(true);
     try {
       const anexos = await subirAnexos(arquivos, employee!.tenant_id, prospect.id);
@@ -86,6 +86,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
   };
 
   const ocupado = enviando || registrar.isPending;
+  const podeRegistrar = texto.trim().length > 0 && !ocupado;
 
   return (
     <div className="rounded-lg border bg-card p-2">
@@ -93,10 +94,11 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
         onKeyDown={(e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') registrarAtividade();
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && podeRegistrar) registrarAtividade();
         }}
         rows={3}
-        placeholder="O que aconteceu? (opcional: dá para registrar apenas o toque)"
+        placeholder="O que aconteceu?"
+        aria-label="O que aconteceu?"
         className="resize-none border-0 p-2 shadow-none focus-visible:ring-0"
         disabled={ocupado}
       />
@@ -165,7 +167,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
           type="button"
           size="sm"
           className="ml-auto"
-          disabled={ocupado}
+          disabled={!podeRegistrar}
           onClick={registrarAtividade}
         >
           {ocupado ? (
