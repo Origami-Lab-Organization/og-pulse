@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { format, addDays, parseISO, isAfter, startOfDay } from 'date-fns';
 import {
   Building2,
@@ -47,7 +47,7 @@ import {
   useActivityTimesheetsByRange,
   useClearWeekActivityTimesheets,
 } from '@/hooks/useActivityTimesheets';
-import { useMyActivityTypes } from '@/hooks/useMyActivityTypes';
+import { useMyActivityTypes, type MyActivityType } from '@/hooks/useMyActivityTypes';
 import { useSubmitAllProjects } from '@/hooks/useTimesheetSubmissions';
 import { useHolidays, isHoliday } from '@/hooks/useHolidays';
 import { useTimesheetPrefill } from '@/hooks/useTimesheetPrefill';
@@ -70,15 +70,12 @@ interface CabecalhoRecolhivelProps {
   quantidade: number;
   aberto: boolean;
   onToggle: () => void;
-  /** A seção "Atividades internas". Sem ele, é um centro de custo dentro dela. */
-  principal?: boolean;
-  legenda?: string;
-  controlaId?: string;
+  controlaId: string;
   dataTour?: string;
 }
 
 function CabecalhoRecolhivel(props: CabecalhoRecolhivelProps) {
-  const { titulo, quantidade, aberto, onToggle, principal = false, legenda, controlaId, dataTour } = props;
+  const { titulo, quantidade, aberto, onToggle, controlaId, dataTour } = props;
   return (
     <button
       type="button"
@@ -86,24 +83,38 @@ function CabecalhoRecolhivel(props: CabecalhoRecolhivelProps) {
       aria-expanded={aberto}
       aria-controls={controlaId}
       data-tour={dataTour}
-      className={cn(
-        'flex w-full items-center justify-between gap-2 rounded-md text-left transition-colors hover:bg-muted/30',
-        principal ? 'py-2' : 'pb-2 pl-6 pt-3'
-      )}
+      className="flex w-full items-center justify-between gap-2 rounded-md py-2 text-left transition-colors hover:bg-muted/30"
     >
-      <div className="flex flex-wrap items-center gap-2">
-        {principal && <Layers className="h-4 w-4 text-muted-foreground" />}
-        <span className={principal ? 'ui-h3' : 'text-sm font-semibold text-foreground'}>{titulo}</span>
+      <div className="flex items-center gap-2">
+        <Layers className="h-4 w-4 text-muted-foreground" />
+        <span className="ui-h3">{titulo}</span>
         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
           {quantidade}
         </span>
-        {legenda && <span className="ui-caption hidden sm:inline">{legenda}</span>}
       </div>
       <ChevronRight
         className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', aberto && 'rotate-90')}
       />
     </button>
   );
+}
+
+/**
+ * O centro de custo vem do item e é o que a hora grava (PUL-221, ADR-0031). Vai na legenda da
+ * linha: é organização da lista, nunca permissão — quem lança hora lança no item que quiser.
+ *
+ * Item sem centro ganha legenda explícita e vai para o fim. Esconder seria pior: o catálogo
+ * aceita item sem centro por expand-contract (migration 20260910120000), e a hora dele vira
+ * lacuna de custo que alguém precisa ver para arrumar.
+ */
+function centroDe(at: MyActivityType): string {
+  return at.costCenterName ?? 'Sem centro de custo';
+}
+
+function porCentroENome(a: MyActivityType, b: MyActivityType): number {
+  const semCentroPorUltimo = Number(!a.costCenterId) - Number(!b.costCenterId);
+  if (semCentroPorUltimo !== 0) return semCentroPorUltimo;
+  return centroDe(a).localeCompare(centroDe(b), 'pt-BR') || a.name.localeCompare(b.name, 'pt-BR');
 }
 
 function shallowEqualRecord(a: Record<string, number> | undefined, b: Record<string, number>): boolean {
@@ -189,16 +200,9 @@ export function WeeklyTimesheetGrid({
 
   const [realValuesByRow, setRealValuesByRow] = useState<Record<string, Record<string, number>>>({});
   const [saveStatuses, setSaveStatuses] = useState<Record<string, SaveStatusInfo>>({});
-  // Dois níveis de colapso fora de projeto: a seção "Atividades internas" inteira e, dentro
-  // dela, um por centro de custo (PUL-222). A seção começa aberta, para os centros ficarem à
-  // vista; cada centro começa fechado, como a seção antiga começava.
-  const [internasAbertas, setInternasAbertas] = useState(true);
-  const [centrosAbertos, setCentrosAbertos] = useState<string[]>([]);
-  const alternarCentro = useCallback((chave: string) => {
-    setCentrosAbertos((atual) =>
-      atual.includes(chave) ? atual.filter((c) => c !== chave) : [...atual, chave]
-    );
-  }, []);
+  // A seção "Atividades internas" começa recolhida, como a original: a tela abre limpa e
+  // linha com hora lançada aparece mesmo assim.
+  const [internasAbertas, setInternasAbertas] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
 
@@ -349,41 +353,10 @@ export function WeeklyTimesheetGrid({
     else inputRefs.current.delete(key);
   }, []);
 
-  /**
-   * As linhas fora de projeto, agrupadas por CENTRO DE CUSTO (PUL-222).
-   *
-   * O centro vem do item e é o que a hora grava (PUL-221, ADR-0031). Agrupar aqui é
-   * organização da lista, nunca permissão: quem lança hora lança no item que quiser.
-   *
-   * Item sem centro cai num grupo próprio no fim, com nome explícito. Esconder seria pior:
-   * o catálogo aceita item sem centro por expand-contract (migration 20260910120000), e a
-   * hora dele vira lacuna de custo que alguém precisa ver para arrumar.
-   */
-  const gruposPorCentro = useMemo(() => {
-    const SEM_CENTRO = 'sem-centro';
-    const porCentro = new Map<string, { titulo: string; itens: typeof myActivityTypes }>();
-
-    for (const at of myActivityTypes) {
-      const chave = at.costCenterId ?? SEM_CENTRO;
-      const titulo = at.costCenterName ?? 'Sem centro de custo';
-      const grupo = porCentro.get(chave) ?? { titulo, itens: [] };
-      grupo.itens.push(at);
-      porCentro.set(chave, grupo);
-    }
-
-    return [...porCentro.entries()]
-      .map(([chave, grupo]) => ({ chave, ...grupo }))
-      .sort((a, b) => {
-        if (a.chave === SEM_CENTRO) return 1;
-        if (b.chave === SEM_CENTRO) return -1;
-        return a.titulo.localeCompare(b.titulo, 'pt-BR');
-      });
-  }, [myActivityTypes]);
-
-  /** A ordem achatada dos grupos: é ela que dá o índice de linha da navegação por teclado. */
+  /** As linhas fora de projeto, por centro de custo e nome: é esta ordem que a navegação por teclado segue. */
   const linhasForaDeProjeto = useMemo(
-    () => gruposPorCentro.flatMap((g) => g.itens),
-    [gruposPorCentro]
+    () => [...myActivityTypes].sort(porCentroENome),
+    [myActivityTypes]
   );
 
   // Limite seguro para a navegação por teclado: linhas de atividade colapsadas
@@ -796,18 +769,15 @@ export function WeeklyTimesheetGrid({
               );
             })}
 
-            {/* Fora de projeto: a seção "Atividades internas", separada dos projetos, com um
-                grupo por CENTRO DE CUSTO dentro (PUL-222). O destino da hora é o item, e o
-                centro vem do item. Tanto a seção quanto cada centro colapsam só as linhas
-                ainda vazias — linha com hora lançada na semana fica sempre visível, para a
-                semana bater com o que está gravado. */}
-            {gruposPorCentro.length > 0 && (
+            {/* Fora de projeto: a seção "Atividades internas", separada dos projetos, em lista
+                plana — o centro de custo de cada item vai na legenda da linha (PUL-222). A seta
+                recolhe só as linhas ainda vazias: linha com hora lançada na semana fica sempre
+                visível, para a semana bater com o que está gravado. */}
+            {linhasForaDeProjeto.length > 0 && (
               <div className="mt-4 border-t border-border pt-2">
                 <CabecalhoRecolhivel
-                  principal
                   titulo="Atividades internas"
                   quantidade={linhasForaDeProjeto.length}
-                  legenda="agrupadas por centro de custo"
                   aberto={internasAbertas}
                   onToggle={() => setInternasAbertas((v) => !v)}
                   controlaId="atividades-internas"
@@ -815,59 +785,43 @@ export function WeeklyTimesheetGrid({
                 />
 
                 <div id="atividades-internas">
-                  {gruposPorCentro.map((grupo) => {
-                    const aberto = internasAbertas && centrosAbertos.includes(grupo.chave);
+                  {linhasForaDeProjeto.map((at, i) => {
+                    const rowId = activityRowId(at.id);
+                    const hasData = Object.keys(realValuesByRow[rowId] ?? {}).length > 0;
+                    if (!hasData && !internasAbertas) return null;
+
                     return (
-                      <Fragment key={grupo.chave}>
-                        {internasAbertas && (
-                          <CabecalhoRecolhivel
-                            titulo={grupo.titulo}
-                            quantidade={grupo.itens.length}
-                            aberto={aberto}
-                            onToggle={() => alternarCentro(grupo.chave)}
-                          />
-                        )}
-
-                        {grupo.itens.map((at) => {
-                          const rowId = activityRowId(at.id);
-                          const hasData = Object.keys(realValuesByRow[rowId] ?? {}).length > 0;
-                          if (!hasData && !aberto) return null;
-
-                          return (
-                            <WeeklyGridRow
-                              key={`${rowId}:${resetNonce}`}
-                              rowId={rowId}
-                              rowIndex={projects.length + linhasForaDeProjeto.indexOf(at)}
-                              name={at.name}
-                              subtitle={at.description || grupo.titulo}
-                              weekDays={weekDays}
-                              weekdayLabels={WEEKDAY_LABELS}
-                              dateLabels={dateLabels}
-                              gridCols={GRID_COLS}
-                              isOnline={isOnline}
-                              trackSuggestions={false}
-                              entryHours={entryHoursByRow[rowId] ?? {}}
-                              persist={(date, hours) =>
-                                upsertActivity.mutateAsync({
-                                  employeeId: employee!.id,
-                                  activityTypeId: at.id,
-                                  workDate: date,
-                                  hours,
-                                })
-                              }
-                              cellMode={(date) => cellModeFor(date, activityLockedByRow[rowId])}
-                              holidayName={holidayName}
-                              overByDate={overByDate}
-                              statusContent={statusBadge(activityRowStatus(at.id))}
-                              onExceedMax={onExceedMax}
-                              onRealValuesChange={handleRealValuesChange}
-                              onSaveStatusChange={handleSaveStatusChange}
-                              registerRef={registerRef}
-                              onArrowNavigate={onArrowNavigate}
-                            />
-                          );
-                        })}
-                      </Fragment>
+                      <WeeklyGridRow
+                        key={`${rowId}:${resetNonce}`}
+                        rowId={rowId}
+                        rowIndex={projects.length + i}
+                        name={at.name}
+                        subtitle={at.description || centroDe(at)}
+                        weekDays={weekDays}
+                        weekdayLabels={WEEKDAY_LABELS}
+                        dateLabels={dateLabels}
+                        gridCols={GRID_COLS}
+                        isOnline={isOnline}
+                        trackSuggestions={false}
+                        entryHours={entryHoursByRow[rowId] ?? {}}
+                        persist={(date, hours) =>
+                          upsertActivity.mutateAsync({
+                            employeeId: employee!.id,
+                            activityTypeId: at.id,
+                            workDate: date,
+                            hours,
+                          })
+                        }
+                        cellMode={(date) => cellModeFor(date, activityLockedByRow[rowId])}
+                        holidayName={holidayName}
+                        overByDate={overByDate}
+                        statusContent={statusBadge(activityRowStatus(at.id))}
+                        onExceedMax={onExceedMax}
+                        onRealValuesChange={handleRealValuesChange}
+                        onSaveStatusChange={handleSaveStatusChange}
+                        registerRef={registerRef}
+                        onArrowNavigate={onArrowNavigate}
+                      />
                     );
                   })}
                 </div>

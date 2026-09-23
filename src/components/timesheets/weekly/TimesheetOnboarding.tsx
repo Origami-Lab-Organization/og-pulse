@@ -87,11 +87,11 @@ export function TimesheetOnboarding({ open, onDismiss }: TimesheetOnboardingProp
       },
     },
     {
-      title: 'Fora de projeto, por centro de custo',
+      title: 'Atividades internas',
       description:
-        'O que não é projeto aparece agrupado pelo centro de custo do item. Cada grupo começa fechado para deixar a tela limpa — clique na seta para abrir e lançar.',
+        'O que não é projeto fica na seção "Atividades internas", com o centro de custo de cada item na legenda da linha. Ela começa recolhida para deixar a tela limpa — clique na seta para abrir e lançar.',
       fallbackDescription:
-        'O que você lança fora de projeto fica agrupado pelo centro de custo do item (ex.: Administrativo, Comercial), e cada grupo começa recolhido.',
+        'O que você lança fora de projeto fica na seção "Atividades internas", que começa recolhida. O centro de custo de cada item (ex.: Administrativo, Comercial) aparece na legenda da linha.',
       findTarget: () => document.querySelector<HTMLElement>('[data-tour="activities-toggle"]'),
     },
     ],
