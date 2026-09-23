@@ -13,6 +13,7 @@ sources:
   - supabase/migrations/20260917115000_prospect_reuniao_feita.sql
   - supabase/migrations/20260917180000_prospect_activity_attachments.sql
   - supabase/migrations/20260917190000_prospect_lever_closed_list.sql
+  - supabase/migrations/20260923120000_prospect_instagram.sql
   - src/types/prospect.ts
   - src/types/lead.ts
   - src/types/portfolio.ts
@@ -20,7 +21,9 @@ sources:
 # 3 desfechos), batendo com o CHECK de 20260917115000; prospect_activities.attachments
 # confere com 20260917180000. Constantes de transicao de UI em src/types/prospect.ts
 # (PROSPECT_NEXT_STAGE, PROSPECT_STAGES_BY_RESPONSE) nao afetam este diagrama.
-verified: 2026-09-17
+# 23/09/2026: instagram_url em prospect_companies e prospects (20260923120000),
+# fora da deduplicacao; conferido contra ProspectCompanyDB/ProspectDB.
+verified: 2026-09-23
 ---
 
 # ERD — Entidades e Relações
@@ -114,12 +117,14 @@ erDiagram
         text name ""
         text cnpj "único por tenant (índice parcial)"
         text linkedin_url "único por tenant (índice parcial)"
+        text instagram_url "livre — fora da deduplicação"
         text ring "Anel — livre, editável no card"
         text tier "Tier — livre, editável no card"
     }
     prospects {
         text stage "CHECK de 9 valores: 6 do funil + 3 desfechos (src/types/prospect.ts)"
         text lever "Alavanca / origem da lista"
+        text instagram_url "perfil pessoal do contato"
         date first_touch_at "imutável (trigger)"
         int activity_count "mantido pelo trigger"
         date next_activity_on "prazo: sinal de atraso no card + Próximo passo"
@@ -134,7 +139,7 @@ erDiagram
 ```
 
 Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000`, `20260917115000`,
-`20260917180000` e `20260917190000`.
+`20260917180000`, `20260917190000` e `20260923120000`.
 
 Ao contrário de `leads.crm_stage`, `prospects.stage` **tem CHECK** no banco, e a
 cadência (`ARRAY[3,4,5]`) vive só na função `prospect_activities_advance` — sem

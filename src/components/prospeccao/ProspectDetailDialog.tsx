@@ -3,6 +3,7 @@ import {
   ArrowRightLeft,
   Clock,
   Globe,
+  Instagram,
   Linkedin,
   MoreVertical,
   Pencil,
@@ -439,6 +440,7 @@ function CartaoEmpresa({
           <Campo label="Nome" draft={rascunho.company_name} onChange={definir('company_name')} />
           <Campo label="CNPJ" draft={rascunho.company_cnpj} onChange={definir('company_cnpj')} />
           <Campo label="LinkedIn" draft={rascunho.company_linkedin} onChange={definir('company_linkedin')} />
+          <Campo label="Instagram" draft={rascunho.company_instagram} onChange={definir('company_instagram')} />
           <Campo label="Site" draft={rascunho.company_website} onChange={definir('company_website')} />
           <Campo label="Segmento" draft={rascunho.company_segment} onChange={definir('company_segment')} />
           <Campo label="Anel" draft={rascunho.company_ring} onChange={definir('company_ring')} />
@@ -462,6 +464,7 @@ function CartaoEmpresa({
           <div className="flex flex-wrap gap-1.5">
             <LinkExterno href={empresa?.website} icone={Globe} rotulo={textoDeSite(empresa?.website)} />
             <LinkExterno href={empresa?.linkedin_url} icone={Linkedin} rotulo="LinkedIn" />
+            <LinkExterno href={urlDoInstagram(empresa?.instagram_url)} icone={Instagram} rotulo="Instagram" />
           </div>
 
           <Separator />
@@ -509,6 +512,7 @@ function CartaoContato({
           <Campo label="E-mail" draft={rascunho.contact_email} onChange={definir('contact_email')} />
           <Campo label="Telefone" draft={rascunho.contact_phone} onChange={definir('contact_phone')} />
           <Campo label="LinkedIn" draft={rascunho.linkedin_url} onChange={definir('linkedin_url')} />
+          <Campo label="Instagram" draft={rascunho.instagram_url} onChange={definir('instagram_url')} />
 
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Alavanca / origem</Label>
@@ -555,8 +559,11 @@ function CartaoContato({
             )}
           </div>
 
-          {prospect.linkedin_url && (
-            <LinkExterno href={prospect.linkedin_url} icone={Linkedin} rotulo="Perfil no LinkedIn" />
+          {(prospect.linkedin_url || prospect.instagram_url) && (
+            <div className="flex flex-wrap gap-1.5">
+              <LinkExterno href={prospect.linkedin_url} icone={Linkedin} rotulo="Perfil no LinkedIn" />
+              <LinkExterno href={urlDoInstagram(prospect.instagram_url)} icone={Instagram} rotulo="Perfil no Instagram" />
+            </div>
           )}
 
           <CampoOpcional
@@ -702,6 +709,7 @@ function rascunhoInicial(prospect: ProspectWithCompany): Record<string, string> 
     company_name: empresa?.name ?? '',
     company_cnpj: empresa?.cnpj ?? '',
     company_linkedin: empresa?.linkedin_url ?? '',
+    company_instagram: empresa?.instagram_url ?? '',
     company_website: empresa?.website ?? '',
     company_segment: empresa?.segment ?? '',
     company_ring: empresa?.ring ?? '',
@@ -711,6 +719,7 @@ function rascunhoInicial(prospect: ProspectWithCompany): Record<string, string> 
     contact_email: prospect.contact_email ?? '',
     contact_phone: prospect.contact_phone ?? '',
     linkedin_url: prospect.linkedin_url ?? '',
+    instagram_url: prospect.instagram_url ?? '',
     primary_channel: prospect.primary_channel,
     owner_id: prospect.owner_id ?? '',
     lever: prospect.lever ?? '',
@@ -722,6 +731,7 @@ function empresaDoRascunho(rascunho: Record<string, string>, empresa: ProspectCo
     name: rascunho.company_name || empresa.name,
     cnpj: rascunho.company_cnpj || null,
     linkedin_url: rascunho.company_linkedin || null,
+    instagram_url: rascunho.company_instagram || null,
     website: rascunho.company_website || null,
     segment: rascunho.company_segment || null,
     ring: rascunho.company_ring || null,
@@ -738,6 +748,7 @@ function contatoDoRascunho(rascunho: Record<string, string>, prospect: ProspectW
     contact_email: rascunho.contact_email || null,
     contact_phone: rascunho.contact_phone || null,
     linkedin_url: rascunho.linkedin_url || null,
+    instagram_url: rascunho.instagram_url || null,
     primary_channel: rascunho.primary_channel || prospect.primary_channel,
     owner_id: rascunho.owner_id || prospect.owner_id,
     lever: rascunho.lever || null,
@@ -746,6 +757,17 @@ function contatoDoRascunho(rascunho: Record<string, string>, prospect: ProspectW
 
 function comProtocolo(url: string): string {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+/**
+ * Aceita o que as pessoas colam: "@perfil", "perfil" ou o link inteiro. Guardamos como foi
+ * digitado; só o link de abertura é normalizado.
+ */
+function urlDoInstagram(valor?: string | null): string | null {
+  const texto = valor?.trim();
+  if (!texto) return null;
+  if (/instagram\.com/i.test(texto)) return texto;
+  return `https://instagram.com/${texto.replace(/^@/, '')}`;
 }
 
 function textoDeSite(url?: string | null): string {

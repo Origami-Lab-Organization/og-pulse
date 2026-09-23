@@ -227,6 +227,7 @@ export interface ProspectCompanyDB {
   name: string;
   cnpj: string | null;
   linkedin_url: string | null;
+  instagram_url: string | null;
   website: string | null;
   segment: string | null;
   /** "Anel" — segmentação de proximidade. Texto livre, editável no card. */
@@ -249,6 +250,7 @@ export interface ProspectDB {
   contact_email: string | null;
   contact_phone: string | null;
   linkedin_url: string | null;
+  instagram_url: string | null;
   primary_channel: string;
   owner_id: string | null;
   /** Alavanca / origem da lista. */

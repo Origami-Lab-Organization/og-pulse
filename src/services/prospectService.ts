@@ -26,6 +26,7 @@ export interface CreateProspectInput {
   contact_email?: string | null;
   contact_phone?: string | null;
   linkedin_url?: string | null;
+  instagram_url?: string | null;
   primary_channel: string;
   owner_id?: string | null;
   lever?: string | null;

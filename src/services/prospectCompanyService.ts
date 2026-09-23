@@ -5,6 +5,7 @@ export interface ProspectCompanyInput {
   name: string;
   cnpj?: string | null;
   linkedin_url?: string | null;
+  instagram_url?: string | null;
   website?: string | null;
   segment?: string | null;
   ring?: string | null;
@@ -18,6 +19,7 @@ function normalize(input: ProspectCompanyInput) {
     name: input.name.trim(),
     cnpj: input.cnpj?.replace(/\D/g, '') || null,
     linkedin_url: input.linkedin_url?.trim() || null,
+    instagram_url: input.instagram_url?.trim() || null,
     website: input.website?.trim() || null,
     segment: input.segment?.trim() || null,
     ring: input.ring?.trim() || null,

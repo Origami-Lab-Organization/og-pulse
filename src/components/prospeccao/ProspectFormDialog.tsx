@@ -38,6 +38,7 @@ const schema = z.object({
   contact_email: z.string().email('E-mail inválido').optional().or(z.literal('')),
   contact_phone: z.string().optional(),
   linkedin_url: z.string().optional(),
+  instagram_url: z.string().max(300, 'Endereço longo demais').optional(),
   primary_channel: z.string().min(1, 'Escolha o canal principal'),
   owner_id: z.string().min(1, 'Escolha o responsável'),
   lever: z.string().optional(),
@@ -45,6 +46,7 @@ const schema = z.object({
   company_name: z.string().optional(),
   company_cnpj: z.string().optional(),
   company_linkedin: z.string().optional(),
+  company_instagram: z.string().max(300, 'Endereço longo demais').optional(),
   company_website: z.string().optional(),
   company_segment: z.string().optional(),
   company_ring: z.string().optional(),
@@ -100,6 +102,7 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
         name: values.company_name!.trim(),
         cnpj: values.company_cnpj || null,
         linkedin_url: values.company_linkedin || null,
+        instagram_url: values.company_instagram || null,
         website: values.company_website || null,
         segment: values.company_segment || null,
         ring: values.company_ring || null,
@@ -115,6 +118,7 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
       contact_email: values.contact_email || null,
       contact_phone: values.contact_phone || null,
       linkedin_url: values.linkedin_url || null,
+      instagram_url: values.instagram_url || null,
       primary_channel: values.primary_channel,
       owner_id: values.owner_id,
       lever: values.lever || null,
@@ -196,6 +200,19 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
                         <FormLabel>LinkedIn da empresa</FormLabel>
                         <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                         <FormDescription>CNPJ ou LinkedIn evitam empresa duplicada.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="company_instagram"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Instagram da empresa</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value ?? ''} placeholder="@empresa ou link do perfil" />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -296,6 +313,19 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
                   <FormItem>
                     <FormLabel>LinkedIn do contato</FormLabel>
                     <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="instagram_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Instagram do contato</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ''} placeholder="@contato ou link do perfil" />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
