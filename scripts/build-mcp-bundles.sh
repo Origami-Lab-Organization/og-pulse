@@ -42,6 +42,7 @@ instala_deps() {
 
 instala_deps mcp-drive
 instala_deps mcp-activities
+instala_deps mcp-prospeccao
 
 # `--bundle` sem `--packages=external` é o ponto: as dependências entram no arquivo. Com
 # elas externas o arquivo não rodaria fora do repositório, que é justamente o problema.
@@ -69,12 +70,15 @@ empacota() {
 
 empacota mcp-drive og-pulse-drive
 empacota mcp-activities og-pulse-activities
+# A Prospecção importa regras puras de `src/` (etapas, métricas, transições) pelo alias
+# `@/`, que o esbuild resolve pelo tsconfig do app. Nada de browser pode entrar nesse grafo.
+empacota mcp-prospeccao og-pulse-prospeccao
 
 # O manifesto serve ao instalador (conferir que baixou os dois) e ao suporte (saber qual
 # build a pessoa tem na máquina quando algo não funciona).
 node -e '
 const fs = require("fs");
-const files = ["og-pulse-drive", "og-pulse-activities"];
+const files = ["og-pulse-drive", "og-pulse-activities", "og-pulse-prospeccao"];
 const manifest = {
   generatedAt: new Date().toISOString(),
   servers: files.map((f) => ({

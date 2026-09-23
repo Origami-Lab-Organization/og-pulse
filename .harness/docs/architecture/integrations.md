@@ -13,6 +13,7 @@ sources:
   - supabase/migrations/20260810150000_lead_follow_up_reminder_cron.sql
   - supabase/migrations/20260831120000_realtime_publication_and_cron_via_vault.sql
   - apps/mcp-activities/src/index.ts
+  - apps/mcp-prospeccao/src/index.ts
 ---
 
 # Mapa de Integrações
@@ -56,7 +57,7 @@ flowchart LR
     EF -->|API key| EXT2
     EF -->|API key| EXT3
     EF --> SMTP
-    MCP["apps/mcp-activities<br/>(service key)"] --> REST
+    MCP["apps/mcp-drive · mcp-activities · mcp-prospeccao<br/>(sessão da pessoa, sob RLS)"] --> REST
 ```
 
 ## Serviços externos
@@ -117,12 +118,17 @@ Crons só-SQL (sem edge function): ativação de versões de employee `0 3 * * *
 **Seed** — `seed-admin` (protegido por `SEED_SECRET_TOKEN` — `index.ts:17`),
 `seed-demo-tenant` (ver ponto de atenção 1).
 
-**MCP** — dois servidores MCP de saída, ambos operando **sob a RLS**: entram com as
+**MCP** — três servidores MCP de saída, todos operando **sob a RLS**: entram com as
 credenciais da própria pessoa usando a chave publicável, então enxergam só o que ela
-enxerga. `apps/mcp-drive` (arquivos e leitura de projeto) e `apps/mcp-activities`
-(kanban de atividades), cada um com sessão em arquivo próprio sob `~/.og-pulse/`,
-0600 — o supabase-js rotaciona o refresh token, e um arquivo compartilhado faria os
-dois processos se derrubarem.
+enxerga. `apps/mcp-drive` (arquivos e leitura de projeto), `apps/mcp-activities`
+(kanban de atividades) e `apps/mcp-prospeccao` (pipeline frio, desde 23/09/2026), cada
+um com sessão em arquivo próprio sob `~/.og-pulse/`, 0600 — o supabase-js rotaciona o
+refresh token, e um arquivo compartilhado faria os processos se derrubarem.
+
+`mcp-prospeccao` não duplica regra: a cadência é do trigger no banco, descartar/reabrir
+vêm de `src/lib/prospecting/transitions.ts` (o mesmo módulo da tela) e rótulos/métricas
+são importados de `src/` pelo alias `@/`, resolvido pelo esbuild. A conversão em
+Oportunidade fica fora do MCP para não abrir uma segunda escrita de `leads` (TD-0022).
 
 `mcp-activities` usava `SUPABASE_SERVICE_KEY` até 02/09, o que bypassava a RLS e com
 ela o `tenant_id`. Regra que fica: **MCP nunca usa service_role.** A RLS é a barreira

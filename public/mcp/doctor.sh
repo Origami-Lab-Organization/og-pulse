@@ -60,7 +60,7 @@ fi
 
 # -------------------------------------------------------------- 3. os servidores
 titulo '3. Servidores baixados'
-for srv in og-pulse-drive og-pulse-activities; do
+for srv in og-pulse-drive og-pulse-activities og-pulse-prospeccao; do
   if [ -f "$DEST/$srv.mjs" ]; then
     BYTES="$(wc -c < "$DEST/$srv.mjs" 2>/dev/null | tr -d ' ')"
     if [ "${BYTES:-0}" -gt 200000 ]; then
@@ -235,7 +235,7 @@ elif [ ! -f "$CFG" ]; then
 else
   CFG_NATIVO="$CFG"
   [ "$WINDOWS" = 1 ] && command -v cygpath >/dev/null 2>&1 && CFG_NATIVO="$(cygpath -w "$CFG")"
-  for srv in og-pulse-drive og-pulse-activities; do
+  for srv in og-pulse-drive og-pulse-activities og-pulse-prospeccao; do
     [ -f "$DEST/$srv.mjs" ] || continue
     N="$(
       printf '%s\n%s\n' \

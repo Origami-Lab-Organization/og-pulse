@@ -10,12 +10,12 @@
  *    pessoa não abre é ruído, e pior, sugere acesso que ela não tem. `requiresCapability`
  *    aqui é sempre igual ao `requireCapability` da rota em `App.tsx`.
  * 2. **Só existe o que existe.** Onde não há ferramenta de MCP, o tópico diz isso em vez de
- *    prometer. As ferramentas listadas foram conferidas em `apps/mcp-drive/src/index.ts` e
- *    `apps/mcp-activities/src/index.ts`.
+ *    prometer. As ferramentas listadas foram conferidas em `apps/mcp-drive/src/index.ts`,
+ *    `apps/mcp-activities/src/index.ts` e `apps/mcp-prospeccao/src/index.ts`.
  */
 import type { CapabilityRequirement } from '@/lib/access/capabilities';
 
-export type McpServer = 'drive' | 'activities';
+export type McpServer = 'drive' | 'activities' | 'prospeccao';
 
 export interface HelpMcp {
   /** Qual servidor atende. `null` quando ainda não há ferramenta para o assunto. */
@@ -123,16 +123,34 @@ export const HELP_GROUPS: HelpGroup[] = [
         what:
           'O pipeline de quem ainda não é oportunidade. Mede atenção conquistada, não receita: não tem valor de negócio nem entra na previsão.',
         how: [
-          'A aba Pipeline mostra o funil em colunas. O card avisa em vermelho quando a próxima atividade já venceu, e o filtro ao lado das abas recorta por empresa, contato, responsável, alavanca e canal.',
-          'Registrar uma atividade custa um clique: a caixa no rodapé do card envia com o canal escolhido, e tanto o texto quanto o anexo são opcionais. O sistema conta o toque e agenda a próxima data pela cadência.',
+          'A aba Pipeline mostra o funil em colunas. O card avisa em vermelho quando a próxima atividade já venceu. A busca ao lado das abas filtra por empresa enquanto você digita, e o botão Filtros recorta por contato, responsável, alavanca e canal.',
+          'Para registrar uma atividade, escreva o que aconteceu na caixa do rodapé do card e clique em Registrar — o botão só habilita com texto. O anexo é opcional. O sistema conta o toque e agenda a próxima data pela cadência.',
           'Esgotada a cadência sem resposta, o contato vai sozinho para "Sem resposta". O card só avança por evento verificável: "Respondeu" entra pelo registro, não pelo arraste.',
           'A empresa é cadastrada uma vez e reaproveitada: a partir do segundo contato dela, os dados vêm preenchidos.',
           'Contato qualificado vira oportunidade pelo botão "Converter em oportunidade", que leva junto a data do 1º toque e faz o tempo de ciclo ser real.',
         ],
         mcp: {
-          server: null,
+          server: 'prospeccao',
+          tools: [
+            'search_companies',
+            'get_company',
+            'create_company',
+            'update_company',
+            'list_contacts',
+            'my_agenda',
+            'get_contact',
+            'create_contact',
+            'update_contact',
+            'register_activity',
+            'move_contact_stage',
+            'discard_contact',
+            'reopen_contact',
+            'get_prospecting_metrics',
+          ],
+          example:
+            'Cadastra a empresa Acme, CNPJ 11.222.333/0001-81, e a Maria Souza como contato dela, diretora de operações. Depois registra que mandei um e-mail de apresentação hoje.',
           note:
-            'Prospecção não passa pelo chat nesta versão. A escrita de Oportunidade já tem duas implementações que divergem em silêncio (tela e MCP); criar a segunda aqui repetiria o problema antes de a primeira estar resolvida.',
+            'Converter em oportunidade, excluir contato, apagar atividade e anexar arquivo continuam só na tela. A cadência e a mudança de etapa por atividade são as mesmas da tela: quem decide é o banco.',
         },
       },
       {

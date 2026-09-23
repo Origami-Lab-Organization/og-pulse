@@ -12,17 +12,17 @@
 #
 # O que este script faz, na ordem:
 #   1. confere o Node;
-#   2. baixa os dois servidores já empacotados, do mesmo site do Pulse;
+#   2. baixa os servidores já empacotados, do mesmo site do Pulse;
 #   3. pergunta seu e-mail e senha do Pulse — digitados, nunca por argumento, porque senha
 #      em linha de comando fica no histórico do shell e vaza em qualquer print de tela;
 #   4. confere as credenciais ANTES de gravar configuração, para o erro aparecer aqui e não
 #      depois, no meio de uma conversa;
-#   5. registra os dois servidores no Claude Code e no Claude Desktop, mesclando o JSON para
+#   5. registra os servidores no Claude Code e no Claude Desktop, mesclando o JSON para
 #      não apagar outros MCPs que você já tenha;
-#   6. testa os dois e diz o que fazer em seguida.
+#   6. testa cada um e diz o que fazer em seguida.
 #
 # O acesso é SEU: os servidores entram com as suas credenciais e obedecem às mesmas regras
-# do banco que a tela obedece. Nenhum dos dois usa chave de serviço, então não existe
+# do banco que a tela obedece. Nenhum deles usa chave de serviço, então não existe
 # atalho por fora do seu perfil.
 set -euo pipefail
 
@@ -112,9 +112,10 @@ chmod 700 "$HOME/.og-pulse"
 
 DRIVE_CLIENTE="$(para_o_cliente "$DEST/og-pulse-drive.mjs")"
 ACTIVITIES_CLIENTE="$(para_o_cliente "$DEST/og-pulse-activities.mjs")"
+PROSPECCAO_CLIENTE="$(para_o_cliente "$DEST/og-pulse-prospeccao.mjs")"
 
 printf '→ Baixando os servidores de %s\n' "$BASE"
-for srv in og-pulse-drive og-pulse-activities; do
+for srv in og-pulse-drive og-pulse-activities og-pulse-prospeccao; do
   curl -fsSL "$BASE/mcp/$srv.mjs" -o "$DEST/$srv.mjs" \
     || falha "não consegui baixar $srv de $BASE. Confira a conexão, ou se o endereço do Pulse está certo."
   # Arquivo pequeno demais é página de erro salva como se fosse o programa.
@@ -202,6 +203,14 @@ registra_claude_code() {
     -e "PULSE_EMAIL=$PULSE_EMAIL" \
     -e "PULSE_PASSWORD=$PULSE_PASSWORD" \
     -- "$NODE_CLIENTE" "$ACTIVITIES_CLIENTE" >/dev/null
+  claude mcp remove og-pulse-prospeccao -s user >/dev/null 2>&1 || true
+  claude mcp remove og-pulse-prospeccao >/dev/null 2>&1 || true
+  claude mcp add -s user og-pulse-prospeccao \
+    -e "SUPABASE_URL=$SUPABASE_URL" \
+    -e "SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY" \
+    -e "PULSE_EMAIL=$PULSE_EMAIL" \
+    -e "PULSE_PASSWORD=$PULSE_PASSWORD" \
+    -- "$NODE_CLIENTE" "$PROSPECCAO_CLIENTE" >/dev/null
   REGISTROU=1
   printf '   ✓ Claude Code — vale em qualquer pasta\n'
 }
@@ -253,7 +262,7 @@ grava_configuracao() {
   # linha de comando o MSYS converte sozinho, variável de ambiente NÃO — por isso o caminho
   # da configuração e os dos servidores vão daqui já traduzidos.
   CFG_PATH="$(para_o_cliente "$cfg")" \
-  DRIVE_PATH="$DRIVE_CLIENTE" ACTIVITIES_PATH="$ACTIVITIES_CLIENTE" NODE_CMD="$NODE_CLIENTE" \
+  DRIVE_PATH="$DRIVE_CLIENTE" ACTIVITIES_PATH="$ACTIVITIES_CLIENTE" PROSPECCAO_PATH="$PROSPECCAO_CLIENTE" NODE_CMD="$NODE_CLIENTE" \
   SUPABASE_URL="$SUPABASE_URL" PUBLISHABLE_KEY="$PUBLISHABLE_KEY" \
   PULSE_EMAIL="$PULSE_EMAIL" PULSE_PASSWORD="$PULSE_PASSWORD" \
   MICROSOFT_CLIENT_ID="$MICROSOFT_CLIENT_ID" MICROSOFT_TENANT_ID="$MICROSOFT_TENANT_ID" node -e '
@@ -283,6 +292,11 @@ grava_configuracao() {
     cfg.mcpServers["og-pulse-activities"] = {
       command: process.env.NODE_CMD,
       args: [process.env.ACTIVITIES_PATH],
+      env: { ...comum },
+    };
+    cfg.mcpServers["og-pulse-prospeccao"] = {
+      command: process.env.NODE_CMD,
+      args: [process.env.PROSPECCAO_PATH],
       env: { ...comum },
     };
     fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n", { mode: 0o600 });
@@ -319,7 +333,7 @@ registra_claude_desktop
 [ "$REGISTROU" = 1 ] || falha "baixei os servidores, mas não encontrei onde registrá-los: nem o comando \`claude\` no PATH, nem a pasta de configuração do Claude Desktop. Instale um dos dois e rode de novo."
 
 printf '\n→ Testando\n'
-for srv in og-pulse-drive og-pulse-activities; do
+for srv in og-pulse-drive og-pulse-activities og-pulse-prospeccao; do
   N="$(
     printf '%s\n%s\n' \
       '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"instalador","version":"1"}}}' \
@@ -364,6 +378,7 @@ $FECHAR Depois experimente pedir:
 
    "Quais projetos eu tenho em andamento?"
    "Como está a sprint atual do projeto <nome>?"
+   "O que tenho de prospecção para fazer hoje?"
 
 Para chegar nos arquivos do projeto, autorize sua conta Microsoft uma vez:
 

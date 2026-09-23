@@ -45,6 +45,7 @@ const ABA_MCP = "mcp";
 const SERVIDOR_LABEL: Record<string, string> = {
   drive: "og-pulse-drive",
   activities: "og-pulse-activities",
+  prospeccao: "og-pulse-prospeccao",
 };
 
 function McpBloco({ topic }: { topic: HelpTopic }) {

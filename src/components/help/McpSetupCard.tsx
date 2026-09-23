@@ -114,7 +114,7 @@ export function McpSetupCard() {
             <p>O instalador faz, nesta ordem:</p>
             <ol className="ml-4 list-decimal space-y-1">
               <li>confere o Node;</li>
-              <li>baixa os dois servidores deste mesmo site;</li>
+              <li>baixa os servidores do Pulse deste mesmo site;</li>
               <li>
                 pergunta seu e-mail e senha do Pulse — digitados, nunca por
                 argumento, porque senha em linha de comando fica no histórico do
@@ -129,7 +129,7 @@ export function McpSetupCard() {
                 registra no Claude Code e no Claude Desktop, mesclando o arquivo
                 para não apagar outros MCPs que você já tenha;
               </li>
-              <li>testa os dois servidores e diz o que fazer em seguida.</li>
+              <li>testa cada servidor e diz o que fazer em seguida.</li>
             </ol>
           </div>
 

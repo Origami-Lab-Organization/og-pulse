@@ -2,6 +2,7 @@ import { tabela } from '@/services/prospectingTables';
 import { createLead } from '@/services/leadService';
 import { getChannelLabel } from '@/lib/interactionChannels';
 import type { ProspectAttachment } from '@/lib/prospectAttachments';
+import { discardUpdate, reopenUpdate } from '@/lib/prospecting/transitions';
 import {
   getLeverLabel,
   PROSPECT_FUNNEL_STAGES,
@@ -80,28 +81,12 @@ export async function updateProspectStage(id: string, stage: ProspectStage): Pro
 }
 
 export async function discardProspect(id: string, reason: string): Promise<void> {
-  const { error } = await tabela('prospects')
-    .update({
-      stage: 'descartado',
-      discard_reason: reason,
-      discarded_at: new Date().toISOString(),
-      closed_at: new Date().toISOString(),
-      next_activity_on: null,
-    })
-    .eq('id', id);
+  const { error } = await tabela('prospects').update(discardUpdate(reason)).eq('id', id);
   if (error) throw error;
 }
 
 export async function reopenProspect(id: string): Promise<void> {
-  const { error } = await tabela('prospects')
-    .update({
-      stage: 'a_abordar',
-      discard_reason: null,
-      discarded_at: null,
-      closed_at: null,
-      next_activity_on: toISODate(new Date()),
-    })
-    .eq('id', id);
+  const { error } = await tabela('prospects').update(reopenUpdate()).eq('id', id);
   if (error) throw error;
 }
 
