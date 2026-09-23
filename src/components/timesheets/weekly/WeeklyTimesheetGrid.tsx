@@ -65,6 +65,47 @@ interface WeeklyTimesheetGridProps {
   onViewMonthChange: (d: Date) => void;
 }
 
+interface CabecalhoRecolhivelProps {
+  titulo: string;
+  quantidade: number;
+  aberto: boolean;
+  onToggle: () => void;
+  /** A seção "Atividades internas". Sem ele, é um centro de custo dentro dela. */
+  principal?: boolean;
+  legenda?: string;
+  controlaId?: string;
+  dataTour?: string;
+}
+
+function CabecalhoRecolhivel(props: CabecalhoRecolhivelProps) {
+  const { titulo, quantidade, aberto, onToggle, principal = false, legenda, controlaId, dataTour } = props;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={aberto}
+      aria-controls={controlaId}
+      data-tour={dataTour}
+      className={cn(
+        'flex w-full items-center justify-between gap-2 rounded-md text-left transition-colors hover:bg-muted/30',
+        principal ? 'py-2' : 'pb-2 pl-6 pt-3'
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {principal && <Layers className="h-4 w-4 text-muted-foreground" />}
+        <span className={principal ? 'ui-h3' : 'text-sm font-semibold text-foreground'}>{titulo}</span>
+        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
+          {quantidade}
+        </span>
+        {legenda && <span className="ui-caption hidden sm:inline">{legenda}</span>}
+      </div>
+      <ChevronRight
+        className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', aberto && 'rotate-90')}
+      />
+    </button>
+  );
+}
+
 function shallowEqualRecord(a: Record<string, number> | undefined, b: Record<string, number>): boolean {
   if (!a) return false;
   const ak = Object.keys(a);
@@ -148,8 +189,10 @@ export function WeeklyTimesheetGrid({
 
   const [realValuesByRow, setRealValuesByRow] = useState<Record<string, Record<string, number>>>({});
   const [saveStatuses, setSaveStatuses] = useState<Record<string, SaveStatusInfo>>({});
-  // Um colapso por centro, não um para tudo: a seção única "Atividades internas" deixou de
-  // existir (PUL-222). Começam fechados, como a seção antiga começava.
+  // Dois níveis de colapso fora de projeto: a seção "Atividades internas" inteira e, dentro
+  // dela, um por centro de custo (PUL-222). A seção começa aberta, para os centros ficarem à
+  // vista; cada centro começa fechado, como a seção antiga começava.
+  const [internasAbertas, setInternasAbertas] = useState(true);
   const [centrosAbertos, setCentrosAbertos] = useState<string[]>([]);
   const alternarCentro = useCallback((chave: string) => {
     setCentrosAbertos((atual) =>
@@ -753,79 +796,83 @@ export function WeeklyTimesheetGrid({
               );
             })}
 
-            {/* Fora de projeto, uma seção por CENTRO DE CUSTO (PUL-222). A seção genérica
-                "Atividades internas" deixou de existir: o destino da hora é o item, e o
-                centro vem do item. A seta colapsa só as linhas ainda vazias — linha com
-                hora lançada na semana fica sempre visível, para a semana bater com o que
-                está gravado. */}
-            {gruposPorCentro.map((grupo) => {
-              const aberto = centrosAbertos.includes(grupo.chave);
-              return (
-                <Fragment key={grupo.chave}>
-                  <button
-                    type="button"
-                    onClick={() => alternarCentro(grupo.chave)}
-                    aria-expanded={aberto}
-                    className="flex w-full items-center justify-between gap-2 rounded-md pb-2 pt-5 text-left transition-colors hover:bg-muted/30"
-                    data-tour="activities-toggle"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Layers className="h-4 w-4 text-muted-foreground" />
-                      <span className="ui-h3">{grupo.titulo}</span>
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-medium text-muted-foreground">
-                        {grupo.itens.length}
-                      </span>
-                    </div>
-                    <ChevronRight
-                      className={cn(
-                        'h-4 w-4 text-muted-foreground transition-transform',
-                        aberto && 'rotate-90'
-                      )}
-                    />
-                  </button>
+            {/* Fora de projeto: a seção "Atividades internas", separada dos projetos, com um
+                grupo por CENTRO DE CUSTO dentro (PUL-222). O destino da hora é o item, e o
+                centro vem do item. Tanto a seção quanto cada centro colapsam só as linhas
+                ainda vazias — linha com hora lançada na semana fica sempre visível, para a
+                semana bater com o que está gravado. */}
+            {gruposPorCentro.length > 0 && (
+              <div className="mt-4 border-t border-border pt-2">
+                <CabecalhoRecolhivel
+                  principal
+                  titulo="Atividades internas"
+                  quantidade={linhasForaDeProjeto.length}
+                  legenda="agrupadas por centro de custo"
+                  aberto={internasAbertas}
+                  onToggle={() => setInternasAbertas((v) => !v)}
+                  controlaId="atividades-internas"
+                  dataTour="activities-toggle"
+                />
 
-                  {grupo.itens.map((at) => {
-                    const rowId = activityRowId(at.id);
-                    const hasData = Object.keys(realValuesByRow[rowId] ?? {}).length > 0;
-                    if (!hasData && !aberto) return null;
-
+                <div id="atividades-internas">
+                  {gruposPorCentro.map((grupo) => {
+                    const aberto = internasAbertas && centrosAbertos.includes(grupo.chave);
                     return (
-                      <WeeklyGridRow
-                        key={`${rowId}:${resetNonce}`}
-                        rowId={rowId}
-                        rowIndex={projects.length + linhasForaDeProjeto.indexOf(at)}
-                        name={at.name}
-                        subtitle={at.description || grupo.titulo}
-                        weekDays={weekDays}
-                        weekdayLabels={WEEKDAY_LABELS}
-                        dateLabels={dateLabels}
-                        gridCols={GRID_COLS}
-                        isOnline={isOnline}
-                        trackSuggestions={false}
-                        entryHours={entryHoursByRow[rowId] ?? {}}
-                        persist={(date, hours) =>
-                          upsertActivity.mutateAsync({
-                            employeeId: employee!.id,
-                            activityTypeId: at.id,
-                            workDate: date,
-                            hours,
-                          })
-                        }
-                        cellMode={(date) => cellModeFor(date, activityLockedByRow[rowId])}
-                        holidayName={holidayName}
-                        overByDate={overByDate}
-                        statusContent={statusBadge(activityRowStatus(at.id))}
-                        onExceedMax={onExceedMax}
-                        onRealValuesChange={handleRealValuesChange}
-                        onSaveStatusChange={handleSaveStatusChange}
-                        registerRef={registerRef}
-                        onArrowNavigate={onArrowNavigate}
-                      />
+                      <Fragment key={grupo.chave}>
+                        {internasAbertas && (
+                          <CabecalhoRecolhivel
+                            titulo={grupo.titulo}
+                            quantidade={grupo.itens.length}
+                            aberto={aberto}
+                            onToggle={() => alternarCentro(grupo.chave)}
+                          />
+                        )}
+
+                        {grupo.itens.map((at) => {
+                          const rowId = activityRowId(at.id);
+                          const hasData = Object.keys(realValuesByRow[rowId] ?? {}).length > 0;
+                          if (!hasData && !aberto) return null;
+
+                          return (
+                            <WeeklyGridRow
+                              key={`${rowId}:${resetNonce}`}
+                              rowId={rowId}
+                              rowIndex={projects.length + linhasForaDeProjeto.indexOf(at)}
+                              name={at.name}
+                              subtitle={at.description || grupo.titulo}
+                              weekDays={weekDays}
+                              weekdayLabels={WEEKDAY_LABELS}
+                              dateLabels={dateLabels}
+                              gridCols={GRID_COLS}
+                              isOnline={isOnline}
+                              trackSuggestions={false}
+                              entryHours={entryHoursByRow[rowId] ?? {}}
+                              persist={(date, hours) =>
+                                upsertActivity.mutateAsync({
+                                  employeeId: employee!.id,
+                                  activityTypeId: at.id,
+                                  workDate: date,
+                                  hours,
+                                })
+                              }
+                              cellMode={(date) => cellModeFor(date, activityLockedByRow[rowId])}
+                              holidayName={holidayName}
+                              overByDate={overByDate}
+                              statusContent={statusBadge(activityRowStatus(at.id))}
+                              onExceedMax={onExceedMax}
+                              onRealValuesChange={handleRealValuesChange}
+                              onSaveStatusChange={handleSaveStatusChange}
+                              registerRef={registerRef}
+                              onArrowNavigate={onArrowNavigate}
+                            />
+                          );
+                        })}
+                      </Fragment>
                     );
                   })}
-                </Fragment>
-              );
-            })}
+                </div>
+              </div>
+            )}
 
             {/* Total / dia */}
             <div
