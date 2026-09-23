@@ -1,4 +1,4 @@
-import { Filter, X } from 'lucide-react';
+import { Filter, Search, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,34 +22,47 @@ interface ProspectFilterButtonProps {
   onChange: (filtro: ProspectFilter) => void;
 }
 
+/**
+ * Busca por empresa sempre aberta + botão com os critérios adicionais.
+ *
+ * Empresa é o corte mais usado, então fica a um toque de tecla, sem abrir nada (23/09/2026).
+ * Ela sai do popover para não existirem dois campos editando o mesmo valor, e por isso o
+ * contador do botão conta só o que está lá dentro — quem digitou na busca já está vendo.
+ */
 export function ProspectFilterButton({ filtro, onChange }: ProspectFilterButtonProps) {
   const { data: diretorio = [] } = useEmployeeDirectory();
   const ativos = countActiveFilters(filtro);
+  const ativosNoPopover = countActiveFilters({ ...filtro, empresa: '' });
 
   const definir = (campo: keyof ProspectFilter) => (valor: string) =>
     onChange({ ...filtro, [campo]: valor === TODOS ? '' : valor });
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="relative w-full sm:w-56">
+        <Search
+          className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <Input
+          type="search"
+          value={filtro.empresa}
+          onChange={(e) => definir('empresa')(e.target.value)}
+          placeholder="Buscar empresa"
+          aria-label="Buscar por nome da empresa"
+          className="h-9 pl-8"
+        />
+      </div>
+
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm">
             <Filter className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
             Filtros
-            {ativos > 0 && <Badge variant="secondary" className="ml-1.5">{ativos}</Badge>}
+            {ativosNoPopover > 0 && <Badge variant="secondary" className="ml-1.5">{ativosNoPopover}</Badge>}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-80 space-y-3" align="start" collisionPadding={8}>
-          <div className="space-y-1">
-            <Label htmlFor="filtro-empresa" className="text-xs text-muted-foreground">Empresa</Label>
-            <Input
-              id="filtro-empresa"
-              value={filtro.empresa}
-              placeholder="Parte do nome"
-              onChange={(e) => definir('empresa')(e.target.value)}
-            />
-          </div>
-
           <div className="space-y-1">
             <Label htmlFor="filtro-contato" className="text-xs text-muted-foreground">Contato</Label>
             <Input
@@ -85,8 +98,8 @@ export function ProspectFilterButton({ filtro, onChange }: ProspectFilterButtonP
             variant="ghost"
             size="sm"
             className="w-full"
-            disabled={ativos === 0}
-            onClick={() => onChange(FILTRO_VAZIO)}
+            disabled={ativosNoPopover === 0}
+            onClick={() => onChange({ ...FILTRO_VAZIO, empresa: filtro.empresa })}
           >
             Limpar filtros
           </Button>
