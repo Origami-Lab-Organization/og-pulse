@@ -106,7 +106,10 @@ export function WeeklyTimesheetGrid({
     startDate,
     endDate
   );
-  const { data: myActivityTypes = [] } = useMyActivityTypes(employee?.id, endDate);
+  const { data: myActivityTypes = [], isError: activityTypesFailed } = useMyActivityTypes(
+    employee?.id,
+    endDate
+  );
   const { data: activityEntries = [] } = useActivityTimesheetsByRange(
     employee?.id,
     startDate,
@@ -319,9 +322,7 @@ export function WeeklyTimesheetGrid({
 
     for (const at of myActivityTypes) {
       const chave = at.costCenterId ?? SEM_CENTRO;
-      const titulo = at.costCenterName
-        ? [at.costCenterCode, at.costCenterName].filter(Boolean).join(' · ')
-        : 'Sem centro de custo';
+      const titulo = at.costCenterName ?? 'Sem centro de custo';
       const grupo = porCentro.get(chave) ?? { titulo, itens: [] };
       grupo.itens.push(at);
       porCentro.set(chave, grupo);
@@ -574,7 +575,8 @@ export function WeeklyTimesheetGrid({
     );
   }
 
-  const emptyState = projects.length === 0 && myActivityTypes.length === 0;
+  // Consulta de atividades com erro não é "sem nada para lançar": a grade abre para mostrar o aviso.
+  const emptyState = projects.length === 0 && myActivityTypes.length === 0 && !activityTypesFailed;
 
   return (
     <Card>
@@ -671,6 +673,19 @@ export function WeeklyTimesheetGrid({
                   As células <span className="italic">tracejadas</span> são{' '}
                   <span className="font-medium">sugestões</span> a partir da sua alocação. Ajuste o que
                   precisar e clique em <span className="font-medium">Enviar semana</span> para lançá-las.
+                </p>
+              </div>
+            )}
+
+            {activityTypesFailed && (
+              <div
+                role="alert"
+                className="mx-1 mt-3 flex items-start gap-2.5 rounded-md border-l-4 border-destructive bg-[hsl(var(--destructive-subtle))] px-3 py-2.5"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--destructive-emphasis))]" />
+                <p className="text-sm text-foreground">
+                  Não foi possível carregar as atividades fora de projeto. Recarregue a página; se
+                  continuar, avise o administrador.
                 </p>
               </div>
             )}
