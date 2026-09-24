@@ -93,7 +93,7 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 | Clientes / Fornecedores | `/clients*`, `/suppliers` | Manager | 241, 249, 257, 265, 273 |
 | Projetos | `/projetos` (Portfolio), `/projects/:id` | Manager / **apenas Protected** | 282, 290, 307, 315, 323 |
 | Análises | `/analises/meu-time`, `/analises/alocacoes*`, `/analises/financeiro`, `/analises/comercial`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 299, 331, 339, 347, 355, 395-397 |
-| Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/pipeline` (Oportunidades — `pipeline:ler`), `/comercial/servicos*`, `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 381, 391, 400, 408, 428, 436, 444 |
+| Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/comercial/empresas` (Empresas da prospecção, situação por conta — `prospeccao:ler`, 24/09/2026), `/pipeline` (Oportunidades — `pipeline:ler`), `/comercial/servicos*` (redirect para `/admin/servicos`), `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 411, 421, 429, 436-437, 451, 459, 467 |
 | Estratégia | `/estrategia` | Manager | 457 |
 | Admin | `/admin`, `/admin-dashboard` | Admin | 143, 427 |
 

@@ -22,6 +22,7 @@ import { ProspectFormDialog } from '@/components/prospeccao/ProspectFormDialog';
 import { ProspectKanbanBoard } from '@/components/prospeccao/ProspectKanbanBoard';
 import { ProspectMetrics } from '@/components/prospeccao/ProspectMetrics';
 import { useProspects } from '@/hooks/useProspects';
+import { contactsInConversationByCompany } from '@/lib/prospecting/companyStatus';
 import {
   applyProspectFilter,
   countActiveFilters,
@@ -59,6 +60,8 @@ export default function Prospeccao() {
     [todos],
   );
   const encerrados = useMemo(() => todos.filter((p) => isProspectClosed(p.stage)), [todos]);
+  // Sobre TODOS os contatos, inclusive convertidos: quem já virou oportunidade ocupa a empresa.
+  const emConversaPorEmpresa = useMemo(() => contactsInConversationByCompany(todos), [todos]);
   const noFunilFiltrado = useMemo(() => applyProspectFilter(noFunil, filtro), [noFunil, filtro]);
   const filtrando = countActiveFilters(filtro) > 0;
 
@@ -107,7 +110,11 @@ export default function Prospeccao() {
           {isLoading ? (
             <Skeleton className="h-96 w-full" />
           ) : (
-            <ProspectKanbanBoard prospects={noFunilFiltrado} onOpen={setSelecionado} />
+            <ProspectKanbanBoard
+              prospects={noFunilFiltrado}
+              emConversaPorEmpresa={emConversaPorEmpresa}
+              onOpen={setSelecionado}
+            />
           )}
         </TabsContent>
 

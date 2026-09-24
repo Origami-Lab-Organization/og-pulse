@@ -117,7 +117,7 @@ Tres coisas que a tornam diferente de todas as outras:
 | `catalogo:ler` — servicos, linhas de servico | sim | sim | sim | sim | SELECT tenant-wide **de proposito** (ADR-0023) |
 | `catalogo:editar` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
 | `cliente:ler` / `cliente:editar` | sim | sim | — | — | rota `requireManager` |
-| `prospeccao:ler` — pipeline frio, empresas, atividades e tarefas | sim | sim | — | — | `has_capability` (migration 20260915100000) |
+| `prospeccao:ler` — pipeline frio, empresas (tela `/comercial/empresas`), atividades e tarefas | sim | sim | — | — | `has_capability` (migration 20260915100000) |
 | `prospeccao:editar` — cadastro, atividade, tarefa, descarte, conversao | sim | sim | — | — | `has_capability` (migration 20260915100000) |
 
 Prospeccao tem capacidade PROPRIA, nao herda `pipeline:*`: o pipeline frio mede atencao

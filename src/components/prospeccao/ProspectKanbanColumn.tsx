@@ -7,6 +7,7 @@ interface ProspectKanbanColumnProps {
   stage: ProspectStage;
   label: string;
   prospects: ProspectWithCompany[];
+  emConversaPorEmpresa: Map<string, ProspectWithCompany[]>;
   onOpen: (prospect: ProspectWithCompany) => void;
 }
 
@@ -14,6 +15,7 @@ export function ProspectKanbanColumn({
   stage,
   label,
   prospects,
+  emConversaPorEmpresa,
   onOpen,
 }: ProspectKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: stage, data: { stage } });
@@ -36,6 +38,7 @@ export function ProspectKanbanColumn({
             key={prospect.id}
             prospect={prospect}
             currentStage={stage}
+            emConversa={emConversaPorEmpresa.get(prospect.company_id)}
             onOpen={onOpen}
           />
         ))}

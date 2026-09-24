@@ -25,10 +25,12 @@ import { RegisterMeetingDialog } from './RegisterMeetingDialog';
 
 interface ProspectKanbanBoardProps {
   prospects: ProspectWithCompany[];
+  /** Empresa → contatos dela em conversa ou além (ver `contactsInConversationByCompany`). */
+  emConversaPorEmpresa: Map<string, ProspectWithCompany[]>;
   onOpen: (prospect: ProspectWithCompany) => void;
 }
 
-export function ProspectKanbanBoard({ prospects, onOpen }: ProspectKanbanBoardProps) {
+export function ProspectKanbanBoard({ prospects, emConversaPorEmpresa, onOpen }: ProspectKanbanBoardProps) {
   const atualizarEtapa = useUpdateProspectStage();
   const [arrastando, setArrastando] = useState<ProspectWithCompany | null>(null);
   const [reuniaoPara, setReuniaoPara] = useState<ProspectWithCompany | null>(null);
@@ -83,6 +85,7 @@ export function ProspectKanbanBoard({ prospects, onOpen }: ProspectKanbanBoardPr
             stage={stage}
             label={PROSPECT_STAGE_META[stage].label}
             prospects={porEtapa.get(stage) ?? []}
+            emConversaPorEmpresa={emConversaPorEmpresa}
             onOpen={onOpen}
           />
         ))}
@@ -99,6 +102,7 @@ export function ProspectKanbanBoard({ prospects, onOpen }: ProspectKanbanBoardPr
           <ProspectKanbanCard
             prospect={arrastando}
             currentStage={arrastando.stage}
+            emConversa={emConversaPorEmpresa.get(arrastando.company_id)}
             onOpen={() => undefined}
             isOverlay
           />

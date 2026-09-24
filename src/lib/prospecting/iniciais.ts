@@ -10,3 +10,10 @@ export function iniciaisDe(nome: string): string {
   if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
   return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
 }
+
+/** "Guilherme Valadares Pereira" → "Guilherme V." */
+export function nomeCurto(nome: string): string {
+  const partes = nome.trim().split(/\s+/);
+  if (partes.length < 2) return nome;
+  return `${partes[0]} ${partes[1][0]}.`;
+}

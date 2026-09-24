@@ -1,11 +1,12 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { CircleAlert, Route, User } from 'lucide-react';
+import { CircleAlert, MessagesSquare, Route, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { cn } from '@/lib/utils';
 import {
   getLeverLabel,
+  getProspectStageLabel,
   isOverdue,
   type ProspectStage,
   type ProspectWithCompany,
@@ -14,6 +15,8 @@ import {
 interface ProspectKanbanCardProps {
   prospect: ProspectWithCompany;
   currentStage: ProspectStage;
+  /** Contatos da MESMA empresa em conversa ou além — pode incluir este próprio card. */
+  emConversa?: ProspectWithCompany[];
   onOpen: (prospect: ProspectWithCompany) => void;
   isOverlay?: boolean;
 }
@@ -28,6 +31,7 @@ interface ProspectKanbanCardProps {
 export function ProspectKanbanCard({
   prospect,
   currentStage,
+  emConversa,
   onOpen,
   isOverlay,
 }: ProspectKanbanCardProps) {
@@ -41,6 +45,7 @@ export function ProspectKanbanCard({
   const atrasado = isOverdue(prospect);
   const alavanca = getLeverLabel(prospect.lever);
   const responsavel = prospect.owner_id ? byId.get(prospect.owner_id)?.nome : null;
+  const outrosEmConversa = (emConversa ?? []).filter((c) => c.id !== prospect.id);
 
   return (
     <Card
@@ -77,6 +82,10 @@ export function ProspectKanbanCard({
             <span className="truncate">{responsavel ?? 'Sem responsável'}</span>
           </span>
 
+          {outrosEmConversa.length > 0 && (
+            <EmpresaEmConversa contatos={outrosEmConversa} nomeDe={(id) => byId.get(id)?.nome} />
+          )}
+
           {atrasado && prospect.next_activity_on && (
             <span className="flex items-center gap-1 text-xs text-destructive">
               <CircleAlert className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -86,6 +95,43 @@ export function ProspectKanbanCard({
         </button>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Outro contato da mesma empresa já respondeu (ou foi além): a conta está em conversa.
+ *
+ * Sinaliza a partir de "Respondeu", não de "Em cadência" (24/09/2026, Guilherme) — cadência
+ * é tentativa; conversa é quando abordar de novo por outro contato atrapalha.
+ */
+function EmpresaEmConversa({
+  contatos,
+  nomeDe,
+}: {
+  contatos: ProspectWithCompany[];
+  nomeDe: (id: string) => string | undefined;
+}) {
+  const [primeiro] = contatos;
+  const detalhe = contatos
+    .map((c) => {
+      const dono = c.owner_id ? nomeDe(c.owner_id) : undefined;
+      return `${c.contact_name} (${getProspectStageLabel(c.stage)}${dono ? `, com ${dono}` : ''})`;
+    })
+    .join('; ');
+  const mais = contatos.length > 1 ? ` +${contatos.length - 1}` : '';
+
+  return (
+    <span
+      title={`Empresa em conversa: ${detalhe}`}
+      className="flex items-center gap-1 rounded-md bg-success-subtle px-1.5 py-1 text-xs font-medium text-success-emphasis"
+    >
+      <MessagesSquare className="h-3 w-3 shrink-0" aria-hidden="true" />
+      <span className="truncate">
+        Empresa em conversa · {primeiro.contact_name}
+        {mais}
+      </span>
+      <span className="sr-only">{detalhe}</span>
+    </span>
   );
 }
 
