@@ -65,7 +65,12 @@ export function ProspectKanbanCard({
           className="w-full space-y-1.5 text-left focus:outline-none"
           onClick={() => onOpen(prospect)}
         >
-          <span className="block truncate text-sm font-medium">{prospect.contact_name}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">{prospect.contact_name}</span>
+            {outrosEmConversa.length > 0 && (
+              <EmpresaEmConversa contatos={outrosEmConversa} nomeDe={(id) => byId.get(id)?.nome} />
+            )}
+          </span>
           <span className="block truncate text-xs text-muted-foreground">
             {prospect.company?.name ?? 'Empresa não informada'}
           </span>
@@ -81,10 +86,6 @@ export function ProspectKanbanCard({
             <User className="h-3 w-3 shrink-0" aria-hidden="true" />
             <span className="truncate">{responsavel ?? 'Sem responsável'}</span>
           </span>
-
-          {outrosEmConversa.length > 0 && (
-            <EmpresaEmConversa contatos={outrosEmConversa} nomeDe={(id) => byId.get(id)?.nome} />
-          )}
 
           {atrasado && prospect.next_activity_on && (
             <span className="flex items-center gap-1 text-xs text-destructive">
@@ -111,26 +112,21 @@ function EmpresaEmConversa({
   contatos: ProspectWithCompany[];
   nomeDe: (id: string) => string | undefined;
 }) {
-  const [primeiro] = contatos;
   const detalhe = contatos
     .map((c) => {
       const dono = c.owner_id ? nomeDe(c.owner_id) : undefined;
       return `${c.contact_name} (${getProspectStageLabel(c.stage)}${dono ? `, com ${dono}` : ''})`;
     })
     .join('; ');
-  const mais = contatos.length > 1 ? ` +${contatos.length - 1}` : '';
 
   return (
     <span
       title={`Empresa em conversa: ${detalhe}`}
-      className="flex items-center gap-1 rounded-md bg-success-subtle px-1.5 py-1 text-xs font-medium text-success-emphasis"
+      className="inline-flex shrink-0 items-center gap-px rounded-md bg-warning-subtle px-1 py-0.5 text-warning-emphasis"
     >
-      <MessagesSquare className="h-3 w-3 shrink-0" aria-hidden="true" />
-      <span className="truncate">
-        Empresa em conversa · {primeiro.contact_name}
-        {mais}
-      </span>
-      <span className="sr-only">{detalhe}</span>
+      <MessagesSquare className="h-3 w-3" aria-hidden="true" />
+      <span className="text-[11px] font-bold leading-none" aria-hidden="true">!</span>
+      <span className="sr-only">Empresa em conversa: {detalhe}</span>
     </span>
   );
 }
