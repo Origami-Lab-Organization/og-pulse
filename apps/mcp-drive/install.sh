@@ -19,17 +19,19 @@ set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-SUPABASE_URL="https://vkriobpmolgopbbpqeky.supabase.co"
+# Ref do Supabase de PRODUCAO (ADR-0026). O antigo, `vkriobpmolgopbbpqeky`, e o legado do
+# Lovable: apontar para la nao da erro — devolve os dados congelados na migracao.
+SUPABASE_URL="https://edryjrgnyfhosejqmeue.supabase.co"
 MICROSOFT_CLIENT_ID="53d51c7c-a706-4c82-ba99-63192a93202f"
 MICROSOFT_TENANT_ID="a3d591d4-0b3e-4a17-9745-b78bcf007f74"
 
-# A chave publicavel (anon) fica aqui de proposito, pelo mesmo motivo dos ids da
+# A chave publicavel fica aqui de proposito, pelo mesmo motivo dos ids da
 # Microsoft: ela ja e embutida no bundle publico do site, entao qualquer pessoa a
 # le abrindo o JavaScript. O controle de acesso e a RLS, nao o sigilo dela.
 #
 # Sem isso o instalador dependeria do .env, que e gitignored — quem clona o repo
 # nao tem o arquivo e cairia num prompt pedindo uma chave que nao sabe o que e.
-DEFAULT_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrcmlvYnBtb2xnb3BiYnBxZWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5NDMzMzksImV4cCI6MjA4NDUxOTMzOX0.z15Rvj4FN9_OtoERF6ptKlaI4zYDkLh-8OvjL2teljk"
+DEFAULT_PUBLISHABLE_KEY="sb_publishable_5UAtDqeWDuJykX4l0gtZoQ_QdS37DcB"
 
 echo "→ Instalando o MCP de arquivos de projeto do Pulse"
 echo

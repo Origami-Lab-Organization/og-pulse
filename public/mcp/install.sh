@@ -33,8 +33,11 @@ DEST="$HOME/.og-pulse/bin"
 # A chave publicável e os ids da Microsoft ficam aqui de propósito: a chave já vai no bundle
 # público do site, então qualquer pessoa a lê abrindo o JavaScript. O controle de acesso é a
 # RLS, não o sigilo dela.
-SUPABASE_URL="https://vkriobpmolgopbbpqeky.supabase.co"
-PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrcmlvYnBtb2xnb3BiYnBxZWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5NDMzMzksImV4cCI6MjA4NDUxOTMzOX0.z15Rvj4FN9_OtoERF6ptKlaI4zYDkLh-8OvjL2teljk"
+# O ref abaixo é o do Supabase de PRODUÇÃO (ADR-0026). O antigo, `vkriobpmolgopbbpqeky`, é o
+# legado do Lovable: apontar para lá não dá erro nenhum — grava um MCP que responde com os
+# dados congelados na migração, e quem pergunta não tem como desconfiar do número.
+SUPABASE_URL="https://edryjrgnyfhosejqmeue.supabase.co"
+PUBLISHABLE_KEY="sb_publishable_5UAtDqeWDuJykX4l0gtZoQ_QdS37DcB"
 MICROSOFT_CLIENT_ID="53d51c7c-a706-4c82-ba99-63192a93202f"
 MICROSOFT_TENANT_ID="a3d591d4-0b3e-4a17-9745-b78bcf007f74"
 

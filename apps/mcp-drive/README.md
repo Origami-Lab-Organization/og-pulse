@@ -80,7 +80,7 @@ Em `claude_desktop_config.json`:
       "command": "node",
       "args": ["/caminho/para/og-pulse/apps/mcp-drive/dist/index.js"],
       "env": {
-        "SUPABASE_URL": "https://vkriobpmolgopbbpqeky.supabase.co",
+        "SUPABASE_URL": "https://edryjrgnyfhosejqmeue.supabase.co",
         "SUPABASE_PUBLISHABLE_KEY": "<a mesma do .env, VITE_SUPABASE_PUBLISHABLE_KEY>",
         "PULSE_EMAIL": "voce@origamilab.com.br",
         "PULSE_PASSWORD": "<sua senha do Pulse>",
