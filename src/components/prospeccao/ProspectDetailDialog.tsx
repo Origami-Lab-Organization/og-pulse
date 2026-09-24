@@ -5,6 +5,7 @@ import {
   Globe,
   Instagram,
   Linkedin,
+  MessagesSquare,
   MoreVertical,
   Pencil,
   Plus,
@@ -36,7 +37,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProspectActivities } from '@/hooks/useProspectActivities';
 import { useProspectTasks } from '@/hooks/useProspectTasks';
 import { useUpdateProspectCompany } from '@/hooks/useProspectCompanies';
-import { useDeleteProspect, useReopenProspect, useUpdateProspect } from '@/hooks/useProspects';
+import { useDeleteProspect, useProspects, useReopenProspect, useUpdateProspect } from '@/hooks/useProspects';
+import { isContactInConversation } from '@/lib/prospecting/companyStatus';
 import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
 import { INTERACTION_CHANNELS, getChannelLabel } from '@/lib/interactionChannels';
 import { iniciaisDe } from '@/lib/prospecting/iniciais';
@@ -188,6 +190,8 @@ export function ProspectDetailDialog({
             aria-label="Informação"
             className="min-h-0 space-y-3 overflow-y-auto border-b bg-muted/20 p-4 md:border-b-0 md:border-r"
           >
+            <AvisoEmpresaEmConversa prospect={prospect} diretorio={diretorio} />
+
             <Indicadores
               atividades={prospect.activity_count}
               respostas={respostas}
@@ -430,6 +434,52 @@ function AcoesDoContato({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/**
+ * Outro contato da mesma empresa já passou da cadência — de "Respondeu" em diante.
+ *
+ * É o mesmo sinal do ícone de balões no card do Kanban, aqui por extenso: quem abre o
+ * contato precisa saber, antes de registrar mais um toque, que a conta já está em conversa
+ * com outra pessoa do time.
+ */
+function AvisoEmpresaEmConversa({
+  prospect,
+  diretorio,
+}: {
+  prospect: ProspectWithCompany;
+  diretorio: Array<{ id: string; nome: string }>;
+}) {
+  const { data: todos = [] } = useProspects();
+  const outros = todos.filter(
+    (c) => c.company_id === prospect.company_id && c.id !== prospect.id && isContactInConversation(c),
+  );
+  if (outros.length === 0) return null;
+
+  const nomeDe = (id: string | null) => diretorio.find((p) => p.id === id)?.nome;
+
+  return (
+    <div role="note" className="flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning-subtle p-3">
+      <MessagesSquare className="mt-0.5 h-4 w-4 shrink-0 text-warning-emphasis" aria-hidden="true" />
+      <div className="min-w-0 space-y-1">
+        <p className="text-sm font-medium text-warning-emphasis">Empresa já em conversa avançada</p>
+        <p className="text-xs text-foreground/80">
+          Outro contato desta empresa já passou da cadência. Alinhe com quem conduz antes de um novo toque.
+        </p>
+        <ul className="space-y-0.5 text-xs text-foreground/80">
+          {outros.map((c) => {
+            const dono = nomeDe(c.owner_id);
+            return (
+              <li key={c.id}>
+                <span className="font-medium">{c.contact_name}</span> · {getProspectStageLabel(c.stage)}
+                {dono ? ` · com ${dono}` : ''}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
   );
 }
 

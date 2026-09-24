@@ -122,10 +122,9 @@ function EmpresaEmConversa({
   return (
     <span
       title={`Empresa em conversa: ${detalhe}`}
-      className="inline-flex shrink-0 items-center gap-px rounded-md bg-warning-subtle px-1 py-0.5 text-warning-emphasis"
+      className="inline-flex shrink-0 items-center rounded-md bg-warning-subtle p-1 text-warning-emphasis"
     >
       <MessagesSquare className="h-3 w-3" aria-hidden="true" />
-      <span className="text-[11px] font-bold leading-none" aria-hidden="true">!</span>
       <span className="sr-only">Empresa em conversa: {detalhe}</span>
     </span>
   );
