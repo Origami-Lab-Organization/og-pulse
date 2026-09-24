@@ -32,7 +32,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProspectActivities } from '@/hooks/useProspectActivities';
+import { useProspectTasks } from '@/hooks/useProspectTasks';
 import { useUpdateProspectCompany } from '@/hooks/useProspectCompanies';
 import { useDeleteProspect, useReopenProspect, useUpdateProspect } from '@/hooks/useProspects';
 import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
@@ -47,7 +49,9 @@ import {
   getLeverLabel,
   getProspectStageLabel,
   isProspectReadOnly,
+  isTaskOverdue,
   PROSPECT_LEVERS,
+  type ProspectActivityWithOwner,
   type ProspectCompanyDB,
   type ProspectWithCompany,
 } from '@/types/prospect';
@@ -56,6 +60,10 @@ import { ProspectAdvanceButton } from './ProspectAdvanceButton';
 import { ProspectStageStepper } from './ProspectStageStepper';
 import { RegisterMeetingDialog } from './RegisterMeetingDialog';
 import { ProspectActivityComposer } from './ProspectActivityComposer';
+import { ProspectTaskComposer } from './ProspectTaskComposer';
+import { ProspectTaskTimeline } from './ProspectTaskTimeline';
+
+type Aba = 'registros' | 'tarefas';
 
 interface ProspectDetailDialogProps {
   prospect: ProspectWithCompany | null;
@@ -218,48 +226,16 @@ export function ProspectDetailDialog({
             )}
           </section>
 
-          <section aria-label="Atividade" className="flex min-h-0 flex-col">
-            <div className="space-y-3 p-4">
-              <ProximoPasso
-                proxima={prospect.next_activity_on}
-                numero={prospect.activity_count + 1}
-                responsavel={responsavel}
-                encerrado={somenteLeitura}
-              />
-
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="flex items-center gap-2 text-sm font-semibold">
-                  Atividades
-                  <Badge variant="secondary">{atividades.length}</Badge>
-                </h3>
-                {!somenteLeitura && (
-                  <ProspectAdvanceButton
-                    prospect={prospect}
-                    onPrompt={() => setReuniaoAberta(true)}
-                    onConvert={() => onConvert(prospect)}
-                    size="sm"
-                  />
-                )}
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-              <ProspectActivityTimeline
-                prospect={prospect}
-                activities={atividades}
-                isLoading={isLoading}
-                podeEditar={!somenteLeitura}
-              />
-            </div>
-
-            {/* Fixa no rodapé, como um compositor: a escrita fica sempre alcançável,
-                mesmo com a linha do tempo longa. */}
-            {!somenteLeitura && (
-              <div className="border-t p-4">
-                <ProspectActivityComposer prospect={prospect} />
-              </div>
-            )}
-          </section>
+          <PainelDeAtividade
+            prospect={prospect}
+            open={open}
+            atividades={atividades}
+            carregandoAtividades={isLoading}
+            responsavel={responsavel}
+            somenteLeitura={somenteLeitura}
+            onPrompt={() => setReuniaoAberta(true)}
+            onConvert={() => onConvert(prospect)}
+          />
         </div>
 
         <RegisterMeetingDialog
@@ -269,6 +245,128 @@ export function ProspectDetailDialog({
         />
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * O lado direito do card: Registros (o que já aconteceu) e Tarefas (o que falta fazer).
+ *
+ * Registros não mostra contagem na aba (24/09/2026, Guilherme) — o total já está nos
+ * indicadores. Tarefas mostra só as não concluídas, que é o que pede ação.
+ */
+function PainelDeAtividade({
+  prospect,
+  open,
+  atividades,
+  carregandoAtividades,
+  responsavel,
+  somenteLeitura,
+  onPrompt,
+  onConvert,
+}: {
+  prospect: ProspectWithCompany;
+  open: boolean;
+  atividades: ProspectActivityWithOwner[];
+  carregandoAtividades: boolean;
+  responsavel: string | null;
+  somenteLeitura: boolean;
+  onPrompt: () => void;
+  onConvert: () => void;
+}) {
+  const { data: tarefas = [], isLoading: carregandoTarefas } = useProspectTasks(prospect.id);
+  const [aba, setAba] = useState<Aba>('registros');
+
+  // Só pelo id: o objeto do contato é recarregado a cada escrita e não pode tirar a
+  // pessoa da aba em que ela está.
+  useEffect(() => {
+    if (open) setAba('registros');
+  }, [open, prospect.id]);
+
+  const pendentes = tarefas.filter((t) => !t.done_at);
+  const tarefasPendentes = pendentes.length;
+  const tarefasVencidas = pendentes.filter((t) => isTaskOverdue(t)).length;
+
+  return (
+    <Tabs
+      value={aba}
+      onValueChange={(v) => setAba(v as Aba)}
+      className="flex min-h-0 flex-col"
+      aria-label="Atividade"
+    >
+      <div className="space-y-3 p-4">
+        <ProximoPasso
+          proxima={prospect.next_activity_on}
+          numero={prospect.activity_count + 1}
+          responsavel={responsavel}
+          encerrado={somenteLeitura}
+        />
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList>
+            <TabsTrigger value="registros">Registros</TabsTrigger>
+            <TabsTrigger value="tarefas" className="gap-2">
+              Tarefas
+              {tarefasPendentes > 0 && (
+                <Badge
+                  variant="secondary"
+                  className={cn(tarefasVencidas > 0 && 'bg-destructive/10 text-destructive')}
+                  aria-label={
+                    tarefasVencidas > 0
+                      ? `${tarefasPendentes} não concluídas, ${tarefasVencidas} vencidas`
+                      : `${tarefasPendentes} não concluídas`
+                  }
+                >
+                  {tarefasPendentes}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+          {!somenteLeitura && (
+            <ProspectAdvanceButton
+              prospect={prospect}
+              onPrompt={onPrompt}
+              onConvert={onConvert}
+              size="sm"
+            />
+          )}
+        </div>
+      </div>
+
+      <TabsContent value="registros" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          <ProspectActivityTimeline
+            prospect={prospect}
+            activities={atividades}
+            isLoading={carregandoAtividades}
+            podeEditar={!somenteLeitura}
+          />
+        </div>
+
+        {/* Fixa no rodapé, como um compositor: a escrita fica sempre alcançável,
+            mesmo com a linha do tempo longa. */}
+        {!somenteLeitura && (
+          <div className="border-t p-4">
+            <ProspectActivityComposer prospect={prospect} />
+          </div>
+        )}
+      </TabsContent>
+
+      <TabsContent value="tarefas" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          <ProspectTaskTimeline
+            tasks={tarefas}
+            isLoading={carregandoTarefas}
+            podeEditar={!somenteLeitura}
+          />
+        </div>
+
+        {!somenteLeitura && (
+          <div className="border-t p-4">
+            <ProspectTaskComposer prospect={prospect} />
+          </div>
+        )}
+      </TabsContent>
+    </Tabs>
   );
 }
 

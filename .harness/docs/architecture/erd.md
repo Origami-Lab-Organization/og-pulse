@@ -14,6 +14,7 @@ sources:
   - supabase/migrations/20260917180000_prospect_activity_attachments.sql
   - supabase/migrations/20260917190000_prospect_lever_closed_list.sql
   - supabase/migrations/20260923120000_prospect_instagram.sql
+  - supabase/migrations/20260924120000_prospect_tasks.sql
   - src/types/prospect.ts
   - src/types/lead.ts
   - src/types/portfolio.ts
@@ -23,6 +24,7 @@ sources:
 # (PROSPECT_NEXT_STAGE, PROSPECT_STAGES_BY_RESPONSE) nao afetam este diagrama.
 # 23/09/2026: instagram_url em prospect_companies e prospects (20260923120000),
 # fora da deduplicacao; conferido contra ProspectCompanyDB/ProspectDB.
+# 24/09/2026: prospect_tasks (20260924120000), conferido contra ProspectTaskDB.
 verified: 2026-09-23
 ---
 
@@ -110,6 +112,8 @@ erDiagram
     clients |o--o{ prospect_companies : "client_id (quando já é cliente)"
     prospect_companies ||--o{ prospects : "company_id"
     prospects ||--o{ prospect_activities : ""
+    prospects ||--o{ prospect_tasks : ""
+    employees ||--o{ prospect_tasks : "owner_id (herdado do contato)"
     employees ||--o{ prospects : "owner_id"
     prospects |o--o| leads : "converted_lead_id / leads.prospect_id"
 
@@ -136,10 +140,21 @@ erDiagram
         bool got_response "base de toda métrica"
         jsonb attachments "[{path,name,size,type}] no bucket prospect-attachments"
     }
+    prospect_tasks {
+        text description "o que precisa ser feito"
+        date due_date "prazo: vencida = pendente com due_date < hoje"
+        uuid owner_id "herdado de prospects.owner_id na criação (trigger)"
+        timestamptz done_at "NULL = pendente"
+    }
 ```
 
 Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000`, `20260917115000`,
-`20260917180000`, `20260917190000` e `20260923120000`.
+`20260917180000`, `20260917190000`, `20260923120000` e `20260924120000`.
+
+`prospect_tasks` (24/09/2026) é a lista **para frente** do contato; `prospect_activities`
+é o registro para trás. As duas são separadas de propósito: tarefa não conta toque, não
+mexe em `activity_count`/`next_activity_on` nem move etapa — nenhum trigger de cadência
+a lê. RLS decide pelo contato pai (`prospeccao:ler` / `:editar`), como nas atividades.
 
 Ao contrário de `leads.crm_stage`, `prospects.stage` **tem CHECK** no banco, e a
 cadência (`ARRAY[3,4,5]`) vive só na função `prospect_activities_advance` — sem

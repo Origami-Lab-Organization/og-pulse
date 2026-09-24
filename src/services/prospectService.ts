@@ -9,6 +9,7 @@ import {
   toISODate,
   type ProspectActivityWithOwner,
   type ProspectStage,
+  type ProspectTaskDB,
   type ProspectWithCompany,
 } from '@/types/prospect';
 
@@ -194,6 +195,59 @@ export async function fetchActivitiesForMetrics(
  */
 export async function deleteActivity(id: string): Promise<void> {
   const { error } = await tabela('prospect_activities').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// --------------------------------------------------------------------------
+// Tarefas
+// --------------------------------------------------------------------------
+
+export interface CreateTaskInput {
+  prospect_id: string;
+  description: string;
+  due_date: string;
+  created_by?: string | null;
+}
+
+/** Tenant e responsável vêm do contato, pelo trigger `prospect_tasks_inherit_parent`. */
+export async function createTask(input: CreateTaskInput): Promise<ProspectTaskDB> {
+  const { data, error } = await tabela('prospect_tasks')
+    .insert({
+      prospect_id: input.prospect_id,
+      description: input.description,
+      due_date: input.due_date,
+      created_by: input.created_by ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ProspectTaskDB;
+}
+
+export interface UpdateTaskInput {
+  id: string;
+  description?: string;
+  due_date?: string;
+  done_at?: string | null;
+  done_by?: string | null;
+}
+
+export async function updateTask({ id, ...updates }: UpdateTaskInput): Promise<void> {
+  const { error } = await tabela('prospect_tasks').update(updates).eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchProspectTasks(prospectId: string): Promise<ProspectTaskDB[]> {
+  const { data, error } = await tabela('prospect_tasks')
+    .select('*')
+    .eq('prospect_id', prospectId)
+    .order('due_date');
+  if (error) throw error;
+  return (data || []) as ProspectTaskDB[];
+}
+
+export async function deleteTask(id: string): Promise<void> {
+  const { error } = await tabela('prospect_tasks').delete().eq('id', id);
   if (error) throw error;
 }
 

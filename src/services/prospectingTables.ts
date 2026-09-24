@@ -10,7 +10,11 @@ import { supabase } from '@/integrations/supabase/client';
  * Um ponto de escape, não trinta: quando os tipos forem regerados, este arquivo some e os
  * services passam a usar `supabase.from(...)` direto, sem mais nenhuma mudança.
  */
-export type TabelaDeProspeccao = 'prospects' | 'prospect_companies' | 'prospect_activities';
+export type TabelaDeProspeccao =
+  | 'prospects'
+  | 'prospect_companies'
+  | 'prospect_activities'
+  | 'prospect_tasks';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver comentário acima
 const clienteSemTipos = supabase as any;

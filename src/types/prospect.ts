@@ -295,6 +295,46 @@ export interface ProspectActivityWithOwner extends ProspectActivityDB {
   owner?: { id: string; nome: string } | null;
 }
 
+/**
+ * Tarefa: o que ainda precisa ser feito com o contato (24/09/2026).
+ *
+ * Não é atividade: não conta toque, não agenda cadência e não move etapa.
+ */
+export interface ProspectTaskDB {
+  id: string;
+  tenant_id: string;
+  prospect_id: string;
+  description: string;
+  due_date: string;
+  /** Herdado do responsável do contato na criação (trigger no banco). */
+  owner_id: string | null;
+  /** `null` = pendente. */
+  done_at: string | null;
+  done_by: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Tarefa vencida: pendente com data de conclusão anterior a hoje. */
+export function isTaskOverdue(
+  task: Pick<ProspectTaskDB, 'due_date' | 'done_at'>,
+  today = new Date(),
+): boolean {
+  return !task.done_at && task.due_date < toISODate(today);
+}
+
+/** Pendentes primeiro, da mais urgente para a mais distante; concluídas no fim. */
+export function sortProspectTasks<T extends Pick<ProspectTaskDB, 'due_date' | 'done_at' | 'created_at'>>(
+  tasks: T[],
+): T[] {
+  return [...tasks].sort((a, b) => {
+    if (!!a.done_at !== !!b.done_at) return a.done_at ? 1 : -1;
+    if (a.done_at && b.done_at) return b.done_at.localeCompare(a.done_at);
+    return a.due_date.localeCompare(b.due_date) || a.created_at.localeCompare(b.created_at);
+  });
+}
+
 // --------------------------------------------------------------------------
 // Helpers puros — todo consumidor deriva daqui, nunca com cópia local
 // --------------------------------------------------------------------------
