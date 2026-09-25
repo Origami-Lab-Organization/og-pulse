@@ -113,6 +113,12 @@ export function TimesheetByEmployee({
     return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
   };
 
+  // Linha fechada para digitação direta — por envio da semana OU porque a pessoa já tinha
+  // saído da equipe. Nos dois casos a correção continua pelo lápis do admin: a hora está
+  // lançada e alguém precisa poder consertá-la.
+  const isRowReadOnly = (project: EmployeeWithProjects['projects'][number]): boolean =>
+    isProjectLocked(project.memberId) || semanaPosteriorASaida(project, weekDays[0].date);
+
   const startEditing = (memberId: string, projectId: string) => {
     const key = `${memberId}__${projectId}`;
     // Initialize edit hours from existing entries
@@ -200,7 +206,7 @@ export function TimesheetByEmployee({
 
         const totalHours = getEmployeeTotalHours(employee.projects);
 
-        const hasActionSlot = employee.projects.some(p => isProjectLocked(p.memberId));
+        const hasActionSlot = employee.projects.some(isRowReadOnly);
 
         return (
           <Card key={employee.employeeId}>
@@ -283,9 +289,8 @@ export function TimesheetByEmployee({
               {/* Project Rows */}
               {employee.projects.map((project) => {
                 const projectLocked = isProjectLocked(project.memberId);
-                // Semana inteira depois da saída: a linha só continua aqui para não sumir com
-                // a hora já lançada, então entra fechada — não é mais projeto desta pessoa.
                 const saiuAntesDaSemana = semanaPosteriorASaida(project, weekDays[0].date);
+                const somenteLeitura = projectLocked || saiuAntesDaSemana;
                 const editKey = `${project.memberId}__${project.projectId}`;
                 const isEditing = editingProjectKey === editKey;
                 
@@ -398,10 +403,10 @@ export function TimesheetByEmployee({
                         weekDays={weekDays}
                         existingEntries={timesheetEntries}
                         holidays={holidays}
-                        isLocked={projectLocked || saiuAntesDaSemana}
+                        isLocked={somenteLeitura}
                         isAdmin={isAdmin}
                         statusSlot={statusDaLinha(projectLocked, saiuAntesDaSemana)}
-                        actionSlot={projectLocked && canEdit && onAdminSaveEdit ? (
+                        actionSlot={somenteLeitura && canEdit && onAdminSaveEdit ? (
                           <Button
                             variant="ghost"
                             size="icon"
