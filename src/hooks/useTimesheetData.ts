@@ -1,8 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfWeek, endOfWeek, eachDayOfInterval, format, addDays, parseISO } from 'date-fns';
+import { SaidaDeEquipe } from '@/lib/saidaDeEquipe';
 
-export interface ProjectMemberWithDetails {
+/**
+ * A saída da equipe é do PAR (projeto, pessoa), não do projeto: na visão do gestor a mesma
+ * linha de projeto traz gente que ficou e gente que saiu.
+ */
+export interface ProjectMemberWithDetails extends SaidaDeEquipe {
   memberId: string;
   employeeId: string;
   employeeName: string;
@@ -10,7 +15,12 @@ export interface ProjectMemberWithDetails {
   role: string;
 }
 
-export interface ProjectWithMembers {
+/**
+ * Na timesheet da própria pessoa cada projeto traz só ela, então a saída da equipe mora no
+ * projeto. Quem decide o que ela ainda pode lançar é `deallocatedAt`, não o flag sozinho —
+ * ver as regras em `@/lib/saidaDeEquipe`.
+ */
+export interface ProjectWithMembers extends SaidaDeEquipe {
   projectId: string;
   projectName: string;
   clientId: string;
@@ -19,16 +29,6 @@ export interface ProjectWithMembers {
   startDate?: string;
   endDate?: string | null;
   isContinuous?: boolean;
-  /**
-   * A pessoa saiu da equipe deste projeto (`project_team_rows.status = 'deallocated'`).
-   * Quem decide o que ela ainda pode lançar é `deallocatedAt`, não este flag sozinho: até
-   * o dia da saída a linha continua aberta, depois trava. Semana posterior à saída e sem
-   * nada lançado não mostra o projeto; com hora gravada mostra, porque apagar da tela o que
-   * ela apontou antes de sair seria pior do que exibir uma linha travada.
-   */
-  isDeallocated?: boolean;
-  /** Dia da saída (yyyy-MM-dd). Até ele a pessoa ainda pode lançar o que trabalhou. */
-  deallocatedAt?: string | null;
 }
 
 export interface TimesheetEntry {
@@ -75,6 +75,55 @@ export interface ActiveProjectsFilterOptions {
   employeeId?: string;
   weekStart?: string;
   weekEnd?: string;
+}
+
+interface LinhaDeSaidaDeEquipe {
+  project_id: string;
+  employee_id: string | null;
+  deallocated_at: string | null;
+}
+
+/** Índice `projeto__pessoa` → dia da saída (yyyy-MM-dd), ou `null` quando não foi registrado. */
+function indexarSaidasPorPar(rows: LinhaDeSaidaDeEquipe[]): Map<string, string | null> {
+  return new Map(
+    rows.map((row) => [
+      `${row.project_id}__${row.employee_id}`,
+      row.deallocated_at ? format(parseISO(row.deallocated_at), 'yyyy-MM-dd') : null,
+    ]),
+  );
+}
+
+/**
+ * Carimba em cada membro se ele já saiu da equipe daquele projeto.
+ *
+ * `project_members` é o modelo antigo (ADR-0006) e nunca soube de saída: uma vez membro, o
+ * projeto aparecia para sempre. A grade da própria pessoa já lê `project_team_rows`; a tela
+ * do gestor não lia, e por isso continuava oferecendo linha de lançamento para quem foi
+ * desalocado. O que fazer com a marca é decisão da tela, que conhece as horas da semana.
+ */
+async function marcarSaidasDeEquipe(projects: ProjectWithMembers[]): Promise<void> {
+  const projectIds = projects.map((p) => p.projectId);
+  if (projectIds.length === 0) return;
+
+  const { data } = await supabase
+    .from('project_team_rows')
+    .select('project_id, employee_id, deallocated_at')
+    .in('project_id', projectIds)
+    .eq('row_type', 'member_status')
+    .eq('status', 'deallocated');
+
+  if (!data?.length) return;
+
+  const saiuEmPorPar = indexarSaidasPorPar(data);
+
+  for (const project of projects) {
+    for (const member of project.members) {
+      const saiuEm = saiuEmPorPar.get(`${project.projectId}__${member.employeeId}`);
+      if (saiuEm === undefined) continue;
+      member.isDeallocated = true;
+      member.deallocatedAt = saiuEm;
+    }
+  }
 }
 
 export const useActiveProjectsWithMembers = (options?: ActiveProjectsFilterOptions) => {
@@ -135,6 +184,8 @@ export const useActiveProjectsWithMembers = (options?: ActiveProjectsFilterOptio
         })),
       }));
 
+      await marcarSaidasDeEquipe(projects);
+
       // Filter by week overlap
       if (options?.weekStart && options?.weekEnd) {
         const weekStartDate = parseISO(options.weekStart);
@@ -188,13 +239,13 @@ export interface EmployeeWithProjects {
   employeeId: string;
   employeeName: string;
   employeePhoto: string | null;
-  projects: {
+  projects: (SaidaDeEquipe & {
     projectId: string;
     projectName: string;
     clientName: string;
     memberId: string;
     role: string;
-  }[];
+  })[];
 }
 
 export const groupByEmployee = (projects: ProjectWithMembers[]): EmployeeWithProjects[] => {
@@ -217,6 +268,8 @@ export const groupByEmployee = (projects: ProjectWithMembers[]): EmployeeWithPro
         clientName: project.clientName,
         memberId: member.memberId,
         role: member.role,
+        isDeallocated: member.isDeallocated,
+        deallocatedAt: member.deallocatedAt,
       });
     });
   });

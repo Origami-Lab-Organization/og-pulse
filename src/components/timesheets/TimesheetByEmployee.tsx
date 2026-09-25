@@ -14,6 +14,7 @@ import { isHoliday } from '@/hooks/useHolidays';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { semanaPosteriorASaida } from '@/lib/saidaDeEquipe';
 import {
   Tooltip,
   TooltipContent,
@@ -31,6 +32,28 @@ interface TimesheetByEmployeeProps {
   canEdit?: boolean;
   onAdminSaveEdit?: (changes: AdminEditChange[], justification: string) => void;
   isSavingEdit?: boolean;
+}
+
+function statusDaLinha(enviado: boolean, saiuDaEquipe: boolean) {
+  if (enviado) {
+    return (
+      <Badge
+        variant="secondary"
+        className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px] py-0"
+      >
+        <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+        Enviado
+      </Badge>
+    );
+  }
+  if (saiuDaEquipe) {
+    return (
+      <Badge variant="secondary" className="text-[10px] py-0">
+        Saiu da equipe
+      </Badge>
+    );
+  }
+  return undefined;
 }
 
 export interface AdminEditChange {
@@ -260,6 +283,9 @@ export function TimesheetByEmployee({
               {/* Project Rows */}
               {employee.projects.map((project) => {
                 const projectLocked = isProjectLocked(project.memberId);
+                // Semana inteira depois da saída: a linha só continua aqui para não sumir com
+                // a hora já lançada, então entra fechada — não é mais projeto desta pessoa.
+                const saiuAntesDaSemana = semanaPosteriorASaida(project, weekDays[0].date);
                 const editKey = `${project.memberId}__${project.projectId}`;
                 const isEditing = editingProjectKey === editKey;
                 
@@ -372,17 +398,9 @@ export function TimesheetByEmployee({
                         weekDays={weekDays}
                         existingEntries={timesheetEntries}
                         holidays={holidays}
-                        isLocked={projectLocked}
+                        isLocked={projectLocked || saiuAntesDaSemana}
                         isAdmin={isAdmin}
-                        statusSlot={projectLocked ? (
-                          <Badge 
-                            variant="secondary" 
-                            className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px] py-0"
-                          >
-                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
-                            Enviado
-                          </Badge>
-                        ) : undefined}
+                        statusSlot={statusDaLinha(projectLocked, saiuAntesDaSemana)}
                         actionSlot={projectLocked && canEdit && onAdminSaveEdit ? (
                           <Button
                             variant="ghost"
