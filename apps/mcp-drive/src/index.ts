@@ -402,7 +402,7 @@ const CAMPOS_OPORTUNIDADE = {
 
 server.tool(
   'create_opportunity',
-  'Cria uma oportunidade no Pipeline comercial, em Prospecção. Use "Oportunidade" e "Pipeline" ao falar disso — nunca "lead", "CRM" ou "funil".',
+  'Cria uma oportunidade no Pipeline comercial, em Prospecção. Oportunidade = negócio com receita em jogo; contato frio, que ainda está sendo abordado, é Prospecção. Para cadastrar um contato frio, use create_contact_with_company (servidor og-pulse-prospeccao). Use "Oportunidade" e "Pipeline" ao falar disso — nunca "lead", "CRM" ou "funil".',
   {
     name: z.string().describe('Nome da oportunidade'),
     ...CAMPOS_OPORTUNIDADE,

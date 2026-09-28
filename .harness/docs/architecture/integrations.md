@@ -127,8 +127,16 @@ refresh token, e um arquivo compartilhado faria os processos se derrubarem.
 
 `mcp-prospeccao` não duplica regra: a cadência é do trigger no banco, descartar/reabrir
 vêm de `src/lib/prospecting/transitions.ts` (o mesmo módulo da tela) e rótulos/métricas
-são importados de `src/` pelo alias `@/`, resolvido pelo esbuild. A conversão em
-Oportunidade fica fora do MCP para não abrir uma segunda escrita de `leads` (TD-0022).
+são importados de `src/` pelo alias `@/`, resolvido pelo esbuild. A situação "Abordar /
+Não abordar" da empresa vem de `src/lib/prospecting/companyStatus.ts` (a mesma regra da
+tela Empresas), e tarefa herda tenant e responsável do contato pelo trigger
+`prospect_tasks_inherit_parent`. A única regra própria do MCP é a de duplicidade no
+cadastro conversacional (`apps/mcp-prospeccao/src/duplicidade.ts`: CNPJ → LinkedIn →
+nome sem contradição), que só lê e escolhe a empresa — o banco segue recusando CNPJ e
+LinkedIn repetidos. O servidor declara `instructions` separando Prospecção (contato frio)
+de Pipeline (Oportunidade), porque sem isso o cliente cadastrava contato frio como
+Oportunidade. A conversão em Oportunidade fica fora do MCP para não abrir uma segunda
+escrita de `leads` (TD-0022).
 
 `mcp-activities` usava `SUPABASE_SERVICE_KEY` até 02/09, o que bypassava a RLS e com
 ela o `tenant_id`. Regra que fica: **MCP nunca usa service_role.** A RLS é a barreira

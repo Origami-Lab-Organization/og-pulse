@@ -31,9 +31,11 @@ import {
 import { isManualStage } from '@/lib/prospecting/transitions';
 import {
   PROSPECT_DISCARD_REASONS,
+  PROSPECT_FUNNEL_STAGES,
   PROSPECT_LEVERS,
   PROSPECT_MANUAL_STAGES,
   PROSPECT_STAGE_META,
+  PROSPECT_TERMINAL_STAGES,
   getLeverLabel,
   getProspectStageLabel,
   isProspectClosed,
@@ -43,9 +45,10 @@ import {
   type ProspectWithCompany,
 } from '@/types/prospect';
 import * as db from './data.js';
+import * as dup from './duplicidade.js';
 import * as fmt from './format.js';
 import { PulseNotAuthenticatedError } from './supabase.js';
-import type { CompanyFields, ContactFields } from './types.js';
+import type { CompanyFields, CompanyMatch, CompanyTarget, ContactFields, TaskListArgs } from './types.js';
 
 // ── Vocabulário fechado, derivado das mesmas constantes da tela ─────────────
 
@@ -64,6 +67,7 @@ const rotuloDasEtapas = (lista: readonly string[]) =>
 
 const uuid = (campo: string) => z.string().uuid(`${campo} deve ser um UUID — use as tools de busca para obtê-lo.`);
 const textoOpcional = (descricao: string) => z.string().max(300).optional().describe(descricao);
+const dataISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD.');
 
 // ── Respostas ────────────────────────────────────────────────────────────────
 
@@ -108,7 +112,18 @@ async function resolverOpcional(responsavel?: string): Promise<string | undefine
 
 // ── Servidor ─────────────────────────────────────────────────────────────────
 
-const server = new McpServer({ name: 'og-pulse-prospeccao', version: '1.0.0' });
+/**
+ * Lido pelo cliente MCP antes de escolher ferramenta. Existe porque, sem ele, pedido de
+ * "cadastrar um contato de prospecção" caía em `create_opportunity` do og-pulse-drive.
+ */
+const INSTRUCOES = [
+  'Prospecção (este servidor) = contato frio: mede atenção conquistada, não receita. Empresas e contatos que ainda estão sendo abordados vivem aqui.',
+  'Pipeline = Oportunidade: negócio com receita em jogo, no servidor og-pulse-drive (create_opportunity). Pedido para cadastrar contato ou empresa de prospecção NUNCA vira Oportunidade.',
+  'Antes de cadastrar, confira duplicidade com check_company_duplicates e list_contacts. Não chute valores: list_prospecting_options traz etapas, canais, alavancas, motivos de descarte e responsáveis válidos.',
+  'Ao falar com a pessoa, use Prospecção, Oportunidade e Pipeline — nunca "lead", "CRM" ou "funil".',
+].join('\n');
+
+const server = new McpServer({ name: 'og-pulse-prospeccao', version: '1.0.0' }, { instructions: INSTRUCOES });
 
 const camposDeEmpresa = {
   cnpj: textoOpcional('CNPJ com ou sem máscara. Evita empresa duplicada.'),
@@ -188,6 +203,87 @@ server.tool(
     exigirCnpjValido(campos.cnpj);
     const empresa = await db.atualizarEmpresa(company_id, campos as CompanyFields);
     return `✅ Empresa atualizada.\n\n${fmt.empresaCompleta(empresa)}`;
+  }),
+);
+
+server.tool(
+  'check_company_duplicates',
+  'Confere se a empresa já está na Prospecção ANTES de cadastrar: por CNPJ, LinkedIn da empresa e nome idêntico (para parte do nome, use search_companies). Diz também se a empresa pode ser abordada agora, pela mesma regra da tela Empresas — basta um contato de "Respondeu" em diante para a conta inteira ficar em "Não abordar".',
+  {
+    nome: z.string().max(160).optional().describe('Nome completo da empresa.'),
+    cnpj: textoOpcional('CNPJ com ou sem máscara.'),
+    linkedin_url: textoOpcional('LinkedIn da empresa.'),
+  },
+  executar(async (busca) => {
+    if (!busca.nome && !busca.cnpj && !busca.linkedin_url) {
+      throw new db.ProspeccaoError('Informe ao menos nome, CNPJ ou LinkedIn da empresa.');
+    }
+    exigirCnpjValido(busca.cnpj);
+    const { fortes, porNome } = await dup.candidatas(busca);
+    const todas = [...fortes, ...porNome];
+    if (todas.length === 0) return 'Nenhuma empresa cadastrada corresponde a esses dados — pode cadastrar sem duplicar.';
+    const linhas = await Promise.all(todas.map(linhaDeCandidata));
+    return [`**${todas.length} empresa(s) já cadastrada(s) com esses dados:**`, '', ...linhas].join('\n');
+  }),
+);
+
+async function linhaDeCandidata({ empresa, criterio }: CompanyMatch): Promise<string> {
+  const { status, contatos } = await dup.situacaoDe(empresa);
+  return `${fmt.empresaResumo(empresa, contatos.length)}\n  Bateu por: ${criterio} · ${fmt.situacao(status)}`;
+}
+
+// ── Opções válidas ───────────────────────────────────────────────────────────
+
+/** Como cada etapa desfecho é alcançada — as do quadro derivam de `isManualStage`. */
+const COMO_SE_ENCERRA: Partial<Record<ProspectStage, string>> = {
+  sem_resposta: 'automático, quando a cadência se esgota sem resposta',
+  descartado: 'discard_contact, com motivo',
+  convertido: 'conversão em Oportunidade, feita na tela',
+};
+
+const comoSeChega = (etapa: ProspectStage) =>
+  isManualStage(etapa) ? 'à mão, com move_contact_stage' : 'só registrando atividade (register_activity)';
+
+function secaoDeEtapas(): string[] {
+  return [
+    '**Etapas do quadro (em ordem):**',
+    ...PROSPECT_FUNNEL_STAGES.map((e) => `- \`${e}\` — ${getProspectStageLabel(e)}: ${comoSeChega(e)}`),
+    '',
+    '**Encerrados (fora do quadro):**',
+    ...PROSPECT_TERMINAL_STAGES.map((e) => `- \`${e}\` — ${getProspectStageLabel(e)}: ${COMO_SE_ENCERRA[e] ?? ''}`),
+  ];
+}
+
+const secaoDeLista = (titulo: string, lista: ReadonlyArray<{ value: string; label: string }>) => [
+  `**${titulo}:**`,
+  ...lista.map((i) => `- \`${i.value}\` — ${i.label}`),
+];
+
+function secaoDePessoas(pessoas: Map<string, string>): string[] {
+  const ordenadas = [...pessoas.entries()].sort(([, a], [, b]) => a.localeCompare(b, 'pt-BR'));
+  return [
+    '**Responsáveis** (aceita "eu", nome ou ID):',
+    ...ordenadas.map(([id, nome]) => `- ${nome} — \`${id}\``),
+  ];
+}
+
+server.tool(
+  'list_prospecting_options',
+  'Valores válidos da Prospecção, com id e rótulo: etapas (e como se chega a cada uma), canais, alavancas, motivos de descarte e responsáveis. Consulte antes de cadastrar ou mover, para nunca chutar valor. Anel e Tier da empresa são texto livre.',
+  {},
+  executar(async () => {
+    const pessoas = await db.nomesDasPessoas();
+    return [
+      ...secaoDeEtapas(),
+      '',
+      ...secaoDeLista('Canais (canal principal e atividade)', INTERACTION_CHANNELS),
+      '',
+      ...secaoDeLista('Alavancas / origem da lista', PROSPECT_LEVERS),
+      '',
+      ...secaoDeLista('Motivos de descarte', PROSPECT_DISCARD_REASONS),
+      '',
+      ...secaoDePessoas(pessoas),
+    ].join('\n');
   }),
 );
 
@@ -276,6 +372,49 @@ server.tool(
     const contato = await db.criarContato(company_id, { ...campos, ...(ownerId ? { owner_id: ownerId } : {}) });
     const pessoas = await db.nomesDasPessoas();
     return `✅ Contato cadastrado.\n\n${fmt.contatoCompleto(contato, pessoas)}`;
+  }),
+);
+
+/** O que aconteceu com a empresa, dito de forma que a pessoa confira sem abrir o Pulse. */
+const ORIGEM_DA_EMPRESA: Record<CompanyTarget['origem'], (a: CompanyTarget) => string> = {
+  informada: (a) => `Empresa: **${a.empresa.name}** — ID: \`${a.empresa.id}\``,
+  reaproveitada: (a) =>
+    `♻️ Empresa já cadastrada, reaproveitada (bateu por ${a.criterio}) — nada foi duplicado: **${a.empresa.name}** — ID: \`${a.empresa.id}\``,
+  criada: (a) => `🆕 Empresa nova cadastrada: **${a.empresa.name}** — ID: \`${a.empresa.id}\``,
+};
+
+server.tool(
+  'create_contact_with_company',
+  'Cadastra um contato FRIO na Prospecção — não é Oportunidade (negócio com receita em jogo vai para o Pipeline, create_opportunity). Verifique duplicidade com check_company_duplicates/list_contacts antes de criar. Aceita company_id de empresa existente OU os dados de uma empresa nova em `empresa`: com empresa nova, reaproveita a já cadastrada com o mesmo CNPJ, LinkedIn ou nome (quando nada os diferencia) em vez de duplicar. Também não duplica contato — mesmo nome ou e-mail na mesma empresa devolve o existente. Entra em "A abordar", com a próxima atividade para hoje, igual à tela.',
+  {
+    company_id: uuid('company_id').optional().describe('Empresa já cadastrada. Não envie junto com `empresa`.'),
+    empresa: z
+      .object({ name: z.string().min(1).max(160).describe('Nome da empresa.'), ...camposDeEmpresa })
+      .optional()
+      .describe('Dados da empresa nova. Não envie junto com company_id.'),
+    contact_name: z.string().min(2).max(160).describe('Nome do contato.'),
+    ...camposDeContato,
+  },
+  executar(async ({ company_id, empresa, responsavel, ...contato }) => {
+    exigirCnpjValido(empresa?.cnpj);
+    // Responsável antes da empresa: nome ambíguo não pode deixar empresa criada sem contato.
+    const ownerId = await resolverOpcional(responsavel);
+    const alvo = await dup.resolverEmpresa(company_id, empresa as (CompanyFields & { name: string }) | undefined);
+    const [{ status, contatos }, pessoas] = await Promise.all([dup.situacaoDe(alvo.empresa), db.nomesDasPessoas()]);
+    const cabecalho = [ORIGEM_DA_EMPRESA[alvo.origem](alvo), ...(contatos.length ? [fmt.situacao(status)] : [])];
+
+    const repetido = dup.contatoRepetido(contatos, contato.contact_name, contato.contact_email);
+    if (repetido) {
+      return [
+        ...cabecalho,
+        '',
+        `⚠️ Contato NÃO criado: ${repetido.contact_name} já está cadastrado nesta empresa. Para mudar dados, use update_contact.`,
+        '',
+        fmt.contatoCompleto(repetido, pessoas),
+      ].join('\n');
+    }
+    const criado = await db.criarContato(alvo.empresa.id, { ...contato, ...(ownerId ? { owner_id: ownerId } : {}) });
+    return ['✅ Contato cadastrado em "A abordar".', ...cabecalho, '', fmt.contatoCompleto(criado, pessoas)].join('\n');
   }),
 );
 
@@ -391,6 +530,91 @@ server.tool(
     }
     await db.reabrir(prospect_id);
     return `✅ ${contato.contact_name} reaberto em "A abordar", com atividade para hoje.`;
+  }),
+);
+
+// ── Tarefas ──────────────────────────────────────────────────────────────────
+//
+// Tarefa é o que ainda precisa ser feito ("mandar material até sexta"). NÃO é atividade:
+// não conta toque, não agenda cadência e não move etapa. Excluir fica na tela.
+
+async function tarefasDeUmContato({ prospect_id, incluir_concluidas }: TaskListArgs): Promise<string> {
+  const [contato, tarefas, pessoas] = await Promise.all([
+    db.buscarContato(prospect_id),
+    db.tarefasDoContato(prospect_id, incluir_concluidas),
+    db.nomesDasPessoas(),
+  ]);
+  if (tarefas.length === 0) return `${contato.contact_name} não tem tarefa${incluir_concluidas ? '' : ' pendente'}.`;
+  return [
+    `**Tarefas de ${contato.contact_name}${contato.company?.name ? ` (${contato.company.name})` : ''} — ${tarefas.length}:**`,
+    '',
+    ...tarefas.map((t) => fmt.tarefa(t, pessoas)),
+  ].join('\n');
+}
+
+async function tarefasDeUmaPessoa({ responsavel, ate, limite }: TaskListArgs): Promise<string> {
+  const [tarefas, pessoas] = await Promise.all([
+    db.tarefasPendentesDe(await db.resolverPessoa(responsavel), ate, limite),
+    db.nomesDasPessoas(),
+  ]);
+  const periodo = ate ? ` com prazo até ${fmt.data(ate)}` : '';
+  if (tarefas.length === 0) return `Nenhuma tarefa pendente${periodo}.`;
+  const contexto = (t: db.TarefaComContato) =>
+    t.prospect ? `${t.prospect.contact_name}${t.prospect.company?.name ? ` · ${t.prospect.company.name}` : ''}` : null;
+  return [
+    `**${tarefas.length} tarefa(s) pendente(s)${periodo}:**`,
+    '',
+    ...tarefas.map((t) => `${fmt.tarefa(t, pessoas, contexto(t))}\n  Contato: \`${t.prospect_id}\``),
+  ].join('\n');
+}
+
+server.tool(
+  'list_prospect_tasks',
+  'Lista tarefas da Prospecção — o que ainda precisa ser feito com um contato. Tarefa NÃO é atividade: não conta toque nem move etapa. Com prospect_id, as tarefas daquele contato; sem, as pendentes de uma pessoa em todos os contatos (padrão: minhas), mais urgentes primeiro.',
+  {
+    prospect_id: uuid('prospect_id').optional(),
+    responsavel: z.string().default('eu').describe('Sem prospect_id: "eu", nome ou UUID. Padrão: eu.'),
+    ate: dataISO.optional().describe('Sem prospect_id: só pendentes com prazo até esta data (AAAA-MM-DD).'),
+    incluir_concluidas: z.boolean().default(false).describe('Com prospect_id: inclui as já concluídas.'),
+    limite: z.number().int().min(1).max(200).default(50),
+  },
+  executar(async (args) => (args.prospect_id ? tarefasDeUmContato(args) : tarefasDeUmaPessoa(args))),
+);
+
+server.tool(
+  'create_prospect_task',
+  'Cria uma tarefa para um contato da Prospecção ("ligar depois da feira", "mandar material até sexta"). Fica com o responsável do contato. NÃO registra toque — para registrar o que já aconteceu, use register_activity.',
+  {
+    prospect_id: uuid('prospect_id'),
+    descricao: z.string().trim().min(1, 'Descreva a tarefa.').max(2000).describe('O que precisa ser feito.'),
+    prazo: dataISO.describe('Data de conclusão (AAAA-MM-DD).'),
+  },
+  executar(async ({ prospect_id, descricao, prazo }) => {
+    const contato = await db.buscarContato(prospect_id);
+    exigirEditavel(contato);
+    const [tarefa, pessoas] = await Promise.all([db.criarTarefa(prospect_id, descricao, prazo), db.nomesDasPessoas()]);
+    return `✅ Tarefa criada para ${contato.contact_name}.\n\n${fmt.tarefa(tarefa, pessoas)}`;
+  }),
+);
+
+server.tool(
+  'update_prospect_task',
+  'Altera uma tarefa da Prospecção: texto, prazo, ou marca como concluída (concluida=true) / pendente de novo (concluida=false). Envie só o que muda.',
+  {
+    task_id: uuid('task_id'),
+    descricao: z.string().trim().min(1, 'Descreva a tarefa.').max(2000).optional(),
+    prazo: dataISO.optional().describe('Nova data de conclusão (AAAA-MM-DD).'),
+    concluida: z.boolean().optional(),
+  },
+  executar(async ({ task_id, ...mudancas }) => {
+    if (Object.values(mudancas).every((v) => v === undefined)) {
+      throw new db.ProspeccaoError('Nada para alterar: envie descricao, prazo ou concluida.');
+    }
+    const antes = await db.buscarTarefa(task_id);
+    const contato = await db.buscarContato(antes.prospect_id);
+    exigirEditavel(contato);
+    const [tarefa, pessoas] = await Promise.all([db.atualizarTarefa(task_id, mudancas), db.nomesDasPessoas()]);
+    return `✅ Tarefa de ${contato.contact_name} atualizada.\n\n${fmt.tarefa(tarefa, pessoas)}`;
   }),
 );
 

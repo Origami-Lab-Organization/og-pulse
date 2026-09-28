@@ -5,11 +5,18 @@
 
 import { getChannelLabel } from '@/lib/interactionChannels';
 import {
+  COMPANY_ACTION_LABEL,
+  COMPANY_STATUS_META,
+  type CompanyProspectStatus,
+} from '@/lib/prospecting/companyStatus';
+import {
   getDiscardReasonLabel,
   getLeverLabel,
   getProspectStageLabel,
+  isTaskOverdue,
   type ProspectActivityDB,
   type ProspectCompanyDB,
+  type ProspectTaskDB,
   type ProspectWithCompany,
 } from '@/types/prospect';
 
@@ -121,4 +128,21 @@ export function atividade(a: ProspectActivityDB): string {
   const relato = a.notes ? `\n  ${a.notes.replace(/\n/g, '\n  ')}` : '';
   const anexos = a.attachments?.length ? `\n  ${a.attachments.length} anexo(s) — veja no Pulse` : '';
   return `- ${cabecalho}${relato}${anexos}`;
+}
+
+/** A mesma leitura da tela Empresas: "posso abordar esta empresa agora?". */
+export function situacao(status: CompanyProspectStatus): string {
+  const meta = COMPANY_STATUS_META[status];
+  return `Situação: ${meta.label} — **${COMPANY_ACTION_LABEL[meta.action]}** (${meta.hint})`;
+}
+
+function estadoDaTarefa(t: ProspectTaskDB): string {
+  if (t.done_at) return `concluída em ${data(t.done_at)} · prazo ${data(t.due_date)}`;
+  if (isTaskOverdue(t)) return `**venceu em ${data(t.due_date)}**`;
+  return `prazo ${data(t.due_date)}`;
+}
+
+export function tarefa(t: ProspectTaskDB, pessoas: Map<string, string>, contexto?: string | null): string {
+  const detalhes = juntar([estadoDaTarefa(t), pessoas.get(t.owner_id ?? ''), contexto]);
+  return `- ${t.done_at ? '☑' : '☐'} ${t.description} — ${detalhes}\n  ID: \`${t.id}\``;
 }

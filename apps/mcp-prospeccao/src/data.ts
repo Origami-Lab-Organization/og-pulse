@@ -13,10 +13,12 @@
 import { discardUpdate, reopenUpdate } from '@/lib/prospecting/transitions';
 import {
   PROSPECT_FUNNEL_STAGES,
+  sortProspectTasks,
   toISODate,
   type ProspectActivityDB,
   type ProspectCompanyDB,
   type ProspectStage,
+  type ProspectTaskDB,
   type ProspectWithCompany,
 } from '@/types/prospect';
 import { currentEmployee, getSupabase } from './supabase.js';
@@ -354,4 +356,150 @@ export async function dadosDeMetricas(desde: string) {
     prospects: (contatos.data ?? []) as unknown as ProspectWithCompany[],
     activities: (atividades.data ?? []) as unknown as ProspectActivityDB[],
   };
+}
+
+// --------------------------------------------------------------------------
+// Duplicidade de empresa
+// --------------------------------------------------------------------------
+
+/** `%` e `_` são curinga no ILIKE: escapados, a comparação vira igualdade sem caixa. */
+function igualSemCaixa(valor: string): string {
+  return valor.trim().replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+/** CNPJ é gravado só com dígitos (`normalizarEmpresa`), e é único por organização. */
+export async function empresaPorCnpj(cnpj: string): Promise<ProspectCompanyDB | null> {
+  const digitos = cnpj.replace(/\D/g, '');
+  if (!digitos) return null;
+  const eu = await currentEmployee();
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('prospect_companies')
+    .select('*')
+    .eq('tenant_id', eu.tenantId)
+    .eq('cnpj', digitos)
+    .maybeSingle();
+  if (error) throw explicar(error);
+  return (data as ProspectCompanyDB) ?? null;
+}
+
+/** Mesma chave do índice único `prospect_companies_tenant_linkedin_key`: `lower(btrim(linkedin_url))`. */
+export async function empresaPorLinkedin(url: string): Promise<ProspectCompanyDB | null> {
+  if (!url.trim()) return null;
+  const eu = await currentEmployee();
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('prospect_companies')
+    .select('*')
+    .eq('tenant_id', eu.tenantId)
+    .ilike('linkedin_url', igualSemCaixa(url))
+    .maybeSingle();
+  if (error) throw explicar(error);
+  return (data as ProspectCompanyDB) ?? null;
+}
+
+/** Nome idêntico, sem diferenciar caixa — a mesma chave de `prospect_companies_tenant_name_idx`. */
+export async function empresasPorNomeExato(nome: string): Promise<ProspectCompanyDB[]> {
+  const eu = await currentEmployee();
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('prospect_companies')
+    .select('*')
+    .eq('tenant_id', eu.tenantId)
+    .ilike('name', igualSemCaixa(nome))
+    .order('created_at');
+  if (error) throw explicar(error);
+  return (data ?? []) as ProspectCompanyDB[];
+}
+
+// --------------------------------------------------------------------------
+// Tarefas
+// --------------------------------------------------------------------------
+//
+// Tarefa NÃO é atividade: não conta toque, não agenda cadência e não move etapa. Tenant e
+// responsável vêm do contato pelo trigger `prospect_tasks_inherit_parent`, como na tela.
+
+const TAREFA_COM_CONTATO =
+  '*, prospect:prospects!prospect_tasks_prospect_id_fkey(contact_name, company:prospect_companies!prospects_company_id_fkey(name))';
+
+export type TarefaComContato = ProspectTaskDB & {
+  prospect?: { contact_name: string; company?: { name: string } | null } | null;
+};
+
+export async function tarefasDoContato(prospectId: string, incluirConcluidas: boolean): Promise<ProspectTaskDB[]> {
+  const supabase = await getSupabase();
+  let query = supabase.from('prospect_tasks').select('*').eq('prospect_id', prospectId);
+  if (!incluirConcluidas) query = query.is('done_at', null);
+  const { data, error } = await query.order('due_date');
+  if (error) throw explicar(error);
+  return sortProspectTasks((data ?? []) as ProspectTaskDB[]);
+}
+
+/** Tarefas pendentes de uma pessoa em todos os contatos, da mais urgente para a mais distante. */
+export async function tarefasPendentesDe(ownerId: string, ate: string | undefined, limite: number): Promise<TarefaComContato[]> {
+  const eu = await currentEmployee();
+  const supabase = await getSupabase();
+  let query = supabase
+    .from('prospect_tasks')
+    .select(TAREFA_COM_CONTATO)
+    .eq('tenant_id', eu.tenantId)
+    .eq('owner_id', ownerId)
+    .is('done_at', null);
+  if (ate) query = query.lte('due_date', ate);
+  const { data, error } = await query.order('due_date').limit(limite);
+  if (error) throw explicar(error);
+  return (data ?? []) as unknown as TarefaComContato[];
+}
+
+export async function buscarTarefa(id: string): Promise<ProspectTaskDB> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.from('prospect_tasks').select('*').eq('id', id).maybeSingle();
+  if (error) throw explicar(error);
+  if (!data) throw new ProspeccaoError('Tarefa não encontrada (ou sem permissão para vê-la).');
+  return data as ProspectTaskDB;
+}
+
+/** Mesma linha que `createTask` da tela: só contato, texto, prazo e autoria. */
+export async function criarTarefa(prospectId: string, descricao: string, prazo: string): Promise<ProspectTaskDB> {
+  const eu = await currentEmployee();
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('prospect_tasks')
+    .insert({ prospect_id: prospectId, description: descricao.trim(), due_date: prazo, created_by: eu.employeeId })
+    .select()
+    .single();
+  if (error) throw explicar(error);
+  return data as ProspectTaskDB;
+}
+
+export interface TaskChanges {
+  descricao?: string;
+  prazo?: string;
+  concluida?: boolean;
+}
+
+/** Concluir grava quando e quem, como o checkbox da tela; reabrir limpa os dois. */
+async function linhaDaTarefa(mudancas: TaskChanges): Promise<Record<string, string | null>> {
+  const linha: Record<string, string | null> = {};
+  if (mudancas.descricao !== undefined) linha.description = mudancas.descricao.trim();
+  if (mudancas.prazo !== undefined) linha.due_date = mudancas.prazo;
+  if (mudancas.concluida !== undefined) {
+    const eu = mudancas.concluida ? await currentEmployee() : null;
+    linha.done_at = eu ? new Date().toISOString() : null;
+    linha.done_by = eu?.employeeId ?? null;
+  }
+  return linha;
+}
+
+export async function atualizarTarefa(id: string, mudancas: TaskChanges): Promise<ProspectTaskDB> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('prospect_tasks')
+    .update(await linhaDaTarefa(mudancas))
+    .eq('id', id)
+    .select()
+    .maybeSingle();
+  if (error) throw explicar(error);
+  if (!data) throw new ProspeccaoError('Tarefa não encontrada (ou sem permissão para editá-la).');
+  return data as ProspectTaskDB;
 }

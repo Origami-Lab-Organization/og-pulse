@@ -43,3 +43,37 @@ export interface ActivityInput {
   gotResponse: boolean;
   activityDate?: string;
 }
+
+/** Por onde uma empresa já cadastrada foi reconhecida. */
+export type CompanyMatchCriterion = 'CNPJ' | 'LinkedIn' | 'nome';
+
+export interface CompanyMatch {
+  empresa: ProspectCompanyDB;
+  criterio: CompanyMatchCriterion;
+}
+
+/** Identificadores fortes (CNPJ, LinkedIn) separados do nome, que não é único. */
+export interface CompanyMatches {
+  fortes: CompanyMatch[];
+  porNome: CompanyMatch[];
+}
+
+export interface CompanyLookup {
+  nome?: string;
+  cnpj?: string;
+  linkedin_url?: string;
+}
+
+export interface CompanyTarget extends Partial<CompanyMatch> {
+  empresa: ProspectCompanyDB;
+  origem: 'informada' | 'reaproveitada' | 'criada';
+}
+
+/** Argumentos de `list_prospect_tasks`, já com os padrões do schema aplicados. */
+export interface TaskListArgs {
+  prospect_id?: string;
+  responsavel: string;
+  ate?: string;
+  incluir_concluidas: boolean;
+  limite: number;
+}
