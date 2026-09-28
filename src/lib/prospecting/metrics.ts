@@ -1,4 +1,4 @@
-import type { ProspectActivityWithOwner, ProspectWithCompany } from '@/types/prospect';
+import type { ProspectActivityDB, ProspectActivityWithOwner, ProspectWithCompany } from '@/types/prospect';
 
 /**
  * O funil de prospecção fria, na definição do documento do time.
@@ -46,6 +46,29 @@ export interface ProspectingFunnel {
   rates: FunnelRate[];
 }
 
+/** As seis etapas do funil, em ordem — rótulo e pergunta de cada uma. */
+export const FUNNEL_STEP_META: ReadonlyArray<Omit<FunnelStep, 'value'>> = [
+  { key: 'contas', label: 'Contas abertas', question: 'O topo do funil está secando?' },
+  { key: 'contatos', label: 'Contatos ativados', question: 'Estou prospectando ou apenas disparando mensagem?' },
+  { key: 'conversas', label: 'Conversas iniciadas', question: 'A lista e a mensagem de abertura estão certas?' },
+  { key: 'agendadas', label: 'Reuniões agendadas', question: 'O esforço da semana virou agenda?' },
+  { key: 'feitas', label: 'Reuniões feitas', question: 'O trabalho virou conversa real com quem pode comprar?' },
+  { key: 'qualificadas', label: 'Oportunidades qualificadas', question: 'A conversa virou negócio de verdade?' },
+];
+
+/** A taxa entre cada par de etapas, na mesma ordem. */
+export const FUNNEL_RATE_LABELS = [
+  'contatos por conta',
+  'taxa de resposta',
+  'taxa de agendamento',
+  'taxa de comparecimento',
+  'taxa de qualificação',
+] as const;
+
+export function funnelSteps(values: readonly number[]): FunnelStep[] {
+  return FUNNEL_STEP_META.map((meta, i) => ({ ...meta, value: values[i] ?? 0 }));
+}
+
 export function calculateProspectingFunnel(
   prospects: ProspectWithCompany[],
   activities: ProspectActivityWithOwner[],
@@ -64,50 +87,13 @@ export function calculateProspectingFunnel(
   const qualificadas = tocados.filter((p) => QUALIFICACAO_ALCANCADA.has(p.stage)).length;
 
   return {
-    steps: [
-      {
-        key: 'contas',
-        label: 'Contas abertas',
-        value: contas,
-        question: 'O topo do funil está secando?',
-      },
-      {
-        key: 'contatos',
-        label: 'Contatos ativados',
-        value: contatos,
-        question: 'Estou prospectando ou apenas disparando mensagem?',
-      },
-      {
-        key: 'conversas',
-        label: 'Conversas iniciadas',
-        value: conversas,
-        question: 'A lista e a mensagem de abertura estão certas?',
-      },
-      {
-        key: 'agendadas',
-        label: 'Reuniões agendadas',
-        value: agendadas,
-        question: 'O esforço da semana virou agenda?',
-      },
-      {
-        key: 'feitas',
-        label: 'Reuniões feitas',
-        value: feitas,
-        question: 'O trabalho virou conversa real com quem pode comprar?',
-      },
-      {
-        key: 'qualificadas',
-        label: 'Oportunidades qualificadas',
-        value: qualificadas,
-        question: 'A conversa virou negócio de verdade?',
-      },
-    ],
+    steps: funnelSteps([contas, contatos, conversas, agendadas, feitas, qualificadas]),
     rates: [
-      { value: formatRatio(contatos, contas), label: 'contatos por conta' },
-      { value: formatRate(taxa(conversas, contatos)), label: 'taxa de resposta' },
-      { value: formatRate(taxa(agendadas, conversas)), label: 'taxa de agendamento' },
-      { value: formatRate(taxa(feitas, agendadas)), label: 'taxa de comparecimento' },
-      { value: formatRate(taxa(qualificadas, feitas)), label: 'taxa de qualificação' },
+      { value: formatRatio(contatos, contas), label: FUNNEL_RATE_LABELS[0] },
+      { value: formatRate(taxa(conversas, contatos)), label: FUNNEL_RATE_LABELS[1] },
+      { value: formatRate(taxa(agendadas, conversas)), label: FUNNEL_RATE_LABELS[2] },
+      { value: formatRate(taxa(feitas, agendadas)), label: FUNNEL_RATE_LABELS[3] },
+      { value: formatRate(taxa(qualificadas, feitas)), label: FUNNEL_RATE_LABELS[4] },
     ],
   };
 }
@@ -135,7 +121,7 @@ export interface AccountCoverage {
  */
 export function calculateAccountCoverage(
   prospects: ProspectWithCompany[],
-  activities: ProspectActivityWithOwner[],
+  activities: ReadonlyArray<Pick<ProspectActivityDB, 'prospect_id'>>,
 ): AccountCoverage {
   const tocadosNoPeriodo = new Set(activities.map((a) => a.prospect_id));
 
@@ -215,7 +201,7 @@ export function formatRate(rate: number | null): string {
   return `${Math.round(rate * 100)}%`;
 }
 
-function formatRatio(parte: number, total: number): string {
+export function formatRatio(parte: number, total: number): string {
   if (total <= 0) return '—';
   return (parte / total).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 }

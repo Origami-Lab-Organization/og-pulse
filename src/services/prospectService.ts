@@ -12,6 +12,7 @@ import {
   type ProspectTaskDB,
   type ProspectWithCompany,
 } from '@/types/prospect';
+import type { ActivityLite, ProspectStageChangeDB } from '@/types/prospectMetrics';
 
 /**
  * Sem embed de `employees`: a policy de co-membro foi removida em PUL-162, então o embed
@@ -173,17 +174,62 @@ export async function fetchProspectActivities(prospectId: string): Promise<Prosp
   return (data || []) as unknown as ProspectActivityWithOwner[];
 }
 
-export async function fetchActivitiesForMetrics(
-  tenantId: string,
-  since: string,
-): Promise<ProspectActivityWithOwner[]> {
-  const { data, error } = await tabela('prospect_activities')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .gte('activity_date', since)
-    .order('activity_date');
-  if (error) throw error;
-  return (data || []) as unknown as ProspectActivityWithOwner[];
+// --------------------------------------------------------------------------
+// Métricas por período
+// --------------------------------------------------------------------------
+
+/** Limite padrão de linhas por resposta do PostgREST. */
+const PAGINA = 1000;
+
+type Pagina = PromiseLike<{ data: unknown[] | null; error: unknown }>;
+
+/**
+ * Lê todas as páginas. As métricas somam meses de atividade, e uma leitura única pararia
+ * em silêncio na milésima linha — o número sairia menor sem erro nenhum.
+ */
+async function todasAsPaginas<T>(pagina: (de: number, ate: number) => Pagina): Promise<T[]> {
+  const linhas: T[] = [];
+  for (let de = 0; ; de += PAGINA) {
+    const { data, error } = await pagina(de, de + PAGINA - 1);
+    if (error) throw error;
+    linhas.push(...((data ?? []) as T[]));
+    if (!data || data.length < PAGINA) return linhas;
+  }
+}
+
+const ATIVIDADE_LEVE = 'prospect_id, activity_date, sequence_no, got_response';
+
+/** Todas as atividades com resposta: a 1ª resposta de um contato pode ser bem antiga. */
+export async function fetchResponseActivities(tenantId: string): Promise<ActivityLite[]> {
+  return todasAsPaginas((de, ate) =>
+    tabela('prospect_activities')
+      .select(ATIVIDADE_LEVE)
+      .eq('tenant_id', tenantId)
+      .eq('got_response', true)
+      .order('id')
+      .range(de, ate),
+  );
+}
+
+export async function fetchActivitiesSince(tenantId: string, since: string): Promise<ActivityLite[]> {
+  return todasAsPaginas((de, ate) =>
+    tabela('prospect_activities')
+      .select(ATIVIDADE_LEVE)
+      .eq('tenant_id', tenantId)
+      .gte('activity_date', since)
+      .order('id')
+      .range(de, ate),
+  );
+}
+
+export async function fetchStageChanges(tenantId: string): Promise<ProspectStageChangeDB[]> {
+  return todasAsPaginas((de, ate) =>
+    tabela('prospect_stage_changes')
+      .select('prospect_id, from_stage, to_stage, discard_reason, occurred_on, source')
+      .eq('tenant_id', tenantId)
+      .order('id')
+      .range(de, ate),
+  );
 }
 
 /**

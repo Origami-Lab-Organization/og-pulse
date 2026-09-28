@@ -7,6 +7,8 @@ interface MetricCardProps {
   subline?: ReactNode;
   className?: string;
   valueClassName?: string;
+  /** Rótulo em até duas linhas, em vez de cortado — para grades estreitas (celular). */
+  wrapLabel?: boolean;
 }
 
 /**
@@ -15,10 +17,10 @@ interface MetricCardProps {
  * caixa alta, número grande em mono, subline opcional. Existe para que outras telas de
  * métricas não precisem copiar essas classNames.
  */
-export function MetricCard({ label, value, subline, className, valueClassName }: MetricCardProps) {
+export function MetricCard({ label, value, subline, className, valueClassName, wrapLabel }: MetricCardProps) {
   return (
     <div className={cn('rounded-xl border bg-card px-[18px] py-3.5 flex flex-col justify-between', className)}>
-      <p className="ui-label truncate text-muted-foreground">{label}</p>
+      <p className={cn('ui-label text-muted-foreground', wrapLabel ? 'line-clamp-2' : 'truncate')}>{label}</p>
       <p
         className={cn(
           'font-mono text-[1.625rem] font-semibold leading-none tabular-nums mt-1 truncate',

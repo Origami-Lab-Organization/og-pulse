@@ -15,7 +15,9 @@ sources:
   - supabase/migrations/20260917190000_prospect_lever_closed_list.sql
   - supabase/migrations/20260923120000_prospect_instagram.sql
   - supabase/migrations/20260924120000_prospect_tasks.sql
+  - supabase/migrations/20260928120000_prospect_stage_changes.sql
   - src/types/prospect.ts
+  - src/types/prospectMetrics.ts
   - src/types/lead.ts
   - src/types/portfolio.ts
 # Conferido contra a fonte em 17/09/2026: ProspectStage = 9 valores (6 do funil +
@@ -25,7 +27,9 @@ sources:
 # 23/09/2026: instagram_url em prospect_companies e prospects (20260923120000),
 # fora da deduplicacao; conferido contra ProspectCompanyDB/ProspectDB.
 # 24/09/2026: prospect_tasks (20260924120000), conferido contra ProspectTaskDB.
-verified: 2026-09-23
+# 28/09/2026: prospect_stage_changes (20260928120000), conferido contra
+# ProspectStageChangeDB e executado com backfill + trigger num Postgres local.
+verified: 2026-09-28
 ---
 
 # ERD — Entidades e Relações
@@ -113,6 +117,7 @@ erDiagram
     prospect_companies ||--o{ prospects : "company_id"
     prospects ||--o{ prospect_activities : ""
     prospects ||--o{ prospect_tasks : ""
+    prospects ||--o{ prospect_stage_changes : "trigger em INSERT e UPDATE OF stage"
     employees ||--o{ prospect_tasks : "owner_id (herdado do contato)"
     employees ||--o{ prospects : "owner_id"
     prospects |o--o| leads : "converted_lead_id / leads.prospect_id"
@@ -140,6 +145,13 @@ erDiagram
         bool got_response "base de toda métrica"
         jsonb attachments "[{path,name,size,type}] no bucket prospect-attachments"
     }
+    prospect_stage_changes {
+        text from_stage "NULL = cadastro ou origem desconhecida"
+        text to_stage ""
+        text discard_reason "só em descartado: o motivo da época"
+        date occurred_on "dia em America/Sao_Paulo"
+        text source "registrado | reconstruido | anterior"
+    }
     prospect_tasks {
         text description "o que precisa ser feito"
         date due_date "prazo: vencida = pendente com due_date < hoje"
@@ -149,7 +161,14 @@ erDiagram
 ```
 
 Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000`, `20260917115000`,
-`20260917180000`, `20260917190000`, `20260923120000` e `20260924120000`.
+`20260917180000`, `20260917190000`, `20260923120000`, `20260924120000` e `20260928120000`.
+
+`prospect_stage_changes` (28/09/2026) é o histórico de etapa, gravado só pelo trigger
+`prospect_stage_changes_record` (SECURITY DEFINER, tenant da própria linha) — sem policy de
+escrita, imutável pela API. É a única fonte da DATA de Reunião agendada, Reunião feita e
+Qualificada. O backfill reconstruiu só o que tinha data real (`reconstruido`); cada contato
+existente ganhou um marco `anterior` com a etapa em que estava, e as métricas tratam as
+etapas até ela como alcançadas em data desconhecida (`src/lib/prospecting/milestones.ts`).
 
 `prospect_tasks` (24/09/2026) é a lista **para frente** do contato; `prospect_activities`
 é o registro para trás. As duas são separadas de propósito: tarefa não conta toque, não

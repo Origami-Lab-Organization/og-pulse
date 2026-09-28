@@ -1,276 +1,245 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { useProspectMetricsActivities } from '@/hooks/useProspectActivities';
+import { CutFlowTable } from '@/components/prospeccao/metrics/CutFlowTable';
+import { CycleTimesCard } from '@/components/prospeccao/metrics/CycleTimesCard';
+import { EvolutionGrid } from '@/components/prospeccao/metrics/EvolutionGrid';
+import { ListHealthSection } from '@/components/prospeccao/metrics/ListHealthSection';
+import { MetricDrillDialog } from '@/components/prospeccao/metrics/MetricDrillDialog';
+import { MetricsFilterBar } from '@/components/prospeccao/metrics/MetricsFilterBar';
+import { PeriodKpis } from '@/components/prospeccao/metrics/PeriodKpis';
+import { ProspectFunnel } from '@/components/prospeccao/metrics/ProspectFunnel';
+import { SafraRatesGrid } from '@/components/prospeccao/metrics/SafraRatesGrid';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
+import { useProspectMetricsData } from '@/hooks/useProspectMetricsData';
+import type { ProspectCut } from '@/lib/prospecting/metrics';
+import { buildMilestones } from '@/lib/prospecting/milestones';
 import {
-  calculateAccountCoverage,
-  calculateProspectingFunnel,
-  formatRate,
-  funnelByCut,
-  type AccountCoverage,
-  type FunnelStep,
-  type ProspectCut,
-} from '@/lib/prospecting/metrics';
-import { cn } from '@/lib/utils';
-import { getLeverLabel, toISODate, type ProspectWithCompany } from '@/types/prospect';
-
-const PERIODOS = [
-  { value: '7', label: 'Últimos 7 dias' },
-  { value: '30', label: 'Últimos 30 dias' },
-  { value: '90', label: 'Últimos 90 dias' },
-];
-
-const CORTES: Array<{ value: ProspectCut; label: string }> = [
-  { value: 'lever', label: 'Alavanca' },
-  { value: 'ring', label: 'Anel' },
-  { value: 'tier', label: 'Tier' },
-  { value: 'owner', label: 'Responsável' },
-];
+  MIN_SAMPLE,
+  buildDataset,
+  cutFlow,
+  cycleTimes,
+  listHealth,
+  metricSeries,
+  metricValues,
+  occurrencesInRange,
+  periodExits,
+  safraFunnel,
+  safraSeries,
+} from '@/lib/prospecting/periodMetrics';
+import { DEFAULT_PERIOD, formatDay, formatRange, resolvePeriod, trendBuckets } from '@/lib/prospecting/periods';
+import { getLeverLabel, type ProspectWithCompany } from '@/types/prospect';
+import type {
+  Bucket,
+  Grain,
+  MetricDefinition,
+  MetricFilter,
+  MetricsDataset,
+  Occurrence,
+  PeriodSelection,
+  ResolvedPeriod,
+} from '@/types/prospectMetrics';
 
 interface ProspectMetricsProps {
   prospects: ProspectWithCompany[];
+  onOpenProspect: (prospect: ProspectWithCompany) => void;
+}
+
+interface Detalhe {
+  title: string;
+  description: string;
+  items: Occurrence[];
 }
 
 /**
- * O funil de prospecção fria — só a parte de prospecção, de contas abertas até
- * oportunidade qualificada.
+ * Métricas da Prospecção por período (28/09/2026) — só a parte de prospecção, de contas
+ * abertas até oportunidade qualificada. Contrato fechado e valor são do Pipeline.
  *
- * Contrato fechado e valor de pipeline não entram: são do comercial, e trazer receita
- * para cá desfaria a separação entre os dois pipelines.
+ * A tela responde três perguntas, em ordem: estou fazendo volume (os números do período e a
+ * evolução), o volume vira resultado (o quadro e a conversão da safra), e onde está travando
+ * (tempo de ciclo, saúde da lista e recorte). As regras moram em `src/lib/prospecting/`.
  */
-export function ProspectMetrics({ prospects }: ProspectMetricsProps) {
-  const [dias, setDias] = useState('30');
-  const [corte, setCorte] = useState<ProspectCut>('lever');
+export function ProspectMetrics(props: ProspectMetricsProps) {
+  const { prospects, onOpenProspect } = props;
+  const [selecao, setSelecao] = useState<PeriodSelection>(DEFAULT_PERIOD);
+  const [filtro, setFiltro] = useState<MetricFilter>({});
+  const [detalhe, setDetalhe] = useState<Detalhe | null>(null);
 
-  const desde = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - Number(dias));
-    return toISODate(d);
-  }, [dias]);
-
-  const { data: atividades = [], isLoading } = useProspectMetricsActivities(desde);
+  const periodo = useMemo(() => resolvePeriod(selecao), [selecao]);
+  const buckets = useMemo(() => trendBuckets(periodo, selecao.grain), [periodo, selecao.grain]);
+  const desde = [buckets[0].from, periodo.previous.from].sort()[0];
+  const dados = useProspectMetricsData(desde);
   const { byId } = useEmployeeDirectoryMap();
 
-  const funil = useMemo(
-    () => calculateProspectingFunnel(prospects, atividades),
-    [prospects, atividades],
+  const marcos = useMemo(
+    () => buildMilestones(prospects, dados.responses, dados.changes),
+    [prospects, dados.responses, dados.changes],
   );
-  const cobertura = useMemo(
-    () => calculateAccountCoverage(prospects, atividades),
-    [prospects, atividades],
+  const { companies, responses, activities, changes } = dados;
+  const fonte = useMemo(
+    () => ({ prospects, companies, responses, activities, changes }),
+    [prospects, companies, responses, activities, changes],
   );
-  const grupos = useMemo(
-    () => funnelByCut(prospects, atividades, corte),
-    [prospects, atividades, corte],
-  );
+  const dataset = useMemo(() => buildDataset(fonte, marcos, filtro), [fonte, marcos, filtro]);
+  const responsaveis = useMemo(() => responsaveisDe(prospects, byId), [prospects, byId]);
+  const nomeDoResponsavel = (id: string) => byId.get(id)?.nome ?? 'Sem responsável';
 
-  if (isLoading) {
-    return <Skeleton className="h-96 w-full" aria-label="Carregando o funil" />;
-  }
+  if (dados.isLoading) return <Skeleton className="h-96 w-full" aria-label="Carregando as métricas" />;
+  if (dados.isError) return <ErroAoCarregar onRetry={dados.refetch} />;
+  if (prospects.length === 0) return <SemContatos />;
 
-  const nomeDoGrupo = (chave: string) => {
-    if (corte === 'owner') return byId.get(chave)?.nome ?? 'Sem responsável';
-    if (corte === 'lever') return getLeverLabel(chave) ?? chave;
-    return chave;
-  };
+  const verColuna = (bucket: Bucket) =>
+    setSelecao({ preset: 'personalizado', grain: selecao.grain, custom: { from: bucket.from, to: bucket.to } });
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <Select value={dias} onValueChange={setDias}>
-          <SelectTrigger className="w-44" aria-label="Período"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {PERIODOS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+    <div className="space-y-6">
+      <MetricsFilterBar
+        selection={selecao}
+        onSelectionChange={setSelecao}
+        period={periodo}
+        filter={filtro}
+        onFilterChange={setFiltro}
+        owners={responsaveis}
+      />
 
-      <CoberturaDeContas cobertura={cobertura} />
+      <Painel
+        dataset={dataset}
+        period={periodo}
+        buckets={buckets}
+        grain={selecao.grain}
+        onSelectBucket={verColuna}
+        onOpenDetail={setDetalhe}
+        ownerName={nomeDoResponsavel}
+      />
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">O funil de prospecção fria</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            De contas abertas até oportunidade qualificada. Fechamento e valor são do Pipeline.
-          </p>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <Funil steps={funil.steps} rates={funil.rates} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
-          <CardTitle className="text-base">Por recorte</CardTitle>
-          <Select value={corte} onValueChange={(v) => setCorte(v as ProspectCut)}>
-            <SelectTrigger className="w-40" aria-label="Recorte"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {CORTES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{CORTES.find((c) => c.value === corte)?.label}</TableHead>
-                <TableHead className="text-right">Contatos</TableHead>
-                <TableHead className="text-right">Conversas</TableHead>
-                <TableHead className="text-right">Agendadas</TableHead>
-                <TableHead className="text-right">Feitas</TableHead>
-                <TableHead className="text-right">Qualificadas</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {grupos.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    Nenhuma atividade no período.
-                  </TableCell>
-                </TableRow>
-              )}
-              {grupos.map((linha) => (
-                <TableRow key={linha.key}>
-                  <TableCell>{nomeDoGrupo(linha.key)}</TableCell>
-                  <TableCell className="text-right">{linha.contatos}</TableCell>
-                  <TableCell className="text-right">{linha.conversas}</TableCell>
-                  <TableCell className="text-right">{linha.agendadas}</TableCell>
-                  <TableCell className="text-right">{linha.feitas}</TableCell>
-                  <TableCell className="text-right font-medium">{linha.qualificadas}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <p className="text-xs text-muted-foreground">
-        Contas e contatos contam quem teve atividade no período. As três últimas etapas leem a
-        etapa atual do contato. O módulo não guarda histórico de mudança de etapa, portanto um
-        contato que avançou antes do período conta aqui se foi tocado dentro dele. O funil é
-        acumulado: quem está em Qualificadas também conta em Agendadas e Feitas.
-      </p>
+      <MetricDrillDialog
+        open={!!detalhe}
+        onOpenChange={(aberto) => !aberto && setDetalhe(null)}
+        title={detalhe?.title ?? ''}
+        description={detalhe?.description ?? ''}
+        items={detalhe?.items ?? []}
+        onOpenProspect={onOpenProspect}
+      />
     </div>
   );
 }
 
-/**
- * Cobertura de contas — fica fora do funil porque responde outra pergunta: não "como
- * converte", e sim "a lista está sendo consumida". Uma lista parada produz um funil de
- * aparência saudável com volume minúsculo, e só este número denuncia isso.
- */
-function CoberturaDeContas({ cobertura }: { cobertura: AccountCoverage }) {
-  const percentual = cobertura.taxa === null ? 0 : Math.round(cobertura.taxa * 100);
+/** Só quem tem contato na Prospecção: o diretório inteiro encheria o filtro de gente que não prospecta. */
+function responsaveisDe(prospects: ProspectWithCompany[], byId: Map<string, { nome: string }>) {
+  const ids = [...new Set(prospects.map((p) => p.owner_id).filter((id): id is string => !!id))];
+  return ids
+    .map((id) => ({ id, nome: byId.get(id)?.nome ?? 'Sem nome' }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+interface PainelProps {
+  dataset: MetricsDataset;
+  period: ResolvedPeriod;
+  buckets: Bucket[];
+  grain: Grain;
+  onSelectBucket: (bucket: Bucket) => void;
+  onOpenDetail: (detalhe: Detalhe) => void;
+  ownerName: (id: string) => string;
+}
+
+function Painel(props: PainelProps) {
+  const { dataset, period, buckets, grain, onSelectBucket, onOpenDetail, ownerName } = props;
+  const [corte, setCorte] = useState<ProspectCut>('lever');
+
+  const valores = useMemo(() => metricValues(dataset, period), [dataset, period]);
+  const serie = useMemo(() => metricSeries(dataset, buckets, grain), [dataset, buckets, grain]);
+  const funil = useMemo(() => safraFunnel(dataset, period), [dataset, period]);
+  const safras = useMemo(() => safraSeries(dataset, trendBuckets(period, 'mes')), [dataset, period]);
+  const ciclos = useMemo(() => cycleTimes(dataset, period), [dataset, period]);
+  const saidas = useMemo(() => periodExits(dataset, period), [dataset, period]);
+  const saude = useMemo(() => listHealth(dataset, period), [dataset, period]);
+  const linhasDoCorte = useMemo(() => cutFlow(dataset, period, corte), [dataset, period, corte]);
+
+  const abrirMetrica = (def: MetricDefinition) =>
+    onOpenDetail({
+      title: def.label,
+      description: `${formatRange(period.elapsed)} · ${def.question}`,
+      items: occurrencesInRange(def, dataset, period.elapsed),
+    });
+  const abrirVencidos = () =>
+    onOpenDetail({
+      title: 'Atividade vencida',
+      description: 'Contatos do quadro com a próxima atividade antes de hoje, os mais atrasados primeiro.',
+      items: saude.overdue.map((p) => ({ date: p.next_activity_on ?? '', prospect: p })),
+    });
+  const nomeDoGrupo = (chave: string) => NOMES_DO_CORTE[corte](chave, ownerName);
 
   return (
+    <>
+      <PeriodKpis
+        values={valores}
+        comparisonLabel={period.comparisonLabel}
+        historyStart={dataset.historyStart}
+        onOpen={abrirMetrica}
+      />
+
+      <EvolutionGrid series={serie} grain={grain} historyStart={dataset.historyStart} onSelectBucket={onSelectBucket} />
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader className="space-y-1 pb-2">
+            <CardTitle className="text-base">Para onde foram os ativados no período</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Contatos com 1º toque em {formatRange(period.elapsed)} e até onde chegaram até hoje. As taxas dividem por
+              contato; com menos de {MIN_SAMPLE} na base, aparecem como —.
+            </p>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ProspectFunnel steps={funil.steps} rates={funil.rates} />
+          </CardContent>
+        </Card>
+        <SafraRatesGrid points={safras} />
+      </div>
+
+      <CycleTimesCard cycles={ciclos} />
+
+      <ListHealthSection health={saude} exits={saidas} onOpenOverdue={abrirVencidos} />
+
+      <CutFlowTable rows={linhasDoCorte} cut={corte} onCutChange={setCorte} groupName={nomeDoGrupo} />
+
+      <p className="text-xs text-muted-foreground">
+        Cada número conta um marco: a primeira vez que o contato chega à etapa ou a uma adiante — quem pula de
+        Respondeu para Reunião feita conta também em Agendada. Conversa é a 1ª atividade com resposta; contas abertas
+        e contatos ativados, o 1º toque.
+        {dataset.historyStart &&
+          ` Reuniões e qualificações têm data desde ${formatDay(dataset.historyStart)}; quem já estava nessas etapas antes conta na conversão da safra, mas em período nenhum.`}
+      </p>
+    </>
+  );
+}
+
+const NOMES_DO_CORTE: Record<ProspectCut, (chave: string, responsavel: (id: string) => string) => string> = {
+  owner: (chave, responsavel) => responsavel(chave),
+  lever: (chave) => getLeverLabel(chave) ?? chave,
+  ring: (chave) => chave,
+  tier: (chave) => chave,
+};
+
+function ErroAoCarregar({ onRetry }: { onRetry: () => void }) {
+  return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Cobertura de contas</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Quanto da lista a abordar virou conta aberta no período.
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <p className="text-3xl font-semibold leading-none">{formatRate(cobertura.taxa)}</p>
-          <p className="text-sm text-muted-foreground">
-            {cobertura.abertas} de {cobertura.naLista}{' '}
-            {cobertura.naLista === 1 ? 'conta' : 'contas'} da lista
-          </p>
-        </div>
-
-        <Progress
-          value={percentual}
-          aria-label={`Cobertura de contas: ${formatRate(cobertura.taxa)}`}
-        />
-
-        {cobertura.nuncaAbordadas > 0 && (
-          <p className="text-sm">
-            <strong>{cobertura.nuncaAbordadas}</strong>{' '}
-            <span className="text-muted-foreground">
-              {cobertura.nuncaAbordadas === 1
-                ? 'conta nunca foi abordada. Nenhum contato dela chegou a ter atividade registrada.'
-                : 'contas nunca foram abordadas. Nenhum contato delas chegou a ter atividade registrada.'}
-            </span>
-          </p>
-        )}
+      <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+        <AlertCircle className="h-6 w-6 text-destructive" aria-hidden="true" />
+        <p className="text-sm">Não foi possível carregar as métricas.</p>
+        <Button variant="outline" size="sm" onClick={onRetry}>Tentar de novo</Button>
       </CardContent>
     </Card>
   );
 }
 
-/**
- * O funil desenhado: cada etapa mais estreita que a anterior, e entre elas a taxa de
- * conversão. A largura decrescente é o que faz a perda ser vista antes de ser lida.
- */
-function Funil({
-  steps,
-  rates,
-}: {
-  steps: FunnelStep[];
-  rates: Array<{ value: string; label: string }>;
-}) {
+function SemContatos() {
   return (
-    <ol className="space-y-0">
-      {steps.map((step, indice) => (
-        <li key={step.key}>
-          <div className="flex items-center gap-4">
-            <div className="flex flex-1 justify-center">
-              <div
-                title={step.question}
-                style={{ width: `${100 - indice * 8}%` }}
-                className={cn(
-                  'rounded-lg border px-4 py-3 text-center',
-                  indice === steps.length - 1
-                    ? 'border-transparent bg-primary text-primary-foreground'
-                    : 'bg-card',
-                )}
-              >
-                <p className="text-2xl font-semibold leading-none">{step.value}</p>
-                <p
-                  className={cn(
-                    'mt-1 text-xs',
-                    indice === steps.length - 1
-                      ? 'text-primary-foreground/80'
-                      : 'text-muted-foreground',
-                  )}
-                >
-                  {step.label}
-                </p>
-              </div>
-            </div>
-            <div className="hidden w-44 shrink-0 sm:block" aria-hidden="true" />
-          </div>
-
-          {indice < rates.length && (
-            <div className="flex items-center gap-4">
-              <div className="flex flex-1 items-center justify-center gap-2 py-2">
-                <ArrowDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                <span className="text-xs sm:hidden">
-                  <strong className="text-primary">{rates[indice].value}</strong>{' '}
-                  <span className="text-muted-foreground">{rates[indice].label}</span>
-                </span>
-              </div>
-              <p className="hidden w-44 shrink-0 text-sm sm:block">
-                <strong className="text-primary">{rates[indice].value}</strong>{' '}
-                <span className="text-muted-foreground">{rates[indice].label}</span>
-              </p>
-            </div>
-          )}
-        </li>
-      ))}
-    </ol>
+    <Card>
+      <CardContent className="py-12 text-center text-sm text-muted-foreground">
+        Cadastre contatos na Prospecção para acompanhar as métricas.
+      </CardContent>
+    </Card>
   );
 }

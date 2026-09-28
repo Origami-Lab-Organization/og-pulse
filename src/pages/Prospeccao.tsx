@@ -127,7 +127,7 @@ export default function Prospeccao() {
         </TabsContent>
 
         <TabsContent value="metricas">
-          <ProspectMetrics prospects={todos} />
+          <ProspectMetrics prospects={todos} onOpenProspect={setSelecionado} />
         </TabsContent>
       </Tabs>
 

@@ -5,7 +5,6 @@ import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import {
   deleteActivity,
   updateActivity,
-  fetchActivitiesForMetrics,
   fetchProspectActivities,
   registerActivity,
   type RegisterActivityInput,
@@ -19,15 +18,6 @@ export function useProspectActivities(prospectId: string | null) {
     queryKey: ['prospect-activities', prospectId],
     queryFn: () => fetchProspectActivities(prospectId!),
     enabled: !!prospectId && !!employee?.tenant_id,
-  });
-}
-
-export function useProspectMetricsActivities(since: string) {
-  const { employee } = useAuth();
-  return useQuery<ProspectActivityWithOwner[]>({
-    queryKey: ['prospect-activities-metrics', employee?.tenant_id, since],
-    queryFn: () => fetchActivitiesForMetrics(employee!.tenant_id, since),
-    enabled: !!employee?.tenant_id,
   });
 }
 
