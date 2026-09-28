@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getEmployeeDirectoryMap } from '@/services/employeeDirectoryService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { garantirVinculoPorAlocacao } from '@/services/projectMembershipService';
 import { addMonths, format, parseISO } from 'date-fns';
 
 export interface MyProjectDetail {
@@ -65,6 +66,20 @@ export interface MyProjectDetail {
   totalHoursActual: number;
 }
 
+/** Vínculo recém-materializado a partir da alocação, ou null quando não há alocação. */
+async function vinculoMaterializado(projectId: string, employeeId: string) {
+  const memberId = await garantirVinculoPorAlocacao(projectId, employeeId);
+  if (!memberId) return null;
+
+  const { data } = await supabase
+    .from('project_members')
+    .select('id, role, hours_per_month')
+    .eq('id', memberId)
+    .maybeSingle();
+
+  return data;
+}
+
 export const useMyProjectDetail = (projectId: string | undefined) => {
   const { employee } = useAuth();
   const employeeId = employee?.id;
@@ -98,7 +113,12 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
       ]);
 
       if (membershipResult.error) throw membershipResult.error;
-      if (!membershipResult.data) return null; // employee não é membro
+
+      // Sem linha em project_members ainda não quer dizer "não é do projeto": quem foi
+      // alocado pelo modelo novo (ADR-0006) nunca ganhou uma. Sem alocação, volta null.
+      const myMembership = membershipResult.data
+        ?? (await vinculoMaterializado(projectId, employeeId));
+      if (!myMembership) return null;
 
       if (projectResult.error) throw projectResult.error;
       const project = projectResult.data as any;
@@ -211,7 +231,6 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
           hoursPerMonth: membership.hours_per_month ?? 0,
         }));
 
-      const myMembership = membershipResult.data as any;
       const client = project.clients as any;
       const managerEntry = project.manager_id ? directory.get(project.manager_id) : undefined;
       const manager = { nome: managerEntry?.nome ?? '', cargo: managerEntry?.cargo ?? '' };

@@ -14,6 +14,7 @@ import { isHoliday } from '@/hooks/useHolidays';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { semanaPosteriorASaida } from '@/lib/saidaDeEquipe';
 import {
   Tooltip,
   TooltipContent,
@@ -31,6 +32,28 @@ interface TimesheetByEmployeeProps {
   canEdit?: boolean;
   onAdminSaveEdit?: (changes: AdminEditChange[], justification: string) => void;
   isSavingEdit?: boolean;
+}
+
+function statusDaLinha(enviado: boolean, saiuDaEquipe: boolean) {
+  if (enviado) {
+    return (
+      <Badge
+        variant="secondary"
+        className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px] py-0"
+      >
+        <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+        Enviado
+      </Badge>
+    );
+  }
+  if (saiuDaEquipe) {
+    return (
+      <Badge variant="secondary" className="text-[10px] py-0">
+        Saiu da equipe
+      </Badge>
+    );
+  }
+  return undefined;
 }
 
 export interface AdminEditChange {
@@ -89,6 +112,12 @@ export function TimesheetByEmployee({
     const memberEntries = timesheetEntries.filter(e => e.projectMemberId === memberId);
     return memberEntries.length > 0 && memberEntries.every(e => e.isLocked);
   };
+
+  // Linha fechada para digitação direta — por envio da semana OU porque a pessoa já tinha
+  // saído da equipe. Nos dois casos a correção continua pelo lápis do admin: a hora está
+  // lançada e alguém precisa poder consertá-la.
+  const isRowReadOnly = (project: EmployeeWithProjects['projects'][number]): boolean =>
+    isProjectLocked(project.memberId) || semanaPosteriorASaida(project, weekDays[0].date);
 
   const startEditing = (memberId: string, projectId: string) => {
     const key = `${memberId}__${projectId}`;
@@ -177,7 +206,7 @@ export function TimesheetByEmployee({
 
         const totalHours = getEmployeeTotalHours(employee.projects);
 
-        const hasActionSlot = employee.projects.some(p => isProjectLocked(p.memberId));
+        const hasActionSlot = employee.projects.some(isRowReadOnly);
 
         return (
           <Card key={employee.employeeId}>
@@ -260,6 +289,8 @@ export function TimesheetByEmployee({
               {/* Project Rows */}
               {employee.projects.map((project) => {
                 const projectLocked = isProjectLocked(project.memberId);
+                const saiuAntesDaSemana = semanaPosteriorASaida(project, weekDays[0].date);
+                const somenteLeitura = projectLocked || saiuAntesDaSemana;
                 const editKey = `${project.memberId}__${project.projectId}`;
                 const isEditing = editingProjectKey === editKey;
                 
@@ -372,18 +403,10 @@ export function TimesheetByEmployee({
                         weekDays={weekDays}
                         existingEntries={timesheetEntries}
                         holidays={holidays}
-                        isLocked={projectLocked}
+                        isLocked={somenteLeitura}
                         isAdmin={isAdmin}
-                        statusSlot={projectLocked ? (
-                          <Badge 
-                            variant="secondary" 
-                            className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px] py-0"
-                          >
-                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
-                            Enviado
-                          </Badge>
-                        ) : undefined}
-                        actionSlot={projectLocked && canEdit && onAdminSaveEdit ? (
+                        statusSlot={statusDaLinha(projectLocked, saiuAntesDaSemana)}
+                        actionSlot={somenteLeitura && canEdit && onAdminSaveEdit ? (
                           <Button
                             variant="ghost"
                             size="icon"

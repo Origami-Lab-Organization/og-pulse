@@ -2,6 +2,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getEmployeeDirectoryMap } from '@/services/employeeDirectoryService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  garantirVinculoPorAlocacao,
+  projetosComAlocacao,
+} from '@/services/projectMembershipService';
 
 export interface MyProjectSummary {
   id: string;
@@ -26,6 +30,44 @@ export interface MyProjectSummary {
   assignedActivitiesCount: number;
 }
 
+async function buscarMemberships(employeeId: string) {
+  const { data, error } = await supabase
+    .from('project_members')
+    .select(`
+      id,
+      role,
+      hours_per_month,
+      project_id,
+      projects!inner (
+        id, name, description, start_date, end_date, is_continuous,
+        duration_months, status, portfolio_stage, service_line,
+        clients!inner (company_name, trading_name),
+        manager_id
+      )
+    `)
+    .eq('employee_id', employeeId)
+    .not('projects.portfolio_stage', 'in', '("completed")');
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+type MembershipRow = Awaited<ReturnType<typeof buscarMemberships>>[number];
+
+/**
+ * Projeto alocado pelo modelo novo (ADR-0006) pode não ter linha em project_members, e esta
+ * lista pendura nela: quem estava alocado simplesmente não via o projeto — e, sem ele na
+ * lista, também não chegava às atividades. Materializa o que falta antes de montar a tela.
+ */
+async function comProjetosSoAlocados(employeeId: string, memberships: MembershipRow[]) {
+  const jaVinculados = new Set(memberships.map((m) => m.project_id));
+  const faltando = (await projetosComAlocacao(employeeId)).filter((id) => !jaVinculados.has(id));
+  if (faltando.length === 0) return memberships;
+
+  await Promise.all(faltando.map((id) => garantirVinculoPorAlocacao(id, employeeId)));
+  return buscarMemberships(employeeId);
+}
+
 export const useMyProjects = () => {
   const { employee } = useAuth();
   const employeeId = employee?.id;
@@ -40,25 +82,11 @@ export const useMyProjects = () => {
       const directory = await getEmployeeDirectoryMap(queryClient);
 
       // 1. Buscar memberships do employee com joins em projetos, clientes e gerente
-      const { data: myMemberships, error } = await supabase
-        .from('project_members')
-        .select(`
-          id,
-          role,
-          hours_per_month,
-          project_id,
-          projects!inner (
-            id, name, description, start_date, end_date, is_continuous,
-            duration_months, status, portfolio_stage, service_line,
-            clients!inner (company_name, trading_name),
-            manager_id
-          )
-        `)
-        .eq('employee_id', employeeId)
-        .not('projects.portfolio_stage', 'in', '("completed")');
-
-      if (error) throw error;
-      if (!myMemberships || myMemberships.length === 0) return [];
+      const myMemberships = await comProjetosSoAlocados(
+        employeeId,
+        await buscarMemberships(employeeId),
+      );
+      if (myMemberships.length === 0) return [];
 
       const projectIds = [...new Set((myMemberships as any[]).map((m) => m.project_id))];
 

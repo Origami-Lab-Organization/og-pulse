@@ -21,7 +21,9 @@ import {
   getWeekDays,
   groupByEmployee,
   EmployeeWithProjects,
+  TimesheetEntry,
 } from '@/hooks/useTimesheetData';
+import { linhaDeProjetoVisivelNaSemana } from '@/lib/saidaDeEquipe';
 import { useHolidays, isHoliday } from '@/hooks/useHolidays';
 import { useMyAllocationData } from '@/hooks/useMyAllocationData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +40,26 @@ import { BatchEditChange } from '@/types/timesheetSubmission';
 function parseLocalDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d);
+}
+
+/**
+ * Tira da semana os projetos de cuja equipe a pessoa já saiu, pela mesma regra da grade dela
+ * (`@/lib/saidaDeEquipe`): sem esta passagem o gestor continuava vendo linha aberta para
+ * lançar hora em projeto do qual o funcionário foi desalocado.
+ */
+function semProjetosDeQueJaSaiu(
+  employee: EmployeeWithProjects,
+  weekStart: string,
+  entries: TimesheetEntry[],
+): EmployeeWithProjects {
+  const temHoraNaSemana = (memberId: string) =>
+    entries.some(e => e.projectMemberId === memberId && Number(e.hours) > 0);
+  return {
+    ...employee,
+    projects: employee.projects.filter(p =>
+      linhaDeProjetoVisivelNaSemana(p, weekStart, temHoraNaSemana(p.memberId))
+    ),
+  };
 }
 
 export default function EmployeeTimesheetPage() {
@@ -108,9 +130,10 @@ export default function EmployeeTimesheetPage() {
   // Filter to only this employee's data
   const employeeData = useMemo((): EmployeeWithProjects[] => {
     if (!projects || !employeeId) return [];
-    const allEmployees = groupByEmployee(projects);
-    return allEmployees.filter(e => e.employeeId === employeeId);
-  }, [projects, employeeId]);
+    return groupByEmployee(projects)
+      .filter(e => e.employeeId === employeeId)
+      .map(e => semProjetosDeQueJaSaiu(e, startDateStr, timesheetEntries ?? []));
+  }, [projects, employeeId, timesheetEntries, startDateStr]);
 
   // Project IDs for this employee
   const projectIds = useMemo(() => {
