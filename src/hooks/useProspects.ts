@@ -80,7 +80,8 @@ export function useUpdateProspect() {
 export function useUpdateProspectStage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, stage }: { id: string; stage: ProspectStage }) => updateProspectStage(id, stage),
+    mutationFn: ({ id, stage, occurredOn }: { id: string; stage: ProspectStage; occurredOn?: string }) =>
+      updateProspectStage(id, stage, occurredOn),
     onSuccess: (_data, variables) => {
       invalidarProspeccao(qc);
       toast({ title: 'Contato movido', description: `Agora em ${getProspectStageLabel(variables.stage)}.` });

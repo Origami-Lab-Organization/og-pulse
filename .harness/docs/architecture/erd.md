@@ -16,6 +16,7 @@ sources:
   - supabase/migrations/20260923120000_prospect_instagram.sql
   - supabase/migrations/20260924120000_prospect_tasks.sql
   - supabase/migrations/20260928120000_prospect_stage_changes.sql
+  - supabase/migrations/20260928160000_prospect_meeting_dates.sql
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
   - src/types/lead.ts
@@ -29,6 +30,8 @@ sources:
 # 24/09/2026: prospect_tasks (20260924120000), conferido contra ProspectTaskDB.
 # 28/09/2026: prospect_stage_changes (20260928120000), conferido contra
 # ProspectStageChangeDB e executado com backfill + trigger num Postgres local.
+# 28/09/2026: 20260928160000 — reuniões anteriores ao histórico reconstruídas a partir
+# da atividade da reunião; set_prospect_stage data a etapa pelo dia do fato.
 verified: 2026-09-28
 ---
 
@@ -169,6 +172,12 @@ escrita, imutável pela API. É a única fonte da DATA de Reunião agendada, Reu
 Qualificada. O backfill reconstruiu só o que tinha data real (`reconstruido`); cada contato
 existente ganhou um marco `anterior` com a etapa em que estava, e as métricas tratam as
 etapas até ela como alcançadas em data desconhecida (`src/lib/prospecting/milestones.ts`).
+
+A `20260928160000` reconstruiu as reuniões desses contatos a partir da atividade que a tela
+grava ao marcar Reunião feita (última com resposta em Presencial/Videoconferência; o
+agendamento é a atividade anterior) e tirou o marco `anterior` deles. Desde então, mover com
+`set_prospect_stage(p_prospect_id, p_stage, p_occurred_on)` (SECURITY INVOKER) data a etapa
+pelo dia informado — é o que o diálogo de Reunião feita usa; o arraste comum data no dia.
 
 `prospect_tasks` (24/09/2026) é a lista **para frente** do contato; `prospect_activities`
 é o registro para trás. As duas são separadas de propósito: tarefa não conta toque, não

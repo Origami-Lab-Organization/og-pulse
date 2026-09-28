@@ -50,9 +50,10 @@ export function RegisterMeetingDialog({ prospect, open, onOpenChange }: Register
 
   if (!prospect) return null;
 
+  // A data vale com ou sem relato: é ela que conta como o dia da reunião nas métricas.
   const mover = () =>
     moverEtapa.mutate(
-      { id: prospect.id, stage: 'reuniao_feita' },
+      { id: prospect.id, stage: 'reuniao_feita', occurredOn: data },
       { onSuccess: () => onOpenChange(false) },
     );
 

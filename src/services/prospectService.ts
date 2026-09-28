@@ -1,4 +1,4 @@
-import { tabela } from '@/services/prospectingTables';
+import { rpc, tabela } from '@/services/prospectingTables';
 import { createLead } from '@/services/leadService';
 import { getChannelLabel } from '@/lib/interactionChannels';
 import type { ProspectAttachment } from '@/lib/prospectAttachments';
@@ -71,14 +71,17 @@ export async function updateProspect(id: string, updates: UpdateProspectInput): 
 }
 
 /**
- * Movimento manual de etapa.
+ * Movimento manual de etapa. Com `occurredOn`, o histórico de etapa guarda o dia do fato em
+ * vez do dia do clique — a reunião que aconteceu ontem e foi registrada hoje.
  *
  * `em_cadencia`, `respondeu` e `sem_resposta` NÃO passam por aqui: quem decide as três é
  * o registro de atividade, no banco. Deixar a tela escrevê-las criaria um segundo dono da
  * mesma regra — o caminho pelo qual as duas versões divergem em silêncio.
  */
-export async function updateProspectStage(id: string, stage: ProspectStage): Promise<void> {
-  const { error } = await tabela('prospects').update({ stage }).eq('id', id);
+export async function updateProspectStage(id: string, stage: ProspectStage, occurredOn?: string): Promise<void> {
+  const { error } = occurredOn
+    ? await rpc('set_prospect_stage', { p_prospect_id: id, p_stage: stage, p_occurred_on: occurredOn })
+    : await tabela('prospects').update({ stage }).eq('id', id);
   if (error) throw error;
 }
 

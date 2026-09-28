@@ -23,3 +23,10 @@ const clienteSemTipos = supabase as any;
 export function tabela(nome: TabelaDeProspeccao) {
   return clienteSemTipos.from(nome);
 }
+
+/** RPCs da prospecção criadas depois da última geração de tipos (20260928160000). */
+export type RpcDeProspeccao = 'set_prospect_stage';
+
+export function rpc(nome: RpcDeProspeccao, args: Record<string, unknown>) {
+  return clienteSemTipos.rpc(nome, args);
+}

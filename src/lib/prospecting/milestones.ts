@@ -94,12 +94,24 @@ export function buildMilestones(
 }
 
 /**
- * O dia em que o histórico de etapa começou: o marco `anterior` mais antigo. `null` quando
- * a organização não tinha contatos antes dele — então não há período sem registro.
+ * Marco `anterior` que esconde a data de uma reunião: o contato estava em Reunião agendada
+ * ou adiante, ou foi descartado (de onde, não se sabe). Quem estava antes da reunião, ou em
+ * Sem resposta — que só sai da cadência —, ainda não tinha reunião nenhuma para esconder.
+ */
+function escondeReuniao(mudanca: ProspectStageChangeDB): boolean {
+  return posicaoDe(mudanca.to_stage) >= NIVEL.agendada || mudanca.to_stage === ETAPA_DESCARTADO;
+}
+
+const ETAPA_DESCARTADO: ProspectStage = 'descartado';
+
+/**
+ * Até quando reunião e qualificação não têm data: o marco `anterior` mais antigo que esconde
+ * uma reunião. `null` quando nenhum esconde — as reuniões antigas foram reconstruídas
+ * (20260928160000), ou não havia nenhuma.
  */
 export function historyStartOf(mudancas: ProspectStageChangeDB[]): string | null {
   const inicio = mudancas
-    .filter((m) => !hasRealDate(m))
+    .filter((m) => !hasRealDate(m) && escondeReuniao(m))
     .map((m) => m.occurred_on)
     .sort()[0];
   return inicio ?? null;
