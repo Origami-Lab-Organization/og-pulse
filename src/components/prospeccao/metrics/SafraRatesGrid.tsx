@@ -13,6 +13,7 @@ const TAXAS: ReadonlyArray<{ key: SafraRateKey; label: string; base: string }> =
   { key: 'agendamento', label: 'Taxa de agendamento', base: 'agendadas ÷ conversas' },
   { key: 'comparecimento', label: 'Taxa de comparecimento', base: 'feitas ÷ agendadas' },
   { key: 'qualificacao', label: 'Taxa de qualificação', base: 'qualificadas ÷ feitas' },
+  { key: 'fechamento', label: 'Taxa de fechamento', base: 'ganhos ÷ qualificadas' },
 ];
 
 interface SafraRatesGridProps {

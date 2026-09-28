@@ -3,16 +3,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import {
-  convertProspectToLead,
   createProspect,
   deleteProspect,
   discardProspect,
   fetchProspectById,
   fetchProspects,
+  markProspectWon,
   reopenProspect,
   updateProspect,
   updateProspectStage,
-  type ConvertProspectInput,
   type CreateProspectInput,
   type UpdateProspectInput,
 } from '@/services/prospectService';
@@ -98,10 +97,10 @@ export function useDiscardProspect() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) => discardProspect(id, reason),
     onSuccess: () => {
       invalidarProspeccao(qc);
-      toast({ title: 'Contato descartado' });
+      toast({ title: 'Perda registrada' });
     },
     onError: (err: unknown) => {
-      toast({ title: 'Erro ao descartar', description: mensagemParaUsuario(err), variant: 'destructive' });
+      toast({ title: 'Erro ao registrar a perda', description: mensagemParaUsuario(err), variant: 'destructive' });
     },
   });
 }
@@ -134,23 +133,20 @@ export function useDeleteProspect() {
   });
 }
 
-export function useConvertProspect() {
+export function useMarkProspectWon() {
   const qc = useQueryClient();
-  const { employee } = useAuth();
   return useMutation({
-    mutationFn: (input: Omit<ConvertProspectInput, 'tenantId' | 'createdBy'>) =>
-      convertProspectToLead({ ...input, tenantId: employee!.tenant_id, createdBy: employee!.id }),
-    onSuccess: () => {
+    mutationFn: ({ id, wonOn, value }: { id: string; wonOn: string; value: number | null }) =>
+      markProspectWon(id, wonOn, value),
+    onSuccess: (_data, variables) => {
       invalidarProspeccao(qc);
-      // A oportunidade nasce no Pipeline: a lista de lá também precisa saber.
-      qc.invalidateQueries({ queryKey: ['leads'] });
       toast({
-        title: 'Oportunidade criada',
-        description: 'O contato foi encerrado como Convertido e agora é somente leitura.',
+        title: 'Ganho registrado',
+        description: variables.value === null ? 'Sem valor por enquanto — o card fica sinalizado até alguém preencher.' : undefined,
       });
     },
     onError: (err: unknown) => {
-      toast({ title: 'Erro ao converter', description: mensagemParaUsuario(err), variant: 'destructive' });
+      toast({ title: 'Erro ao registrar o ganho', description: mensagemParaUsuario(err), variant: 'destructive' });
     },
   });
 }

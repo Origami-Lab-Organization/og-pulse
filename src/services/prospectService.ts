@@ -1,12 +1,9 @@
 import { rpc, tabela } from '@/services/prospectingTables';
-import { createLead } from '@/services/leadService';
-import { getChannelLabel } from '@/lib/interactionChannels';
 import type { ProspectAttachment } from '@/lib/prospectAttachments';
 import { discardUpdate, reopenUpdate } from '@/lib/prospecting/transitions';
 import {
-  getLeverLabel,
-  PROSPECT_FUNNEL_STAGES,
   toISODate,
+  type PendingTaskLite,
   type ProspectActivityWithOwner,
   type ProspectStage,
   type ProspectTaskDB,
@@ -295,82 +292,34 @@ export async function fetchProspectTasks(prospectId: string): Promise<ProspectTa
   return (data || []) as ProspectTaskDB[];
 }
 
+/** Todas as tarefas pendentes da organização: a base dos avisos de vencimento do quadro. */
+export async function fetchPendingTasks(tenantId: string): Promise<PendingTaskLite[]> {
+  return todasAsPaginas((de, ate) =>
+    tabela('prospect_tasks')
+      .select('prospect_id, due_date, description')
+      .eq('tenant_id', tenantId)
+      .is('done_at', null)
+      .order('id')
+      .range(de, ate),
+  );
+}
+
 export async function deleteTask(id: string): Promise<void> {
   const { error } = await tabela('prospect_tasks').delete().eq('id', id);
   if (error) throw error;
 }
 
 // --------------------------------------------------------------------------
-// A passagem para o comercial
+// Ganho
 // --------------------------------------------------------------------------
 
-export interface ConvertProspectInput {
-  prospect: ProspectWithCompany;
-  tenantId: string;
-  createdBy?: string;
-  responsibleId?: string | null;
-  activitiesUntilResponse?: number | null;
-}
-
 /**
- * Converte o contato qualificado em Oportunidade.
- *
- * Leva a data do 1º toque de propósito: sem ela o comercial mede o ciclo a partir da
- * reunião e o número fica bonito e falso.
- *
- * São duas escritas sem transação, como `closeLeadAsLost`. Se a segunda falhar, sobra uma
- * oportunidade criada com o card frio ainda aberto — por isso a oportunidade vem primeiro
- * e o chamador reconhece `converted_lead_id` já preenchido em vez de criar outra.
+ * Fechamos negócio (28/09/2026). A RPC move para Ganho e data o histórico pelo dia do
+ * fechamento; as regras (só de Reunião feita em diante, data obrigatória) moram no banco.
+ * `value` nulo é o ganho registrado sem valor — o card sinaliza até alguém preencher.
+ * Chamar de novo em quem já está em Ganho corrige data e valor.
  */
-export async function convertProspectToLead(input: ConvertProspectInput): Promise<{ leadId: string }> {
-  const { prospect, tenantId, createdBy, responsibleId, activitiesUntilResponse } = input;
-  const empresa = prospect.company?.name ?? prospect.contact_name;
-
-  const lead = await createLead({
-    tenant_id: tenantId,
-    name: empresa,
-    company_name: empresa,
-    client_id: prospect.company?.client_id ?? undefined,
-    contact_name: prospect.contact_name,
-    contact_email: prospect.contact_email ?? undefined,
-    contact_phone: prospect.contact_phone ?? undefined,
-    source: 'abordagem_direta',
-    created_by: createdBy,
-    responsible_id: responsibleId ?? prospect.owner_id ?? undefined,
-    prospect_id: prospect.id,
-    first_touch_at: prospect.first_touch_at ?? undefined,
-    notes: montarNotaDeOrigem(prospect, activitiesUntilResponse),
-  });
-
-  await tabela('prospects')
-    .update({
-      stage: 'convertido',
-      converted_lead_id: (lead as { id: string }).id,
-      closed_at: new Date().toISOString(),
-      next_activity_on: null,
-    })
-    .eq('id', prospect.id);
-
-  return { leadId: (lead as { id: string }).id };
-}
-
-function montarNotaDeOrigem(
-  prospect: ProspectWithCompany,
-  activitiesUntilResponse?: number | null,
-): string {
-  const linhas = ['Origem: prospecção.'];
-  if (prospect.lever) linhas.push(`Alavanca: ${getLeverLabel(prospect.lever)}.`);
-  if (prospect.first_touch_at) linhas.push(`1º toque em ${formatarData(prospect.first_touch_at)}.`);
-  if (activitiesUntilResponse) linhas.push(`Atividades até responder: ${activitiesUntilResponse}.`);
-  linhas.push(`Canal principal: ${getChannelLabel(prospect.primary_channel)}.`);
-  const empresa = prospect.company;
-  if (empresa?.ring || empresa?.tier) {
-    linhas.push(`Anel/Tier: ${empresa.ring ?? '—'} / ${empresa.tier ?? '—'}.`);
-  }
-  return linhas.join(' ');
-}
-
-function formatarData(iso: string): string {
-  const [ano, mes, dia] = iso.split('-');
-  return `${dia}/${mes}/${ano}`;
+export async function markProspectWon(id: string, wonOn: string, value: number | null): Promise<void> {
+  const { error } = await rpc('mark_prospect_won', { p_prospect_id: id, p_won_on: wonOn, p_value: value });
+  if (error) throw error;
 }

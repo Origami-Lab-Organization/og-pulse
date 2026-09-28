@@ -2,9 +2,10 @@ import { differenceInCalendarDays, parseISO, subDays } from 'date-fns';
 import {
   PROSPECT_FUNNEL_STAGES,
   getDiscardReasonLabel,
-  isOverdue,
+  getProspectStageLabel,
+  isTaskOverdue,
   toISODate,
-  type ProspectStage,
+  type PendingTaskLite,
   type ProspectWithCompany,
 } from '@/types/prospect';
 import type {
@@ -20,12 +21,14 @@ import type {
   MetricsSource,
   MetricValue,
   Occurrence,
-  PeriodExits,
+  PeriodLosses,
   PeriodRange,
   ProspectMilestones,
   ResolvedPeriod,
   SafraPoint,
+  SalesSummary,
   SeriesPoint,
+  StageLossCount,
 } from '@/types/prospectMetrics';
 import {
   FUNNEL_RATE_LABELS,
@@ -38,7 +41,7 @@ import {
   type ProspectCut,
   type ProspectingFunnel,
 } from './metrics';
-import { hasRealDate, historyStartOf } from './milestones';
+import { historyStartOf } from './milestones';
 import { bucketKeyOf, isInRange, localDay } from './periods';
 
 /**
@@ -58,11 +61,6 @@ export const MIN_SAMPLE = 5;
 
 /** A cadência leva ~12 dias e a reunião vem depois: safra mais nova ainda está amadurecendo. */
 const DIAS_DE_MATURACAO = 21;
-
-const ETAPA = {
-  descartado: 'descartado',
-  semResposta: 'sem_resposta',
-} as const satisfies Record<string, ProspectStage>;
 
 function aceitaContato(filtro: MetricFilter) {
   return (p: ProspectWithCompany) =>
@@ -153,6 +151,24 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
   { key: 'agendadas', ...doFunil(3), block: 'resultado', needsHistory: true, drillable: true, occurrences: dosMarcos((m) => m.agendada.date) },
   { key: 'feitas', ...doFunil(4), block: 'resultado', needsHistory: true, drillable: true, occurrences: dosMarcos((m) => m.feita.date) },
   { key: 'qualificadas', ...doFunil(5), block: 'resultado', needsHistory: true, drillable: true, occurrences: dosMarcos((m) => m.qualificada.date) },
+  {
+    key: 'ganhos',
+    label: 'Ganhos',
+    question: 'Quantos negócios fechamos?',
+    block: 'desfecho',
+    needsHistory: false,
+    drillable: true,
+    occurrences: dosMarcos((m) => m.ganho),
+  },
+  {
+    key: 'perdas',
+    label: 'Perdas',
+    question: 'Quantos contatos perdemos — e por quê?',
+    block: 'desfecho',
+    needsHistory: false,
+    drillable: true,
+    occurrences: dosMarcos((m) => m.perda?.date ?? null),
+  },
 ];
 
 const aplicaA = (def: MetricDefinition, d: MetricsDataset) => def.applies?.(d) ?? true;
@@ -221,6 +237,7 @@ function contarSafra(marcos: ProspectMilestones[]) {
     agendadas: marcos.filter((m) => m.agendada.reached).length,
     feitas: marcos.filter((m) => m.feita.reached).length,
     qualificadas: marcos.filter((m) => m.qualificada.reached).length,
+    ganhos: marcos.filter((m) => m.ganho).length,
   };
 }
 
@@ -245,13 +262,17 @@ export function safraFunnel(d: MetricsDataset, periodo: ResolvedPeriod): Prospec
   const s = contarSafra(safraDe(d, periodo.elapsed));
   const passos = funnelSteps([s.contas, s.ativados, s.conversas, s.agendadas, s.feitas, s.qualificadas]);
   return {
-    steps: passos.map((passo, i) => ({ ...passo, label: ROTULOS_DA_SAFRA[i] })),
+    steps: [
+      ...passos.map((passo, i) => ({ ...passo, label: ROTULOS_DA_SAFRA[i] })),
+      { key: 'ganhos', label: 'Viraram venda', value: s.ganhos, question: 'A oportunidade virou negócio fechado?' },
+    ],
     rates: [
       { value: formatRatio(s.ativados, s.contas), label: FUNNEL_RATE_LABELS[0] },
       { value: formatRate(razao(s.conversas, s.ativados)), label: FUNNEL_RATE_LABELS[1] },
       { value: formatRate(razao(s.agendadas, s.conversas)), label: FUNNEL_RATE_LABELS[2] },
       { value: formatRate(razao(s.feitas, s.agendadas)), label: FUNNEL_RATE_LABELS[3] },
       { value: formatRate(razao(s.qualificadas, s.feitas)), label: FUNNEL_RATE_LABELS[4] },
+      { value: formatRate(razao(s.ganhos, s.qualificadas)), label: 'taxa de fechamento' },
     ],
   };
 }
@@ -267,6 +288,7 @@ export function safraSeries(d: MetricsDataset, buckets: Bucket[], hoje = new Dat
       agendamento: razao(s.agendadas, s.conversas),
       comparecimento: razao(s.feitas, s.agendadas),
       qualificacao: razao(s.qualificadas, s.feitas),
+      fechamento: razao(s.ganhos, s.qualificadas),
       maturing: bucket.to > maduraAte,
     };
   });
@@ -308,6 +330,7 @@ const CICLOS: readonly Ciclo[] = [
     quando: (m) => m.qualificada.date,
     valor: (m) => entre(m.feita.date, m.qualificada.date),
   },
+  { key: 'ganho', label: 'Toque → ganho', unit: 'dias', quando: (m) => m.ganho, valor: (m) => entre(m.ativado, m.ganho) },
 ];
 
 /** Mediana, não média: um contato que respondeu depois de 60 dias não pode puxar o número do time. */
@@ -324,26 +347,53 @@ export function cycleTimes(d: MetricsDataset, periodo: ResolvedPeriod): CycleTim
   });
 }
 
-function contarMotivos(descartes: MetricsDataset['changes']): DiscardCount[] {
-  const porMotivo = new Map<string, number>();
-  for (const c of descartes) porMotivo.set(c.discard_reason ?? '', (porMotivo.get(c.discard_reason ?? '') ?? 0) + 1);
-  return [...porMotivo.entries()]
-    .map(([reason, count]) => ({
-      reason,
-      label: reason ? getDiscardReasonLabel(reason) : 'Sem motivo registrado',
-      count,
-    }))
-    .sort((a, b) => b.count - a.count);
+function contarPor<T>(itens: T[], chave: (item: T) => string): Map<string, { item: T; count: number }> {
+  const mapa = new Map<string, { item: T; count: number }>();
+  for (const item of itens) {
+    const k = chave(item);
+    mapa.set(k, { item, count: (mapa.get(k)?.count ?? 0) + 1 });
+  }
+  return mapa;
 }
 
-/** Saídas do quadro no período. O motivo é o da época — quem reabriu perde o da linha. */
-export function periodExits(d: MetricsDataset, periodo: ResolvedPeriod): PeriodExits {
-  const saidas = d.changes.filter((c) => hasRealDate(c) && isInRange(c.occurred_on, periodo.elapsed));
-  const descartes = saidas.filter((c) => c.to_stage === ETAPA.descartado);
+const maisFrequentes = <T extends { count: number }>(lista: T[]) => lista.sort((a, b) => b.count - a.count);
+
+/**
+ * As perdas do período: quem está em Perda hoje, com a data da perda no período. Quem foi
+ * reaberto não conta — deixou de ser perda. Por motivo (por que) e por etapa (onde).
+ */
+export function periodLosses(d: MetricsDataset, periodo: ResolvedPeriod): PeriodLosses {
+  const perdas = d.milestones.flatMap((m) => (m.perda && isInRange(m.perda.date, periodo.elapsed) ? [m.perda] : []));
+  const porMotivo = [...contarPor(perdas, (p) => p.reason ?? '').entries()].map(([reason, { count }]) => ({
+    reason,
+    label: reason ? getDiscardReasonLabel(reason) : 'Sem motivo registrado',
+    count,
+  }));
+  const porEtapa: StageLossCount[] = [...contarPor(perdas, (p) => p.fromStage ?? '').values()].map(({ item, count }) => ({
+    stage: item.fromStage,
+    label: item.fromStage ? getProspectStageLabel(item.fromStage) : 'Etapa não registrada',
+    count,
+  }));
+  return { total: perdas.length, byReason: maisFrequentes(porMotivo), byStage: maisFrequentes(porEtapa) };
+}
+
+function ganhosNo(d: MetricsDataset, range: PeriodRange): ProspectMilestones[] {
+  return d.milestones.filter((m) => m.ganho && isInRange(m.ganho, range));
+}
+
+const somaDosValores = (ganhos: ProspectMilestones[]) => ganhos.reduce((total, m) => total + (m.valor ?? 0), 0);
+
+/** Valor vendido no período. Ganho sem valor fica de fora do valor e do ticket, e é contado à parte. */
+export function salesSummary(d: MetricsDataset, periodo: ResolvedPeriod): SalesSummary {
+  const ganhos = ganhosNo(d, periodo.elapsed);
+  const comValor = ganhos.filter((m) => m.valor !== null);
+  const valor = somaDosValores(comValor);
   return {
-    discards: contarMotivos(descartes),
-    discardTotal: descartes.length,
-    semResposta: saidas.filter((c) => c.to_stage === ETAPA.semResposta).length,
+    valor,
+    valorAnterior: somaDosValores(ganhosNo(d, periodo.previous)),
+    ganhos: ganhos.length,
+    semValor: ganhos.length - comValor.length,
+    ticketMedio: comValor.length ? valor / comValor.length : null,
   };
 }
 
@@ -355,6 +405,8 @@ const CAMPOS_DO_CORTE: ReadonlyArray<[CampoDoCorte, (m: ProspectMilestones) => s
   ['agendadas', (m) => m.agendada.date],
   ['feitas', (m) => m.feita.date],
   ['qualificadas', (m) => m.qualificada.date],
+  ['ganhos', (m) => m.ganho],
+  ['perdas', (m) => m.perda?.date ?? null],
 ];
 
 function somarNoCorte(linha: CutFlowRow, m: ProspectMilestones, range: PeriodRange): void {
@@ -364,7 +416,16 @@ function somarNoCorte(linha: CutFlowRow, m: ProspectMilestones, range: PeriodRan
   }
 }
 
-const linhaVazia = (key: string): CutFlowRow => ({ key, ativados: 0, conversas: 0, agendadas: 0, feitas: 0, qualificadas: 0 });
+const linhaVazia = (key: string): CutFlowRow => ({
+  key,
+  ativados: 0,
+  conversas: 0,
+  agendadas: 0,
+  feitas: 0,
+  qualificadas: 0,
+  ganhos: 0,
+  perdas: 0,
+});
 
 /** O fluxo do período quebrado por alavanca, anel, tier ou responsável. */
 export function cutFlow(d: MetricsDataset, periodo: ResolvedPeriod, cut: ProspectCut): CutFlowRow[] {
@@ -380,15 +441,26 @@ export function cutFlow(d: MetricsDataset, periodo: ResolvedPeriod, cut: Prospec
     .sort((a, b) => b.ativados - a.ativados || b.conversas - a.conversas);
 }
 
-export function listHealth(d: MetricsDataset, periodo: ResolvedPeriod, hoje = new Date()): ListHealthData {
+/**
+ * Cobertura no período e contatos do quadro com TAREFA vencida. A data da cadência não
+ * entra (28/09/2026): é sugestão do sistema, e o aviso é só do que alguém se comprometeu.
+ */
+export function listHealth(
+  d: MetricsDataset,
+  periodo: ResolvedPeriod,
+  proximaTarefa: Map<string, PendingTaskLite>,
+  hoje = new Date(),
+): ListHealthData {
   const contatos = d.milestones.map((m) => m.prospect);
+  const vencida = (task?: PendingTaskLite) => !!task && isTaskOverdue({ due_date: task.due_date, done_at: null }, hoje);
   return {
     coverage: calculateAccountCoverage(
       contatos,
       d.activities.filter((a) => isInRange(a.activity_date, periodo.elapsed)),
     ),
     overdue: contatos
-      .filter((p) => PROSPECT_FUNNEL_STAGES.includes(p.stage) && isOverdue(p, hoje))
-      .sort((a, b) => (a.next_activity_on ?? '').localeCompare(b.next_activity_on ?? '')),
+      .filter((p) => PROSPECT_FUNNEL_STAGES.includes(p.stage) && vencida(proximaTarefa.get(p.id)))
+      .map((prospect) => ({ prospect, task: proximaTarefa.get(prospect.id) as PendingTaskLite }))
+      .sort((a, b) => a.task.due_date.localeCompare(b.task.due_date)),
   };
 }

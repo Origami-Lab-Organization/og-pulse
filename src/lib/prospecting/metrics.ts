@@ -21,10 +21,11 @@ import type { ProspectActivityDB, ProspectActivityWithOwner, ProspectWithCompany
  * avançar um contato o faria sumir do passo anterior e a conversão passaria de 100%.
  */
 const AGENDAMENTO_ALCANCADO = new Set([
-  'reuniao_agendada', 'reuniao_feita', 'qualificado', 'convertido',
+  'reuniao_agendada', 'reuniao_feita', 'qualificado', 'ganho', 'convertido',
 ]);
-const REUNIAO_FEITA_ALCANCADA = new Set(['reuniao_feita', 'qualificado', 'convertido']);
-const QUALIFICACAO_ALCANCADA = new Set(['qualificado', 'convertido']);
+const REUNIAO_FEITA_ALCANCADA = new Set(['reuniao_feita', 'qualificado', 'ganho', 'convertido']);
+// Ganho (28/09/2026) só vem de Reunião feita em diante: quem vendeu também qualificou.
+const QUALIFICACAO_ALCANCADA = new Set(['qualificado', 'ganho', 'convertido']);
 
 export interface FunnelStep {
   key: string;

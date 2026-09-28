@@ -117,17 +117,18 @@ export const HELP_GROUPS: HelpGroup[] = [
     topics: [
       {
         id: 'prospeccao',
-        title: 'Prospecção: pipeline frio',
+        title: 'Prospecção: do primeiro contato à venda',
         route: '/comercial/prospeccao',
         requiresCapability: 'prospeccao:ler',
         what:
-          'O pipeline de quem ainda não é oportunidade. Mede atenção conquistada, não receita: não tem valor de negócio nem entra na previsão.',
+          'O quadro comercial de ponta a ponta: do primeiro toque ao fechamento. Cada contato termina em Ganho (vendemos) ou Perda (com o motivo), e os dois viram métrica.',
         how: [
-          'A aba Pipeline mostra o funil em colunas. O card avisa em vermelho quando a próxima atividade já venceu. A busca ao lado das abas filtra por empresa enquanto você digita, e o botão Filtros recorta por contato, responsável, alavanca e canal.',
+          'A aba Pipeline mostra o funil em colunas. O card avisa em vermelho quando uma tarefa do contato venceu — é o único aviso de prazo. A busca ao lado das abas filtra por empresa enquanto você digita, e o botão Filtros recorta por contato, responsável, alavanca e canal.',
           'Para registrar uma atividade, escreva o que aconteceu na caixa do rodapé do card e clique em Registrar — o botão só habilita com texto. O anexo é opcional. O sistema conta o toque e agenda a próxima data pela cadência.',
-          'Esgotada a cadência sem resposta, o contato vai sozinho para "Sem resposta". O card só avança por evento verificável: "Respondeu" entra pelo registro, não pelo arraste.',
+          'Esgotada a cadência (quatro toques sem resposta), o contato continua em Em cadência, sem próxima data: registrar a perda é decisão sua, com o motivo "Sem resposta / sem contato". O card só avança por evento verificável: "Respondeu" entra pelo registro, não pelo arraste.',
           'A empresa é cadastrada uma vez e reaproveitada: a partir do segundo contato dela, os dados vêm preenchidos.',
-          'Contato qualificado vira oportunidade pelo botão "Converter em oportunidade", que leva junto a data do 1º toque e faz o tempo de ciclo ser real.',
+          'Fechou negócio? Arraste o card para Ganho (de Reunião feita em diante) e informe a data e o valor vendido. Dá para registrar sem valor — o card fica sinalizado até alguém preencher.',
+          'Perdeu? Arraste para Perda e escolha o motivo: sem resposta, proposta recusada por preço ou escopo, concorrente, entre outros. As colunas Ganho e Perda mostram os últimos 30 dias; "Ver todos" traz o resto. Arrastar de volta para o quadro reabre o contato.',
         ],
         mcp: {
           server: 'prospeccao',
@@ -150,7 +151,7 @@ export const HELP_GROUPS: HelpGroup[] = [
           example:
             'Cadastra a empresa Acme, CNPJ 11.222.333/0001-81, e a Maria Souza como contato dela, diretora de operações. Depois registra que mandei um e-mail de apresentação hoje.',
           note:
-            'Converter em oportunidade, excluir contato, apagar atividade e anexar arquivo continuam só na tela. A cadência e a mudança de etapa por atividade são as mesmas da tela: quem decide é o banco.',
+            'Registrar ganho, excluir contato, apagar atividade e anexar arquivo continuam só na tela. A cadência e a mudança de etapa por atividade são as mesmas da tela: quem decide é o banco.',
         },
       },
       {

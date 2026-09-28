@@ -14,8 +14,11 @@ export type ProspectStage =
   | 'reuniao_agendada'
   | 'reuniao_feita'
   | 'qualificado'
-  | 'sem_resposta'
+  | 'ganho'
   | 'descartado'
+  /** Só em linhas antigas: desde 28/09/2026 a cadência esgotada não encerra mais o contato. */
+  | 'sem_resposta'
+  /** Só em linhas antigas: a conversão para o Pipeline saiu em 28/09/2026. */
   | 'convertido';
 
 interface ProspectStageMeta {
@@ -67,6 +70,12 @@ export const PROSPECT_STAGE_META: Record<ProspectStage, ProspectStageMeta> = {
     color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
     stallDays: null,
   },
+  ganho: {
+    id: 'ganho',
+    label: 'Ganho',
+    color: 'bg-success-subtle text-success-emphasis',
+    stallDays: null,
+  },
   sem_resposta: {
     id: 'sem_resposta',
     label: 'Sem resposta',
@@ -75,7 +84,8 @@ export const PROSPECT_STAGE_META: Record<ProspectStage, ProspectStageMeta> = {
   },
   descartado: {
     id: 'descartado',
-    label: 'Descartado',
+    // O valor no banco é o de sempre; o rótulo mudou em 28/09/2026, como `qualificado`.
+    label: 'Perda',
     color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
     stallDays: null,
   },
@@ -88,13 +98,10 @@ export const PROSPECT_STAGE_META: Record<ProspectStage, ProspectStageMeta> = {
 };
 
 /**
- * As etapas do funil, em ordem. São as colunas do Kanban.
+ * As etapas de TRABALHO, em ordem: o que ainda está em aberto no quadro.
  *
  * "Reunião feita" entrou em 17/09/2026: é a separação entre agenda cheia e conversa que
  * de fato aconteceu, e sem ela a taxa de comparecimento não existe.
- *
- * "Sem resposta", "Descartado" e "Convertido" ficam de fora de propósito: são desfechos,
- * não avanço, e virariam progresso aparente se aparecessem como coluna.
  */
 export const PROSPECT_FUNNEL_STAGES: readonly ProspectStage[] = [
   'a_abordar',
@@ -105,15 +112,38 @@ export const PROSPECT_FUNNEL_STAGES: readonly ProspectStage[] = [
   'qualificado',
 ];
 
-/** Desfechos: saem do board e vivem nas abas de encerrados. */
+/**
+ * Os dois jeitos de sair do quadro (28/09/2026): ou vendemos, ou perdemos. São as últimas
+ * colunas do Kanban, e mostram só os desfechos recentes — o quadro é de trabalho em aberto.
+ */
+export const PROSPECT_OUTCOME_STAGES: readonly ProspectStage[] = ['ganho', 'descartado'];
+
+/** As colunas do Kanban: o trabalho e, no fim, os dois desfechos. */
+export const PROSPECT_BOARD_STAGES: readonly ProspectStage[] = [
+  ...PROSPECT_FUNNEL_STAGES,
+  ...PROSPECT_OUTCOME_STAGES,
+];
+
+/** Encerrados: os dois desfechos e as duas etapas antigas, que não recebem mais ninguém. */
 export const PROSPECT_TERMINAL_STAGES: readonly ProspectStage[] = [
+  ...PROSPECT_OUTCOME_STAGES,
   'sem_resposta',
-  'descartado',
   'convertido',
 ];
 
+/** De onde se chega a Ganho: venda sem reunião feita não existe. Regra também no banco. */
+export const PROSPECT_WIN_ORIGINS: readonly ProspectStage[] = ['reuniao_feita', 'qualificado'];
+
+/** Recorte das colunas de desfecho: mostram os recentes, e o resto a um clique. */
+export interface ProspectColumnCut {
+  total: number;
+  expandida: boolean;
+  dias: number;
+  onToggle: () => void;
+}
+
 export const PROSPECT_KANBAN_COLUMNS: readonly ProspectStageMeta[] =
-  PROSPECT_FUNNEL_STAGES.map((stage) => PROSPECT_STAGE_META[stage]);
+  PROSPECT_BOARD_STAGES.map((stage) => PROSPECT_STAGE_META[stage]);
 
 /**
  * Etapas que o próprio usuário conduz arrastando o card.
@@ -142,6 +172,7 @@ export const PROSPECT_NEXT_STAGE: Partial<Record<ProspectStage, ProspectStage>> 
   respondeu: 'reuniao_agendada',
   reuniao_agendada: 'reuniao_feita',
   reuniao_feita: 'qualificado',
+  qualificado: 'ganho',
 };
 
 /**
@@ -153,14 +184,17 @@ export const PROSPECT_NEXT_STAGE: Partial<Record<ProspectStage, ProspectStage>> 
  * - `em_cadencia` e `respondeu` nascem de uma atividade registrada; quem move o card é o
  *   trigger no banco, a mesma fonte que decide a cadência. Se a tela escrevesse a etapa,
  *   existiriam dois donos da mesma regra e a taxa de resposta mediria otimismo;
- * - `reuniao_feita` abre o registro de como a reunião foi, antes de mover.
+ * - `reuniao_feita` abre o registro de como a reunião foi, antes de mover;
+ * - `ganho` abre o registro da venda (data e valor); `descartado` (Perda), o do motivo.
  */
-export type ProspectAdvanceMode = 'activity' | 'response' | 'prompt' | 'stage';
+export type ProspectAdvanceMode = 'activity' | 'response' | 'prompt' | 'win' | 'loss' | 'stage';
 
 const PROSPECT_ADVANCE_MODE: Partial<Record<ProspectStage, ProspectAdvanceMode>> = {
   em_cadencia: 'activity',
   respondeu: 'response',
   reuniao_feita: 'prompt',
+  ganho: 'win',
+  descartado: 'loss',
 };
 
 export function advanceModeFor(stage: ProspectStage): ProspectAdvanceMode {
@@ -197,19 +231,23 @@ export function getLeverLabel(lever: string | null | undefined): string | null {
 }
 
 /**
- * Motivos de descarte — lista FECHADA, nunca texto livre.
+ * Motivos de perda — lista FECHADA, nunca texto livre (28/09/2026).
  *
  * Motivo digitado à mão não vira métrica: "sem budget", "sem orçamento" e "não tem verba"
- * viram três linhas diferentes do mesmo fato.
+ * viram três linhas diferentes do mesmo fato. Cobre as duas perdas do comercial: o contato
+ * que não responde e a proposta recusada. Nenhuma perda é automática: esgotada a cadência, o
+ * contato fica em "Em cadência" até alguém decidir. Mesma lista do CHECK de 20260928200000.
  */
 export const PROSPECT_DISCARD_REASONS = [
-  { value: 'sem_fit', label: 'Sem fit' },
+  { value: 'sem_resposta', label: 'Sem resposta / sem contato' },
+  { value: 'proposta_preco', label: 'Proposta recusada: preço' },
+  { value: 'proposta_escopo', label: 'Proposta recusada: escopo' },
+  { value: 'concorrente', label: 'Perdemos para concorrente' },
   { value: 'sem_orcamento', label: 'Sem orçamento' },
-  { value: 'concorrente_incumbente', label: 'Concorrente incumbente' },
-  { value: 'contato_errado', label: 'Contato errado' },
+  { value: 'momento_errado', label: 'Momento errado / adiado' },
+  { value: 'sem_fit', label: 'Sem fit' },
   { value: 'sem_interesse', label: 'Sem interesse' },
-  { value: 'momento_errado', label: 'Momento errado' },
-  { value: 'dados_invalidos', label: 'Dados inválidos' },
+  { value: 'contato_invalido', label: 'Contato errado / dados inválidos' },
   { value: 'pediu_para_parar', label: 'Pediu para parar' },
 ] as const;
 
@@ -262,6 +300,10 @@ export interface ProspectDB {
   next_activity_on: string | null;
   discard_reason: string | null;
   discarded_at: string | null;
+  /** Dia em que fechamos negócio — só em Ganho. */
+  won_on: string | null;
+  /** Valor vendido; `null` em Ganho = "Sem valor", pendente de registro. */
+  won_value: number | null;
   converted_lead_id: string | null;
   closed_at: string | null;
   created_by: string | null;
@@ -316,6 +358,23 @@ export interface ProspectTaskDB {
   updated_at: string;
 }
 
+/** O mínimo de uma tarefa pendente para os avisos do quadro e da tela Empresas. */
+export type PendingTaskLite = Pick<ProspectTaskDB, 'prospect_id' | 'due_date' | 'description'>;
+
+/**
+ * A próxima tarefa pendente de cada contato — a mais urgente. Desde 28/09/2026 é a ÚNICA
+ * data que gera aviso de vencimento: a data da cadência é sugestão do sistema, a tarefa é
+ * compromisso que alguém do time assumiu.
+ */
+export function nextTaskByProspect(tarefas: PendingTaskLite[]): Map<string, PendingTaskLite> {
+  const mapa = new Map<string, PendingTaskLite>();
+  for (const t of tarefas) {
+    const atual = mapa.get(t.prospect_id);
+    if (!atual || t.due_date < atual.due_date) mapa.set(t.prospect_id, t);
+  }
+  return mapa;
+}
+
 /** Tarefa vencida: pendente com data de conclusão anterior a hoje. */
 export function isTaskOverdue(
   task: Pick<ProspectTaskDB, 'due_date' | 'done_at'>,
@@ -365,15 +424,24 @@ export function isProspectReadOnly(prospect: Pick<ProspectDB, 'stage'>): boolean
   return prospect.stage === 'convertido';
 }
 
-/** Só contato qualificado passa para o comercial. */
-export function canConvertToLead(prospect: Pick<ProspectDB, 'stage' | 'converted_lead_id'>): boolean {
-  return prospect.stage === 'qualificado' && !prospect.converted_lead_id;
+/** Ganho só de Reunião feita em diante — o banco recusa o resto (prospects_outcome_rules). */
+export function canWin(prospect: Pick<ProspectDB, 'stage'>): boolean {
+  return PROSPECT_WIN_ORIGINS.includes(prospect.stage);
 }
 
-export function isOverdue(prospect: Pick<ProspectDB, 'next_activity_on'>, today = new Date()): boolean {
-  if (!prospect.next_activity_on) return false;
-  return prospect.next_activity_on < toISODate(today);
+export function isOutcomeStage(stage: ProspectStage): boolean {
+  return PROSPECT_OUTCOME_STAGES.includes(stage);
 }
+
+/** Dia do desfecho: o do ganho, ou o da perda. `null` fora dos desfechos. */
+export function outcomeDateOf(prospect: Pick<ProspectDB, 'stage' | 'won_on' | 'discarded_at'>): string | null {
+  const datas: Partial<Record<ProspectStage, string | null>> = {
+    ganho: prospect.won_on,
+    descartado: prospect.discarded_at ? toISODate(new Date(prospect.discarded_at)) : null,
+  };
+  return datas[prospect.stage] ?? null;
+}
+
 
 /** Data local em ISO (YYYY-MM-DD), sem passar por UTC — a lista é do dia de quem olha. */
 export function toISODate(date: Date): string {

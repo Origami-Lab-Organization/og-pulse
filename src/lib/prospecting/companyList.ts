@@ -118,7 +118,7 @@ const VALOR_DE_ORDEM: Record<CompanySortKey, (r: CompanyRow) => string | number 
   name: (r) => r.company.name,
   anel: (r) => r.anel,
   tier: (r) => r.tier,
-  next: (r) => r.nextActivityOn,
+  next: (r) => r.nextTaskOn,
 };
 
 /** Nulos vão sempre para o fim, nos dois sentidos; empate desempata por nome. */

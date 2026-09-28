@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  ArrowRightLeft,
+  BadgeDollarSign,
   Clock,
   Globe,
   Instagram,
@@ -37,7 +37,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProspectActivities } from '@/hooks/useProspectActivities';
 import { useProspectTasks } from '@/hooks/useProspectTasks';
 import { useUpdateProspectCompany } from '@/hooks/useProspectCompanies';
-import { useDeleteProspect, useProspects, useReopenProspect, useUpdateProspect } from '@/hooks/useProspects';
+import {
+  useDeleteProspect,
+  useProspects,
+  useReopenProspect,
+  useUpdateProspect,
+  useUpdateProspectStage,
+} from '@/hooks/useProspects';
+import { formatCurrency } from '@/lib/formatters';
 import { isContactInConversation } from '@/lib/prospecting/companyStatus';
 import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
 import { INTERACTION_CHANNELS, getChannelLabel } from '@/lib/interactionChannels';
@@ -45,7 +52,7 @@ import { iniciaisDe } from '@/lib/prospecting/iniciais';
 import { formatCNPJ } from '@/lib/masks';
 import { cn } from '@/lib/utils';
 import {
-  canConvertToLead,
+  canWin,
   getDiscardReasonLabel,
   getProspectStageColor,
   getLeverLabel,
@@ -56,6 +63,7 @@ import {
   type ProspectActivityWithOwner,
   type ProspectCompanyDB,
   type ProspectWithCompany,
+  type ProspectTaskDB,
 } from '@/types/prospect';
 import { ProspectActivityTimeline } from './ProspectActivityTimeline';
 import { ProspectAdvanceButton } from './ProspectAdvanceButton';
@@ -72,7 +80,8 @@ interface ProspectDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDiscard: (prospect: ProspectWithCompany) => void;
-  onConvert: (prospect: ProspectWithCompany) => void;
+  /** Registrar ou corrigir o ganho — abre o diálogo de data e valor. */
+  onWin: (prospect: ProspectWithCompany) => void;
 }
 
 /**
@@ -87,13 +96,16 @@ export function ProspectDetailDialog({
   open,
   onOpenChange,
   onDiscard,
-  onConvert,
+  onWin,
 }: ProspectDetailDialogProps) {
   const { data: atividades = [], isLoading } = useProspectActivities(prospect?.id ?? null);
+  const { data: tarefasDoContato = [] } = useProspectTasks(prospect?.id ?? null);
+  const proximaTarefa = tarefasDoContato.find((t) => !t.done_at) ?? null;
   const { data: diretorio = [] } = useEmployeeDirectory(open);
   const atualizarContato = useUpdateProspect();
   const atualizarEmpresa = useUpdateProspectCompany();
   const reabrir = useReopenProspect();
+  const moverEtapa = useUpdateProspectStage();
   const excluir = useDeleteProspect();
 
   const [editando, setEditando] = useState(false);
@@ -159,11 +171,7 @@ export function ProspectDetailDialog({
                   .join('  ·  ')}
               </DialogDescription>
 
-              {prospect.stage === 'descartado' && (
-                <p className="text-xs text-muted-foreground">
-                  Motivo do descarte: {getDiscardReasonLabel(prospect.discard_reason)}
-                </p>
-              )}
+              <DesfechoDoContato prospect={prospect} onWin={() => onWin(prospect)} />
             </div>
 
             <AcoesDoContato
@@ -172,9 +180,10 @@ export function ProspectDetailDialog({
               somenteLeitura={somenteLeitura}
               editando={editando}
               onEditar={() => setEditando((v) => !v)}
-              onConverter={() => onConvert(prospect)}
+              onGanhar={() => onWin(prospect)}
               onDescartar={() => onDiscard(prospect)}
               onReabrir={() => reabrir.mutate({ id: prospect.id })}
+              onDesfazerGanho={() => moverEtapa.mutate({ id: prospect.id, stage: 'qualificado' })}
               onExcluir={() => {
                 excluir.mutate({ id: prospect.id });
                 onOpenChange(false);
@@ -195,7 +204,7 @@ export function ProspectDetailDialog({
             <Indicadores
               atividades={prospect.activity_count}
               respostas={respostas}
-              proxima={prospect.next_activity_on}
+              proxima={proximaTarefa?.due_date ?? null}
             />
 
             <CartaoEmpresa
@@ -235,10 +244,9 @@ export function ProspectDetailDialog({
             open={open}
             atividades={atividades}
             carregandoAtividades={isLoading}
-            responsavel={responsavel}
             somenteLeitura={somenteLeitura}
             onPrompt={() => setReuniaoAberta(true)}
-            onConvert={() => onConvert(prospect)}
+            onWin={() => onWin(prospect)}
           />
         </div>
 
@@ -263,19 +271,17 @@ function PainelDeAtividade({
   open,
   atividades,
   carregandoAtividades,
-  responsavel,
   somenteLeitura,
   onPrompt,
-  onConvert,
+  onWin,
 }: {
   prospect: ProspectWithCompany;
   open: boolean;
   atividades: ProspectActivityWithOwner[];
   carregandoAtividades: boolean;
-  responsavel: string | null;
   somenteLeitura: boolean;
   onPrompt: () => void;
-  onConvert: () => void;
+  onWin: () => void;
 }) {
   const { data: tarefas = [], isLoading: carregandoTarefas } = useProspectTasks(prospect.id);
   const [aba, setAba] = useState<Aba>('registros');
@@ -286,6 +292,7 @@ function PainelDeAtividade({
     if (open) setAba('registros');
   }, [open, prospect.id]);
 
+  // Já vem ordenada por prazo (fetchProspectTasks): a primeira pendente é a mais urgente.
   const pendentes = tarefas.filter((t) => !t.done_at);
   const tarefasPendentes = pendentes.length;
   const tarefasVencidas = pendentes.filter((t) => isTaskOverdue(t)).length;
@@ -298,12 +305,7 @@ function PainelDeAtividade({
       aria-label="Atividade"
     >
       <div className="space-y-3 p-4">
-        <ProximoPasso
-          proxima={prospect.next_activity_on}
-          numero={prospect.activity_count + 1}
-          responsavel={responsavel}
-          encerrado={somenteLeitura}
-        />
+        <ProximoPasso tarefa={pendentes[0] ?? null} encerrado={somenteLeitura} />
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TabsList>
@@ -329,7 +331,7 @@ function PainelDeAtividade({
             <ProspectAdvanceButton
               prospect={prospect}
               onPrompt={onPrompt}
-              onConvert={onConvert}
+              onWin={onWin}
               size="sm"
             />
           )}
@@ -380,9 +382,10 @@ function AcoesDoContato({
   somenteLeitura,
   editando,
   onEditar,
-  onConverter,
+  onGanhar,
   onDescartar,
   onReabrir,
+  onDesfazerGanho,
   onExcluir,
 }: {
   className?: string;
@@ -390,12 +393,12 @@ function AcoesDoContato({
   somenteLeitura: boolean;
   editando: boolean;
   onEditar: () => void;
-  onConverter: () => void;
+  onGanhar: () => void;
   onDescartar: () => void;
   onReabrir: () => void;
+  onDesfazerGanho: () => void;
   onExcluir: () => void;
 }) {
-  const encerrado = prospect.stage === 'descartado' || prospect.stage === 'sem_resposta';
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -410,30 +413,103 @@ function AcoesDoContato({
             {editando ? 'Cancelar edição' : 'Editar'}
           </DropdownMenuItem>
         )}
-        {canConvertToLead(prospect) && (
-          <DropdownMenuItem onSelect={onConverter}>
-            <ArrowRightLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-            Converter em oportunidade
-          </DropdownMenuItem>
-        )}
-        {!somenteLeitura && prospect.stage !== 'descartado' && (
-          <DropdownMenuItem onSelect={onDescartar}>
-            <XCircle className="mr-2 h-4 w-4" aria-hidden="true" />
-            Descartar
-          </DropdownMenuItem>
-        )}
-        {encerrado && (
-          <DropdownMenuItem onSelect={onReabrir}>
-            <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
-            Reabrir
-          </DropdownMenuItem>
-        )}
+        <ItensDeDesfecho
+          prospect={prospect}
+          somenteLeitura={somenteLeitura}
+          onGanhar={onGanhar}
+          onDescartar={onDescartar}
+          onReabrir={onReabrir}
+          onDesfazerGanho={onDesfazerGanho}
+        />
         <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onExcluir}>
           <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
           Excluir contato
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+interface ItensDeDesfechoProps {
+  prospect: ProspectWithCompany;
+  somenteLeitura: boolean;
+  onGanhar: () => void;
+  onDescartar: () => void;
+  onReabrir: () => void;
+  onDesfazerGanho: () => void;
+}
+
+/** Ganho e Perda no menu: registrar, corrigir e desfazer — cada um só onde faz sentido. */
+function ItensDeDesfecho(props: ItensDeDesfechoProps) {
+  return (
+    <>
+      <ItensDeGanho {...props} />
+      <ItensDePerda {...props} />
+    </>
+  );
+}
+
+function ItensDeGanho(props: ItensDeDesfechoProps) {
+  const { prospect, onGanhar, onDesfazerGanho } = props;
+  const ganho = prospect.stage === ETAPA_GANHO;
+  if (!ganho && !canWin(prospect)) return null;
+  return (
+    <>
+      <DropdownMenuItem onSelect={onGanhar}>
+        <BadgeDollarSign className="mr-2 h-4 w-4" aria-hidden="true" />
+        {ganho ? 'Editar ganho' : 'Registrar ganho'}
+      </DropdownMenuItem>
+      {ganho && (
+        <DropdownMenuItem onSelect={onDesfazerGanho}>
+          <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
+          Desfazer ganho
+        </DropdownMenuItem>
+      )}
+    </>
+  );
+}
+
+function ItensDePerda(props: ItensDeDesfechoProps) {
+  const { prospect, somenteLeitura, onDescartar, onReabrir } = props;
+  if (PERDIDO.has(prospect.stage)) {
+    return (
+      <DropdownMenuItem onSelect={onReabrir}>
+        <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
+        Reabrir
+      </DropdownMenuItem>
+    );
+  }
+  if (somenteLeitura) return null;
+  return (
+    <DropdownMenuItem onSelect={onDescartar}>
+      <XCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+      Registrar perda
+    </DropdownMenuItem>
+  );
+}
+
+const ETAPA_GANHO: ProspectWithCompany['stage'] = 'ganho';
+/** Perda, e o "Sem resposta" das linhas antigas: os dois reabrem em "A abordar". */
+const PERDIDO = new Set<ProspectWithCompany['stage']>(['descartado', 'sem_resposta']);
+
+/** O desfecho por extenso no cabeçalho: quando e quanto vendemos, ou por que perdemos. */
+function DesfechoDoContato({ prospect, onWin }: { prospect: ProspectWithCompany; onWin: () => void }) {
+  if (PERDIDO.has(prospect.stage)) {
+    return <p className="text-xs text-muted-foreground">Motivo da perda: {getDiscardReasonLabel(prospect.discard_reason)}</p>;
+  }
+  if (prospect.stage !== ETAPA_GANHO || !prospect.won_on) return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      Ganho em {formatarData(prospect.won_on)}
+      {' · '}
+      {prospect.won_value === null ? (
+        <button type="button" onClick={onWin} className="font-medium text-warning-emphasis underline-offset-2 hover:underline">
+          sem valor — registrar
+        </button>
+      ) : (
+        <span className="font-medium text-foreground">{formatCurrency(prospect.won_value)}</span>
+      )}
+    </p>
   );
 }
 
@@ -501,7 +577,7 @@ function Indicadores({
   const itens = [
     { rotulo: 'Atividades', valor: String(atividades) },
     { rotulo: 'Respostas', valor: String(respostas) },
-    { rotulo: 'Próxima', valor: proxima ? formatarDataCurta(proxima) : '—' },
+    { rotulo: 'Próx. tarefa', valor: proxima ? formatarDataCurta(proxima) : '—' },
   ];
 
   return (
@@ -518,43 +594,32 @@ function Indicadores({
   );
 }
 
-/** A próxima data em destaque: é o que decide se este contato entra no dia de hoje. */
-function ProximoPasso({
-  proxima,
-  numero,
-  responsavel,
-  encerrado,
-}: {
-  proxima: string | null;
-  numero: number;
-  responsavel: string | null;
-  encerrado: boolean;
-}) {
-  if (!proxima || encerrado) return null;
+/**
+ * A próxima tarefa pendente em destaque (28/09/2026). Antes era a data da cadência, que
+ * avisava "venceu" sozinha; agora só avisa o que alguém do time se comprometeu a fazer.
+ * Vermelho só quando a tarefa venceu — no prazo, é informação, não alerta.
+ */
+function ProximoPasso({ tarefa, encerrado }: { tarefa: ProspectTaskDB | null; encerrado: boolean }) {
+  if (!tarefa || encerrado) return null;
 
-  const dias = diasAte(proxima);
-  const atrasado = dias < 0;
+  const dias = diasAte(tarefa.due_date);
+  const vencida = dias < 0;
 
   return (
     <div
       className={cn(
         'flex flex-wrap items-start gap-3 rounded-lg border p-3',
-        atrasado
-          ? 'border-destructive/30 bg-destructive/10'
-          : 'border-warning/30 bg-warning-subtle',
+        vencida ? 'border-destructive/30 bg-destructive/10' : 'bg-muted/40',
       )}
     >
       <Clock
-        className={cn('mt-0.5 h-4 w-4 shrink-0', atrasado ? 'text-destructive' : 'text-warning-emphasis')}
+        className={cn('mt-0.5 h-4 w-4 shrink-0', vencida ? 'text-destructive' : 'text-muted-foreground')}
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1">
-        <p className={cn('text-sm font-medium', atrasado ? 'text-destructive' : 'text-warning-emphasis')}>
-          Próximo passo: registrar a atividade nº {numero}
-        </p>
+        <p className={cn('text-sm font-medium', vencida && 'text-destructive')}>Próxima tarefa: {tarefa.description}</p>
         <p className="text-xs text-muted-foreground">
-          {atrasado ? 'Venceu' : 'Vence'} em {formatarData(proxima)} · {descreverPrazo(dias)}
-          {responsavel ? ` · responsável ${responsavel}` : ''}
+          {vencida ? 'Venceu' : 'Vence'} em {formatarData(tarefa.due_date)} · {descreverPrazo(dias)}
         </p>
       </div>
     </div>

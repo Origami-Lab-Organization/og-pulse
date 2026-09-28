@@ -1,6 +1,7 @@
 import { PROSPECT_FUNNEL_STAGES, type ProspectStage, type ProspectWithCompany } from '@/types/prospect';
 import type {
   ActivityLite,
+  LossMilestone,
   Milestone,
   ProspectMilestones,
   ProspectStageChangeDB,
@@ -22,10 +23,16 @@ import { localDay } from './periods';
  *   - reunião e qualificação: `prospect_stage_changes`, a única que tem essa data.
  */
 
-/** Convertido fica depois de Qualificada: quem converteu passou por todas as etapas. */
-const POSICAO = new Map<ProspectStage, number>(
-  [...PROSPECT_FUNNEL_STAGES, 'convertido' as const].map((etapa, i) => [etapa, i]),
-);
+/**
+ * Ganho fica depois de Qualificada: quem vendeu passou por todas as etapas — inclusive
+ * quem fechou direto de Reunião feita, que conta também como qualificada. Convertido (linhas
+ * antigas) ocupa a mesma posição.
+ */
+const POSICAO = new Map<ProspectStage, number>([
+  ...PROSPECT_FUNNEL_STAGES.map((etapa, i) => [etapa, i] as const),
+  ['ganho', PROSPECT_FUNNEL_STAGES.length],
+  ['convertido', PROSPECT_FUNNEL_STAGES.length],
+]);
 
 const posicaoDe = (etapa: ProspectStage) => POSICAO.get(etapa) ?? -1;
 
@@ -70,6 +77,24 @@ function primeiraRespostaPorContato(respostas: ActivityLite[]): Map<string, Acti
   return primeira;
 }
 
+const ETAPA_GANHO: ProspectStage = 'ganho';
+const ETAPA_PERDA: ProspectStage = 'descartado';
+
+/** A perda vigente, com a etapa de onde saiu — a última entrada em Perda no histórico. */
+function perdaDe(prospect: ProspectWithCompany, doContato: ProspectStageChangeDB[]): LossMilestone | null {
+  if (prospect.stage !== ETAPA_PERDA || !prospect.discarded_at) return null;
+  const entrada = doContato
+    .filter((m) => m.to_stage === ETAPA_PERDA)
+    .sort((a, b) => b.occurred_on.localeCompare(a.occurred_on))[0];
+  return {
+    date: localDay(prospect.discarded_at),
+    reason: prospect.discard_reason,
+    fromStage: entrada?.from_stage ?? null,
+  };
+}
+
+const ganhoDe = (prospect: ProspectWithCompany) => (prospect.stage === ETAPA_GANHO ? prospect.won_on : null);
+
 export function buildMilestones(
   prospects: ProspectWithCompany[],
   respostas: ActivityLite[],
@@ -89,6 +114,9 @@ export function buildMilestones(
       agendada: marco(NIVEL.agendada, prospect.stage, doContato),
       feita: marco(NIVEL.feita, prospect.stage, doContato),
       qualificada: marco(NIVEL.qualificada, prospect.stage, doContato),
+      ganho: ganhoDe(prospect),
+      valor: ganhoDe(prospect) ? prospect.won_value : null,
+      perda: perdaDe(prospect, doContato),
     };
   });
 }

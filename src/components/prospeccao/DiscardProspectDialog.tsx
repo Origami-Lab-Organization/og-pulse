@@ -20,10 +20,11 @@ interface DiscardProspectDialogProps {
 }
 
 /**
- * Descarte exige motivo de uma lista fechada.
+ * Perda exige motivo de uma lista fechada (etapa `descartado`, "Perda" desde 28/09/2026).
  *
  * Texto livre aqui seria o fim da métrica: "sem budget", "sem orçamento" e "não tem verba"
- * viram três linhas diferentes do mesmo fato e ninguém consegue somar.
+ * viram três linhas diferentes do mesmo fato e ninguém consegue somar. O banco também
+ * recusa perda sem motivo (prospects_discarded_has_reason).
  */
 export function DiscardProspectDialog({ prospect, open, onOpenChange }: DiscardProspectDialogProps) {
   const descartar = useDiscardProspect();
@@ -46,10 +47,11 @@ export function DiscardProspectDialog({ prospect, open, onOpenChange }: DiscardP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Descartar contato</DialogTitle>
+          <DialogTitle>Registrar perda</DialogTitle>
           <DialogDescription>
             {prospect.contact_name}
-            {prospect.company?.name ? ` · ${prospect.company.name}` : ''}. O motivo é obrigatório.
+            {prospect.company?.name ? ` · ${prospect.company.name}` : ''}. Por que perdemos? O motivo é
+            obrigatório e entra nas métricas.
           </DialogDescription>
         </DialogHeader>
 
@@ -67,7 +69,7 @@ export function DiscardProspectDialog({ prospect, open, onOpenChange }: DiscardP
             Cancelar
           </Button>
           <Button variant="destructive" onClick={confirmar} disabled={!motivo || descartar.isPending}>
-            {descartar.isPending ? 'Descartando...' : 'Descartar'}
+            {descartar.isPending ? 'Registrando...' : 'Registrar perda'}
           </Button>
         </DialogFooter>
       </DialogContent>

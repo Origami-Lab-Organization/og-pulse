@@ -6,7 +6,7 @@
  */
 
 import type { AccountCoverage } from '@/lib/prospecting/metrics';
-import type { ProspectCompanyDB, ProspectStage, ProspectWithCompany } from '@/types/prospect';
+import type { PendingTaskLite, ProspectCompanyDB, ProspectStage, ProspectWithCompany } from '@/types/prospect';
 
 export type PeriodPreset =
   | 'esta_semana'
@@ -101,6 +101,19 @@ export interface ProspectMilestones {
   agendada: Milestone;
   feita: Milestone;
   qualificada: Milestone;
+  /** Dia do fechamento — só de quem está em Ganho hoje. Desfazer o ganho tira daqui. */
+  ganho: string | null;
+  /** Valor vendido; `null` em Ganho = registrado sem valor. */
+  valor: number | null;
+  /** A perda vigente: quem foi reaberto deixou de ser perda. */
+  perda: LossMilestone | null;
+}
+
+export interface LossMilestone {
+  date: string;
+  reason: string | null;
+  /** A etapa em que o contato estava quando se perdeu — "onde perdemos". */
+  fromStage: ProspectStage | null;
 }
 
 export type MetricKey =
@@ -112,9 +125,11 @@ export type MetricKey =
   | 'conversas'
   | 'agendadas'
   | 'feitas'
-  | 'qualificadas';
+  | 'qualificadas'
+  | 'ganhos'
+  | 'perdas';
 
-export type MetricBlock = 'lista' | 'esforco' | 'resultado';
+export type MetricBlock = 'lista' | 'esforco' | 'resultado' | 'desfecho';
 
 /** Uma ocorrência que a métrica conta — e que o detalhe lista. */
 export interface Occurrence {
@@ -177,11 +192,13 @@ export interface SafraPoint {
   agendamento: number | null;
   comparecimento: number | null;
   qualificacao: number | null;
+  /** Ganhos ÷ qualificadas: das oportunidades, quantas viraram venda. */
+  fechamento: number | null;
   /** A safra é recente demais para as etapas do fim terem acontecido. */
   maturing: boolean;
 }
 
-export type SafraRateKey = 'resposta' | 'agendamento' | 'comparecimento' | 'qualificacao';
+export type SafraRateKey = 'resposta' | 'agendamento' | 'comparecimento' | 'qualificacao' | 'fechamento';
 
 export interface CycleTime {
   key: string;
@@ -205,6 +222,8 @@ export interface CutFlowRow {
   agendadas: number;
   feitas: number;
   qualificadas: number;
+  ganhos: number;
+  perdas: number;
 }
 
 /** O que a aba carrega do banco, sem filtro. */
@@ -218,15 +237,32 @@ export interface MetricsSource {
   changes: ProspectStageChangeDB[];
 }
 
-/** Quem saiu do quadro no período. */
-export interface PeriodExits {
-  discards: DiscardCount[];
-  discardTotal: number;
-  semResposta: number;
+export interface StageLossCount {
+  stage: ProspectStage | null;
+  label: string;
+  count: number;
 }
 
-/** Estado da lista: cobertura no período e o que está vencido hoje. */
+/** As perdas do período: por que e em que etapa perdemos. */
+export interface PeriodLosses {
+  total: number;
+  byReason: DiscardCount[];
+  byStage: StageLossCount[];
+}
+
+/** O que vendemos no período, e o mesmo trecho do período anterior. */
+export interface SalesSummary {
+  valor: number;
+  valorAnterior: number | null;
+  ganhos: number;
+  /** Ganhos registrados sem valor — ficam fora do valor e do ticket médio. */
+  semValor: number;
+  /** Valor ÷ ganhos COM valor. `null` sem nenhum. */
+  ticketMedio: number | null;
+}
+
+/** Estado da lista: cobertura no período e os contatos com tarefa vencida hoje. */
 export interface ListHealthData {
   coverage: AccountCoverage;
-  overdue: ProspectWithCompany[];
+  overdue: Array<{ prospect: ProspectWithCompany; task: PendingTaskLite }>;
 }

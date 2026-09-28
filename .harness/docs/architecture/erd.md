@@ -17,6 +17,7 @@ sources:
   - supabase/migrations/20260924120000_prospect_tasks.sql
   - supabase/migrations/20260928120000_prospect_stage_changes.sql
   - supabase/migrations/20260928160000_prospect_meeting_dates.sql
+  - supabase/migrations/20260928200000_prospect_ganho_perda.sql
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
   - src/types/lead.ts
@@ -32,6 +33,9 @@ sources:
 # ProspectStageChangeDB e executado com backfill + trigger num Postgres local.
 # 28/09/2026: 20260928160000 — reuniões anteriores ao histórico reconstruídas a partir
 # da atividade da reunião; set_prospect_stage data a etapa pelo dia do fato.
+# 28/09/2026: 20260928200000 — etapa ganho (won_on, won_value), Perda com a lista nova de
+# motivos, regras em prospects_outcome_rules; nenhum desfecho automático (cadência esgotada
+# fica em em_cadencia, sem próxima data).
 verified: 2026-09-28
 ---
 
@@ -134,13 +138,15 @@ erDiagram
         text tier "Tier — livre, editável no card"
     }
     prospects {
-        text stage "CHECK de 9 valores: 6 do funil + 3 desfechos (src/types/prospect.ts)"
+        text stage "6 de trabalho + ganho + descartado (Perda); sem_resposta/convertido só em linhas antigas"
         text lever "Alavanca / origem da lista"
         text instagram_url "perfil pessoal do contato"
         date first_touch_at "imutável (trigger)"
         int activity_count "mantido pelo trigger"
         date next_activity_on "prazo: sinal de atraso no card + Próximo passo"
-        text discard_reason "lista fechada no CHECK"
+        text discard_reason "motivo da perda — lista fechada de 10 no CHECK"
+        date won_on "dia do fechamento — obrigatório em ganho"
+        numeric won_value "valor vendido — NULL = Sem valor"
     }
     prospect_activities {
         int sequence_no "preenchido pelo trigger; único por prospect"
@@ -178,6 +184,18 @@ grava ao marcar Reunião feita (última com resposta em Presencial/Videoconferê
 agendamento é a atividade anterior) e tirou o marco `anterior` deles. Desde então, mover com
 `set_prospect_stage(p_prospect_id, p_stage, p_occurred_on)` (SECURITY INVOKER) data a etapa
 pelo dia informado — é o que o diálogo de Reunião feita usa; o arraste comum data no dia.
+
+Desde a `20260928200000` a Prospecção é o quadro comercial de ponta a ponta e termina em
+**Ganho** (`ganho`, com `won_on` e `won_value`) ou **Perda** (`descartado`, motivo obrigatório).
+As regras ficam no trigger `prospects_outcome_rules` (BEFORE UPDATE OF stage): Ganho só de
+`reuniao_feita`/`qualificado`; entrar num desfecho carimba a data e fecha o card; sair limpa o
+desfecho e reabre com atividade para hoje. `mark_prospect_won(p_prospect_id, p_won_on, p_value)`
+(SECURITY INVOKER) registra o ganho e data o histórico pelo fechamento. **Nenhum desfecho é
+automático**: a cadência esgotada (`prospect_activities_advance`) mantém o contato em
+`em_cadencia`, sem próxima data, até a pessoa decidir. A etapa `sem_resposta` e a conversão
+para `leads` (`convertido`) não recebem mais ninguém. O único aviso de prazo da tela é o de
+tarefa vencida (`prospect_tasks`); `next_activity_on` segue existindo como sugestão da
+cadência, sem alerta.
 
 `prospect_tasks` (24/09/2026) é a lista **para frente** do contato; `prospect_activities`
 é o registro para trás. As duas são separadas de propósito: tarefa não conta toque, não

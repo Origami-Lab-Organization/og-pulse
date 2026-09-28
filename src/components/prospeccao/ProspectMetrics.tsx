@@ -14,6 +14,7 @@ import { ProspectFunnel } from '@/components/prospeccao/metrics/ProspectFunnel';
 import { SafraRatesGrid } from '@/components/prospeccao/metrics/SafraRatesGrid';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { useProspectMetricsData } from '@/hooks/useProspectMetricsData';
+import { usePendingProspectTasks } from '@/hooks/useProspectTasks';
 import type { ProspectCut } from '@/lib/prospecting/metrics';
 import { buildMilestones } from '@/lib/prospecting/milestones';
 import {
@@ -25,9 +26,10 @@ import {
   metricSeries,
   metricValues,
   occurrencesInRange,
-  periodExits,
+  periodLosses,
   safraFunnel,
   safraSeries,
+  salesSummary,
 } from '@/lib/prospecting/periodMetrics';
 import { DEFAULT_PERIOD, formatDay, formatRange, resolvePeriod, trendBuckets } from '@/lib/prospecting/periods';
 import { getLeverLabel, type ProspectWithCompany } from '@/types/prospect';
@@ -153,8 +155,10 @@ function Painel(props: PainelProps) {
   const funil = useMemo(() => safraFunnel(dataset, period), [dataset, period]);
   const safras = useMemo(() => safraSeries(dataset, trendBuckets(period, 'mes')), [dataset, period]);
   const ciclos = useMemo(() => cycleTimes(dataset, period), [dataset, period]);
-  const saidas = useMemo(() => periodExits(dataset, period), [dataset, period]);
-  const saude = useMemo(() => listHealth(dataset, period), [dataset, period]);
+  const perdas = useMemo(() => periodLosses(dataset, period), [dataset, period]);
+  const vendas = useMemo(() => salesSummary(dataset, period), [dataset, period]);
+  const { porContato: proximaTarefa } = usePendingProspectTasks();
+  const saude = useMemo(() => listHealth(dataset, period, proximaTarefa), [dataset, period, proximaTarefa]);
   const linhasDoCorte = useMemo(() => cutFlow(dataset, period, corte), [dataset, period, corte]);
 
   const abrirMetrica = (def: MetricDefinition) =>
@@ -165,9 +169,9 @@ function Painel(props: PainelProps) {
     });
   const abrirVencidos = () =>
     onOpenDetail({
-      title: 'Atividade vencida',
-      description: 'Contatos do quadro com a próxima atividade antes de hoje, os mais atrasados primeiro.',
-      items: saude.overdue.map((p) => ({ date: p.next_activity_on ?? '', prospect: p })),
+      title: 'Tarefa vencida',
+      description: 'Contatos do quadro com tarefa pendente de prazo vencido, os mais atrasados primeiro.',
+      items: saude.overdue.map(({ prospect, task }) => ({ date: task.due_date, prospect })),
     });
   const nomeDoGrupo = (chave: string) => NOMES_DO_CORTE[corte](chave, ownerName);
 
@@ -175,6 +179,7 @@ function Painel(props: PainelProps) {
     <>
       <PeriodKpis
         values={valores}
+        sales={vendas}
         comparisonLabel={period.comparisonLabel}
         historyStart={dataset.historyStart}
         onOpen={abrirMetrica}
@@ -200,14 +205,15 @@ function Painel(props: PainelProps) {
 
       <CycleTimesCard cycles={ciclos} />
 
-      <ListHealthSection health={saude} exits={saidas} onOpenOverdue={abrirVencidos} />
+      <ListHealthSection health={saude} losses={perdas} onOpenOverdue={abrirVencidos} />
 
       <CutFlowTable rows={linhasDoCorte} cut={corte} onCutChange={setCorte} groupName={nomeDoGrupo} />
 
       <p className="text-xs text-muted-foreground">
         Cada número conta um marco: a primeira vez que o contato chega à etapa ou a uma adiante — quem pula de
-        Respondeu para Reunião feita conta também em Agendada. Conversa é a 1ª atividade com resposta; contas abertas
-        e contatos ativados, o 1º toque.
+        Respondeu para Reunião feita conta também em Agendada, e quem fecha direto de Reunião feita conta também em
+        Qualificada. Conversa é a 1ª atividade com resposta; contas abertas e contatos ativados, o 1º toque. Ganhos e
+        Perdas contam o desfecho vigente: quem foi reaberto deixa de contar.
         {dataset.historyStart &&
           ` Reuniões e qualificações têm data desde ${formatDay(dataset.historyStart)}; quem já estava nessas etapas antes conta na conversão da safra, mas em período nenhum.`}
       </p>

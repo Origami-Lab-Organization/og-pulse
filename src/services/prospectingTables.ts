@@ -25,7 +25,7 @@ export function tabela(nome: TabelaDeProspeccao) {
 }
 
 /** RPCs da prospecção criadas depois da última geração de tipos (20260928160000). */
-export type RpcDeProspeccao = 'set_prospect_stage';
+export type RpcDeProspeccao = 'set_prospect_stage' | 'mark_prospect_won';
 
 export function rpc(nome: RpcDeProspeccao, args: Record<string, unknown>) {
   return clienteSemTipos.rpc(nome, args);

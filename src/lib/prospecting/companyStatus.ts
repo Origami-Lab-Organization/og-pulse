@@ -1,4 +1,4 @@
-import type { ProspectCompanyDB, ProspectStage, ProspectWithCompany } from '@/types/prospect';
+import type { PendingTaskLite, ProspectCompanyDB, ProspectStage, ProspectWithCompany } from '@/types/prospect';
 import { parseRank, parseSegment } from './companySegmentation';
 
 /**
@@ -36,8 +36,8 @@ interface CompanyStatusMeta {
 
 export const COMPANY_STATUS_META: Record<CompanyProspectStatus, CompanyStatusMeta> = {
   cliente: {
-    label: 'Cliente / oportunidade',
-    hint: 'Já está com o comercial',
+    label: 'Cliente',
+    hint: 'Já é cliente — não abordar a frio',
     action: 'nao_abordar',
     dot: 'bg-info',
   },
@@ -95,9 +95,12 @@ export const ETAPAS_EM_CONVERSA: readonly ProspectStage[] = [
   'qualificado',
 ];
 
-/** Conversa aberta ou já passada ao comercial: o contato que ocupa a empresa. */
+/** Vendemos (Ganho) — ou, nas linhas antigas, passou ao Pipeline (Convertido). */
+const ETAPAS_DE_CLIENTE: readonly ProspectStage[] = ['ganho', 'convertido'];
+
+/** Conversa aberta ou já fechada: o contato que ocupa a empresa. */
 export function isContactInConversation(contato: Pick<ProspectWithCompany, 'stage'>): boolean {
-  return ETAPAS_EM_CONVERSA.includes(contato.stage) || contato.stage === 'convertido';
+  return ETAPAS_EM_CONVERSA.includes(contato.stage) || ETAPAS_DE_CLIENTE.includes(contato.stage);
 }
 
 /**
@@ -124,7 +127,7 @@ interface Contexto {
 
 /** Em ordem de prioridade: a primeira regra que se aplica decide a situação. */
 const REGRAS: ReadonlyArray<[CompanyProspectStatus, (c: Contexto) => boolean]> = [
-  ['cliente', (c) => c.temCliente || c.etapas.includes('convertido')],
+  ['cliente', (c) => c.temCliente || c.etapas.some((e) => ETAPAS_DE_CLIENTE.includes(e))],
   ['em_conversa', (c) => c.etapas.some((e) => ETAPAS_EM_CONVERSA.includes(e))],
   ['pediu_para_parar', (c) => c.contatos.some(pediuParaParar)],
   ['em_cadencia', (c) => c.etapas.includes('em_cadencia')],
@@ -155,8 +158,11 @@ export interface CompanyRow {
   status: CompanyProspectStatus;
   /** Donos distintos dos contatos, na ordem em que aparecem. */
   ownerIds: string[];
-  /** A próxima atividade mais próxima entre os contatos, se houver. */
-  nextActivityOn: string | null;
+  /**
+   * O prazo da tarefa pendente mais urgente entre os contatos (28/09/2026). Era a data da
+   * cadência; passou a ser a tarefa, o único prazo que alguém do time assumiu.
+   */
+  nextTaskOn: string | null;
   /** Segmentação lida do texto livre da empresa — ver `companySegmentation`. */
   setor: string | null;
   subsetor: string | null;
@@ -167,6 +173,7 @@ export interface CompanyRow {
 export function buildCompanyRows(
   companies: ProspectCompanyDB[],
   prospects: ProspectWithCompany[],
+  proximaTarefa: Map<string, PendingTaskLite> = new Map(),
 ): CompanyRow[] {
   const porEmpresa = new Map<string, ProspectWithCompany[]>();
   for (const p of prospects) {
@@ -187,7 +194,7 @@ export function buildCompanyRows(
       contacts,
       status: companyProspectStatus(company, contacts),
       ownerIds: distintos(contacts.map((c) => c.owner_id)),
-      nextActivityOn: menorData(contacts.map((c) => c.next_activity_on)),
+      nextTaskOn: menorData(contacts.map((c) => proximaTarefa.get(c.id)?.due_date ?? null)),
     };
   });
 }

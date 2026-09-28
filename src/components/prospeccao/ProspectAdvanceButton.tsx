@@ -6,7 +6,6 @@ import { useUpdateProspectStage } from '@/hooks/useProspects';
 import {
   PROSPECT_NEXT_STAGE,
   advanceModeFor,
-  canConvertToLead,
   getProspectStageLabel,
   type ProspectStage,
   type ProspectWithCompany,
@@ -16,8 +15,8 @@ interface ProspectAdvanceButtonProps {
   prospect: ProspectWithCompany;
   /** Chamado quando a etapa de destino abre um registro antes de avançar. */
   onPrompt: (stage: ProspectStage) => void;
-  /** Chamado no fim do funil, onde o próximo passo é sair para o comercial. */
-  onConvert: () => void;
+  /** Chamado quando o próximo passo é Ganho: abre o registro da venda (data e valor). */
+  onWin: () => void;
 }
 
 /**
@@ -31,22 +30,14 @@ interface ProspectAdvanceButtonProps {
  * Cada destino tem sua regra, e elas não são intercambiáveis:
  * registrar resposta (o banco move), abrir o registro da reunião, ou mover direto.
  */
-export function ProspectAdvanceButton({
-  prospect,
-  onPrompt,
-  onConvert,
-  size = 'default',
-}: ProspectAdvanceButtonProps & { size?: 'sm' | 'default' }) {
+export function ProspectAdvanceButton(props: ProspectAdvanceButtonProps & { size?: 'sm' | 'default' }) {
+  const { prospect, onPrompt, onWin, size = 'default' } = props;
   const registrar = useRegisterActivity();
   const moverEtapa = useUpdateProspectStage();
   const proxima = PROSPECT_NEXT_STAGE[prospect.stage];
 
-  if (!proxima) {
-    if (!canConvertToLead(prospect)) return null;
-    return (
-      <Botao size={size} onClick={onConvert} label="Converter em oportunidade" />
-    );
-  }
+  // Ganho e Perda não têm próximo passo: o card saiu do trabalho.
+  if (!proxima) return null;
 
   /**
    * Quem move para "Em cadência" e "Respondeu" é o trigger, a partir da atividade — a tela
@@ -73,6 +64,7 @@ export function ProspectAdvanceButton({
     if (modo === 'activity') return registrarAtividade(false);
     if (modo === 'response') return registrarAtividade(true);
     if (modo === 'prompt') return onPrompt(proxima);
+    if (modo === 'win') return onWin();
     moverEtapa.mutate({ id: prospect.id, stage: proxima });
   };
 

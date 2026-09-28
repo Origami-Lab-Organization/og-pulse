@@ -49,7 +49,7 @@ export function CompanyTable({ rows, sort, onSort, onOpen }: CompanyTableProps) 
           <div role="columnheader">Situação</div>
           <div role="columnheader" className="text-center">Contatos</div>
           <div role="columnheader">Responsável</div>
-          <Cabecalho chave="next" sort={sort} onSort={onSort}>Próx. atividade</Cabecalho>
+          <Cabecalho chave="next" sort={sort} onSort={onSort}>Próx. tarefa</Cabecalho>
         </div>
       </div>
 
@@ -143,7 +143,7 @@ function Linha({ row, onOpen }: { row: CompanyRow; onOpen: () => void }) {
         <span className="sr-only">{row.contacts.length === 1 ? 'contato' : 'contatos'}</span>
       </div>
       <div role="cell" className="min-w-0"><CelulaResponsavel ownerIds={row.ownerIds} /></div>
-      <div role="cell"><CelulaProximaAtividade data={row.nextActivityOn} /></div>
+      <div role="cell"><CelulaProximaAtividade data={row.nextTaskOn} /></div>
     </div>
   );
 }

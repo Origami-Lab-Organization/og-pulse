@@ -17,6 +17,8 @@ const COLUNAS: ReadonlyArray<{ key: Exclude<keyof CutFlowRow, 'key'>; label: str
   { key: 'agendadas', label: 'Agendadas' },
   { key: 'feitas', label: 'Feitas' },
   { key: 'qualificadas', label: 'Qualificadas' },
+  { key: 'ganhos', label: 'Ganhos' },
+  { key: 'perdas', label: 'Perdas' },
 ];
 
 interface CutFlowTableProps {

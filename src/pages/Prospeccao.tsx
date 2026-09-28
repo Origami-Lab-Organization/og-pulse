@@ -1,26 +1,16 @@
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ConvertProspectDialog } from '@/components/prospeccao/ConvertProspectDialog';
 import { DiscardProspectDialog } from '@/components/prospeccao/DiscardProspectDialog';
 import { ProspectDetailDialog } from '@/components/prospeccao/ProspectDetailDialog';
 import { ProspectFilterButton } from '@/components/prospeccao/ProspectFilterButton';
 import { ProspectFormDialog } from '@/components/prospeccao/ProspectFormDialog';
 import { ProspectKanbanBoard } from '@/components/prospeccao/ProspectKanbanBoard';
 import { ProspectMetrics } from '@/components/prospeccao/ProspectMetrics';
+import { ProspectWonDialog } from '@/components/prospeccao/ProspectWonDialog';
 import { useProspects } from '@/hooks/useProspects';
 import { contactsInConversationByCompany } from '@/lib/prospecting/companyStatus';
 import {
@@ -29,20 +19,15 @@ import {
   FILTRO_VAZIO,
   type ProspectFilter,
 } from '@/lib/prospecting/filters';
-import {
-  PROSPECT_FUNNEL_STAGES,
-  getDiscardReasonLabel,
-  getProspectStageColor,
-  getProspectStageLabel,
-  isProspectClosed,
-  type ProspectWithCompany,
-} from '@/types/prospect';
+import { PROSPECT_BOARD_STAGES, type ProspectWithCompany } from '@/types/prospect';
 
 /**
- * Prospecção — pipeline frio, separado do comercial.
+ * Prospecção — o quadro comercial de ponta a ponta (28/09/2026): do primeiro toque ao
+ * fechamento. O contato sai do trabalho de dois jeitos só, Ganho ou Perda, e os dois são
+ * colunas do quadro — a aba de encerrados deixou de existir.
  *
- * O Pipeline abre primeiro: com a lista diária removida (17/09/2026), é pelo board que a
- * pessoa encontra o que precisa de ação — a data de vencimento fica no card.
+ * O quadro abre primeiro: com a lista diária removida (17/09/2026), é por ele que a pessoa
+ * encontra o que precisa de ação — a data de vencimento fica no card.
  */
 export default function Prospeccao() {
   const { data: todos = [], isLoading } = useProspects();
@@ -50,16 +35,16 @@ export default function Prospeccao() {
   const [novoAberto, setNovoAberto] = useState(false);
   const [selecionado, setSelecionado] = useState<ProspectWithCompany | null>(null);
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
-  const [convertendo, setConvertendo] = useState<ProspectWithCompany | null>(null);
+  const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
   const [filtro, setFiltro] = useState<ProspectFilter>(FILTRO_VAZIO);
   // Tabs controladas só para saber em qual aba o filtro faz sentido.
   const [aba, setAba] = useState('pipeline');
 
+  // O quadro inteiro: o trabalho em aberto e os dois desfechos, Ganho e Perda (28/09/2026).
   const noFunil = useMemo(
-    () => todos.filter((p) => PROSPECT_FUNNEL_STAGES.includes(p.stage)),
+    () => todos.filter((p) => PROSPECT_BOARD_STAGES.includes(p.stage)),
     [todos],
   );
-  const encerrados = useMemo(() => todos.filter((p) => isProspectClosed(p.stage)), [todos]);
   // Sobre TODOS os contatos, inclusive convertidos: quem já virou oportunidade ocupa a empresa.
   const emConversaPorEmpresa = useMemo(() => contactsInConversationByCompany(todos), [todos]);
   const noFunilFiltrado = useMemo(() => applyProspectFilter(noFunil, filtro), [noFunil, filtro]);
@@ -74,7 +59,7 @@ export default function Prospeccao() {
   return (
     <AppLayout
       title="Prospecção"
-      description="Pipeline frio: mede atenção conquistada, não receita"
+      description="Do primeiro contato ao fechamento: cada contato termina em Ganho ou Perda"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Prospecção' }]}
       actions={
         <Button onClick={() => setNovoAberto(true)}>
@@ -87,7 +72,6 @@ export default function Prospeccao() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TabsList>
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-            <TabsTrigger value="encerrados">Encerrados</TabsTrigger>
             <TabsTrigger value="metricas">Métricas</TabsTrigger>
           </TabsList>
 
@@ -118,14 +102,6 @@ export default function Prospeccao() {
           )}
         </TabsContent>
 
-        <TabsContent value="encerrados">
-          <TabelaDeEncerrados
-            prospects={encerrados}
-            isLoading={isLoading}
-            onOpen={setSelecionado}
-          />
-        </TabsContent>
-
         <TabsContent value="metricas">
           <ProspectMetrics prospects={todos} onOpenProspect={setSelecionado} />
         </TabsContent>
@@ -138,7 +114,7 @@ export default function Prospeccao() {
         open={!!selecionado}
         onOpenChange={(aberto) => !aberto && setSelecionado(null)}
         onDiscard={setDescartando}
-        onConvert={setConvertendo}
+        onWin={setGanhando}
       />
 
       <DiscardProspectDialog
@@ -147,70 +123,11 @@ export default function Prospeccao() {
         onOpenChange={(aberto) => !aberto && setDescartando(null)}
       />
 
-      <ConvertProspectDialog
-        prospect={convertendo}
-        open={!!convertendo}
-        onOpenChange={(aberto) => !aberto && setConvertendo(null)}
+      <ProspectWonDialog
+        prospect={ganhando}
+        open={!!ganhando}
+        onOpenChange={(aberto) => !aberto && setGanhando(null)}
       />
     </AppLayout>
-  );
-}
-
-function TabelaDeEncerrados({
-  prospects,
-  isLoading,
-  onOpen,
-}: {
-  prospects: ProspectWithCompany[];
-  isLoading: boolean;
-  onOpen: (p: ProspectWithCompany) => void;
-}) {
-  if (isLoading) return <Skeleton className="h-64 w-full" />;
-
-  if (prospects.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center text-sm text-muted-foreground">
-          Nenhum contato encerrado ainda.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardContent className="overflow-x-auto p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Contato</TableHead>
-              <TableHead>Empresa</TableHead>
-              <TableHead>Desfecho</TableHead>
-              <TableHead>Motivo</TableHead>
-              <TableHead className="text-right">Atividades</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {prospects.map((p) => (
-              <TableRow
-                key={p.id}
-                className="cursor-pointer"
-                onClick={() => onOpen(p)}
-              >
-                <TableCell className="font-medium">{p.contact_name}</TableCell>
-                <TableCell>{p.company?.name ?? '—'}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className={getProspectStageColor(p.stage)}>
-                    {getProspectStageLabel(p.stage)}
-                  </Badge>
-                </TableCell>
-                <TableCell>{p.stage === 'descartado' ? getDiscardReasonLabel(p.discard_reason) : '—'}</TableCell>
-                <TableCell className="text-right">{p.activity_count}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
   );
 }

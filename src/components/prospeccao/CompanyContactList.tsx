@@ -1,11 +1,13 @@
 import { ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
+import { usePendingProspectTasks } from '@/hooks/useProspectTasks';
 import { cn } from '@/lib/utils';
 import {
   getProspectStageColor,
   getProspectStageLabel,
-  isOverdue,
+  isTaskOverdue,
+  type PendingTaskLite,
   type ProspectWithCompany,
 } from '@/types/prospect';
 
@@ -17,6 +19,7 @@ interface CompanyContactListProps {
 /** Os contatos de uma empresa: quem é, em que etapa está e com quem do time. */
 export function CompanyContactList({ contacts, onOpenContact }: CompanyContactListProps) {
   const { byId } = useEmployeeDirectoryMap();
+  const { porContato } = usePendingProspectTasks();
 
   if (contacts.length === 0) {
     return <p className="py-3 text-[13.5px] text-muted-foreground">Nenhum contato cadastrado nesta empresa.</p>;
@@ -29,6 +32,7 @@ export function CompanyContactList({ contacts, onOpenContact }: CompanyContactLi
           <LinhaDeContato
             contato={contato}
             responsavel={contato.owner_id ? byId.get(contato.owner_id)?.nome : undefined}
+            tarefa={porContato.get(contato.id)}
             onOpen={() => onOpenContact(contato)}
           />
         </li>
@@ -37,16 +41,17 @@ export function CompanyContactList({ contacts, onOpenContact }: CompanyContactLi
   );
 }
 
-function LinhaDeContato({
-  contato,
-  responsavel,
-  onOpen,
-}: {
+interface LinhaDeContatoProps {
   contato: ProspectWithCompany;
   responsavel?: string;
+  /** A próxima tarefa pendente — o único prazo que avisa vencimento (28/09/2026). */
+  tarefa?: PendingTaskLite;
   onOpen: () => void;
-}) {
-  const atrasado = isOverdue(contato);
+}
+
+function LinhaDeContato(props: LinhaDeContatoProps) {
+  const { contato, responsavel, tarefa, onOpen } = props;
+  const vencida = !!tarefa && isTaskOverdue({ due_date: tarefa.due_date, done_at: null });
   const detalhe = [contato.contact_role, responsavel && `com ${responsavel}`].filter(Boolean).join(' · ');
 
   return (
@@ -63,9 +68,9 @@ function LinhaDeContato({
           </Badge>
         </div>
         {detalhe && <p className="truncate text-xs text-muted-foreground">{detalhe}</p>}
-        {contato.next_activity_on && (
-          <p className={cn('text-xs', atrasado ? 'font-medium text-destructive' : 'text-muted-foreground')}>
-            {atrasado ? 'Atividade venceu em' : 'Próxima atividade em'} {formatarData(contato.next_activity_on)}
+        {tarefa && (
+          <p className={cn('truncate text-xs', vencida ? 'font-medium text-destructive' : 'text-muted-foreground')} title={tarefa.description}>
+            {vencida ? 'Tarefa venceu em' : 'Próxima tarefa em'} {formatarData(tarefa.due_date)}
           </p>
         )}
       </div>

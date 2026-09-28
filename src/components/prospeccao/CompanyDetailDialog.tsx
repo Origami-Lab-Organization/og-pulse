@@ -163,7 +163,7 @@ function SecaoProspeccao({ row }: { row: CompanyRow }) {
   const { byId } = useEmployeeDirectoryMap();
   const situacao = COMPANY_STATUS_META[row.status];
   const responsaveis = row.ownerIds.map((id) => byId.get(id)?.nome).filter(Boolean).join(', ');
-  const proxima = row.nextActivityOn ? descreverProximaAtividade(row.nextActivityOn) : null;
+  const proxima = row.nextTaskOn ? descreverProximaAtividade(row.nextTaskOn) : null;
 
   return (
     <Secao titulo="Prospecção">
@@ -172,7 +172,7 @@ function SecaoProspeccao({ row }: { row: CompanyRow }) {
       <Item rotulo="Contatos">
         {row.contacts.length > 0 && `${row.contacts.length} ${row.contacts.length === 1 ? 'contato' : 'contatos'}`}
       </Item>
-      <Item rotulo="Próx. atividade">
+      <Item rotulo="Próx. tarefa">
         {proxima && (
           <span className={cn(proxima.tom === 'atrasada' && 'font-medium text-destructive')}>
             {proxima.rotulo} · {proxima.dica}

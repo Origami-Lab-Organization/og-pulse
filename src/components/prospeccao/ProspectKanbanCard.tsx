@@ -1,13 +1,16 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { CircleAlert, MessagesSquare, Route, User } from 'lucide-react';
+import { BadgeDollarSign, CircleAlert, MessagesSquare, Route, User, XCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
+import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
+  getDiscardReasonLabel,
   getLeverLabel,
   getProspectStageLabel,
-  isOverdue,
+  isTaskOverdue,
+  type PendingTaskLite,
   type ProspectStage,
   type ProspectWithCompany,
 } from '@/types/prospect';
@@ -17,6 +20,8 @@ interface ProspectKanbanCardProps {
   currentStage: ProspectStage;
   /** Contatos da MESMA empresa em conversa ou além — pode incluir este próprio card. */
   emConversa?: ProspectWithCompany[];
+  /** A tarefa pendente mais urgente do contato — é ela, e só ela, que avisa vencimento. */
+  proximaTarefa?: PendingTaskLite;
   onOpen: (prospect: ProspectWithCompany) => void;
   isOverlay?: boolean;
 }
@@ -32,6 +37,7 @@ export function ProspectKanbanCard({
   prospect,
   currentStage,
   emConversa,
+  proximaTarefa,
   onOpen,
   isOverlay,
 }: ProspectKanbanCardProps) {
@@ -42,7 +48,8 @@ export function ProspectKanbanCard({
     disabled: isOverlay,
   });
 
-  const atrasado = isOverdue(prospect);
+  // Só tarefa vencida avisa (28/09/2026): a data da cadência é sugestão, não compromisso.
+  const vencida = !!proximaTarefa && isTaskOverdue({ due_date: proximaTarefa.due_date, done_at: null });
   const alavanca = getLeverLabel(prospect.lever);
   const responsavel = prospect.owner_id ? byId.get(prospect.owner_id)?.nome : null;
   const outrosEmConversa = (emConversa ?? []).filter((c) => c.id !== prospect.id);
@@ -54,7 +61,7 @@ export function ProspectKanbanCard({
       className={cn(
         'cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md focus-within:ring-2 focus-within:ring-ring',
         isDragging && 'opacity-50',
-        atrasado && 'border-destructive/40',
+        vencida && 'border-destructive/40',
       )}
       {...attributes}
       {...listeners}
@@ -87,10 +94,12 @@ export function ProspectKanbanCard({
             <span className="truncate">{responsavel ?? 'Sem responsável'}</span>
           </span>
 
-          {atrasado && prospect.next_activity_on && (
-            <span className="flex items-center gap-1 text-xs text-destructive">
+          <DesfechoDoCard prospect={prospect} />
+
+          {vencida && (
+            <span className="flex items-center gap-1 text-xs text-destructive" title={proximaTarefa.description}>
               <CircleAlert className="h-3 w-3 shrink-0" aria-hidden="true" />
-              <span className="truncate">Venceu em {formatarData(prospect.next_activity_on)}</span>
+              <span className="truncate">Tarefa venceu em {formatarData(proximaTarefa.due_date)}</span>
             </span>
           )}
         </button>
@@ -128,6 +137,35 @@ function EmpresaEmConversa({
       <span className="sr-only">Empresa em conversa: {detalhe}</span>
     </span>
   );
+}
+
+/**
+ * O desfecho no card: quanto vendemos, ou por que perdemos. Ganho sem valor é sinalizado
+ * como pendência — é o dado que falta para o ticket médio e o valor ganho da aba Métricas.
+ */
+const DESFECHOS: Partial<Record<ProspectWithCompany['stage'], (p: ProspectWithCompany) => JSX.Element>> = {
+  ganho: (p) =>
+    p.won_value === null ? (
+      <span className="inline-flex items-center gap-1 rounded-md bg-warning-subtle px-1.5 py-0.5 text-xs font-medium text-warning-emphasis">
+        <CircleAlert className="h-3 w-3 shrink-0" aria-hidden="true" />
+        Sem valor
+      </span>
+    ) : (
+      <span className="flex items-center gap-1 text-xs font-medium text-success-emphasis">
+        <BadgeDollarSign className="h-3 w-3 shrink-0" aria-hidden="true" />
+        <span className="truncate tabular-nums">{formatCurrency(p.won_value)}</span>
+      </span>
+    ),
+  descartado: (p) => (
+    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+      <XCircle className="h-3 w-3 shrink-0" aria-hidden="true" />
+      <span className="truncate">{getDiscardReasonLabel(p.discard_reason)}</span>
+    </span>
+  ),
+};
+
+function DesfechoDoCard({ prospect }: { prospect: ProspectWithCompany }) {
+  return DESFECHOS[prospect.stage]?.(prospect) ?? null;
 }
 
 function formatarData(iso: string): string {

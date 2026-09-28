@@ -117,8 +117,8 @@ Tres coisas que a tornam diferente de todas as outras:
 | `catalogo:ler` — servicos, linhas de servico | sim | sim | sim | sim | SELECT tenant-wide **de proposito** (ADR-0023) |
 | `catalogo:editar` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
 | `cliente:ler` / `cliente:editar` | sim | sim | — | — | rota `requireManager` |
-| `prospeccao:ler` — pipeline frio, empresas (tela `/comercial/empresas`), atividades, tarefas, histórico de etapa e métricas | sim | sim | — | — | `has_capability` (migration 20260915100000) |
-| `prospeccao:editar` — cadastro, atividade, tarefa, descarte, conversao | sim | sim | — | — | `has_capability` (migration 20260915100000) |
+| `prospeccao:ler` — quadro comercial (inclui Ganho com valor vendido e Perda), empresas (tela `/comercial/empresas`), atividades, tarefas, histórico de etapa e métricas | sim | sim | — | — | `has_capability` (migration 20260915100000) |
+| `prospeccao:editar` — cadastro, atividade, tarefa, registrar ganho (com valor) e perda | sim | sim | — | — | `has_capability` (migration 20260915100000) |
 
 Prospeccao tem capacidade PROPRIA, nao herda `pipeline:*`: o pipeline frio mede atencao
 conquistada e nao carrega valor, orcamento nem forecast. O seed de 15/09/2026 espelha quem

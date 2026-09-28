@@ -7,11 +7,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CompanyDetailDialog } from '@/components/prospeccao/CompanyDetailDialog';
 import { CompanyFilterButton } from '@/components/prospeccao/CompanyFilterButton';
 import { CompanyTable } from '@/components/prospeccao/CompanyTable';
-import { ConvertProspectDialog } from '@/components/prospeccao/ConvertProspectDialog';
 import { DiscardProspectDialog } from '@/components/prospeccao/DiscardProspectDialog';
 import { ProspectDetailDialog } from '@/components/prospeccao/ProspectDetailDialog';
+import { ProspectWonDialog } from '@/components/prospeccao/ProspectWonDialog';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { useProspectCompanies } from '@/hooks/useProspectCompanies';
+import { usePendingProspectTasks } from '@/hooks/useProspectTasks';
 import { useProspects } from '@/hooks/useProspects';
 import {
   aplicarConsulta,
@@ -59,9 +60,13 @@ export default function ProspeccaoEmpresas() {
   const [empresaAberta, setEmpresaAberta] = useState<string | null>(null);
   const [contatoAberto, setContatoAberto] = useState<ProspectWithCompany | null>(null);
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
-  const [convertendo, setConvertendo] = useState<ProspectWithCompany | null>(null);
+  const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
 
-  const linhas = useMemo(() => buildCompanyRows(empresas, contatos), [empresas, contatos]);
+  const { porContato: proximaTarefa } = usePendingProspectTasks();
+  const linhas = useMemo(
+    () => buildCompanyRows(empresas, contatos, proximaTarefa),
+    [empresas, contatos, proximaTarefa],
+  );
   const visiveis = useMemo(() => ordenar(aplicarConsulta(linhas, consulta), sort), [linhas, consulta, sort]);
   const contagem = useMemo(() => contarAbas(linhas, consulta), [linhas, consulta]);
 
@@ -165,7 +170,7 @@ export default function ProspeccaoEmpresas() {
         open={!!contatoAberto}
         onOpenChange={(aberto) => !aberto && setContatoAberto(null)}
         onDiscard={setDescartando}
-        onConvert={setConvertendo}
+        onWin={setGanhando}
       />
 
       <DiscardProspectDialog
@@ -174,10 +179,10 @@ export default function ProspeccaoEmpresas() {
         onOpenChange={(aberto) => !aberto && setDescartando(null)}
       />
 
-      <ConvertProspectDialog
-        prospect={convertendo}
-        open={!!convertendo}
-        onOpenChange={(aberto) => !aberto && setConvertendo(null)}
+      <ProspectWonDialog
+        prospect={ganhando}
+        open={!!ganhando}
+        onOpenChange={(aberto) => !aberto && setGanhando(null)}
       />
     </AppLayout>
   );
