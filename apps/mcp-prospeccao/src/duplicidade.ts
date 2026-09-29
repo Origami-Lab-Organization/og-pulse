@@ -70,6 +70,10 @@ export async function resolverEmpresa(
   }
   if (companyId) return { empresa: await db.buscarEmpresa(companyId), origem: 'informada' };
 
+  // Cliente já ligado a uma empresa da Prospecção vence tudo: é a mesma conta.
+  const doCliente = nova.client_id ? await db.empresaPorCliente(nova.client_id) : null;
+  if (doCliente) return { empresa: doCliente, criterio: 'cliente', origem: 'reaproveitada' };
+
   const existente = await empresaExistente({ nome: nova.name, cnpj: nova.cnpj, linkedin_url: nova.linkedin_url });
   if (existente) return { ...existente, origem: 'reaproveitada' };
   return { empresa: await db.criarEmpresa(nova), origem: 'criada' };

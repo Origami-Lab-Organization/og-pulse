@@ -39,6 +39,8 @@ sources:
 # 29/09/2026 (tarde): 20260929120000 dropa leads/lead_*; Cluster 1 removido, Cluster 1b
 # ganha budgets.prospect_id, projects.prospect_id, estimated_value/notes/competitor_name;
 # conferido contra ProspectDB e ensaiado sobre o dump de produção (ida/volta/ida).
+# Correção do deploy (mesmo dia): a migration desliga trg_*_keeps_admin só no trecho de
+# capacidades — trigger, não coluna nem relação; o diagrama não muda.
 # 29/09/2026: src/types/prospectMetrics.ts ganhou só contratos de tela (CutSafraRow no
 # lugar de CutFlowRow, SafraCounts, StageRate, Reading, MetricsDrill); ProspectStageChangeDB
 # inalterado, sem migration — diagrama conferido, nada muda.

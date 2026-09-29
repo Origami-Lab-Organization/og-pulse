@@ -24,6 +24,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { INTERACTION_CHANNELS } from '@/lib/interactionChannels';
 import { validateCNPJ } from '@/lib/masks';
+import { CnpjLookupError, lookupCnpj } from '@/services/cnpjLookupService';
 import { PERIOD_PRESET_OPTIONS, isCustomPreset } from '@/lib/prospecting/periods';
 import { isManualStage } from '@/lib/prospecting/transitions';
 import {
@@ -140,6 +141,9 @@ const camposDeEmpresa = {
   ring: z.string().max(60).optional().describe('Anel — segmentação de proximidade (texto livre).'),
   tier: z.string().max(60).optional().describe('Tier — porte/prioridade (texto livre).'),
   notes: z.string().max(4000).optional().describe('Observações sobre a empresa.'),
+  client_id: uuid('client_id')
+    .optional()
+    .describe('Cliente da carteira (search_clients) — liga a empresa a ele. Só quando a empresa JÁ é cliente.'),
 };
 
 const camposDeContato = {
@@ -212,6 +216,37 @@ server.tool(
     exigirCnpjValido(campos.cnpj);
     const empresa = await db.atualizarEmpresa(company_id, campos as CompanyFields);
     return `✅ Empresa atualizada.\n\n${fmt.empresaCompleta(empresa)}`;
+  }),
+);
+
+server.tool(
+  'search_clients',
+  'Busca clientes da carteira (tela Clientes) por nome, nome fantasia ou CNPJ. Use quando a empresa do contato já é cliente: passe o client_id em create_company ou create_contact_with_company para ligar as duas. Mostra se o cliente já tem empresa na Prospecção — nesse caso use o company_id dela, em vez de cadastrar outra.',
+  {
+    termo: z.string().optional().describe('Parte do nome ou do CNPJ.'),
+    limite: z.number().int().min(1).max(50).default(10),
+  },
+  executar(async ({ termo, limite }) => {
+    const clientes = await db.buscarClientes(termo ?? '', limite);
+    if (clientes.length === 0) {
+      return `Nenhum cliente encontrado${termo ? ` para "${termo}"` : ''} (ou sem permissão para ver a carteira). Se for CNPJ, lookup_cnpj consulta a Receita.`;
+    }
+    return [`**${clientes.length} cliente(s):**`, '', ...clientes.map(fmt.clienteResumo)].join('\n');
+  }),
+);
+
+server.tool(
+  'lookup_cnpj',
+  'Consulta um CNPJ na base pública da Receita (BrasilAPI) e devolve razão social, nome fantasia, segmento (CNAE) e cidade — para cadastrar a empresa sem digitar. Não cadastra nada: depois de conferir, use check_company_duplicates e create_company (ou create_contact_with_company) com esses dados.',
+  { cnpj: z.string().describe('CNPJ com ou sem máscara (14 dígitos).') },
+  executar(async ({ cnpj }) => {
+    exigirCnpjValido(cnpj);
+    try {
+      return fmt.dadosDoCnpj(await lookupCnpj(cnpj));
+    } catch (e) {
+      if (e instanceof CnpjLookupError) throw new db.ProspeccaoError(e.message);
+      throw e;
+    }
   }),
 );
 
@@ -363,19 +398,27 @@ const secaoDaAgenda = (titulo: string, linhas: string[]) =>
 
 server.tool(
   'get_contact',
-  'Ficha completa de um contato da Prospecção (dados, empresa, etapa, próxima data) e as últimas atividades.',
+  'Ficha completa de um contato da Prospecção (dados, empresa, etapa, próxima data), o orçamento e o projeto vinculados (só leitura — criar orçamento e projeto é pela tela) e as últimas atividades.',
   {
     prospect_id: uuid('prospect_id'),
     atividades: z.number().int().min(0).max(100).default(20).describe('Quantas atividades recentes trazer.'),
   },
   executar(async ({ prospect_id, atividades }) => {
-    const [contato, historico, pessoas] = await Promise.all([
+    const [contato, historico, pessoas, negocio] = await Promise.all([
       db.buscarContato(prospect_id),
       db.atividadesDoContato(prospect_id, atividades),
       db.nomesDasPessoas(),
+      db.negocioDoContato(prospect_id),
     ]);
     const linhas = historico.length ? historico.map(fmt.atividade) : ['Nenhuma atividade registrada.'];
-    return [fmt.contatoCompleto(contato, pessoas), '', `**Atividades (${contato.activity_count}):**`, ...linhas].join('\n');
+    return [
+      fmt.contatoCompleto(contato, pessoas),
+      '',
+      fmt.negocio(contato, negocio),
+      '',
+      `**Atividades (${contato.activity_count}):**`,
+      ...linhas,
+    ].join('\n');
   }),
 );
 
