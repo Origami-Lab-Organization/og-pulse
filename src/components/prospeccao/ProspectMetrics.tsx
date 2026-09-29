@@ -1,45 +1,49 @@
 import { useMemo, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CutFlowTable } from '@/components/prospeccao/metrics/CutFlowTable';
-import { CycleTimesCard } from '@/components/prospeccao/metrics/CycleTimesCard';
-import { EvolutionGrid } from '@/components/prospeccao/metrics/EvolutionGrid';
-import { ListHealthSection } from '@/components/prospeccao/metrics/ListHealthSection';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ChannelsTab } from '@/components/prospeccao/metrics/ChannelsTab';
+import { ConversionTab } from '@/components/prospeccao/metrics/ConversionTab';
+import { EffortTab } from '@/components/prospeccao/metrics/EffortTab';
 import { MetricDrillDialog } from '@/components/prospeccao/metrics/MetricDrillDialog';
-import { MetricsFilterBar } from '@/components/prospeccao/metrics/MetricsFilterBar';
-import { PeriodKpis } from '@/components/prospeccao/metrics/PeriodKpis';
-import { ProspectFunnel } from '@/components/prospeccao/metrics/ProspectFunnel';
-import { SafraRatesGrid } from '@/components/prospeccao/metrics/SafraRatesGrid';
+import { OverviewTab } from '@/components/prospeccao/metrics/OverviewTab';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { useProspectMetricsData } from '@/hooks/useProspectMetricsData';
 import { usePendingProspectTasks } from '@/hooks/useProspectTasks';
-import type { ProspectCut } from '@/lib/prospecting/metrics';
 import { buildMilestones } from '@/lib/prospecting/milestones';
 import {
-  MIN_SAMPLE,
+  activityRhythm,
+  bottleneckOf,
+  leverConcentration,
+  meetingsAwaitingQualification,
+  periodReadings,
+  stageRates,
+} from '@/lib/prospecting/metricsReadings';
+import {
   buildDataset,
-  cutFlow,
+  cutSafra,
   cycleTimes,
   listHealth,
   metricSeries,
   metricValues,
   occurrencesInRange,
   periodLosses,
-  safraFunnel,
+  safraCounts,
   safraSeries,
   salesSummary,
 } from '@/lib/prospecting/periodMetrics';
-import { DEFAULT_PERIOD, formatDay, formatRange, resolvePeriod, trendBuckets } from '@/lib/prospecting/periods';
-import { getLeverLabel, type ProspectWithCompany } from '@/types/prospect';
+import { formatRange, formatRangeCompact, resolvePeriod, trendBuckets } from '@/lib/prospecting/periods';
+import type { ProspectWithCompany } from '@/types/prospect';
 import type {
   Bucket,
   Grain,
   MetricDefinition,
   MetricFilter,
   MetricsDataset,
-  Occurrence,
+  MetricsDrill,
+  MetricsTab,
   PeriodSelection,
   ResolvedPeriod,
 } from '@/types/prospectMetrics';
@@ -47,31 +51,36 @@ import type {
 interface ProspectMetricsProps {
   prospects: ProspectWithCompany[];
   onOpenProspect: (prospect: ProspectWithCompany) => void;
+  /** Período e filtro moram na página: os controles ficam na linha das abas Pipeline/Métricas. */
+  selection: PeriodSelection;
+  onSelectionChange: (selection: PeriodSelection) => void;
+  filter: MetricFilter;
 }
 
-interface Detalhe {
-  title: string;
-  description: string;
-  items: Occurrence[];
-}
+const ABAS: ReadonlyArray<{ value: MetricsTab; label: string }> = [
+  { value: 'geral', label: 'Visão geral' },
+  { value: 'esforco', label: 'Esforço' },
+  { value: 'conv', label: 'Conversão' },
+  { value: 'canais', label: 'Canais' },
+];
+
+const ABA_PADRAO: MetricsTab = 'geral';
 
 /**
- * Métricas da Prospecção por período (28/09/2026) — só a parte de prospecção, de contas
- * abertas até oportunidade qualificada. Contrato fechado e valor são do Pipeline.
- *
- * A tela responde três perguntas, em ordem: estou fazendo volume (os números do período e a
- * evolução), o volume vira resultado (o quadro e a conversão da safra), e onde está travando
- * (tempo de ciclo, saúde da lista e recorte). As regras moram em `src/lib/prospecting/`.
+ * Métricas da Prospecção (29/09/2026), em quatro leituras: a visão geral responde "como
+ * estamos" e aponta o que pede atenção; Esforço, Conversão e Canais aprofundam cada
+ * pergunta — estou fazendo volume, o volume vira resultado, de onde vem o resultado. As
+ * regras moram em `src/lib/prospecting/`; aqui só se escolhe o que mostrar.
  */
 export function ProspectMetrics(props: ProspectMetricsProps) {
-  const { prospects, onOpenProspect } = props;
-  const [selecao, setSelecao] = useState<PeriodSelection>(DEFAULT_PERIOD);
-  const [filtro, setFiltro] = useState<MetricFilter>({});
-  const [detalhe, setDetalhe] = useState<Detalhe | null>(null);
+  const { prospects, onOpenProspect, selection, onSelectionChange, filter } = props;
+  const [detalhe, setDetalhe] = useState<MetricsDrill | null>(null);
 
-  const periodo = useMemo(() => resolvePeriod(selecao), [selecao]);
-  const buckets = useMemo(() => trendBuckets(periodo, selecao.grain), [periodo, selecao.grain]);
-  const desde = [buckets[0].from, periodo.previous.from].sort()[0];
+  const periodo = useMemo(() => resolvePeriod(selection), [selection]);
+  const colunas = useMemo(() => trendBuckets(periodo, selection.grain), [periodo, selection.grain]);
+  // Os minigráficos e a leitura de ritmo são sempre por semana, qualquer que seja o agrupamento da evolução.
+  const semanas = useMemo(() => trendBuckets(periodo, 'semana'), [periodo]);
+  const desde = [colunas[0].from, semanas[0].from, periodo.previous.from].sort()[0];
   const dados = useProspectMetricsData(desde);
   const { byId } = useEmployeeDirectoryMap();
 
@@ -84,38 +93,24 @@ export function ProspectMetrics(props: ProspectMetricsProps) {
     () => ({ prospects, companies, responses, activities, changes }),
     [prospects, companies, responses, activities, changes],
   );
-  const dataset = useMemo(() => buildDataset(fonte, marcos, filtro), [fonte, marcos, filtro]);
-  const responsaveis = useMemo(() => responsaveisDe(prospects, byId), [prospects, byId]);
-  const nomeDoResponsavel = (id: string) => byId.get(id)?.nome ?? 'Sem responsável';
+  const dataset = useMemo(() => buildDataset(fonte, marcos, filter), [fonte, marcos, filter]);
 
   if (dados.isLoading) return <Skeleton className="h-96 w-full" aria-label="Carregando as métricas" />;
   if (dados.isError) return <ErroAoCarregar onRetry={dados.refetch} />;
   if (prospects.length === 0) return <SemContatos />;
 
-  const verColuna = (bucket: Bucket) =>
-    setSelecao({ preset: 'personalizado', grain: selecao.grain, custom: { from: bucket.from, to: bucket.to } });
-
   return (
-    <div className="space-y-6">
-      <MetricsFilterBar
-        selection={selecao}
-        onSelectionChange={setSelecao}
-        period={periodo}
-        filter={filtro}
-        onFilterChange={setFiltro}
-        owners={responsaveis}
-      />
-
-      <Painel
+    <>
+      <Metricas
         dataset={dataset}
         period={periodo}
-        buckets={buckets}
-        grain={selecao.grain}
-        onSelectBucket={verColuna}
+        buckets={colunas}
+        weeks={semanas}
+        grain={selection.grain}
+        onGrainChange={(grain) => onSelectionChange({ ...selection, grain })}
         onOpenDetail={setDetalhe}
-        ownerName={nomeDoResponsavel}
+        ownerName={(id) => byId.get(id)?.nome ?? 'Sem nome'}
       />
-
       <MetricDrillDialog
         open={!!detalhe}
         onOpenChange={(aberto) => !aberto && setDetalhe(null)}
@@ -124,42 +119,67 @@ export function ProspectMetrics(props: ProspectMetricsProps) {
         items={detalhe?.items ?? []}
         onOpenProspect={onOpenProspect}
       />
-    </div>
+    </>
   );
 }
 
-/** Só quem tem contato na Prospecção: o diretório inteiro encheria o filtro de gente que não prospecta. */
-function responsaveisDe(prospects: ProspectWithCompany[], byId: Map<string, { nome: string }>) {
-  const ids = [...new Set(prospects.map((p) => p.owner_id).filter((id): id is string => !!id))];
-  return ids
-    .map((id) => ({ id, nome: byId.get(id)?.nome ?? 'Sem nome' }))
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-}
-
-interface PainelProps {
+interface MetricasProps {
   dataset: MetricsDataset;
   period: ResolvedPeriod;
   buckets: Bucket[];
+  weeks: Bucket[];
   grain: Grain;
-  onSelectBucket: (bucket: Bucket) => void;
-  onOpenDetail: (detalhe: Detalhe) => void;
+  onGrainChange: (grain: Grain) => void;
+  onOpenDetail: (detalhe: MetricsDrill) => void;
   ownerName: (id: string) => string;
 }
 
-function Painel(props: PainelProps) {
-  const { dataset, period, buckets, grain, onSelectBucket, onOpenDetail, ownerName } = props;
-  const [corte, setCorte] = useState<ProspectCut>('lever');
-
+/** Tudo que as quatro sub-abas mostram, calculado uma vez: trocar de aba não recalcula nada. */
+function useLeituras(props: MetricasProps) {
+  const { dataset, period, buckets, weeks, grain } = props;
+  const { porContato: proximaTarefa } = usePendingProspectTasks();
   const valores = useMemo(() => metricValues(dataset, period), [dataset, period]);
   const serie = useMemo(() => metricSeries(dataset, buckets, grain), [dataset, buckets, grain]);
-  const funil = useMemo(() => safraFunnel(dataset, period), [dataset, period]);
-  const safras = useMemo(() => safraSeries(dataset, trendBuckets(period, 'mes')), [dataset, period]);
-  const ciclos = useMemo(() => cycleTimes(dataset, period), [dataset, period]);
-  const perdas = useMemo(() => periodLosses(dataset, period), [dataset, period]);
+  const semanal = useMemo(() => metricSeries(dataset, weeks, 'semana'), [dataset, weeks]);
+  const safra = useMemo(() => safraCounts(dataset, period), [dataset, period]);
+  const porAlavanca = useMemo(() => cutSafra(dataset, period, 'lever'), [dataset, period]);
+  const porResponsavel = useMemo(() => cutSafra(dataset, period, 'owner'), [dataset, period]);
+  const taxas = useMemo(() => stageRates(safra), [safra]);
   const vendas = useMemo(() => salesSummary(dataset, period), [dataset, period]);
-  const { porContato: proximaTarefa } = usePendingProspectTasks();
   const saude = useMemo(() => listHealth(dataset, period, proximaTarefa), [dataset, period, proximaTarefa]);
-  const linhasDoCorte = useMemo(() => cutFlow(dataset, period, corte), [dataset, period, corte]);
+  const aguardando = useMemo(() => meetingsAwaitingQualification(dataset), [dataset]);
+  const ciclos = useMemo(() => cycleTimes(dataset, period), [dataset, period]);
+  const safras = useMemo(() => safraSeries(dataset, trendBuckets(period, 'mes')), [dataset, period]);
+  const perdas = useMemo(() => periodLosses(dataset, period), [dataset, period]);
+  const gargalo = bottleneckOf(taxas);
+  const concentracao = leverConcentration(porAlavanca);
+  const leituras = periodReadings({ rates: taxas, bottleneck: gargalo, concentration: concentracao, rhythm: activityRhythm(semanal) });
+  return {
+    valores,
+    serie,
+    semanal,
+    safra,
+    taxas,
+    gargalo,
+    porAlavanca,
+    porResponsavel,
+    concentracao,
+    leituras,
+    vendas,
+    saude,
+    aguardando,
+    ciclos,
+    safras,
+    perdas,
+  };
+}
+
+function Metricas(props: MetricasProps) {
+  const { dataset, period, grain, onGrainChange, onOpenDetail, ownerName } = props;
+  const [aba, setAba] = useState<MetricsTab>(ABA_PADRAO);
+  const l = useLeituras(props);
+  // Sem nenhum registro no período anterior, toda variação seria "+N": escondê-las é mais honesto.
+  const comBase = l.valores.some((v) => !!v.previous);
 
   const abrirMetrica = (def: MetricDefinition) =>
     onOpenDetail({
@@ -167,66 +187,76 @@ function Painel(props: PainelProps) {
       description: `${formatRange(period.elapsed)} · ${def.question}`,
       items: occurrencesInRange(def, dataset, period.elapsed),
     });
-  const abrirVencidos = () =>
-    onOpenDetail({
-      title: 'Tarefa vencida',
-      description: 'Contatos do quadro com tarefa pendente de prazo vencido, os mais atrasados primeiro.',
-      items: saude.overdue.map(({ prospect, task }) => ({ date: task.due_date, prospect })),
-    });
-  const nomeDoGrupo = (chave: string) => NOMES_DO_CORTE[corte](chave, ownerName);
 
   return (
-    <>
-      <PeriodKpis
-        values={valores}
-        sales={vendas}
-        comparisonLabel={period.comparisonLabel}
-        historyStart={dataset.historyStart}
-        onOpen={abrirMetrica}
-      />
+    <div className="flex flex-col gap-5">
+      <LinhaDoPeriodo period={period} comBase={comBase} />
+      <Tabs value={aba} onValueChange={(v) => setAba(v as MetricsTab)}>
+        <TabsList className="h-auto w-full justify-start gap-6 overflow-x-auto overflow-y-hidden rounded-none border-b bg-transparent p-0">
+          {ABAS.map((a) => (
+            <TabsTrigger
+              key={a.value}
+              value={a.value}
+              className="-mb-px rounded-none border-b-2 border-transparent px-0 pb-2.5 pt-2 text-sm hover:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              {a.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      <EvolutionGrid series={serie} grain={grain} historyStart={dataset.historyStart} onSelectBucket={onSelectBucket} />
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader className="space-y-1 pb-2">
-            <CardTitle className="text-base">Para onde foram os ativados no período</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Contatos com 1º toque em {formatRange(period.elapsed)} e até onde chegaram até hoje. As taxas dividem por
-              contato; com menos de {MIN_SAMPLE} na base, aparecem como —.
-            </p>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <ProspectFunnel steps={funil.steps} rates={funil.rates} />
-          </CardContent>
-        </Card>
-        <SafraRatesGrid points={safras} />
-      </div>
-
-      <CycleTimesCard cycles={ciclos} />
-
-      <ListHealthSection health={saude} losses={perdas} onOpenOverdue={abrirVencidos} />
-
-      <CutFlowTable rows={linhasDoCorte} cut={corte} onCutChange={setCorte} groupName={nomeDoGrupo} />
-
-      <p className="text-xs text-muted-foreground">
-        Cada número conta um marco: a primeira vez que o contato chega à etapa ou a uma adiante — quem pula de
-        Respondeu para Reunião feita conta também em Agendada, e quem fecha direto de Reunião feita conta também em
-        Qualificada. Conversa é a 1ª atividade com resposta; contas abertas e contatos ativados, o 1º toque. Ganhos e
-        Perdas contam o desfecho vigente: quem foi reaberto deixa de contar.
-        {dataset.historyStart &&
-          ` Reuniões e qualificações têm data desde ${formatDay(dataset.historyStart)}; quem já estava nessas etapas antes conta na conversão da safra, mas em período nenhum.`}
-      </p>
-    </>
+        <TabsContent value="geral" className="mt-5">
+          <OverviewTab
+            values={l.valores}
+            weekly={l.semanal}
+            safra={l.safra}
+            rates={l.taxas}
+            bottleneck={l.gargalo}
+            sales={l.vendas}
+            readings={l.leituras}
+            health={l.saude}
+            awaiting={l.aguardando}
+            showDelta={comBase}
+            onGoTab={setAba}
+            onOpenMetric={abrirMetrica}
+            onOpenList={onOpenDetail}
+          />
+        </TabsContent>
+        <TabsContent value="esforco" className="mt-5">
+          <EffortTab
+            values={l.valores}
+            series={l.serie}
+            grain={grain}
+            onGrainChange={onGrainChange}
+            coverage={l.saude.coverage}
+            historyStart={dataset.historyStart}
+            onOpenMetric={abrirMetrica}
+          />
+        </TabsContent>
+        <TabsContent value="conv" className="mt-5">
+          <ConversionTab rates={l.taxas} bottleneck={l.gargalo} cycles={l.ciclos} safras={l.safras} losses={l.perdas} />
+        </TabsContent>
+        <TabsContent value="canais" className="mt-5">
+          <ChannelsTab byLever={l.porAlavanca} byOwner={l.porResponsavel} concentration={l.concentracao} ownerName={ownerName} />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
 
-const NOMES_DO_CORTE: Record<ProspectCut, (chave: string, responsavel: (id: string) => string) => string> = {
-  owner: (chave, responsavel) => responsavel(chave),
-  lever: (chave) => getLeverLabel(chave) ?? chave,
-  ring: (chave) => chave,
-  tier: (chave) => chave,
-};
+function LinhaDoPeriodo({ period, comBase }: { period: ResolvedPeriod; comBase: boolean }) {
+  const anterior = formatRangeCompact(period.previous);
+  return (
+    <p className="-mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+      <span className="font-mono text-foreground">{formatRangeCompact(period.elapsed)}</span>
+      <span aria-hidden="true">·</span>
+      <span>
+        {comBase
+          ? `Comparando com ${anterior} (${period.comparisonLabel.replace(/^vs /, '')}).`
+          : `Período anterior (${anterior}) sem registros — variações ocultas até haver base de comparação.`}
+      </span>
+    </p>
+  );
+}
 
 function ErroAoCarregar({ onRetry }: { onRetry: () => void }) {
   return (

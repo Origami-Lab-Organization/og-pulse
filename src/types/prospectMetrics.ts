@@ -215,7 +215,12 @@ export interface DiscardCount {
   count: number;
 }
 
-export interface CutFlowRow {
+/**
+ * Um grupo do recorte (alavanca ou responsável) na leitura de SAFRA: os contatos ativados no
+ * período e os marcos que cada um alcançou até hoje. Cada contato cai num grupo só, então a
+ * soma das linhas é o total.
+ */
+export interface CutSafraRow {
   key: string;
   ativados: number;
   conversas: number;
@@ -224,6 +229,71 @@ export interface CutFlowRow {
   qualificadas: number;
   ganhos: number;
   perdas: number;
+}
+
+/** A safra do período em números: os ativados e até onde chegaram, até hoje. */
+export interface SafraCounts {
+  /** Contas dos ativados — uma conta com dois contatos ativados conta uma vez. */
+  contas: number;
+  ativados: number;
+  conversas: number;
+  agendadas: number;
+  feitas: number;
+  qualificadas: number;
+  ganhos: number;
+}
+
+/** Uma passagem entre etapas da safra: quantos passaram, de quantos. */
+export interface StageRate {
+  key: SafraRateKey;
+  label: string;
+  /** "conversas ÷ ativados". */
+  formula: string;
+  parte: number;
+  base: number;
+  /** `null` sem base — nunca 0%, que seria lido como "ninguém passou". */
+  rate: number | null;
+  /** Base abaixo de `MIN_SAMPLE`: a taxa aparece, mas marcada. */
+  small: boolean;
+}
+
+export type ReadingKind = 'gargalo' | 'canal' | 'ritmo';
+
+/** Para onde a leitura leva: uma das sub-abas das métricas. */
+export type MetricsTab = 'geral' | 'esforco' | 'conv' | 'canais';
+
+/** Uma leitura automática do período — o número que merece atenção, em uma frase. */
+export interface Reading {
+  kind: ReadingKind;
+  tag: string;
+  /** Destaque em tom de alerta: gargalo e canal pedem ação; ritmo é contexto. */
+  alert: boolean;
+  lead: string;
+  text: string;
+  link: { label: string; tab: MetricsTab };
+}
+
+/** Uma alavanca concentra os ativados e responde bem menos que as demais. */
+export interface LeverConcentration {
+  key: string;
+  label: string;
+  /** Fração dos ativados que vieram dela. */
+  share: number;
+  rate: number;
+  demais: { ativados: number; conversas: number; feitas: number; rate: number };
+  /** As demais somam pouca gente: a diferença é grande, mas a base é curta. */
+  smallSample: boolean;
+}
+
+/** A variação de atividades entre as duas últimas semanas completas. */
+export interface ActivityRhythm {
+  weekLabel: string;
+  previous: number;
+  current: number;
+  /** (atual − anterior) ÷ anterior. */
+  change: number;
+  /** Rótulo da semana em andamento, quando há uma. */
+  inProgressLabel: string | null;
 }
 
 /** O que a aba carrega do banco, sem filtro. */
@@ -265,4 +335,11 @@ export interface SalesSummary {
 export interface ListHealthData {
   coverage: AccountCoverage;
   overdue: Array<{ prospect: ProspectWithCompany; task: PendingTaskLite }>;
+}
+
+/** A lista que abre ao clicar num número: quem foi contado. */
+export interface MetricsDrill {
+  title: string;
+  description: string;
+  items: Occurrence[];
 }

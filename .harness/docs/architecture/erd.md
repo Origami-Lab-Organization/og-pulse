@@ -36,7 +36,10 @@ sources:
 # 28/09/2026: 20260928200000 — etapa ganho (won_on, won_value), Perda com a lista nova de
 # motivos, regras em prospects_outcome_rules; nenhum desfecho automático (cadência esgotada
 # fica em em_cadencia, sem próxima data).
-verified: 2026-09-28
+# 29/09/2026: src/types/prospectMetrics.ts ganhou só contratos de tela (CutSafraRow no
+# lugar de CutFlowRow, SafraCounts, StageRate, Reading, MetricsDrill); ProspectStageChangeDB
+# inalterado, sem migration — diagrama conferido, nada muda.
+verified: 2026-09-29
 ---
 
 # ERD — Entidades e Relações

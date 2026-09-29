@@ -10,7 +10,7 @@ import {
 } from '@/types/prospect';
 import type {
   Bucket,
-  CutFlowRow,
+  CutSafraRow,
   CycleTime,
   DiscardCount,
   Grain,
@@ -25,22 +25,13 @@ import type {
   PeriodRange,
   ProspectMilestones,
   ResolvedPeriod,
+  SafraCounts,
   SafraPoint,
   SalesSummary,
   SeriesPoint,
   StageLossCount,
 } from '@/types/prospectMetrics';
-import {
-  FUNNEL_RATE_LABELS,
-  FUNNEL_STEP_META,
-  calculateAccountCoverage,
-  cutValue,
-  formatRate,
-  formatRatio,
-  funnelSteps,
-  type ProspectCut,
-  type ProspectingFunnel,
-} from './metrics';
+import { FUNNEL_STEP_META, calculateAccountCoverage, cutValue, type ProspectCut } from './metrics';
 import { historyStartOf } from './milestones';
 import { bucketKeyOf, isInRange, localDay } from './periods';
 
@@ -50,8 +41,8 @@ import { bucketKeyOf, isInRange, localDay } from './periods';
  * Duas leituras, e a tela não mistura as duas:
  *   - FLUXO — o que aconteceu no período: quantas reuniões foram agendadas na semana. São
  *     os números do topo e a evolução;
- *   - SAFRA — o que aconteceu com quem foi ativado no período, até hoje. É o quadro com as
- *     taxas: "dos contatos ativados em setembro, quantos já responderam". Dividir as
+ *   - SAFRA — o que aconteceu com quem foi ativado no período, até hoje. São as taxas, a
+ *     jornada dos ativados e o recorte por alavanca: "dos contatos ativados em setembro, quantos já responderam". Dividir as
  *     reuniões da semana pelas conversas da mesma semana passaria de 100% sempre que a
  *     agenda viesse de conversas antigas.
  */
@@ -229,7 +220,7 @@ export function metricSeries(d: MetricsDataset, buckets: Bucket[], grain: Grain)
 
 const razao = (parte: number, total: number) => (total >= MIN_SAMPLE ? parte / total : null);
 
-function contarSafra(marcos: ProspectMilestones[]) {
+function contarSafra(marcos: ProspectMilestones[]): SafraCounts {
   return {
     contas: new Set(marcos.map((m) => m.prospect.company_id)).size,
     ativados: marcos.length,
@@ -244,37 +235,9 @@ function contarSafra(marcos: ProspectMilestones[]) {
 const safraDe = (d: MetricsDataset, range: PeriodRange) =>
   d.milestones.filter((m) => m.ativado && isInRange(m.ativado, range));
 
-/**
- * Rótulos do que o GRUPO fez, e não os do fluxo: o quadro fica abaixo dos números do
- * período, e "Conversas iniciadas" com dois valores diferentes na mesma tela pareceria erro.
- */
-const ROTULOS_DA_SAFRA = [
-  'Contas dos ativados',
-  'Ativados',
-  'Responderam',
-  'Agendaram reunião',
-  'Fizeram reunião',
-  'Qualificados',
-];
-
-/** O quadro da safra: os contatos ativados no período e até onde chegaram, até hoje. */
-export function safraFunnel(d: MetricsDataset, periodo: ResolvedPeriod): ProspectingFunnel {
-  const s = contarSafra(safraDe(d, periodo.elapsed));
-  const passos = funnelSteps([s.contas, s.ativados, s.conversas, s.agendadas, s.feitas, s.qualificadas]);
-  return {
-    steps: [
-      ...passos.map((passo, i) => ({ ...passo, label: ROTULOS_DA_SAFRA[i] })),
-      { key: 'ganhos', label: 'Viraram venda', value: s.ganhos, question: 'A oportunidade virou negócio fechado?' },
-    ],
-    rates: [
-      { value: formatRatio(s.ativados, s.contas), label: FUNNEL_RATE_LABELS[0] },
-      { value: formatRate(razao(s.conversas, s.ativados)), label: FUNNEL_RATE_LABELS[1] },
-      { value: formatRate(razao(s.agendadas, s.conversas)), label: FUNNEL_RATE_LABELS[2] },
-      { value: formatRate(razao(s.feitas, s.agendadas)), label: FUNNEL_RATE_LABELS[3] },
-      { value: formatRate(razao(s.qualificadas, s.feitas)), label: FUNNEL_RATE_LABELS[4] },
-      { value: formatRate(razao(s.ganhos, s.qualificadas)), label: 'taxa de fechamento' },
-    ],
-  };
+/** A safra do período: os contatos ativados nele e até onde chegaram, até hoje. */
+export function safraCounts(d: MetricsDataset, periodo: ResolvedPeriod): SafraCounts {
+  return contarSafra(safraDe(d, periodo.elapsed));
 }
 
 export function safraSeries(d: MetricsDataset, buckets: Bucket[], hoje = new Date()): SafraPoint[] {
@@ -315,7 +278,7 @@ interface Ciclo {
 
 const CICLOS: readonly Ciclo[] = [
   { key: 'toques', label: 'Toques até responder', unit: 'toques', quando: (m) => m.conversa, valor: (m) => m.toquesAteResponder },
-  { key: 'resposta', label: 'Toque → resposta', unit: 'dias', quando: (m) => m.conversa, valor: (m) => entre(m.ativado, m.conversa) },
+  { key: 'resposta', label: '1º toque → resposta', unit: 'dias', quando: (m) => m.conversa, valor: (m) => entre(m.ativado, m.conversa) },
   {
     key: 'agendamento',
     label: 'Resposta → reunião',
@@ -330,7 +293,7 @@ const CICLOS: readonly Ciclo[] = [
     quando: (m) => m.qualificada.date,
     valor: (m) => entre(m.feita.date, m.qualificada.date),
   },
-  { key: 'ganho', label: 'Toque → ganho', unit: 'dias', quando: (m) => m.ganho, valor: (m) => entre(m.ativado, m.ganho) },
+  { key: 'ganho', label: '1º toque → ganho', unit: 'dias', quando: (m) => m.ganho, valor: (m) => entre(m.ativado, m.ganho) },
 ];
 
 /** Mediana, não média: um contato que respondeu depois de 60 dias não pode puxar o número do time. */
@@ -397,26 +360,7 @@ export function salesSummary(d: MetricsDataset, periodo: ResolvedPeriod): SalesS
   };
 }
 
-type CampoDoCorte = Exclude<keyof CutFlowRow, 'key'>;
-
-const CAMPOS_DO_CORTE: ReadonlyArray<[CampoDoCorte, (m: ProspectMilestones) => string | null]> = [
-  ['ativados', (m) => m.ativado],
-  ['conversas', (m) => m.conversa],
-  ['agendadas', (m) => m.agendada.date],
-  ['feitas', (m) => m.feita.date],
-  ['qualificadas', (m) => m.qualificada.date],
-  ['ganhos', (m) => m.ganho],
-  ['perdas', (m) => m.perda?.date ?? null],
-];
-
-function somarNoCorte(linha: CutFlowRow, m: ProspectMilestones, range: PeriodRange): void {
-  for (const [campo, data] of CAMPOS_DO_CORTE) {
-    const quando = data(m);
-    if (quando && isInRange(quando, range)) linha[campo] += 1;
-  }
-}
-
-const linhaVazia = (key: string): CutFlowRow => ({
+const linhaVazia = (key: string): CutSafraRow => ({
   key,
   ativados: 0,
   conversas: 0,
@@ -427,18 +371,30 @@ const linhaVazia = (key: string): CutFlowRow => ({
   perdas: 0,
 });
 
-/** O fluxo do período quebrado por alavanca, anel, tier ou responsável. */
-export function cutFlow(d: MetricsDataset, periodo: ResolvedPeriod, cut: ProspectCut): CutFlowRow[] {
-  const linhas = new Map<string, CutFlowRow>();
-  for (const m of d.milestones) {
+function somarNaLinha(linha: CutSafraRow, m: ProspectMilestones): void {
+  linha.ativados += 1;
+  if (m.conversa) linha.conversas += 1;
+  if (m.agendada.reached) linha.agendadas += 1;
+  if (m.feita.reached) linha.feitas += 1;
+  if (m.qualificada.reached) linha.qualificadas += 1;
+  if (m.ganho) linha.ganhos += 1;
+  if (m.perda) linha.perdas += 1;
+}
+
+/**
+ * A safra do período quebrada por alavanca ou responsável: dos ativados de cada grupo, até
+ * onde chegaram. É safra, e não fluxo, porque a taxa de resposta por grupo só faz sentido
+ * dividindo gente pela mesma gente.
+ */
+export function cutSafra(d: MetricsDataset, periodo: ResolvedPeriod, cut: ProspectCut): CutSafraRow[] {
+  const linhas = new Map<string, CutSafraRow>();
+  for (const m of safraDe(d, periodo.elapsed)) {
     const chave = cutValue(m.prospect, cut);
     const linha = linhas.get(chave) ?? linhaVazia(chave);
-    somarNoCorte(linha, m, periodo.elapsed);
+    somarNaLinha(linha, m);
     linhas.set(chave, linha);
   }
-  return [...linhas.values()]
-    .filter((l) => CAMPOS_DO_CORTE.some(([campo]) => l[campo] > 0))
-    .sort((a, b) => b.ativados - a.ativados || b.conversas - a.conversas);
+  return [...linhas.values()].sort((a, b) => b.ativados - a.ativados || b.conversas - a.conversas);
 }
 
 /**

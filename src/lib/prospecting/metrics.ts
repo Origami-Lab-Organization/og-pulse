@@ -184,11 +184,14 @@ export function funnelByCut(
     .sort((a, b) => b.contatos - a.contatos);
 }
 
+/** O grupo de quem não tem valor no recorte: sem alavanca, sem anel, sem responsável. */
+export const SEM_RECORTE = '—';
+
 export function cutValue(prospect: ProspectWithCompany, cut: ProspectCut): string {
-  if (cut === 'lever') return prospect.lever?.trim() || '—';
-  if (cut === 'ring') return prospect.company?.ring?.trim() || '—';
-  if (cut === 'tier') return prospect.company?.tier?.trim() || '—';
-  return prospect.owner_id ?? '—';
+  if (cut === 'lever') return prospect.lever?.trim() || SEM_RECORTE;
+  if (cut === 'ring') return prospect.company?.ring?.trim() || SEM_RECORTE;
+  if (cut === 'tier') return prospect.company?.tier?.trim() || SEM_RECORTE;
+  return prospect.owner_id ?? SEM_RECORTE;
 }
 
 /** Sem base, a taxa é nula — nunca 0%, que seria lido como "ninguém respondeu". */

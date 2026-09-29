@@ -241,6 +241,14 @@ export function formatRange(range: PeriodRange): string {
   return range.from === range.to ? formatDay(range.from) : `${formatDay(range.from)} a ${formatDay(range.to)}`;
 }
 
+/** "30/08 – 28/09/2026": o ano aparece uma vez só quando as duas pontas são do mesmo ano. */
+export function formatRangeCompact(range: PeriodRange): string {
+  if (range.from === range.to) return formatDay(range.from);
+  const mesmoAno = range.from.slice(0, 4) === range.to.slice(0, 4);
+  const inicio = mesmoAno ? formatDay(range.from).slice(0, 5) : formatDay(range.from);
+  return `${inicio} – ${formatDay(range.to)}`;
+}
+
 /** Data local de um timestamp: o dia de quem olha, sem passar por UTC. */
 export function localDay(timestamp: string): string {
   return toISODate(new Date(timestamp));
