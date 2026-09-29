@@ -163,24 +163,6 @@ export const HELP_GROUPS: HelpGroup[] = [
         },
       },
       {
-        id: 'pipeline',
-        title: 'Pipeline — oportunidades por etapa',
-        route: '/pipeline',
-        requiresCapability: 'pipeline:ler',
-        what:
-          'O quadro das oportunidades comerciais por etapa, com valor e próxima ação. Arrastar entre etapas é o que move a oportunidade.',
-        how: [
-          'Arraste o cartão para a etapa nova. A data da mudança fica registrada.',
-          'Abra a oportunidade para registrar a próxima ação e a data — é o que alimenta o alerta de oportunidade parada.',
-          'O valor da oportunidade vem do orçamento aprovado quando existe um; sem orçamento, é a estimativa que você informar.',
-        ],
-        mcp: {
-          server: null,
-          note:
-            'O Pipeline não é operado pelo chat desde 29/09/2026: o comercial passou a viver na Prospecção de ponta a ponta, do primeiro toque ao Ganho ou Perda, e é por ela que o MCP trabalha.',
-        },
-      },
-      {
         id: 'orcamentos',
         title: 'Orçamentos — montar e versionar',
         route: '/budgets/new',
@@ -196,7 +178,7 @@ export const HELP_GROUPS: HelpGroup[] = [
         mcp: {
           server: null,
           note:
-            'Não há ferramenta de MCP para orçamento. O que o orçamento decide (preço, margem, alçada) é compromisso comercial, e o modelo não tem como confirmar a intenção de quem negocia. Consulte pelo pipeline e monte na tela.',
+            'Não há ferramenta de MCP para orçamento. O que o orçamento decide (preço, margem, alçada) é compromisso comercial, e o modelo não tem como confirmar a intenção de quem negocia. Consulte pela Prospecção e monte na tela.',
         },
       },
       {

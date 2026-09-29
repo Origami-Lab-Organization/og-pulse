@@ -14,7 +14,7 @@ export interface PortfolioProject {
   completed_date?: string | null;
   is_continuous: boolean;
   portfolio_stage: PortfolioStage;
-  lead_id: string | null;
+  prospect_id: string | null;
   client?: {
     id: string;
     company_name: string;
@@ -68,7 +68,7 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
           completed_date,
           is_continuous,
           portfolio_stage,
-          lead_id,
+          prospect_id,
           service_line,
           manager_id,
           client:clients(id, company_name, trading_name),

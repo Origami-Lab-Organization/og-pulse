@@ -50,7 +50,8 @@ export interface ProjectDB {
   updated_at: string;
   service_line: string | null;
   success_fee_percent: number | null;
-  lead_id: string | null;
+  /** Contato da Prospecção que originou o projeto (substituiu `lead_id` em 29/09/2026). */
+  prospect_id: string | null;
   value_book_url: string | null;
   /** Dias de antecedência para o lembrete de emissão de NF antes do vencimento. */
   nf_emission_lead_days?: number | null;
@@ -192,7 +193,8 @@ export interface CreateProjectInput {
   isBillable?: boolean;
   /** Obrigatório quando `isBillable` é falso: o centro que recebe o custo (ADR-0035). */
   costCenterId?: string;
-  leadId?: string;
+  /** Contato da Prospecção que originou o projeto, gravado em `projects.prospect_id`. */
+  prospectId?: string;
   valueBookUrl?: string;
   customInstallments?: {
     installmentNumber: number;

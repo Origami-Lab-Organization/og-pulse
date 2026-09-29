@@ -10,7 +10,7 @@ import {
 // Conjuntos do seed (capability-matrix): o que cada papel tem hoje. A navegação por
 // capacidade tem de reproduzir exatamente a navegação por papel do dia 0.
 const GERENTE = canFromCapabilities([
-  'pipeline:ler', 'portfolio:ler', 'alocacao:ler', 'timesheet-terceiro:ler', 'financeiro:ler',
+  'prospeccao:ler', 'portfolio:ler', 'alocacao:ler', 'timesheet-terceiro:ler', 'financeiro:ler',
   'pessoa:ler-ficha-completa', 'catalogo:editar', 'cliente:ler',
 ]);
 const RH = canFromCapabilities(['ponto:auditar', 'ponto:ler-relatorio', 'vaga:editar', 'candidatura:ler', 'catalogo:ler']);
@@ -37,19 +37,18 @@ describe('navegação superior por capacidade', () => {
   });
 
   it('desligar uma capacidade some só com a aba dela — e a seção fica se sobrar aba', () => {
-    const semFinanceiro = canFromCapabilities(['timesheet-terceiro:ler', 'pipeline:ler']);
-    expect(visibleTabs(section('Análises'), semFinanceiro).map((t) => t.title)).toEqual(['Meu Time', 'Comercial']);
+    const semFinanceiro = canFromCapabilities(['timesheet-terceiro:ler']);
+    expect(visibleTabs(section('Análises'), semFinanceiro).map((t) => t.title)).toEqual(['Meu Time']);
     expect(isSectionVisible(section('Análises'), semFinanceiro)).toBe(true);
     expect(isSectionVisible(section('Análises'), canFromCapabilities([]))).toBe(false);
   });
 
   it('getActiveTabs filtra pelo que a pessoa pode ver quando recebe can', () => {
-    expect(getActiveTabs('/analises/financeiro', GERENTE)?.map((t) => t.title)).toEqual(['Meu Time', 'Financeiro', 'Comercial']);
+    expect(getActiveTabs('/analises/financeiro', GERENTE)?.map((t) => t.title)).toEqual(['Meu Time', 'Financeiro']);
     expect(getActiveTabs('/analises/financeiro', canFromCapabilities(['financeiro:ler']))?.map((t) => t.title)).toEqual(['Financeiro']);
-    expect(getActiveTabs('/analises/financeiro')?.length).toBe(3);
-    // Pipeline deixou de ser seção solta: virou aba de "Comercial", ao lado de Prospecção.
-    // Quem só tem pipeline:ler continua vendo uma aba só.
-    expect(getActiveTabs('/pipeline')?.map((t) => t.title)).toEqual(['Prospecção', 'Oportunidades']);
-    expect(getActiveTabs('/pipeline', GERENTE)?.map((t) => t.title)).toEqual(['Oportunidades']);
+    expect(getActiveTabs('/analises/financeiro')?.length).toBe(2);
+    // Oportunidades foram absorvidas pela Prospecção (29/09/2026): Comercial é Prospecção e Empresas.
+    expect(getActiveTabs('/comercial/prospeccao')?.map((t) => t.title)).toEqual(['Prospecção', 'Empresas']);
+    expect(getActiveTabs('/comercial/prospeccao', GERENTE)?.map((t) => t.title)).toEqual(['Prospecção', 'Empresas']);
   });
 });

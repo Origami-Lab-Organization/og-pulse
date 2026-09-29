@@ -704,158 +704,52 @@ Deno.serve(async (req) => {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 13. CRM LEADS
+    // 13. PROSPECÇÃO — empresas e contatos comerciais
     // ═══════════════════════════════════════════════════════════════════════
-    await db.from('leads').insert([
-      {
-        tenant_id: tid,
-        name: 'Plataforma de E-commerce — Varejo Nacional',
-        company_name: 'Rede Compra Fácil S.A.',
-        contact_name: 'Marcelo Ribeiro',
-        contact_email: 'marcelo.ribeiro@comprafacil.com.br',
-        contact_phone: '11987654321',
-        estimated_value: 350000,
-        crm_stage: 'screening',
-        source: 'Indicação',
-        service_line: 'product_studio',
-        responsible_id: empManager.id,
-        created_by: empAdmin.id,
-        notes: 'Interessado em migração de plataforma legada. Reunião inicial agendada para próxima semana.',
-        archived: false,
-      },
-      {
-        tenant_id: tid,
-        name: 'Programa de Inovação Aberta 2026',
-        company_name: 'BancoMax S.A.',
-        contact_name: 'Patricia Gomes',
-        contact_email: 'patricia.gomes@bancomax.com.br',
-        contact_phone: '11976543210',
-        estimated_value: 480000,
-        crm_stage: 'qualification',
-        source: 'LinkedIn',
-        service_line: 'financiamento_inovacao',
-        responsible_id: empAdmin.id,
-        created_by: empAdmin.id,
-        notes: 'Interesse em estruturar programa de inovação com financiamento FINEP.',
-        archived: false,
-      },
-      {
-        tenant_id: tid,
-        name: 'Estratégia Digital 2026 — Varejo',
-        company_name: 'Moda Premium Ltda.',
-        contact_name: 'Fernanda Castro',
-        contact_email: 'fcastro@modapremium.com.br',
-        contact_phone: '11965432109',
-        estimated_value: 120000,
-        crm_stage: 'proposal',
-        source: 'Site/Inbound',
-        service_line: 'consultoria_estrategica',
-        responsible_id: empManager.id,
-        created_by: empManager.id,
-        notes: 'Proposta enviada em 20/02. Aguardando feedback da diretoria.',
-        archived: false,
-      },
-      {
-        tenant_id: tid,
-        name: 'Squad de Produto — FinTech MVP',
-        company_name: 'PayFlow Tecnologia Ltda.',
-        contact_name: 'André Lustosa',
-        contact_email: 'andre@payflow.io',
-        contact_phone: '11954321098',
-        estimated_value: 280000,
-        crm_stage: 'negotiation',
-        source: 'Evento/Conferência',
-        service_line: 'product_studio',
-        responsible_id: empAdmin.id,
-        created_by: empAdmin.id,
-        notes: 'Em negociação de escopo e valores. Cliente quer iniciar em abril.',
-        archived: false,
-      },
-      {
-        tenant_id: tid,
-        name: 'Educação Corporativa — Liderança Ágil',
-        company_name: 'LogísticaPro S.A.',
-        contact_name: 'Camila Santos',
-        contact_email: 'csantos@logisticapro.com.br',
-        contact_phone: '11943210987',
-        estimated_value: 95000,
-        crm_stage: 'closed',
-        source: 'Indicação',
-        service_line: 'educacao_corporativa',
-        responsible_id: empManager.id,
-        created_by: empManager.id,
-        notes: 'Fechado! Contrato assinado em 05/03/2026. Início em abril.',
-        archived: false,
-        closed_at: '2026-03-05',
-      },
-      {
-        tenant_id: tid,
-        name: 'Pesquisa de Mercado — Seguro Saúde Digital',
-        company_name: 'Vital Seguros S.A.',
-        contact_name: 'Roberto Lima',
-        contact_email: 'roberto.lima@vitalseguros.com.br',
-        contact_phone: '11932109876',
-        estimated_value: 75000,
-        crm_stage: 'qualification',
-        source: 'Parceiro',
-        service_line: 'consultoria_estrategica',
-        responsible_id: empUser.id,
-        created_by: empUser.id,
-        notes: 'Referenciado pelo parceiro DataBridge. Reunião de qualificação marcada.',
-        archived: false,
-      },
-      {
-        tenant_id: tid,
-        name: 'Automação de Processos — RPA Fiscal',
-        company_name: 'Indústrias Omega S.A.',
-        contact_name: 'Thiago Moura',
-        contact_email: 'tmoura@omega.ind.br',
-        contact_phone: '11921098765',
-        estimated_value: 160000,
-        crm_stage: 'proposal',
-        source: 'LinkedIn',
-        service_line: 'product_studio',
-        responsible_id: empManager.id,
-        created_by: empAdmin.id,
-        notes: 'Proposta entregue. Decisão prevista para 20/03.',
-        archived: false,
-      },
-      {
-        tenant_id: tid,
-        name: 'Mentoria Executiva — Transformação Cultural',
-        company_name: 'Bancorex S.A.',
-        contact_name: 'Luciana Martins',
-        contact_email: 'luciana.martins@bancorex.com.br',
-        contact_phone: '11910987654',
-        estimated_value: 200000,
-        crm_stage: 'screening',
-        source: 'Site/Inbound',
-        service_line: 'educacao_corporativa',
-        responsible_id: empAdmin.id,
-        created_by: empAdmin.id,
-        notes: 'Formulário enviado via site. Aguardando triagem.',
-        archived: false,
-      },
-    ]);
+    // Desde 29/09/2026 a Oportunidade vive como contato da Prospecção (a tabela `leads`
+    // saiu). Etapas variadas, um Ganho (com data e valor) e uma Perda (com motivo da
+    // lista fechada `prospects_discard_reason_valid`).
+    const contatosDemo = [
+      { empresa: 'Rede Compra Fácil S.A.', contato: 'Marcelo Ribeiro', email: 'marcelo.ribeiro@comprafacil.com.br', telefone: '11987654321', valor: 350000, etapa: 'respondeu', alavanca: 'recomendacao', responsavel: empManager.id, criador: empAdmin.id, notas: 'Plataforma de E-commerce — Varejo Nacional. Interessado em migração de plataforma legada.' },
+      { empresa: 'BancoMax S.A.', contato: 'Patricia Gomes', email: 'patricia.gomes@bancomax.com.br', telefone: '11976543210', valor: 480000, etapa: 'reuniao_feita', alavanca: 'outbound', responsavel: empAdmin.id, criador: empAdmin.id, notas: 'Programa de Inovação Aberta 2026. Interesse em financiamento FINEP.' },
+      { empresa: 'Moda Premium Ltda.', contato: 'Fernanda Castro', email: 'fcastro@modapremium.com.br', telefone: '11965432109', valor: 120000, etapa: 'qualificado', alavanca: 'inbound', responsavel: empManager.id, criador: empManager.id, notas: 'Estratégia Digital 2026 — Varejo. Proposta enviada, aguardando a diretoria.' },
+      { empresa: 'PayFlow Tecnologia Ltda.', contato: 'André Lustosa', email: 'andre@payflow.io', telefone: '11954321098', valor: 280000, etapa: 'qualificado', alavanca: 'feira', responsavel: empAdmin.id, criador: empAdmin.id, notas: 'Squad de Produto — FinTech MVP. Em negociação de escopo e valores.' },
+      { empresa: 'LogísticaPro S.A.', contato: 'Camila Santos', email: 'csantos@logisticapro.com.br', telefone: '11943210987', valor: 95000, etapa: 'ganho', alavanca: 'recomendacao', responsavel: empManager.id, criador: empManager.id, notas: 'Educação Corporativa — Liderança Ágil. Contrato assinado em 05/03/2026.', ganhoEm: '2026-03-05', valorGanho: 95000 },
+      { empresa: 'Vital Seguros S.A.', contato: 'Roberto Lima', email: 'roberto.lima@vitalseguros.com.br', telefone: '11932109876', valor: 75000, etapa: 'reuniao_agendada', alavanca: 'indicacao_parceiros', responsavel: empUser.id, criador: empUser.id, notas: 'Pesquisa de Mercado — Seguro Saúde Digital. Referenciado pelo parceiro DataBridge.' },
+      { empresa: 'Indústrias Omega S.A.', contato: 'Thiago Moura', email: 'tmoura@omega.ind.br', telefone: '11921098765', valor: 160000, etapa: 'em_cadencia', alavanca: 'outbound', responsavel: empManager.id, criador: empAdmin.id, notas: 'Automação de Processos — RPA Fiscal.' },
+      { empresa: 'Bancorex S.A.', contato: 'Luciana Martins', email: 'luciana.martins@bancorex.com.br', telefone: '11910987654', valor: 200000, etapa: 'a_abordar', alavanca: 'inbound', responsavel: empAdmin.id, criador: empAdmin.id, notas: 'Mentoria Executiva — Transformação Cultural. Formulário enviado via site.' },
+      { empresa: 'AgroStar Ltda.', contato: 'José Oliveira', email: 'jose@agrostar.com.br', telefone: null, valor: 420000, etapa: 'descartado', alavanca: 'recomendacao', responsavel: empManager.id, criador: empAdmin.id, notas: 'ERP Customizado — Agronegócio. Cliente optou por solução de prateleira.', motivoPerda: 'proposta_preco', perdidoEm: '2026-02-15' },
+    ];
 
-    // ── Archived lead ────────────────────────────────────────────────────────
-    await db.from('leads').insert({
-      tenant_id: tid,
-      name: 'ERP Customizado — Agronegócio',
-      company_name: 'AgroStar Ltda.',
-      contact_name: 'José Oliveira',
-      contact_email: 'jose@agrostar.com.br',
-      estimated_value: 420000,
-      crm_stage: 'negotiation',
-      source: 'Indicação',
-      service_line: 'product_studio',
-      responsible_id: empManager.id,
-      created_by: empAdmin.id,
-      archived: true,
-      archived_at: '2026-02-15',
-      archive_reason: 'price',
-      archive_notes: 'Cliente optou por solução de prateleira. Budget não comportava customização.',
-    });
+    const { data: empresasDemo, error: empresasError } = await db
+      .from('prospect_companies')
+      .insert(contatosDemo.map((c) => ({ tenant_id: tid, name: c.empresa, created_by: c.criador })))
+      .select('id, name');
+    if (empresasError) throw empresasError;
+
+    const empresaPorNome = new Map((empresasDemo ?? []).map((e: { id: string; name: string }) => [e.name, e.id]));
+
+    const { error: contatosError } = await db.from('prospects').insert(
+      contatosDemo.map((c) => ({
+        tenant_id: tid,
+        company_id: empresaPorNome.get(c.empresa),
+        contact_name: c.contato,
+        contact_email: c.email,
+        contact_phone: c.telefone,
+        primary_channel: 'email',
+        owner_id: c.responsavel,
+        created_by: c.criador,
+        lever: c.alavanca,
+        stage: c.etapa,
+        estimated_value: c.valor,
+        notes: c.notas,
+        won_on: c.ganhoEm ?? null,
+        won_value: c.valorGanho ?? null,
+        discard_reason: c.motivoPerda ?? null,
+        discarded_at: c.perdidoEm ?? null,
+      })),
+    );
+    if (contatosError) throw contatosError;
 
     // ═══════════════════════════════════════════════════════════════════════
     // DONE
@@ -875,7 +769,7 @@ Deno.serve(async (req) => {
           clients: 4,
           suppliers: 3,
           projects: 4,
-          leads: 9,
+          prospect_contacts: 9,
           role_rates: 10,
         },
       }),

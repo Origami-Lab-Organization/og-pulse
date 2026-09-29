@@ -247,11 +247,14 @@ export async function atividadesDoContato(prospectId: string, limite: number): P
   return (data ?? []) as ProspectActivityDB[];
 }
 
-function normalizarContato(campos: ContactFields): Record<string, string | null> {
-  const saida: Record<string, string | null> = {};
+/** Campo da tool que tem outro nome no banco. */
+const COLUNA: Record<string, string> = { observacoes: 'notes' };
+
+function normalizarContato(campos: ContactFields): Record<string, string | number | null> {
+  const saida: Record<string, string | number | null> = {};
   for (const [chave, valor] of Object.entries(campos)) {
     if (valor === undefined) continue;
-    saida[chave] = typeof valor === 'string' ? valor.trim() || null : valor;
+    saida[COLUNA[chave] ?? chave] = typeof valor === 'string' ? valor.trim() || null : valor;
   }
   return saida;
 }

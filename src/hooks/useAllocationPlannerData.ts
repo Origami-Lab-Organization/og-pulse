@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { SERVICE_LINE_LABELS } from '@/types/lead';
+import { SERVICE_LINE_LABELS } from '@/types/serviceLine';
 
 export interface AllocationSummaryRpcRow {
   employee_id: string;

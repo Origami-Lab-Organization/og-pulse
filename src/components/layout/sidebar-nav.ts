@@ -72,12 +72,11 @@ export const NAV_ITEMS: SidebarNavItem[] = [
   {
     kind: 'group',
     title: 'Comercial',
-    url: '/pipeline',
+    url: '/comercial/prospeccao',
     icon: Kanban,
     children: [
       { title: 'Prospecção', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
       { title: 'Empresas', url: '/comercial/empresas', requiresCapability: 'prospeccao:ler' },
-      { title: 'Oportunidades', url: '/pipeline', requiresCapability: 'pipeline:ler' },
     ],
   },
   {
@@ -99,7 +98,6 @@ export const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Meu Time', url: '/analises/meu-time', requiresCapability: 'timesheet-terceiro:ler' },
       { title: 'Horas não lançadas', url: '/analises/horas-nao-lancadas', requiresCapability: 'timesheet-terceiro:ler' },
       { title: 'Financeiro', url: '/analises/financeiro', requiresCapability: 'financeiro:ler' },
-      { title: 'Comercial', url: '/analises/comercial', requiresCapability: 'pipeline:ler' },
       { title: 'Custo x Hora', url: '/analises/custo-hora', requiresCapability: 'custo-hora:ler-relatorio' },
     ],
   },

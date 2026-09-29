@@ -106,24 +106,27 @@ Tres coisas que a tornam diferente de todas as outras:
 | `pessoa:administrar` — admitir, excluir, beneficio/ferramenta da pessoa, versao, desligar | sim | — | — | — | `has_role('admin')` em `employees` I/D, `employee_benefits`, `employee_tools`, `employee_versions`, `employee_terminations`, `payroll_adjustments`, `termination_documents` — capacidade criada no grupo 5b (TD-0019) |
 | `desligamento:executar` — `/rh/desligamentos` | sim | sim | — `!` | — | rota `requireManager` — **D4** |
 
-## 4. Pipeline e comercial
+## 4. Comercial (Prospecção)
 
 | Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
 |---|---|---|---|---|---|
-| `pipeline:ler` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
-| `pipeline:editar` — follow-up, interacao, servico da oportunidade | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
 | `orcamento:ler` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
 | `orcamento:editar` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
 | `catalogo:ler` — servicos, linhas de servico | sim | sim | sim | sim | SELECT tenant-wide **de proposito** (ADR-0023) |
 | `catalogo:editar` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
 | `cliente:ler` / `cliente:editar` | sim | sim | — | — | rota `requireManager` |
-| `prospeccao:ler` — quadro comercial (inclui Ganho com valor vendido e Perda), empresas (tela `/comercial/empresas`), atividades, tarefas, histórico de etapa e métricas | sim | sim | — | — | `has_capability` (migration 20260915100000) |
+| `prospeccao:ler` — quadro comercial (inclui Ganho com valor vendido e Perda), valor estimado e orçamento vinculado do contato, empresas (tela `/comercial/empresas`), atividades, tarefas, histórico de etapa e métricas (inclusive as métricas comerciais que eram `/analises/comercial`); também a aba Oportunidades da ficha do cliente e a origem comercial do projeto | sim | sim | — | — | `has_capability` (migration 20260915100000) |
 | `prospeccao:editar` — cadastro, atividade, tarefa, registrar ganho (com valor) e perda | sim | sim | — | — | `has_capability` (migration 20260915100000) |
 
-Prospeccao tem capacidade PROPRIA, nao herda `pipeline:*`: o pipeline frio mede atencao
-conquistada e nao carrega valor, orcamento nem forecast. O seed de 15/09/2026 espelha quem
-ja tinha `pipeline:ler`/`pipeline:editar` — mudar quem prospecta e toggle de perfil, nao
-migration.
+**29/09/2026 — Prospecção absorveu Oportunidades** (migration 20260929120000). A tabela
+`leads` e as `lead_*` saíram, e com elas `/pipeline`, `/analises/comercial` e as capacidades
+`pipeline:ler`/`pipeline:editar` (removidas do vocabulário e das atribuições). A oportunidade
+vive como contato da Prospecção, e `prospeccao:ler` passou a ver o valor estimado e o
+orçamento vinculado do contato (`budgets.prospect_id`). Ver o orçamento em si continua
+exigindo `orcamento:ler` — a capacidade da Prospecção mostra que ele existe e o valor que
+entra no contato (ADR-0017), não abre a composição. Histórico: até 28/09 a Prospecção tinha
+capacidade própria que não herdava `pipeline:*`, e o seed de 15/09/2026 espelhava quem já
+tinha `pipeline:ler`/`pipeline:editar`.
 
 ## 5. Projeto, portfolio e alocacao
 

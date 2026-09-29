@@ -27,6 +27,17 @@ export function useSearchProspectCompanies(query: string) {
   });
 }
 
+/** Clientes da carteira que batem com a busca do seletor de empresa. */
+export function useSearchClientsForProspect(query: string) {
+  const { employee } = useAuth();
+  const termo = query.trim();
+  return useQuery({
+    queryKey: ['prospect-client-search', employee?.tenant_id, termo],
+    queryFn: () => prospectCompanyService.searchClients(termo, employee!.tenant_id),
+    enabled: !!employee?.tenant_id && termo.length >= 2,
+  });
+}
+
 export function useCreateProspectCompany() {
   const qc = useQueryClient();
   const { employee } = useAuth();

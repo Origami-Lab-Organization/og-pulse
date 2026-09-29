@@ -50,8 +50,8 @@ describe('RoleProtectedRoute por capacidade', () => {
   });
 
   it('lista: qualquer uma basta', () => {
-    auth.employee!.capabilities = ['pipeline:ler'];
-    renderAt(<RoleProtectedRoute requireCapability={['financeiro:ler', 'pipeline:ler']}><div>conteúdo</div></RoleProtectedRoute>);
+    auth.employee!.capabilities = ['prospeccao:ler'];
+    renderAt(<RoleProtectedRoute requireCapability={['financeiro:ler', 'prospeccao:ler']}><div>conteúdo</div></RoleProtectedRoute>);
     expect(screen.getByText('conteúdo')).toBeInTheDocument();
   });
 

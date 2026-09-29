@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,8 @@ import type { MetricFilter, PeriodSelection } from '@/types/prospectMetrics';
  * O quadro abre primeiro: com a lista diária removida (17/09/2026), é por ele que a pessoa
  * encontra o que precisa de ação — a data de vencimento fica no card.
  */
+const ABA_METRICAS = 'metricas';
+
 export default function Prospeccao() {
   const { data: todos = [], isLoading } = useProspects();
 
@@ -41,7 +44,11 @@ export default function Prospeccao() {
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
   const [filtro, setFiltro] = useState<ProspectFilter>(FILTRO_VAZIO);
   // Tabs controladas só para saber em qual aba o filtro faz sentido.
-  const [aba, setAba] = useState('pipeline');
+  // `?aba=metricas` e `?contato=<id>`: os links que vêm de Clientes, Projetos e dos
+  // redirecionamentos das antigas Oportunidades (29/09/2026).
+  const [params, setParams] = useSearchParams();
+  const [aba, setAba] = useState(params.get('aba') === ABA_METRICAS ? ABA_METRICAS : 'pipeline');
+  const contatoDoLink = params.get('contato');
   // Período e filtro das Métricas ficam aqui porque os controles moram na linha das abas.
   const [periodoMetricas, setPeriodoMetricas] = useState<PeriodSelection>(DEFAULT_PERIOD);
   const [filtroMetricas, setFiltroMetricas] = useState<MetricFilter>({});
@@ -51,10 +58,21 @@ export default function Prospeccao() {
     () => todos.filter((p) => PROSPECT_BOARD_STAGES.includes(p.stage)),
     [todos],
   );
-  // Sobre TODOS os contatos, inclusive convertidos: quem já virou oportunidade ocupa a empresa.
+  // Sobre TODOS os contatos, inclusive os encerrados: quem já está em conversa ocupa a empresa.
   const emConversaPorEmpresa = useMemo(() => contactsInConversationByCompany(todos), [todos]);
   const noFunilFiltrado = useMemo(() => applyProspectFilter(noFunil, filtro), [noFunil, filtro]);
   const filtrando = countActiveFilters(filtro) > 0;
+
+  useEffect(() => {
+    if (!contatoDoLink || isLoading) return;
+    const alvo = todos.find((p) => p.id === contatoDoLink);
+    if (alvo) setSelecionado(alvo);
+    // O parâmetro sai depois de usado: fechar a ficha não pode reabri-la.
+    setParams((atual) => {
+      atual.delete('contato');
+      return atual;
+    }, { replace: true });
+  }, [contatoDoLink, isLoading, todos, setParams]);
 
   // O detalhe precisa refletir a linha recém-invalidada, não a cópia do clique.
   const selecionadoAtual = useMemo(
@@ -78,7 +96,7 @@ export default function Prospeccao() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TabsList>
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-            <TabsTrigger value="metricas">Métricas</TabsTrigger>
+            <TabsTrigger value={ABA_METRICAS}>Métricas</TabsTrigger>
           </TabsList>
 
           {/* Cada aba com o seu filtro: o do quadro não age sobre as métricas, e um
@@ -116,7 +134,7 @@ export default function Prospeccao() {
           )}
         </TabsContent>
 
-        <TabsContent value="metricas" className="mt-5">
+        <TabsContent value={ABA_METRICAS} className="mt-5">
           <ProspectMetrics
             prospects={todos}
             onOpenProspect={setSelecionado}

@@ -1,4 +1,6 @@
 import { tabela } from '@/services/prospectingTables';
+import { supabase } from '@/integrations/supabase/client';
+import type { ClientOption } from '@/types/cnpjLookup';
 import type { ProspectCompanyDB } from '@/types/prospect';
 
 export interface ProspectCompanyInput {
@@ -29,7 +31,46 @@ function normalize(input: ProspectCompanyInput) {
   };
 }
 
+/** Vírgula e parêntese quebram o `.or()` do PostgREST; o resto do termo passa como é. */
+function termoSeguro(termo: string): string {
+  return termo.replace(/[,()]/g, ' ').trim();
+}
+
 export const prospectCompanyService = {
+  /**
+   * Clientes da carteira para o seletor de empresa (29/09/2026). Passa pela RLS de
+   * `clients`: sem `cliente:ler`, a lista vem vazia e o seletor mostra só a Prospecção.
+   */
+  async searchClients(query: string, tenantId: string): Promise<ClientOption[]> {
+    const termo = termoSeguro(query);
+    if (!termo) return [];
+    const digitos = termo.replace(/\D/g, '');
+    const filtros = [`company_name.ilike.%${termo}%`, `trading_name.ilike.%${termo}%`];
+    if (digitos.length >= 3) filtros.push(`cnpj.ilike.%${digitos}%`);
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id, company_name, trading_name, cnpj')
+      .eq('tenant_id', tenantId)
+      .or(filtros.join(','))
+      .order('company_name')
+      .limit(10);
+    if (error) throw error;
+    return (data || []) as ClientOption[];
+  },
+
+  /** A empresa da Prospecção já ligada a este cliente, se houver — para não duplicar. */
+  async findByClientId(clientId: string, tenantId: string): Promise<ProspectCompanyDB | null> {
+    const { data, error } = await tabela('prospect_companies')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('client_id', clientId)
+      .order('created_at')
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as unknown as ProspectCompanyDB) ?? null;
+  },
+
   async getAll(tenantId: string): Promise<ProspectCompanyDB[]> {
     const { data, error } = await tabela('prospect_companies')
       .select('*')
@@ -49,7 +90,7 @@ export const prospectCompanyService = {
   },
 
   async search(query: string, tenantId: string): Promise<ProspectCompanyDB[]> {
-    const termo = query.trim();
+    const termo = termoSeguro(query);
     if (!termo) return [];
     const digitos = termo.replace(/\D/g, '');
     const filtros = [`name.ilike.%${termo}%`];

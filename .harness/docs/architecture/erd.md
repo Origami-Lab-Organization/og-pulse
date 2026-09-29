@@ -18,9 +18,9 @@ sources:
   - supabase/migrations/20260928120000_prospect_stage_changes.sql
   - supabase/migrations/20260928160000_prospect_meeting_dates.sql
   - supabase/migrations/20260928200000_prospect_ganho_perda.sql
+  - supabase/migrations/20260929120000_prospeccao_absorve_oportunidades.sql
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
-  - src/types/lead.ts
   - src/types/portfolio.ts
 # Conferido contra a fonte em 17/09/2026: ProspectStage = 9 valores (6 do funil +
 # 3 desfechos), batendo com o CHECK de 20260917115000; prospect_activities.attachments
@@ -36,6 +36,9 @@ sources:
 # 28/09/2026: 20260928200000 — etapa ganho (won_on, won_value), Perda com a lista nova de
 # motivos, regras em prospects_outcome_rules; nenhum desfecho automático (cadência esgotada
 # fica em em_cadencia, sem próxima data).
+# 29/09/2026 (tarde): 20260929120000 dropa leads/lead_*; Cluster 1 removido, Cluster 1b
+# ganha budgets.prospect_id, projects.prospect_id, estimated_value/notes/competitor_name;
+# conferido contra ProspectDB e ensaiado sobre o dump de produção (ida/volta/ida).
 # 29/09/2026: src/types/prospectMetrics.ts ganhou só contratos de tela (CutSafraRow no
 # lugar de CutFlowRow, SafraCounts, StageRate, Reading, MetricsDrill); ProspectStageChangeDB
 # inalterado, sem migration — diagrama conferido, nada muda.
@@ -69,55 +72,18 @@ Desde `20260909130000` (PUL-228, ADR-0028) `user_belongs_to_tenant` e `has_capab
 `tenant_is_active()`: teste vencido nega toda leitura e escrita sob RLS; a leitura do próprio
 `tenants` usa `user_is_member_of_tenant` (pertencimento puro) para o app mostrar o fim do teste.
 
-## Cluster 1 — Comercial (Pipeline de Oportunidades)
+## Cluster 1 — Comercial (removido em 29/09/2026)
 
-Obs.: no banco as tabelas chamam-se `leads*` (nomenclatura histórica); na UI o
-termo é **Oportunidade/Pipeline** (boundaries.md).
+O Pipeline de Oportunidades (`leads`, `lead_services`, `lead_interactions`,
+`lead_follow_ups`, `lead_activity_log`) foi absorvido pela Prospecção e dropado pela
+`20260929120000` (ADR-0040). A cópia fiel do dia fica no schema
+`legado_oportunidades`, fora da API, com o de-para `lead_id → prospect_id`.
 
-```mermaid
-erDiagram
-    tenants ||--o{ clients : ""
-    tenants ||--o{ leads : ""
-    tenants ||--o{ service_lines : ""
-    clients ||--o{ client_contacts : ""
-    clients ||--o{ leads : "client_id"
-    leads ||--o{ lead_services : ""
-    leads ||--o{ lead_interactions : ""
-    leads ||--o{ lead_follow_ups : ""
-    leads ||--o{ lead_activity_log : ""
-    services ||--o{ lead_services : "service_id"
-    service_lines ||--o{ services : ""
-    employees ||--o{ leads : "responsible_id"
-    budgets |o--o{ leads : "budget_id"
+## Cluster 1b — Prospecção (quadro comercial de ponta a ponta)
 
-    leads {
-        text crm_stage "screening..stand_by (front src/types/lead.ts:1-8)"
-        numeric estimated_value ""
-        bool archived "perda arquiva (lead.ts:118-126)"
-        timestamptz closed_at ""
-        uuid prospect_id "origem na prospecção (Cluster 1b)"
-        date first_touch_at "1º toque herdado — tempo de ciclo real"
-    }
-    clients {
-        text company_name ""
-        text cnpj ""
-        text status "active|inactive|archived"
-    }
-```
-
-Fontes: `leads` L1919, `lead_services` L1861, `lead_interactions` L1790,
-`lead_follow_ups` L1709, `clients` L775, `services` L5096, `service_lines` L4998.
-
-`leads.crm_stage` é **text sem CHECK** — o contrato de valores vive no front
-(`src/types/lead.ts:1-8`): `screening | qualification | proposal | negotiation
-| closed | closed_lost | stand_by`.
-
-## Cluster 1b — Prospecção (pipeline frio)
-
-Separado do Cluster 1 de propósito (15/09/2026): mede atenção conquistada, não
-receita. **Nenhuma coluna de valor, probabilidade ou peso de forecast** — é a
-separação que mantém a Receita Prevista limpa. Toca o Cluster 1 em um único
-ponto: a conversão, que cria o `leads` e guarda o elo nos dois sentidos.
+Nasceu separada do Pipeline (15/09/2026) e virou o único quadro comercial: Ganho e
+Perda em 28/09/2026 e, em 29/09/2026, a absorção das Oportunidades (ADR-0040). O
+contato carrega valor estimado e vendido; o orçamento e o projeto apontam para ele.
 
 ```mermaid
 erDiagram
@@ -130,7 +96,8 @@ erDiagram
     prospects ||--o{ prospect_stage_changes : "trigger em INSERT e UPDATE OF stage"
     employees ||--o{ prospect_tasks : "owner_id (herdado do contato)"
     employees ||--o{ prospects : "owner_id"
-    prospects |o--o| leads : "converted_lead_id / leads.prospect_id"
+    prospects |o--o| budgets : "budgets.prospect_id (um por contato)"
+    prospects |o--o{ projects : "projects.prospect_id (projeto do Ganho)"
 
     prospect_companies {
         text name ""
@@ -141,7 +108,7 @@ erDiagram
         text tier "Tier — livre, editável no card"
     }
     prospects {
-        text stage "6 de trabalho + ganho + descartado (Perda); sem_resposta/convertido só em linhas antigas"
+        text stage "6 de trabalho + ganho + descartado (Perda); sem_resposta só em linhas antigas"
         text lever "Alavanca / origem da lista"
         text instagram_url "perfil pessoal do contato"
         date first_touch_at "imutável (trigger)"
@@ -150,12 +117,15 @@ erDiagram
         text discard_reason "motivo da perda — lista fechada de 10 no CHECK"
         date won_on "dia do fechamento — obrigatório em ganho"
         numeric won_value "valor vendido — NULL = Sem valor"
+        numeric estimated_value "estimativa antes do orçamento (ADR-0017)"
+        text notes "observações; recebeu título/serviços da oportunidade"
+        text competitor_name "concorrente na disputa"
     }
     prospect_activities {
         int sequence_no "preenchido pelo trigger; único por prospect"
-        text channel "mesma lista de lead_interactions"
+        text channel "phone|whatsapp|email|in_person|video_call|linkedin|other"
         bool got_response "base de toda métrica"
-        jsonb attachments "[{path,name,size,type}] no bucket prospect-attachments"
+        jsonb attachments "[{path,name,size,type,bucket?}] — bucket lead-attachments nos migrados"
     }
     prospect_stage_changes {
         text from_stage "NULL = cadastro ou origem desconhecida"
@@ -195,8 +165,8 @@ As regras ficam no trigger `prospects_outcome_rules` (BEFORE UPDATE OF stage): G
 desfecho e reabre com atividade para hoje. `mark_prospect_won(p_prospect_id, p_won_on, p_value)`
 (SECURITY INVOKER) registra o ganho e data o histórico pelo fechamento. **Nenhum desfecho é
 automático**: a cadência esgotada (`prospect_activities_advance`) mantém o contato em
-`em_cadencia`, sem próxima data, até a pessoa decidir. A etapa `sem_resposta` e a conversão
-para `leads` (`convertido`) não recebem mais ninguém. O único aviso de prazo da tela é o de
+`em_cadencia`, sem próxima data, até a pessoa decidir. A etapa `sem_resposta` não recebe mais ninguém,
+e `convertido` saiu do CHECK em 29/09/2026 (existe só no histórico de etapa). O único aviso de prazo da tela é o de
 tarefa vencida (`prospect_tasks`); `next_activity_on` segue existindo como sugestão da
 cadência, sem alerta.
 
@@ -205,7 +175,7 @@ cadência, sem alerta.
 mexe em `activity_count`/`next_activity_on` nem move etapa — nenhum trigger de cadência
 a lê. RLS decide pelo contato pai (`prospeccao:ler` / `:editar`), como nas atividades.
 
-Ao contrário de `leads.crm_stage`, `prospects.stage` **tem CHECK** no banco, e a
+`prospects.stage` **tem CHECK** no banco, e a
 cadência (`ARRAY[3,4,5]`) vive só na função `prospect_activities_advance` — sem
 cópia em TypeScript, para não repetir TD-0022.
 
@@ -235,7 +205,8 @@ erDiagram
     tenants ||--o{ suppliers : ""
     clients ||--o{ budgets : ""
     clients ||--o{ projects : ""
-    leads |o--o{ projects : "lead_id"
+    prospects |o--o{ projects : "prospect_id"
+    prospects |o--o| budgets : "prospect_id"
     budgets ||--o{ budget_roles : ""
     budget_roles ||--o{ budget_role_months : ""
     budgets ||--o{ budget_versions : "snapshot jsonb"
@@ -437,8 +408,8 @@ o centro de um item não reescreve as horas já lançadas. Pessoa × centro cheg
    app não a lê. **Ação sugerida:** regenerar os types (`supabase gen types`).
 2. **Glossário × código:** o glossário ainda define "Lead" e "CRM" como termos
    correntes, enquanto boundaries.md exige Oportunidade/Pipeline na UI. No
-   banco e no código as tabelas/rotas internas continuam `leads`/`crm_stage` —
-   a doc registra os dois planos; atualizar o glossário só com OK do dev.
+   banco, `leads`/`crm_stage` deixaram de existir em 29/09/2026 (ADR-0040); o
+   glossário foi atualizado junto.
 3. **Reembolsos:** ADR-0007 remove o módulo, mas as tabelas `reimbursement_*`
    seguem no schema (types.ts L4786). Confirmar se é legado a limpar ou
    mantido por histórico.

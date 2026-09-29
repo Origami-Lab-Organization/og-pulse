@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clientService } from '@/services/clientService';
 import { clientContactService } from '@/services/clientContactService';
-import { fetchLeadsByClient } from '@/services/leadService';
+import { fetchCommercialContactsByClient } from '@/services/commercialContactService';
 import { projectService } from '@/services/projectService';
 import { dbToClient, CreateClientInput } from '@/types/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,14 +37,19 @@ export const useClient = (id: string | undefined) => {
   });
 };
 
-export const useClientOpportunities = (clientId: string | undefined) => {
-  const { employee } = useAuth();
+/**
+ * Contatos da Prospecção das empresas ligadas ao cliente — o que antes eram as
+ * oportunidades do cliente (29/09/2026). Só consulta para quem tem `prospeccao:ler`.
+ */
+export const useClientCommercialContacts = (clientId: string | undefined) => {
+  const { employee, can } = useAuth();
   const tenantId = employee?.tenant_id;
+  const canRead = can('prospeccao:ler');
 
   return useQuery({
-    queryKey: ['client-opportunities', clientId, tenantId],
-    queryFn: () => fetchLeadsByClient(tenantId!, clientId!),
-    enabled: !!clientId && !!tenantId,
+    queryKey: ['client-commercial-contacts', clientId, tenantId],
+    queryFn: () => fetchCommercialContactsByClient(tenantId!, clientId!),
+    enabled: !!clientId && !!tenantId && canRead,
   });
 };
 

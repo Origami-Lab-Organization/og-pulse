@@ -18,7 +18,10 @@ export type ProspectStage =
   | 'descartado'
   /** Só em linhas antigas: desde 28/09/2026 a cadência esgotada não encerra mais o contato. */
   | 'sem_resposta'
-  /** Só em linhas antigas: a conversão para o Pipeline saiu em 28/09/2026. */
+  /**
+   * Só no HISTÓRICO de etapa: a conversão para o Pipeline saiu em 28/09/2026, e em
+   * 29/09/2026 cada contato convertido recebeu de volta a oportunidade dele.
+   */
   | 'convertido';
 
 interface ProspectStageMeta {
@@ -304,7 +307,15 @@ export interface ProspectDB {
   won_on: string | null;
   /** Valor vendido; `null` em Ganho = "Sem valor", pendente de registro. */
   won_value: number | null;
-  converted_lead_id: string | null;
+  /**
+   * Valor estimado do negócio antes de haver orçamento (29/09/2026, quando o contato
+   * absorveu a Oportunidade). O valor do contato é o do orçamento quando > 0 (ADR-0017).
+   */
+  estimated_value: number | null;
+  /** Observações livres. Recebeu, na migração, título, serviços e Stand By da oportunidade. */
+  notes: string | null;
+  /** Concorrente na disputa, quando houver. */
+  competitor_name: string | null;
   closed_at: string | null;
   created_by: string | null;
   created_at: string;

@@ -23,6 +23,11 @@ export interface ContactFields {
   primary_channel?: string;
   owner_id?: string | null;
   lever?: string | null;
+  /** Valor estimado do negócio antes do orçamento (29/09/2026). */
+  estimated_value?: number | null;
+  competitor_name?: string | null;
+  /** Observações do contato — `prospects.notes`. Nome próprio para não colidir com as da empresa. */
+  observacoes?: string | null;
 }
 
 export interface ContactFilter {

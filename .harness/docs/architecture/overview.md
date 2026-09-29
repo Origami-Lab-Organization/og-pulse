@@ -92,14 +92,17 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 | Pessoas / RH | `/employees*`, `/rh/desligamentos`, `/rh/candidatos`, `/rh/vagas`, `/rh/ferias`, `/rh/ferramentas-beneficios` | Manager (benefícios: Admin) | 217, 225, 233, 435, 443, 453-454, 458-459 |
 | Clientes / Fornecedores | `/clients*`, `/suppliers` | Manager | 241, 249, 257, 265, 273 |
 | Projetos | `/projetos` (Portfolio), `/projects/:id` | Manager / **apenas Protected** | 282, 290, 307, 315, 323 |
-| Análises | `/analises/meu-time`, `/analises/alocacoes*`, `/analises/financeiro`, `/analises/comercial`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 299, 331, 339, 347, 355, 395-397 |
-| Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/comercial/empresas` (Empresas da prospecção, situação por conta — `prospeccao:ler`, 24/09/2026), `/pipeline` (Oportunidades — `pipeline:ler`), `/comercial/servicos*` (redirect para `/admin/servicos`), `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 411, 421, 429, 436-437, 451, 459, 467 |
+| Análises | `/analises/meu-time`, `/analises/alocacoes*`, `/analises/financeiro`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 299, 331, 339, 347, 355, 395-397 |
+| Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/comercial/empresas` (Empresas da prospecção, situação por conta — `prospeccao:ler`, 24/09/2026) `/comercial/servicos*` (redirect para `/admin/servicos`), `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 411, 421, 429, 436-437, 451, 459, 467 |
 | Estratégia | `/estrategia` | Manager | 457 |
 | Admin | `/admin`, `/admin-dashboard` | Admin | 143, 427 |
 
-Redirects de compatibilidade (`App.tsx:389, 416-417, 425-426`): `/crm`→`/pipeline`,
-`/portfolio`→`/projetos`, `/analytics`→`/analises/financeiro`,
-`/budgets`→`/pipeline`, entre outros.
+Redirects de compatibilidade: `/pipeline`, `/pipeline/archived`, `/crm`,
+`/crm/archived`, `/budgets` e `/comercial` → `/comercial/prospeccao`;
+`/analises/comercial` → `/comercial/prospeccao?aba=metricas` (Oportunidades
+absorvidas pela Prospecção, ADR-0040); `/portfolio`→`/projetos`,
+`/analytics`→`/analises/financeiro`, entre outros. A Prospecção aceita
+`?contato=<id>` para abrir a ficha de um contato.
 
 **Guard PWA:** em modo standalone só `/my-timesheet` e `/my-kanban` são
 permitidas; o resto redireciona para `/my-timesheet`

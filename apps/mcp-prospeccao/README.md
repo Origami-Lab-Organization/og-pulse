@@ -20,7 +20,7 @@ ferramentas de Oportunidade saíram do `og-pulse-drive` em 29/09/2026.
 | `get_contact` | Ficha do contato (e-mail, telefone, redes, data e valor do ganho, motivo da perda) e últimas atividades |
 | `create_contact` | Cadastra contato numa empresa existente, em "A abordar" |
 | `create_contact_with_company` | Cadastra contato com `company_id` **ou** empresa nova; reaproveita a empresa já cadastrada (CNPJ → LinkedIn → nome) e não duplica contato de mesmo nome/e-mail |
-| `update_contact` | Atualiza dados do contato (não muda etapa) |
+| `update_contact` | Atualiza dados do contato, inclusive valor estimado, concorrente e observações (não muda etapa) |
 | `register_activity` | Registra um toque com relato obrigatório; o banco conta, agenda e move a etapa. Cadência esgotada fica em "Em cadência" — nenhum desfecho é automático |
 | `move_contact_stage` | Move para etapa conduzida à mão (A abordar, Reunião agendada, Reunião feita, Oportunidade qualificada), com a `data` do fato — é ela que conta nas métricas |
 | `mark_contact_won` | Registra o **Ganho** (de Reunião feita em diante): data obrigatória, valor opcional; chamar de novo corrige |
@@ -31,6 +31,11 @@ ferramentas de Oportunidade saíram do `og-pulse-drive` em 29/09/2026.
 | `create_prospect_task` | Cria tarefa (texto + prazo); fica com o responsável do contato |
 | `update_prospect_task` | Altera texto/prazo, conclui ou reabre a tarefa |
 | `get_prospecting_metrics` | O mesmo cálculo da aba Métricas: números do período com variação, jornada dos ativados com taxas e gargalo, leituras, pendências, tempo de ciclo, perdas e valor ganho; quebra por alavanca ou responsável |
+
+**Oportunidades absorvidas (29/09/2026).** O Pipeline de Oportunidades saiu do Pulse e cada
+oportunidade virou contato aqui (migration `20260929120000_prospeccao_absorve_oportunidades`).
+O contato ganhou `estimated_value`, `competitor_name` e observações (`observacoes` na tool,
+`notes` no banco); orçamento e projeto passam a apontar para ele.
 
 **Desfecho.** O servidor declara `instructions` para o cliente MCP: todo pedido comercial é
 feito aqui, e cada contato termina em Ganho (`mark_contact_won`) ou Perda (`discard_contact`).
