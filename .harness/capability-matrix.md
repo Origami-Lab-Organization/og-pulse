@@ -138,6 +138,18 @@ migration.
 | `alocacao:editar-mes-fechado` — corrigir planejamento de mes anterior | sim | — | — | — | trigger `enforce_past_month_allocation_edit`; criada em 08/09, substituiu `has_role(admin)` que ficou orfa na aposentadoria |
 | `gpo:reabrir-relatorio` — devolver ao rascunho relatorio entregue | sim | — | — | — | RPC `reopen_project_gpo_report`; criada em 08/09, mesma origem |
 | `arquivo-projeto:ler` | sim | sim | — | alocado | `can_view_project_document` |
+| `transcricao:ler` — texto das reunioes transcritas do projeto | sim | sim | — | alocado | `has_capability` + `can_view_project_document` (migration 20260924120000) |
+| `transcricao:solicitar` — enfileirar transcricao, corrigir quem falou | sim | sim | — | alocado | `has_capability` + `can_view_project_document` (migration 20260924120000) |
+
+Transcricao de reuniao (ADR-0039) espelha `arquivo-projeto:ler` no seed: a transcricao e mais
+um documento daquele projeto, e quem participou da reuniao e quem pede o texto dela. `transcricao:ler`
+e SENSIVEL — a conversa carrega valor, margem e decisao sobre pessoas — e por isso o predicado exige
+capacidade E alcance ao projeto. Ler e pedir sao capacidades separadas de proposito: quem enfileira
+a transcricao nao precisa ler o que saiu dela.
+
+**Recorte em aberto:** reuniao de diretoria gravada dentro de um projeto fica visivel a todo alocado
+naquele projeto. O modelo nao distingue reuniao sensivel de reuniao de time — o controle hoje e nao
+transcrever aquela reuniao ali. Se virar problema, vira capacidade propria, nao remendo de policy.
 
 ## 6. Timesheet, ponto e ferias
 

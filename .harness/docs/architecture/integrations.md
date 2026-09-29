@@ -14,11 +14,13 @@ sources:
   - supabase/migrations/20260831120000_realtime_publication_and_cron_via_vault.sql
   - apps/mcp-activities/src/index.ts
   - apps/mcp-prospeccao/src/index.ts
+  - apps/transcription-worker/worker.py
 ---
 
 # Mapa de Integrações
 
-> Derivado do código em 2026-08-31. Quem chama quem, com que credencial.
+> Derivado do código em 2026-08-31; transcrição de reunião acrescentada em 2026-09-24.
+> Quem chama quem, com que credencial.
 
 ## Visão geral
 
@@ -31,7 +33,7 @@ flowchart LR
 
     subgraph Supabase
         REST[(Postgres + RLS)]
-        EF[Edge Functions x27]
+        EF[Edge Functions x28]
         CRON[pg_cron + pg_net]
         SMTP[Auth SMTP<br/>convites/recovery]
     end
@@ -39,6 +41,10 @@ flowchart LR
     subgraph Microsoft
         ENTRA[Entra ID<br/>OAuth PKCE]
         GRAPH[Graph v1.0<br/>Calendário + Email + OneDrive]
+    end
+
+    subgraph VM["VM propria (ADR-0039)"]
+        WRK["worker de transcricao<br/>WhisperX, Python"]
     end
 
     EXT1[Resend<br/>email transacional]
@@ -58,6 +64,8 @@ flowchart LR
     EF -->|API key| EXT3
     EF --> SMTP
     MCP["apps/mcp-drive · mcp-activities · mcp-prospeccao<br/>(sessão da pessoa, sob RLS)"] --> REST
+    WRK -->|"puxa da fila, service role<br/>worker.py:pegar_job"| REST
+    WRK -->|"URL pre-autenticada, SEM credencial<br/>worker.py:baixar"| GRAPH
 ```
 
 ## Serviços externos
@@ -74,6 +82,7 @@ flowchart LR
 | Amplitude, modo **vitrine** | Browser, `src/lib/analytics.ts` → `startVisitorAnalytics` em `src/main.tsx`, só sem sessão guardada (`src/lib/session.ts`) | Instância `vitrine`: `identityStorage: 'none'` (sem cookie), `trackingOptions.ipAddress: false`, sem replay; autocapture só de páginas vistas e atribuição (referrer/UTM). Mede a vitrine e o cadastro; referrers de IA (chatgpt.com, perplexity.ai, gemini.google.com) medem GEO (PUL-239, ADR-0030) | chave pública de browser no código |
 | Amplitude, modo **produto** (autocapture + session replay 100%) | `startProductAnalytics`, chamado por `AuthContext.applyEmployeeResult` **só com funcionário ativo**; cala a vitrine e herda seu device id; `setOptOut(true)` no `signOut` | Gravação de sessão e eventos nomeados da área logada (`AlocacaoPage`/`EmployeeAllocationPanel`). Nunca roda antes do login | idem |
 | Reconhecimento facial | `src/lib/faceRecognition.ts:1-12` | **100% local no browser** (`@vladmandic/face-api`), threshold 0.6; só os pesos vêm da CDN jsDelivr | — |
+| Worker de transcrição (VM própria, ADR-0039) | `apps/transcription-worker/worker.py` | Puxa job pendente de `meeting_transcriptions`, baixa a gravação do OneDrive pela URL pré-autenticada e devolve o texto. **Não expõe porta** (só conexão de saída) e **não recebe credencial do Graph** | `SUPABASE_SERVICE_ROLE_KEY` na VM; `HF_TOKEN` para a separação de vozes (pyannote) |
 | SMTP do Supabase Auth | `create-employee-user`, `resend-employee-invite`, `request-first-access`, `register-tenant` | Convites, recovery links e confirmação de e-mail do autocadastro (`resend` tipo `signup`, redireciona para `/boas-vindas`) | interno Supabase |
 
 ## Edge Functions por grupo
@@ -114,6 +123,15 @@ Crons só-SQL (sem edge function): ativação de versões de employee `0 3 * * *
 
 **Análise de mercado** — `market-analysis-start` / `-refine` / `-status`
 (jobs em `market_analysis_jobs`).
+
+**Transcrição de reunião** — `transcription-enqueue`: enfileira a transcrição de uma
+gravação do OneDrive (ADR-0039). O insert em `meeting_transcriptions` vai com o **token da
+pessoa** (`index.ts` — userClient), então quem autoriza é a policy, não a função; o service
+role entra só para gravar a URL pré-autenticada em `meeting_transcription_sources`, tabela
+sem policy nenhuma, e para desfazer a linha se esse insert falhar. A URL passa por allowlist
+de host (`HOSTS_PERMITIDOS`): sem ela, um corpo escolhido pelo cliente faria a VM baixar
+qualquer endereço — SSRF com a nossa rede do outro lado. Ela nunca é registrada em log nem
+devolvida ao cliente.
 
 **Seed** — `seed-admin` (protegido por `SEED_SECRET_TOKEN` — `index.ts:17`),
 `seed-demo-tenant` (ver ponto de atenção 1).

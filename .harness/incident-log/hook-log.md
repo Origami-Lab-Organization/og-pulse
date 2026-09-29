@@ -366,3 +366,35 @@
 ### 2026-08-06T10:58:23.299Z
 - **Tipo:** boundary-violation
 - **Detalhe:** Possível dado sensível em console.* em index.ts
+
+### 2026-09-27T23:39:45.552Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Secret detectado pelo gitleaks (generic-api-key) em PayrollProfileSettingsForm.tsx
+
+### 2026-09-27T23:39:45.634Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Secret detectado pelo gitleaks (generic-api-key) em PayrollProfileSettingsForm.tsx
+
+### 2026-09-27T23:40:03.272Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Possível dado sensível em console.* em AuthContext.tsx
+
+### 2026-09-27T23:40:03.363Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Possível dado sensível em console.* em AuthContext.tsx
+
+### 2026-09-27T23:40:29.329Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Secret detectado pelo gitleaks (generic-api-key) em analytics.ts
+
+### 2026-09-27T23:40:29.405Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Secret detectado pelo gitleaks (generic-api-key) em analytics.ts
+
+### 2026-09-27T23:40:48.997Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Possível secret hardcoded em PrimeiroAcesso.tsx
+
+### 2026-09-27T23:40:49.079Z
+- **Tipo:** boundary-violation
+- **Detalhe:** Possível secret hardcoded em PrimeiroAcesso.tsx
