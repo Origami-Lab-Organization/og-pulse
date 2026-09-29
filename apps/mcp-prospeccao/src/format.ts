@@ -23,6 +23,11 @@ import {
 type Valor = string | number | null | undefined;
 type Par = [rotulo: string, valor: Valor];
 
+/** Valor em reais. A coluna é numeric(14,2): já vem em centavos, não há o que arredondar. */
+export function reais(valor: number): string {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
 export function data(iso: string | null | undefined): string {
   if (!iso) return '—';
   const [ano, mes, dia] = iso.slice(0, 10).split('-');
@@ -89,8 +94,16 @@ export function contatoResumo(p: ProspectWithCompany, pessoas: Map<string, strin
   return `- **${p.contact_name}** — ${detalhes}\n  ID: \`${p.id}\``;
 }
 
-function motivoDoDescarte(p: ProspectWithCompany): string | null {
+function motivoDaPerda(p: ProspectWithCompany): string | null {
   return p.discard_reason ? getDiscardReasonLabel(p.discard_reason) : null;
+}
+
+const ETAPA_GANHO: ProspectWithCompany['stage'] = 'ganho';
+
+/** Ganho sem valor é pendência, não zero: o card da tela fica sinalizado até alguém preencher. */
+function valorDoGanho(p: ProspectWithCompany): string | null {
+  if (p.stage !== ETAPA_GANHO) return null;
+  return p.won_value === null ? 'sem valor — pendente de registro' : reais(Number(p.won_value));
 }
 
 export function contatoCompleto(p: ProspectWithCompany, pessoas: Map<string, string>): string {
@@ -100,7 +113,9 @@ export function contatoCompleto(p: ProspectWithCompany, pessoas: Map<string, str
       ['Empresa', p.company?.name],
       ['Cargo', p.contact_role],
       ['Etapa', getProspectStageLabel(p.stage)],
-      ['Motivo do descarte', motivoDoDescarte(p)],
+      ['Ganho em', p.stage === ETAPA_GANHO ? data(p.won_on) : null],
+      ['Valor vendido', valorDoGanho(p)],
+      ['Motivo da perda', motivoDaPerda(p)],
       ['E-mail', p.contact_email],
       ['Telefone', p.contact_phone],
       ['LinkedIn', p.linkedin_url],
@@ -111,7 +126,7 @@ export function contatoCompleto(p: ProspectWithCompany, pessoas: Map<string, str
       ['Atividades', p.activity_count],
       ['1º toque', p.first_touch_at && data(p.first_touch_at)],
       ['Próxima atividade', data(p.next_activity_on)],
-      ['Convertido em oportunidade', p.converted_lead_id && `\`${p.converted_lead_id}\``],
+      ['Convertido em oportunidade (antes de 28/09/2026)', p.converted_lead_id && `\`${p.converted_lead_id}\``],
       ['ID', `\`${p.id}\``],
     ],
     '\n',

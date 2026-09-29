@@ -5,16 +5,20 @@
  *   - o que muda por atividade (contador, próxima data, respondeu, sem resposta) é do trigger
  *     `prospect_activities_advance`, no banco — aqui só se insere a linha;
  *   - descartar e reabrir montam a linha com `@/lib/prospecting/transitions`, o mesmo módulo
- *     que o `prospectService` da tela usa. Um lugar só, para não repetir o TD-0022.
+ *     que o `prospectService` da tela usa. Um lugar só, para não repetir o TD-0022;
+ *   - Ganho e Perda seguem as regras do trigger `prospects_outcome_rules` (20260928200000):
+ *     Ganho só de Reunião feita em diante, data obrigatória, e sair do desfecho o limpa.
  *
  * `tenant_id` e autoria vêm SEMPRE da sessão (`currentEmployee`), nunca de parâmetro de tool.
  */
 
 import { discardUpdate, reopenUpdate } from '@/lib/prospecting/transitions';
+import type { ActivityLite, MetricsSource, ProspectStageChangeDB } from '@/types/prospectMetrics';
 import {
   PROSPECT_FUNNEL_STAGES,
   sortProspectTasks,
   toISODate,
+  type PendingTaskLite,
   type ProspectActivityDB,
   type ProspectCompanyDB,
   type ProspectStage,
@@ -287,9 +291,25 @@ export async function atualizarContato(id: string, campos: ContactFields): Promi
   return data as unknown as ProspectWithCompany;
 }
 
-export async function moverEtapa(id: string, etapa: ProspectStage): Promise<void> {
+/**
+ * Com `dia`, o histórico de etapa guarda o dia do fato em vez do dia do registro — a reunião
+ * que aconteceu ontem. É o mesmo `set_prospect_stage` da tela (20260928160000).
+ */
+export async function moverEtapa(id: string, etapa: ProspectStage, dia?: string): Promise<void> {
   const supabase = await getSupabase();
-  const { error } = await supabase.from('prospects').update({ stage: etapa }).eq('id', id);
+  const { error } = dia
+    ? await supabase.rpc('set_prospect_stage', { p_prospect_id: id, p_stage: etapa, p_occurred_on: dia })
+    : await supabase.from('prospects').update({ stage: etapa }).eq('id', id);
+  if (error) throw explicar(error);
+}
+
+/**
+ * Registra (ou corrige) o Ganho: mesma RPC da tela. `valor` nulo é o ganho sem valor, que o
+ * card sinaliza até alguém preencher. Data futura e valor negativo o banco recusa.
+ */
+export async function marcarGanho(id: string, dia: string, valor: number | null): Promise<void> {
+  const supabase = await getSupabase();
+  const { error } = await supabase.rpc('mark_prospect_won', { p_prospect_id: id, p_won_on: dia, p_value: valor });
   if (error) throw explicar(error);
 }
 
@@ -339,23 +359,60 @@ export async function registrarAtividade(input: ActivityInput): Promise<Prospect
 // Métricas
 // --------------------------------------------------------------------------
 
-export async function dadosDeMetricas(desde: string) {
+/** Limite padrão de linhas por resposta do PostgREST. */
+const PAGINA = 1000;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- builder do PostgREST sem tipo gerado
+type Pagina = PromiseLike<{ data: any[] | null; error: PgError | null }>;
+
+/**
+ * Lê todas as páginas, como `prospectService` da tela. As métricas somam meses de atividade,
+ * e uma leitura única pararia em silêncio na milésima linha — o número sairia menor sem erro.
+ */
+async function todasAsPaginas<T>(pagina: (de: number, ate: number) => Pagina): Promise<T[]> {
+  const linhas: T[] = [];
+  for (let de = 0; ; de += PAGINA) {
+    const { data, error } = await pagina(de, de + PAGINA - 1);
+    if (error) throw explicar(error);
+    linhas.push(...((data ?? []) as T[]));
+    if (!data || data.length < PAGINA) return linhas;
+  }
+}
+
+const ATIVIDADE_LEVE = 'prospect_id, activity_date, sequence_no, got_response';
+
+export interface DadosDasMetricas extends MetricsSource {
+  tarefasPendentes: PendingTaskLite[];
+}
+
+/**
+ * O que a aba Métricas lê (`useProspectMetricsData`), com as mesmas consultas: contatos,
+ * empresas, todas as respostas (a 1ª pode ser antiga), atividades desde `desde`, histórico de
+ * etapa e tarefas pendentes. Tudo sob a RLS e o tenant da sessão.
+ */
+export async function dadosDasMetricas(desde: string): Promise<DadosDasMetricas> {
   const eu = await currentEmployee();
   const supabase = await getSupabase();
-  const [contatos, atividades] = await Promise.all([
-    supabase.from('prospects').select(PROSPECT_SELECT).eq('tenant_id', eu.tenantId),
-    supabase
-      .from('prospect_activities')
-      .select('*')
-      .eq('tenant_id', eu.tenantId)
-      .gte('activity_date', desde),
+  const doTenant = (tabela: string, colunas: string) => supabase.from(tabela).select(colunas).eq('tenant_id', eu.tenantId);
+  const [prospects, companies, responses, activities, changes, tarefasPendentes] = await Promise.all([
+    todasAsPaginas<ProspectWithCompany>((de, ate) => doTenant('prospects', PROSPECT_SELECT).order('id').range(de, ate)),
+    todasAsPaginas<ProspectCompanyDB>((de, ate) => doTenant('prospect_companies', '*').order('id').range(de, ate)),
+    todasAsPaginas<ActivityLite>((de, ate) =>
+      doTenant('prospect_activities', ATIVIDADE_LEVE).eq('got_response', true).order('id').range(de, ate),
+    ),
+    todasAsPaginas<ActivityLite>((de, ate) =>
+      doTenant('prospect_activities', ATIVIDADE_LEVE).gte('activity_date', desde).order('id').range(de, ate),
+    ),
+    todasAsPaginas<ProspectStageChangeDB>((de, ate) =>
+      doTenant('prospect_stage_changes', 'prospect_id, from_stage, to_stage, discard_reason, occurred_on, source')
+        .order('id')
+        .range(de, ate),
+    ),
+    todasAsPaginas<PendingTaskLite>((de, ate) =>
+      doTenant('prospect_tasks', 'prospect_id, due_date, description').is('done_at', null).order('id').range(de, ate),
+    ),
   ]);
-  if (contatos.error) throw explicar(contatos.error);
-  if (atividades.error) throw explicar(atividades.error);
-  return {
-    prospects: (contatos.data ?? []) as unknown as ProspectWithCompany[],
-    activities: (atividades.data ?? []) as unknown as ProspectActivityDB[],
-  };
+  return { prospects, companies, responses, activities, changes, tarefasPendentes };
 }
 
 // --------------------------------------------------------------------------

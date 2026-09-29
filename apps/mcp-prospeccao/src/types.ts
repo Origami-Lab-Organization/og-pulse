@@ -1,4 +1,5 @@
 import type { ProspectCompanyDB, ProspectStage } from '@/types/prospect';
+import type { MetricFilter, PeriodSelection } from '@/types/prospectMetrics';
 
 export interface PgError {
   code?: string;
@@ -76,4 +77,14 @@ export interface TaskListArgs {
   ate?: string;
   incluir_concluidas: boolean;
   limite: number;
+}
+
+/** Quebra de Canais nas métricas: os mesmos dois recortes da aba. */
+export type CorteDeCanal = 'lever' | 'owner';
+
+export interface PedidoDeMetricas {
+  selecao: PeriodSelection;
+  filtro: MetricFilter;
+  corte?: CorteDeCanal;
+  pessoas: Map<string, string>;
 }

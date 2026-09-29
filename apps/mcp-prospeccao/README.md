@@ -1,37 +1,42 @@
 # og-pulse MCP Prospecção
 
 Servidor MCP que opera a **Prospecção** do Origami Pulse pelo chat (Claude Desktop, Claude Code
-ou qualquer cliente MCP): buscar e cadastrar empresas e contatos, registrar atividades, mover
-etapas e ler os números do funil.
+ou qualquer cliente MCP). Desde 28/09/2026 a Prospecção é o quadro comercial de ponta a ponta —
+do primeiro toque ao **Ganho** ou **Perda** —, e este é o único servidor comercial: as
+ferramentas de Oportunidade saíram do `og-pulse-drive` em 29/09/2026.
 
 ## Ferramentas
 
 | Ferramenta | O que faz |
 |---|---|
-| `list_prospecting_options` | Etapas (e como se chega a cada uma), canais, alavancas, motivos de descarte e responsáveis válidos |
+| `list_prospecting_options` | Etapas (e como se chega a cada uma, inclusive Ganho e Perda), canais, alavancas, motivos de perda, períodos das métricas e responsáveis válidos |
 | `search_companies` | Busca empresas por parte do nome ou do CNPJ (com nº de contatos) |
 | `check_company_duplicates` | Confere CNPJ, LinkedIn e nome idêntico antes de cadastrar, com a situação "Abordar / Não abordar" da tela Empresas |
 | `get_company` | Ficha da empresa e todos os contatos dela |
 | `create_company` | Cadastra empresa (valida CNPJ; avisa homônimo; o banco recusa CNPJ/LinkedIn duplicado) |
 | `update_company` | Atualiza empresa — vale para todos os contatos dela |
 | `list_contacts` | Lista contatos por empresa, nome, etapa, responsável e alavanca |
-| `my_agenda` | Contatos com atividade vencida ou vencendo — "o que tenho para hoje" |
-| `get_contact` | Ficha do contato (e-mail, telefone, redes) e últimas atividades |
+| `my_agenda` | "O que tenho para hoje": tarefas pendentes até a data (o único aviso de vencimento do quadro) e toques sugeridos pela cadência |
+| `get_contact` | Ficha do contato (e-mail, telefone, redes, data e valor do ganho, motivo da perda) e últimas atividades |
 | `create_contact` | Cadastra contato numa empresa existente, em "A abordar" |
 | `create_contact_with_company` | Cadastra contato com `company_id` **ou** empresa nova; reaproveita a empresa já cadastrada (CNPJ → LinkedIn → nome) e não duplica contato de mesmo nome/e-mail |
 | `update_contact` | Atualiza dados do contato (não muda etapa) |
-| `register_activity` | Registra um toque com relato obrigatório; o banco conta, agenda e move a etapa |
-| `move_contact_stage` | Move para etapa conduzida à mão (A abordar, Reunião agendada, Reunião feita, Oportunidade qualificada) |
-| `discard_contact` | Descarta com motivo da lista fechada |
-| `reopen_contact` | Reabre Descartado / Sem resposta em "A abordar" |
+| `register_activity` | Registra um toque com relato obrigatório; o banco conta, agenda e move a etapa. Cadência esgotada fica em "Em cadência" — nenhum desfecho é automático |
+| `move_contact_stage` | Move para etapa conduzida à mão (A abordar, Reunião agendada, Reunião feita, Oportunidade qualificada), com a `data` do fato — é ela que conta nas métricas |
+| `mark_contact_won` | Registra o **Ganho** (de Reunião feita em diante): data obrigatória, valor opcional; chamar de novo corrige |
+| `undo_contact_win` | Desfaz o Ganho: volta para Oportunidade qualificada e apaga data e valor |
+| `discard_contact` | Registra a **Perda**, de qualquer etapa, com motivo da lista fechada |
+| `reopen_contact` | Reabre Perda (ou o antigo Sem resposta) em "A abordar" |
 | `list_prospect_tasks` | Tarefas de um contato, ou as pendentes de uma pessoa em todos os contatos |
 | `create_prospect_task` | Cria tarefa (texto + prazo); fica com o responsável do contato |
 | `update_prospect_task` | Altera texto/prazo, conclui ou reabre a tarefa |
-| `get_prospecting_metrics` | Funil, taxas e cobertura da lista num período; quebra por alavanca, anel, tier ou responsável |
+| `get_prospecting_metrics` | O mesmo cálculo da aba Métricas: números do período com variação, jornada dos ativados com taxas e gargalo, leituras, pendências, tempo de ciclo, perdas e valor ganho; quebra por alavanca ou responsável |
 
-**Prospecção ≠ Pipeline.** O servidor declara `instructions` para o cliente MCP: Prospecção é
-contato frio (atenção conquistada, não receita); Pipeline é Oportunidade (receita), no
-`og-pulse-drive`. Sem isso, "cadastra um contato de prospecção" virava `create_opportunity`.
+**Desfecho.** O servidor declara `instructions` para o cliente MCP: todo pedido comercial é
+feito aqui, e cada contato termina em Ganho (`mark_contact_won`) ou Perda (`discard_contact`).
+As regras dos dois moram no trigger `prospects_outcome_rules` (migration
+`20260928200000_prospect_ganho_perda`): Ganho só de Reunião feita em diante, data obrigatória,
+e sair do desfecho o limpa. O MCP só adianta a frase certa — quem recusa é o banco.
 
 **Duplicidade.** O nome só reaproveita empresa quando CNPJ e LinkedIn não a contradizem; com
 mais de um homônimo indistinguível, a ferramenta para e pede o `company_id`. A regra está em
@@ -42,8 +47,6 @@ tela (migration `20260924120000_prospect_tasks`).
 
 ### O que fica de fora, de propósito
 
-- **Converter em Oportunidade** — a conversão cria o `leads` pela regra de
-  `convertProspectToLead`, que vive na aplicação. Expor aqui duplicaria essa escrita (TD-0022).
 - **Excluir contato, apagar atividade e excluir tarefa** — irreversíveis; ficam na tela.
 - **Anexos** — o upload depende do bucket e do fluxo de `src/lib/prospectAttachments.ts`.
 
@@ -56,8 +59,12 @@ O servidor não reimplementa regra de domínio:
 - **Descartar e reabrir** montam a linha com `src/lib/prospecting/transitions.ts`, o mesmo
   módulo que `src/services/prospectService.ts` usa.
 - **Etapas, rótulos, alavancas, motivos, canais e métricas** são importados de
-  `src/types/prospect.ts`, `src/lib/interactionChannels.ts` e `src/lib/prospecting/metrics.ts`
-  pelo alias `@/` (ver `tsconfig.json`). O esbuild resolve ao empacotar.
+  `src/types/prospect.ts`, `src/lib/interactionChannels.ts` e `src/lib/prospecting/`
+  (`periodMetrics.ts`, `metricsReadings.ts`, `milestones.ts`, `periods.ts`) pelo alias `@/`
+  (ver `tsconfig.json`). O esbuild resolve ao empacotar. O texto das métricas mora em
+  `src/metricas.ts` e só escolhe o que dizer: tela e chat dão o mesmo número.
+- **Ganho e data da etapa** usam as mesmas RPCs da tela: `mark_prospect_won` e
+  `set_prospect_stage` (`SECURITY INVOKER`, sob a RLS de quem chama).
 
 Só módulos **sem dependência de browser** podem entrar nesse grafo. Importar um service de
 `src/services/` puxaria o client do Vite e quebraria o servidor no Node.
@@ -96,9 +103,10 @@ O pacote distribuído é gerado por `scripts/build-mcp-bundles.sh` em `public/mc
 - "Cadastra a empresa Acme, CNPJ 11.222.333/0001-81, e a Maria Souza como contato, diretora de operações, WhatsApp (31) 99999-0000."
 - "Registra que liguei para a Maria e ela pediu para retornar semana que vem."
 - "A Maria respondeu o e-mail — registra com resposta."
-- "Marca a reunião com a Maria como feita: falamos de automação do faturamento, próximo passo é proposta."
-- "Descarta o João da Beta, contato errado."
+- "A reunião com a Maria foi ontem: falamos de automação do faturamento, próximo passo é proposta."
+- "Fechamos com a Maria: 48 mil, assinado hoje."
+- "Perdemos o João da Beta: recusou a proposta pelo preço."
 - "Já temos a Beta Ltda, CNPJ 11.222.333/0001-81? Se não, cadastra com o João Lima, gerente comercial."
 - "Cria uma tarefa para a Maria: mandar o material até sexta."
 - "Quais tarefas de prospecção eu tenho vencendo esta semana?"
-- "Como está o funil de prospecção nos últimos 30 dias, por alavanca?"
+- "Como está a prospecção nos últimos 30 dias, por alavanca? Onde está o gargalo?"

@@ -144,14 +144,22 @@ export const HELP_GROUPS: HelpGroup[] = [
             'update_contact',
             'register_activity',
             'move_contact_stage',
+            'mark_contact_won',
+            'undo_contact_win',
             'discard_contact',
             'reopen_contact',
+            'check_company_duplicates',
+            'create_contact_with_company',
+            'list_prospecting_options',
+            'list_prospect_tasks',
+            'create_prospect_task',
+            'update_prospect_task',
             'get_prospecting_metrics',
           ],
           example:
             'Cadastra a empresa Acme, CNPJ 11.222.333/0001-81, e a Maria Souza como contato dela, diretora de operações. Depois registra que mandei um e-mail de apresentação hoje.',
           note:
-            'Registrar ganho, excluir contato, apagar atividade e anexar arquivo continuam só na tela. A cadência e a mudança de etapa por atividade são as mesmas da tela: quem decide é o banco.',
+            'Ganho, Perda e a data da reunião passam pelo chat com as mesmas regras da tela, que moram no banco: Ganho só de Reunião feita em diante, e a perda sempre com motivo. As métricas saem com o mesmo cálculo da aba Métricas. Excluir contato, apagar atividade e anexar arquivo continuam só na tela.',
         },
       },
       {
@@ -167,17 +175,9 @@ export const HELP_GROUPS: HelpGroup[] = [
           'O valor da oportunidade vem do orçamento aprovado quando existe um; sem orçamento, é a estimativa que você informar.',
         ],
         mcp: {
-          server: 'drive',
-          tools: [
-            'list_opportunities',
-            'create_opportunity',
-            'update_opportunity',
-            'move_opportunity_stage',
-          ],
-          example:
-            'Cria uma oportunidade para a Acme, product studio, 80 mil estimados, e move a da Beta para negociação.',
+          server: null,
           note:
-            'Ganho e Perda não passam pelo chat: fechar negócio ativa o orçamento e cria o projeto, e dar perda arquiva e cancela os follow-ups pendentes. As duas ficam na tela, onde o Pulse pergunta o que falta decidir. Criar, editar e mover entre as etapas do funil e o Follow Up funcionam, dentro do que o seu perfil permite.',
+            'O Pipeline não é operado pelo chat desde 29/09/2026: o comercial passou a viver na Prospecção de ponta a ponta, do primeiro toque ao Ganho ou Perda, e é por ela que o MCP trabalha.',
         },
       },
       {
@@ -213,7 +213,7 @@ export const HELP_GROUPS: HelpGroup[] = [
         mcp: {
           server: null,
           note:
-            'Sem ferramenta própria. O nome do cliente aparece nas listas de projeto e de oportunidade pelo MCP, em `list_projects` e `list_opportunities`.',
+            'Sem ferramenta própria. O nome do cliente aparece na lista de projetos pelo MCP, em `list_projects`.',
         },
       },
       {

@@ -12,6 +12,7 @@ sources:
   - supabase/migrations/20260717120000_time_tracking_reminders_cron.sql
   - supabase/migrations/20260810150000_lead_follow_up_reminder_cron.sql
   - supabase/migrations/20260831120000_realtime_publication_and_cron_via_vault.sql
+  - apps/mcp-drive/src/index.ts
   - apps/mcp-activities/src/index.ts
   - apps/mcp-prospeccao/src/index.ts
 ---
@@ -120,8 +121,8 @@ Crons só-SQL (sem edge function): ativação de versões de employee `0 3 * * *
 
 **MCP** — três servidores MCP de saída, todos operando **sob a RLS**: entram com as
 credenciais da própria pessoa usando a chave publicável, então enxergam só o que ela
-enxerga. `apps/mcp-drive` (arquivos e leitura de projeto), `apps/mcp-activities`
-(kanban de atividades) e `apps/mcp-prospeccao` (pipeline frio, desde 23/09/2026), cada
+enxerga. `apps/mcp-drive` (arquivos, leitura de projeto e horas), `apps/mcp-activities`
+(kanban de atividades) e `apps/mcp-prospeccao` (o comercial, desde 23/09/2026), cada
 um com sessão em arquivo próprio sob `~/.og-pulse/`, 0600 — o supabase-js rotaciona o
 refresh token, e um arquivo compartilhado faria os processos se derrubarem.
 
@@ -133,10 +134,18 @@ tela Empresas), e tarefa herda tenant e responsável do contato pelo trigger
 `prospect_tasks_inherit_parent`. A única regra própria do MCP é a de duplicidade no
 cadastro conversacional (`apps/mcp-prospeccao/src/duplicidade.ts`: CNPJ → LinkedIn →
 nome sem contradição), que só lê e escolhe a empresa — o banco segue recusando CNPJ e
-LinkedIn repetidos. O servidor declara `instructions` separando Prospecção (contato frio)
-de Pipeline (Oportunidade), porque sem isso o cliente cadastrava contato frio como
-Oportunidade. A conversão em Oportunidade fica fora do MCP para não abrir uma segunda
-escrita de `leads` (TD-0022).
+LinkedIn repetidos.
+
+Desde 28/09/2026 a Prospecção é o quadro comercial de ponta a ponta e o contato termina
+nela mesma, em Ganho ou Perda — a conversão em Oportunidade saiu. Em 29/09/2026 as
+ferramentas de Oportunidade (`list_opportunities`, `create_opportunity`,
+`update_opportunity`, `move_opportunity_stage`) saíram do `mcp-drive` (versão 2.0.0), e o
+MCP deixou de escrever em `leads`: `mcp-prospeccao` (1.1.0) é o único servidor comercial, e
+as `instructions` dele dizem isso ao cliente. Ganho e data de etapa usam as mesmas RPCs da
+tela, `mark_prospect_won` e `set_prospect_stage` (`SECURITY INVOKER`); as regras de desfecho
+são do trigger `prospects_outcome_rules`. `get_prospecting_metrics` monta o texto com
+`src/lib/prospecting/periodMetrics.ts` e `metricsReadings.ts`, o mesmo cálculo da aba
+Métricas.
 
 `mcp-activities` usava `SUPABASE_SERVICE_KEY` até 02/09, o que bypassava a RLS e com
 ela o `tenant_id`. Regra que fica: **MCP nunca usa service_role.** A RLS é a barreira

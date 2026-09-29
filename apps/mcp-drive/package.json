@@ -1,6 +1,6 @@
 {
   "name": "@og-pulse/mcp-drive",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "MCP server para subir arquivos na pasta do projeto no OneDrive, conversacionalmente",
   "type": "module",
   "main": "dist/index.js",

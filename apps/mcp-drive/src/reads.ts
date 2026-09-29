@@ -6,10 +6,6 @@
  * isso cada `select` aqui é explícito: campo de custo, salário, margem, folha e
  * reembolso NÃO entram em consulta nenhuma, nem para admin. Quem precisa desse
  * número abre a tela. Ver boundaries.md e ADR-0020.
- *
- * A exceção consciente é o valor da oportunidade no pipeline: é informação
- * comercial, decidida caso a caso, e não expõe custo nem remuneração de
- * ninguém.
  */
 
 import { getSupabase } from './supabase.js';
@@ -40,14 +36,6 @@ interface AllocationRow {
   employee_id: string;
   planned_hours: number | null;
   employee: { nome: string; cargo: string } | null;
-}
-
-interface OpportunityRow {
-  id: string;
-  name: string;
-  company_name: string | null;
-  estimated_value: number | null;
-  crm_stage: string | null;
 }
 
 interface ActivityRow {
@@ -82,16 +70,6 @@ const PORTFOLIO_STAGE_LABELS: Record<string, string> = {
   results_presentation: 'Apresentação de Resultados',
   learning_case: 'Aprendizado e Case',
   completed: 'Concluído',
-};
-
-const CRM_STAGE_LABELS: Record<string, string> = {
-  screening: 'Prospecção',
-  qualification: 'Qualificação',
-  proposal: 'Proposta Enviada',
-  negotiation: 'Negociação',
-  closed: 'Fechado - Ganho',
-  closed_lost: 'Perdido',
-  stand_by: 'Stand By',
 };
 
 const ACTIVITY_COLUMN_LABELS: Record<string, string> = {
@@ -179,35 +157,6 @@ export async function listProjectTeam(projectId: string): Promise<string> {
       (person) =>
         `• ${person.nome} (${person.cargo}) — ${Math.round(person.hours)}h planejadas em ${person.months} mês(es)`,
     )
-    .join('\n');
-}
-
-export async function listOpportunities(stage?: string, query?: string): Promise<string> {
-  const supabase = await getSupabase();
-
-  let request = supabase
-    .from('leads')
-    .select('id, name, company_name, contact_name, estimated_value, crm_stage, service_line, created_at')
-    .eq('archived', false)
-    .order('created_at', { ascending: false });
-
-  if (stage) request = request.eq('crm_stage', stage);
-  if (query) request = request.ilike('name', `%${query}%`);
-
-  const { data, error } = await request.limit(50);
-  if (error) throw new Error(error.message);
-  if (!data || data.length === 0) return 'Nenhuma oportunidade encontrada.';
-
-  return (data as unknown as OpportunityRow[])
-    .map((row) => {
-      const value = Number(row.estimated_value ?? 0);
-      const formatted = value > 0 ? `R$ ${value.toLocaleString('pt-BR')}` : 'sem valor informado';
-      return (
-        `• ${row.name}${row.company_name ? ` — ${row.company_name}` : ''}\n` +
-        `  etapa: ${label(CRM_STAGE_LABELS, row.crm_stage)} · valor estimado: ${formatted}\n` +
-        `  id: ${row.id}`
-      );
-    })
     .join('\n');
 }
 

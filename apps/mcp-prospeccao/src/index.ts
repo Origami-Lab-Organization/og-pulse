@@ -1,15 +1,18 @@
 /**
  * og-pulse MCP Prospecção
  *
- * Opera a Prospecção do Origami Pulse pelo chat: buscar e cadastrar empresas e contatos,
- * registrar atividades, mover etapas e ler as métricas do funil.
+ * Opera a Prospecção do Origami Pulse pelo chat — o quadro comercial de ponta a ponta, do
+ * primeiro toque ao Ganho ou Perda: buscar e cadastrar empresas e contatos, registrar
+ * atividades e tarefas, mover etapas, registrar o desfecho e ler as métricas.
  *
  * Entra com as credenciais da própria pessoa e opera SOB A RLS, como `apps/mcp-activities`:
  * sem `prospeccao:ler` não lê nada, sem `prospeccao:editar` não escreve nada.
  *
+ * Desde 28/09/2026 não existe mais conversão em Oportunidade: o contato termina aqui mesmo,
+ * em Ganho (data e valor, pela RPC `mark_prospect_won`) ou Perda (motivo de lista fechada).
+ * As regras dos dois moram no banco (`prospects_outcome_rules`), então tela e chat não divergem.
+ *
  * Fica DE FORA, de propósito:
- *   - converter em Oportunidade: cria o `leads` com a regra de `convertProspectToLead`, que
- *     vive na aplicação. Expor aqui duplicaria a escrita, exatamente o TD-0022;
  *   - excluir contato e apagar atividade: irreversíveis, ficam para a tela;
  *   - anexos: o upload exige o bucket e o fluxo de `prospectAttachments`.
  *
@@ -21,13 +24,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { INTERACTION_CHANNELS } from '@/lib/interactionChannels';
 import { validateCNPJ } from '@/lib/masks';
-import {
-  calculateAccountCoverage,
-  calculateProspectingFunnel,
-  formatRate,
-  funnelByCut,
-  type ProspectCut,
-} from '@/lib/prospecting/metrics';
+import { PERIOD_PRESET_OPTIONS, isCustomPreset } from '@/lib/prospecting/periods';
 import { isManualStage } from '@/lib/prospecting/transitions';
 import {
   PROSPECT_DISCARD_REASONS,
@@ -36,7 +33,8 @@ import {
   PROSPECT_MANUAL_STAGES,
   PROSPECT_STAGE_META,
   PROSPECT_TERMINAL_STAGES,
-  getLeverLabel,
+  canWin,
+  getDiscardReasonLabel,
   getProspectStageLabel,
   isProspectClosed,
   isProspectReadOnly,
@@ -47,8 +45,10 @@ import {
 import * as db from './data.js';
 import * as dup from './duplicidade.js';
 import * as fmt from './format.js';
+import { inicioDaLeitura, relatorioDeMetricas } from './metricas.js';
 import { PulseNotAuthenticatedError } from './supabase.js';
-import type { CompanyFields, CompanyMatch, CompanyTarget, ContactFields, TaskListArgs } from './types.js';
+import type { PeriodPreset, PeriodSelection } from '@/types/prospectMetrics';
+import type { CompanyFields, CompanyMatch, CompanyTarget, ContactFields, CorteDeCanal, TaskListArgs } from './types.js';
 
 // ── Vocabulário fechado, derivado das mesmas constantes da tela ─────────────
 
@@ -62,12 +62,18 @@ const ALAVANCAS = valores(PROSPECT_LEVERS);
 const MOTIVOS = valores(PROSPECT_DISCARD_REASONS);
 const ETAPAS = Object.keys(PROSPECT_STAGE_META) as Tupla;
 const ETAPAS_MANUAIS = [...PROSPECT_MANUAL_STAGES] as Tupla;
+const PERIODOS = valores(PERIOD_PRESET_OPTIONS);
 const rotuloDasEtapas = (lista: readonly string[]) =>
   lista.map((e) => `${e} (${getProspectStageLabel(e)})`).join(', ');
 
 const uuid = (campo: string) => z.string().uuid(`${campo} deve ser um UUID — use as tools de busca para obtê-lo.`);
 const textoOpcional = (descricao: string) => z.string().max(300).optional().describe(descricao);
 const dataISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD.');
+
+/** O dia de um fato que já aconteceu: reunião, venda, toque. O banco também recusa o futuro. */
+function exigirPassado(dia: string | undefined, oQue: string): void {
+  if (dia && dia > toISODate(new Date())) throw new db.ProspeccaoError(`A data ${oQue} não pode ser futura.`);
+}
 
 // ── Respostas ────────────────────────────────────────────────────────────────
 
@@ -97,7 +103,7 @@ function executar<A>(handler: (args: A) => Promise<string>) {
 function exigirEditavel(p: ProspectWithCompany): void {
   if (isProspectReadOnly(p)) {
     throw new db.ProspeccaoError(
-      `${p.contact_name} já foi convertido em oportunidade — o contato é somente leitura. Continue pela Oportunidade.`,
+      `${p.contact_name} foi convertido em oportunidade antes de 28/09/2026, quando a conversão existia — o contato é somente leitura.`,
     );
   }
 }
@@ -113,17 +119,17 @@ async function resolverOpcional(responsavel?: string): Promise<string | undefine
 // ── Servidor ─────────────────────────────────────────────────────────────────
 
 /**
- * Lido pelo cliente MCP antes de escolher ferramenta. Existe porque, sem ele, pedido de
- * "cadastrar um contato de prospecção" caía em `create_opportunity` do og-pulse-drive.
+ * Lido pelo cliente MCP antes de escolher ferramenta. Desde 29/09/2026 é o ÚNICO servidor
+ * comercial: as ferramentas de Oportunidade saíram do og-pulse-drive.
  */
 const INSTRUCOES = [
-  'Prospecção (este servidor) = contato frio: mede atenção conquistada, não receita. Empresas e contatos que ainda estão sendo abordados vivem aqui.',
-  'Pipeline = Oportunidade: negócio com receita em jogo, no servidor og-pulse-drive (create_opportunity). Pedido para cadastrar contato ou empresa de prospecção NUNCA vira Oportunidade.',
-  'Antes de cadastrar, confira duplicidade com check_company_duplicates e list_contacts. Não chute valores: list_prospecting_options traz etapas, canais, alavancas, motivos de descarte e responsáveis válidos.',
-  'Ao falar com a pessoa, use Prospecção, Oportunidade e Pipeline — nunca "lead", "CRM" ou "funil".',
+  'Prospecção (este servidor) é o quadro comercial de ponta a ponta: do primeiro toque ao fechamento. Todo pedido comercial pelo chat — empresa, contato, atividade, reunião, venda ou perda — é feito aqui.',
+  'Cada contato termina em Ganho (fechamos negócio: mark_contact_won, com data e valor, de Reunião feita em diante) ou Perda (discard_contact, com motivo de lista fechada). Nenhum desfecho é automático: quem decide é a pessoa.',
+  'Antes de cadastrar, confira duplicidade com check_company_duplicates e list_contacts. Não chute valores: list_prospecting_options traz etapas, canais, alavancas, motivos de perda e responsáveis válidos.',
+  'Ao falar com a pessoa, use Prospecção, Ganho, Perda e Oportunidade qualificada — nunca "lead", "CRM" ou "funil".',
 ].join('\n');
 
-const server = new McpServer({ name: 'og-pulse-prospeccao', version: '1.0.0' }, { instructions: INSTRUCOES });
+const server = new McpServer({ name: 'og-pulse-prospeccao', version: '1.1.0' }, { instructions: INSTRUCOES });
 
 const camposDeEmpresa = {
   cnpj: textoOpcional('CNPJ com ou sem máscara. Evita empresa duplicada.'),
@@ -234,11 +240,12 @@ async function linhaDeCandidata({ empresa, criterio }: CompanyMatch): Promise<st
 
 // ── Opções válidas ───────────────────────────────────────────────────────────
 
-/** Como cada etapa desfecho é alcançada — as do quadro derivam de `isManualStage`. */
+/** Como cada desfecho é alcançado — as etapas de trabalho derivam de `isManualStage`. */
 const COMO_SE_ENCERRA: Partial<Record<ProspectStage, string>> = {
-  sem_resposta: 'automático, quando a cadência se esgota sem resposta',
-  descartado: 'discard_contact, com motivo',
-  convertido: 'conversão em Oportunidade, feita na tela',
+  ganho: 'mark_contact_won, com data e valor (valor opcional), de Reunião feita ou Oportunidade qualificada; undo_contact_win desfaz',
+  descartado: 'discard_contact, com motivo; reopen_contact reabre em "A abordar"',
+  sem_resposta: 'etapa antiga — desde 28/09/2026 a cadência esgotada continua em "Em cadência"',
+  convertido: 'etapa antiga — a conversão em Oportunidade saiu em 28/09/2026',
 };
 
 const comoSeChega = (etapa: ProspectStage) =>
@@ -249,7 +256,7 @@ function secaoDeEtapas(): string[] {
     '**Etapas do quadro (em ordem):**',
     ...PROSPECT_FUNNEL_STAGES.map((e) => `- \`${e}\` — ${getProspectStageLabel(e)}: ${comoSeChega(e)}`),
     '',
-    '**Encerrados (fora do quadro):**',
+    '**Desfechos (e etapas antigas, que não recebem mais ninguém):**',
     ...PROSPECT_TERMINAL_STAGES.map((e) => `- \`${e}\` — ${getProspectStageLabel(e)}: ${COMO_SE_ENCERRA[e] ?? ''}`),
   ];
 }
@@ -269,7 +276,7 @@ function secaoDePessoas(pessoas: Map<string, string>): string[] {
 
 server.tool(
   'list_prospecting_options',
-  'Valores válidos da Prospecção, com id e rótulo: etapas (e como se chega a cada uma), canais, alavancas, motivos de descarte e responsáveis. Consulte antes de cadastrar ou mover, para nunca chutar valor. Anel e Tier da empresa são texto livre.',
+  'Valores válidos da Prospecção, com id e rótulo: etapas (e como se chega a cada uma, inclusive Ganho e Perda), canais, alavancas, motivos de perda, períodos das métricas e responsáveis. Consulte antes de cadastrar ou mover, para nunca chutar valor. Anel e Tier da empresa são texto livre.',
   {},
   executar(async () => {
     const pessoas = await db.nomesDasPessoas();
@@ -280,7 +287,9 @@ server.tool(
       '',
       ...secaoDeLista('Alavancas / origem da lista', PROSPECT_LEVERS),
       '',
-      ...secaoDeLista('Motivos de descarte', PROSPECT_DISCARD_REASONS),
+      ...secaoDeLista('Motivos de perda', PROSPECT_DISCARD_REASONS),
+      '',
+      ...secaoDeLista('Períodos das métricas', PERIOD_PRESET_OPTIONS),
       '',
       ...secaoDePessoas(pessoas),
     ].join('\n');
@@ -291,12 +300,12 @@ server.tool(
 
 server.tool(
   'list_contacts',
-  `Lista contatos da Prospecção. Por padrão, só os que estão no Pipeline (etapas abertas). Etapas: ${rotuloDasEtapas(ETAPAS)}.`,
+  `Lista contatos da Prospecção. Por padrão, só o trabalho em aberto (etapas antes do desfecho). Etapas: ${rotuloDasEtapas(ETAPAS)}.`,
   {
     empresa: z.string().optional().describe('Parte do nome da empresa.'),
     contato: z.string().optional().describe('Parte do nome do contato.'),
     etapa: z.enum(ETAPAS).optional(),
-    incluir_encerrados: z.boolean().default(false).describe('Inclui Sem resposta, Descartado e Convertido.'),
+    incluir_encerrados: z.boolean().default(false).describe('Inclui Ganho e Perda (e as etapas antigas Sem resposta e Convertido).'),
     responsavel: z.string().optional().describe('"eu", nome (ou parte) ou UUID do responsável.'),
     alavanca: z.enum(ALAVANCAS).optional(),
     limite: z.number().int().min(1).max(200).default(50),
@@ -321,25 +330,33 @@ server.tool(
 
 server.tool(
   'my_agenda',
-  'Contatos com atividade vencida ou vencendo até uma data — "o que tenho para fazer hoje". Padrão: meus contatos, até hoje, mais atrasados primeiro.',
+  'O que tenho para fazer até uma data: as TAREFAS pendentes — compromissos assumidos, o único aviso de vencimento do quadro desde 28/09/2026 — e os toques sugeridos pela cadência. Padrão: minhas, até hoje, mais atrasadas primeiro.',
   {
-    ate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Data limite (AAAA-MM-DD). Padrão: hoje.'),
+    ate: dataISO.optional().describe('Data limite (AAAA-MM-DD). Padrão: hoje.'),
     responsavel: z.string().default('eu').describe('"eu", nome ou UUID. Padrão: eu.'),
   },
   executar(async ({ ate, responsavel }) => {
     const limite = ate ?? toISODate(new Date());
-    const [contatos, pessoas] = await Promise.all([
-      db.listarContatos({ responsavelId: await db.resolverPessoa(responsavel), vencendoAte: limite, limite: 200 }),
+    const ownerId = await db.resolverPessoa(responsavel);
+    const [tarefas, contatos, pessoas] = await Promise.all([
+      db.tarefasPendentesDe(ownerId, limite, 200),
+      db.listarContatos({ responsavelId: ownerId, vencendoAte: limite, limite: 200 }),
       db.nomesDasPessoas(),
     ]);
-    if (contatos.length === 0) return `Nada vencendo até ${fmt.data(limite)}. Dia encerrado. ✅`;
+    if (tarefas.length === 0 && contatos.length === 0) return `Nada vencendo até ${fmt.data(limite)}. Dia encerrado. ✅`;
     return [
-      `**${contatos.length} contato(s) com atividade até ${fmt.data(limite)}:**`,
+      ...secaoDaAgenda(`Tarefas com prazo até ${fmt.data(limite)}`, tarefas.map((t) => tarefaComContato(t, pessoas))),
       '',
-      ...contatos.map((p) => fmt.contatoResumo(p, pessoas)),
+      ...secaoDaAgenda(
+        `Toques sugeridos pela cadência até ${fmt.data(limite)}`,
+        contatos.map((p) => fmt.contatoResumo(p, pessoas)),
+      ),
     ].join('\n');
   }),
 );
+
+const secaoDaAgenda = (titulo: string, linhas: string[]) =>
+  linhas.length ? [`**${titulo} (${linhas.length}):**`, '', ...linhas] : [`${titulo}: nada.`];
 
 server.tool(
   'get_contact',
@@ -385,7 +402,7 @@ const ORIGEM_DA_EMPRESA: Record<CompanyTarget['origem'], (a: CompanyTarget) => s
 
 server.tool(
   'create_contact_with_company',
-  'Cadastra um contato FRIO na Prospecção — não é Oportunidade (negócio com receita em jogo vai para o Pipeline, create_opportunity). Verifique duplicidade com check_company_duplicates/list_contacts antes de criar. Aceita company_id de empresa existente OU os dados de uma empresa nova em `empresa`: com empresa nova, reaproveita a já cadastrada com o mesmo CNPJ, LinkedIn ou nome (quando nada os diferencia) em vez de duplicar. Também não duplica contato — mesmo nome ou e-mail na mesma empresa devolve o existente. Entra em "A abordar", com a próxima atividade para hoje, igual à tela.',
+  'Cadastra um contato na Prospecção, com a empresa. Verifique duplicidade com check_company_duplicates/list_contacts antes de criar. Aceita company_id de empresa existente OU os dados de uma empresa nova em `empresa`: com empresa nova, reaproveita a já cadastrada com o mesmo CNPJ, LinkedIn ou nome (quando nada os diferencia) em vez de duplicar. Também não duplica contato — mesmo nome ou e-mail na mesma empresa devolve o existente. Entra em "A abordar", com a próxima atividade para hoje, igual à tela.',
   {
     company_id: uuid('company_id').optional().describe('Empresa já cadastrada. Não envie junto com `empresa`.'),
     empresa: z
@@ -439,7 +456,7 @@ server.tool(
 
 server.tool(
   'register_activity',
-  'Registra uma atividade (toque) com um contato. O relato é obrigatório, como na tela. O banco conta o toque, agenda a próxima data pela cadência e move a etapa: com houve_resposta=true o contato vai para "Respondeu"; sem resposta, o 4º toque encerra em "Sem resposta".',
+  'Registra uma atividade (toque) com um contato. O relato é obrigatório, como na tela. O banco conta o toque, agenda a próxima data pela cadência e move a etapa: com houve_resposta=true o contato vai para "Respondeu". Esgotada a cadência sem resposta, o contato continua em "Em cadência", sem próxima data — registrar a perda (discard_contact, motivo sem_resposta) é decisão da pessoa.',
   {
     prospect_id: uuid('prospect_id'),
     relato: z.string().trim().min(1, 'Descreva o que aconteceu.').max(20000).describe('O que aconteceu.'),
@@ -448,7 +465,7 @@ server.tool(
     data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Data da atividade (AAAA-MM-DD). Padrão: hoje. Não pode ser futura.'),
   },
   executar(async ({ prospect_id, relato, canal, houve_resposta, data }) => {
-    if (data && data > toISODate(new Date())) throw new db.ProspeccaoError('A data da atividade não pode ser futura.');
+    exigirPassado(data, 'da atividade');
     const antes = await db.buscarContato(prospect_id);
     exigirEditavel(antes);
     const registro = await db.registrarAtividade({
@@ -472,61 +489,133 @@ function resumoDaAtividade(numero: number, antes: ProspectWithCompany, depois: P
   return [`✅ Atividade nº ${numero} registrada para ${depois.contact_name}.`, etapa, proxima].join('\n');
 }
 
+const ETAPA_REUNIAO_FEITA: ProspectStage = 'reuniao_feita';
+const ETAPA_QUALIFICADO: ProspectStage = 'qualificado';
+const ETAPA_GANHO: ProspectStage = 'ganho';
+const ETAPA_PERDA: ProspectStage = 'descartado';
+/** Perda, e o "Sem resposta" das linhas antigas: os dois reabrem em "A abordar", como na tela. */
+const REABRE = new Set<ProspectStage>(['descartado', 'sem_resposta']);
+
 server.tool(
   'move_contact_stage',
-  `Move um contato para uma etapa conduzida à mão: ${rotuloDasEtapas(ETAPAS_MANUAIS)}. "Em cadência" e "Respondeu" NÃO se alcançam aqui — só registrando atividade (register_activity). Para "reuniao_feita", envie relato_reuniao para registrar como foi (vira atividade com resposta).`,
+  `Move um contato para uma etapa conduzida à mão: ${rotuloDasEtapas(ETAPAS_MANUAIS)}. "Em cadência" e "Respondeu" NÃO se alcançam aqui — só registrando atividade (register_activity). Ganho e Perda têm ferramenta própria: mark_contact_won e discard_contact. Envie \`data\` quando o fato foi em outro dia (a reunião foi ontem): é ela que conta nas métricas. Para "reuniao_feita", envie relato_reuniao para registrar como foi (vira atividade com resposta, na mesma data).`,
   {
     prospect_id: uuid('prospect_id'),
     etapa: z.enum(ETAPAS_MANUAIS),
+    data: dataISO.optional().describe('Dia em que aconteceu (AAAA-MM-DD). Padrão: hoje. Não pode ser futura.'),
     relato_reuniao: z.string().trim().max(20000).optional().describe('Só para reuniao_feita: como foi a reunião.'),
     formato_reuniao: z.enum(CANAIS).default('video_call').describe('Só para reuniao_feita: formato da reunião.'),
   },
-  executar(async ({ prospect_id, etapa, relato_reuniao, formato_reuniao }) => {
+  executar(async ({ prospect_id, etapa, data, relato_reuniao, formato_reuniao }) => {
     if (!isManualStage(etapa)) throw new db.ProspeccaoError('Etapa não pode ser definida à mão.');
+    exigirPassado(data, 'da etapa');
     const contato = await db.buscarContato(prospect_id);
     exigirEditavel(contato);
     exigirAberto(contato);
     if (contato.stage === etapa) return `${contato.contact_name} já está em "${getProspectStageLabel(etapa)}".`;
-    if (etapa === 'reuniao_feita' && relato_reuniao) {
-      await db.registrarAtividade({ prospectId: prospect_id, channel: formato_reuniao, notes: relato_reuniao, gotResponse: true });
+    const comRelato = etapa === ETAPA_REUNIAO_FEITA && !!relato_reuniao;
+    if (comRelato) {
+      await db.registrarAtividade({ prospectId: prospect_id, channel: formato_reuniao, notes: relato_reuniao, gotResponse: true, activityDate: data });
     }
-    await db.moverEtapa(prospect_id, etapa);
-    const registro = relato_reuniao && etapa === 'reuniao_feita' ? ' Relato registrado na linha do tempo.' : '';
-    return `✅ ${contato.contact_name}: ${getProspectStageLabel(contato.stage)} → **${getProspectStageLabel(etapa)}**.${registro}`;
+    await db.moverEtapa(prospect_id, etapa, data);
+    const quando = data ? ` em ${fmt.data(data)}` : '';
+    const registro = comRelato ? ' Relato registrado na linha do tempo.' : '';
+    return `✅ ${contato.contact_name}: ${getProspectStageLabel(contato.stage)} → **${getProspectStageLabel(etapa)}**${quando}.${registro}`;
   }),
 );
 
 function exigirAberto(p: ProspectWithCompany): void {
-  if (isProspectClosed(p.stage)) {
-    throw new db.ProspeccaoError(
-      `${p.contact_name} está encerrado (${getProspectStageLabel(p.stage)}). Reabra com reopen_contact antes de mover.`,
-    );
-  }
+  if (!isProspectClosed(p.stage)) return;
+  const saida = p.stage === ETAPA_GANHO ? 'Desfaça o ganho com undo_contact_win' : 'Reabra com reopen_contact';
+  throw new db.ProspeccaoError(`${p.contact_name} está em ${getProspectStageLabel(p.stage)}. ${saida} antes de mover.`);
+}
+
+// ── Desfecho: Ganho e Perda ──────────────────────────────────────────────────
+//
+// As regras moram no trigger `prospects_outcome_rules`: Ganho só de Reunião feita em diante,
+// entrar no desfecho carimba a data e fecha o card, sair dele o limpa. As checagens abaixo
+// só adiantam a frase certa — quem recusa de verdade é o banco.
+
+server.tool(
+  'mark_contact_won',
+  'Registra o Ganho: fechamos negócio, o cliente aceitou a proposta. Só de "Reunião feita" ou "Oportunidade qualificada" — venda sem reunião não existe, e o banco recusa. A data é obrigatória (padrão: hoje; não pode ser futura). O valor é opcional: sem ele, o card fica sinalizado como "Sem valor" até alguém preencher. Chamar de novo em quem já está em Ganho corrige data e valor — o que não for enviado fica como está.',
+  {
+    prospect_id: uuid('prospect_id'),
+    data: dataISO.optional().describe('Dia do fechamento (AAAA-MM-DD). Padrão: hoje.'),
+    valor: z.number().min(0, 'O valor não pode ser negativo.').optional().describe('Valor vendido, em reais. Omita se ainda não souber.'),
+  },
+  executar(async ({ prospect_id, data, valor }) => {
+    exigirPassado(data, 'do ganho');
+    const contato = await db.buscarContato(prospect_id);
+    exigirEditavel(contato);
+    const corrigindo = contato.stage === ETAPA_GANHO;
+    exigirOrigemDoGanho(contato, corrigindo);
+    // Corrigir só o valor não pode apagar a data, nem corrigir a data apagar o valor.
+    const dia = data ?? (corrigindo ? contato.won_on : null) ?? toISODate(new Date());
+    const quanto = valor ?? (corrigindo ? contato.won_value : null);
+    await db.marcarGanho(prospect_id, dia, quanto);
+    return resumoDoGanho(contato, dia, quanto, corrigindo);
+  }),
+);
+
+function exigirOrigemDoGanho(p: ProspectWithCompany, corrigindo: boolean): void {
+  if (corrigindo || canWin(p)) return;
+  throw new db.ProspeccaoError(
+    `${p.contact_name} está em "${getProspectStageLabel(p.stage)}". Ganho só de Reunião feita ou Oportunidade qualificada — registre a reunião antes (move_contact_stage).`,
+  );
+}
+
+function resumoDoGanho(p: ProspectWithCompany, dia: string, valor: number | null, corrigindo: boolean): string {
+  const acao = corrigindo
+    ? `Ganho de ${p.contact_name} corrigido`
+    : `${p.contact_name}: ${getProspectStageLabel(p.stage)} → **Ganho**`;
+  const quanto =
+    valor === null
+      ? 'sem valor — o card fica sinalizado até alguém preencher (chame mark_contact_won de novo com o valor)'
+      : `valor ${fmt.reais(Number(valor))}`;
+  return `✅ ${acao} — em ${fmt.data(dia)}, ${quanto}.`;
 }
 
 server.tool(
+  'undo_contact_win',
+  'Desfaz o Ganho, como o "Desfazer ganho" da tela: o contato volta para "Oportunidade qualificada" e a data e o valor da venda são apagados.',
+  { prospect_id: uuid('prospect_id') },
+  executar(async ({ prospect_id }) => {
+    const contato = await db.buscarContato(prospect_id);
+    exigirEditavel(contato);
+    if (contato.stage !== ETAPA_GANHO) {
+      return `${contato.contact_name} não está em Ganho (${getProspectStageLabel(contato.stage)}) — nada a desfazer.`;
+    }
+    await db.moverEtapa(prospect_id, ETAPA_QUALIFICADO);
+    return `✅ Ganho de ${contato.contact_name} desfeito — de volta em "${getProspectStageLabel(ETAPA_QUALIFICADO)}". Data e valor da venda foram apagados.`;
+  }),
+);
+
+server.tool(
   'discard_contact',
-  `Descarta um contato (sai do Pipeline). O motivo é obrigatório e de lista fechada: ${descrever(PROSPECT_DISCARD_REASONS)}.`,
+  `Registra a Perda de um contato — vale de qualquer etapa, inclusive de Ganho. O motivo é obrigatório e de lista fechada: ${descrever(PROSPECT_DISCARD_REASONS)}. Cadência esgotada sem resposta é perda com motivo sem_resposta.`,
   { prospect_id: uuid('prospect_id'), motivo: z.enum(MOTIVOS) },
   executar(async ({ prospect_id, motivo }) => {
     const contato = await db.buscarContato(prospect_id);
     exigirEditavel(contato);
-    if (contato.stage === 'descartado') return `${contato.contact_name} já está descartado.`;
+    if (contato.stage === ETAPA_PERDA) {
+      return `${contato.contact_name} já está em Perda (motivo: ${getDiscardReasonLabel(contato.discard_reason ?? '')}).`;
+    }
     await db.descartar(prospect_id, motivo);
-    const rotulo = PROSPECT_DISCARD_REASONS.find((r) => r.value === motivo)?.label ?? motivo;
-    return `✅ ${contato.contact_name} descartado — motivo: ${rotulo}.`;
+    return `✅ ${contato.contact_name}: ${getProspectStageLabel(contato.stage)} → **Perda** — motivo: ${getDiscardReasonLabel(motivo)}.`;
   }),
 );
 
 server.tool(
   'reopen_contact',
-  'Reabre um contato Descartado ou Sem resposta: volta para "A abordar" com a próxima atividade para hoje. Convertido não reabre.',
+  'Reabre um contato em Perda (ou no antigo "Sem resposta"): volta para "A abordar" com a próxima atividade para hoje, como o Reabrir da tela. Ganho não se reabre por aqui — use undo_contact_win. Convertido não reabre.',
   { prospect_id: uuid('prospect_id') },
   executar(async ({ prospect_id }) => {
     const contato = await db.buscarContato(prospect_id);
     exigirEditavel(contato);
-    if (!isProspectClosed(contato.stage)) {
-      return `${contato.contact_name} não está encerrado (${getProspectStageLabel(contato.stage)}) — nada a reabrir.`;
+    if (contato.stage === ETAPA_GANHO) return `${contato.contact_name} está em Ganho — para desfazer, use undo_contact_win.`;
+    if (!REABRE.has(contato.stage)) {
+      return `${contato.contact_name} não está em Perda (${getProspectStageLabel(contato.stage)}) — nada a reabrir.`;
     }
     await db.reabrir(prospect_id);
     return `✅ ${contato.contact_name} reaberto em "A abordar", com atividade para hoje.`;
@@ -559,13 +648,13 @@ async function tarefasDeUmaPessoa({ responsavel, ate, limite }: TaskListArgs): P
   ]);
   const periodo = ate ? ` com prazo até ${fmt.data(ate)}` : '';
   if (tarefas.length === 0) return `Nenhuma tarefa pendente${periodo}.`;
-  const contexto = (t: db.TarefaComContato) =>
-    t.prospect ? `${t.prospect.contact_name}${t.prospect.company?.name ? ` · ${t.prospect.company.name}` : ''}` : null;
-  return [
-    `**${tarefas.length} tarefa(s) pendente(s)${periodo}:**`,
-    '',
-    ...tarefas.map((t) => `${fmt.tarefa(t, pessoas, contexto(t))}\n  Contato: \`${t.prospect_id}\``),
-  ].join('\n');
+  return [`**${tarefas.length} tarefa(s) pendente(s)${periodo}:**`, '', ...tarefas.map((t) => tarefaComContato(t, pessoas))].join('\n');
+}
+
+/** A tarefa com o contato e a empresa — lida fora da ficha do contato, ela precisa dizer de quem é. */
+function tarefaComContato(t: db.TarefaComContato, pessoas: Map<string, string>): string {
+  const contexto = t.prospect ? `${t.prospect.contact_name}${t.prospect.company?.name ? ` · ${t.prospect.company.name}` : ''}` : null;
+  return `${fmt.tarefa(t, pessoas, contexto)}\n  Contato: \`${t.prospect_id}\``;
 }
 
 server.tool(
@@ -620,57 +709,47 @@ server.tool(
 
 // ── Métricas ─────────────────────────────────────────────────────────────────
 
-const CORTES: Record<ProspectCut, string> = { lever: 'Alavanca', ring: 'Anel', tier: 'Tier', owner: 'Responsável' };
+interface PedidoDePeriodo {
+  periodo: string;
+  de?: string;
+  ate?: string;
+}
+
+/** O agrupamento não muda o texto: o relatório não tem gráfico de evolução. */
+function selecaoDoPeriodo({ periodo, de, ate }: PedidoDePeriodo): PeriodSelection {
+  const preset = periodo as PeriodPreset;
+  if (!isCustomPreset(preset)) return { preset, grain: 'semana' };
+  if (!de || !ate) throw new db.ProspeccaoError('Período personalizado pede de e ate (AAAA-MM-DD).');
+  const [from, to] = [de, ate].sort();
+  return { preset, grain: 'semana', custom: { from, to } };
+}
 
 server.tool(
   'get_prospecting_metrics',
-  'Números da Prospecção num período: funil (contas abertas → contatos ativados → conversas → reuniões agendadas → feitas → oportunidades qualificadas), taxas entre etapas e cobertura da lista. Mesmo cálculo da aba Métricas. Opcionalmente quebra por alavanca, anel, tier ou responsável.',
+  'Métricas da Prospecção num período — o MESMO cálculo da aba Métricas: números do período com a variação contra o mesmo trecho do período anterior, a jornada dos ativados (até onde chegaram, com as taxas e o gargalo), leituras automáticas, o que precisa de ação, tempo de ciclo, perdas e valor ganho. Com `corte`, quebra os ativados por alavanca ou responsável, como a aba Canais.',
   {
-    dias: z.number().int().min(1).max(365).default(30).describe('Janela em dias até hoje.'),
-    corte: z.enum(['lever', 'ring', 'tier', 'owner']).optional().describe('Quebra do funil.'),
+    periodo: z.enum(PERIODOS).default('ultimos_30').describe(`Período: ${descrever(PERIOD_PRESET_OPTIONS)}. Para personalizado, envie de e ate.`),
+    de: dataISO.optional().describe('Só para personalizado: início (AAAA-MM-DD).'),
+    ate: dataISO.optional().describe('Só para personalizado: fim (AAAA-MM-DD).'),
+    responsavel: z.string().optional().describe('Filtra por responsável: "eu", nome ou UUID.'),
+    alavanca: z.enum(ALAVANCAS).optional().describe('Filtra por alavanca.'),
+    corte: z.enum(['lever', 'owner']).optional().describe('Quebra os ativados por alavanca (lever) ou responsável (owner).'),
   },
-  executar(async ({ dias, corte }) => {
-    const desde = new Date();
-    desde.setDate(desde.getDate() - dias);
-    const { prospects, activities } = await db.dadosDeMetricas(toISODate(desde));
-    const funil = calculateProspectingFunnel(prospects, activities as never);
-    const cobertura = calculateAccountCoverage(prospects, activities as never);
-    const partes = [
-      `**Prospecção — últimos ${dias} dias (desde ${fmt.data(toISODate(desde))})**`,
-      '',
-      ...funil.steps.map((s, i) => `${s.label}: **${s.value}**${i > 0 ? ` (${funil.rates[i - 1].label}: ${funil.rates[i - 1].value})` : ''}`),
-      '',
-      `Cobertura da lista: ${cobertura.abertas} de ${cobertura.naLista} contas abertas (${formatRate(cobertura.taxa)}) · ${cobertura.nuncaAbordadas} nunca abordadas`,
-    ];
-    if (corte) partes.push('', await tabelaDoCorte(prospects, activities, corte as ProspectCut));
-    return partes.join('\n');
+  executar(async ({ periodo, de, ate, responsavel, alavanca, corte }) => {
+    const selecao = selecaoDoPeriodo({ periodo, de, ate });
+    const [dados, pessoas, ownerId] = await Promise.all([
+      db.dadosDasMetricas(inicioDaLeitura(selecao)),
+      db.nomesDasPessoas(),
+      resolverOpcional(responsavel),
+    ]);
+    return relatorioDeMetricas(dados, {
+      selecao,
+      filtro: { ownerId, lever: alavanca },
+      corte: corte as CorteDeCanal | undefined,
+      pessoas,
+    });
   }),
 );
-
-async function tabelaDoCorte(
-  prospects: ProspectWithCompany[],
-  activities: unknown[],
-  corte: ProspectCut,
-): Promise<string> {
-  const linhas = funnelByCut(prospects, activities as never, corte);
-  if (linhas.length === 0) return `Sem atividade no período para quebrar por ${CORTES[corte].toLowerCase()}.`;
-  const nome = await nomeadorDoCorte(corte);
-  return [
-    `| ${CORTES[corte]} | Contatos | Conversas | Agendadas | Feitas | Qualificadas |`,
-    '|---|---|---|---|---|---|',
-    ...linhas.map((l) => `| ${nome(l.key)} | ${l.contatos} | ${l.conversas} | ${l.agendadas} | ${l.feitas} | ${l.qualificadas} |`),
-  ].join('\n');
-}
-
-/** Traduz a chave do corte para o que a pessoa lê: nome do responsável, rótulo da alavanca. */
-async function nomeadorDoCorte(corte: ProspectCut): Promise<(chave: string) => string> {
-  if (corte === 'owner') {
-    const pessoas = await db.nomesDasPessoas();
-    return (chave) => pessoas.get(chave) ?? chave;
-  }
-  if (corte === 'lever') return (chave) => getLeverLabel(chave) ?? chave;
-  return (chave) => chave;
-}
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 
