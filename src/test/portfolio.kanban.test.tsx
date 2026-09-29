@@ -126,7 +126,7 @@ const baseProject: PortfolioProject = {
   completed_date: null,
   is_continuous: false,
   portfolio_stage: 'value_delivery',
-  lead_id: null,
+  prospect_id: null,
   service_line: null,
   client: {
     id: 'client-1',

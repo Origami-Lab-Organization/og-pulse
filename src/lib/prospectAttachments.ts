@@ -17,12 +17,26 @@ export const ALLOWED_ATTACHMENT_TYPES = [
 ];
 export const ALLOWED_ATTACHMENT_LABEL = 'PDF, PNG, JPG ou WebP até 10 MB';
 
+/**
+ * Bucket dos anexos que vieram das Oportunidades (29/09/2026). Os arquivos ficaram onde
+ * estavam — copiar objeto de storage não é coisa de migration —, e cada anexo migrado diz
+ * de onde é lido. Só leitura e exclusão: anexo novo vai sempre para o bucket da Prospecção.
+ */
+export const LEGACY_OPPORTUNITY_ATTACHMENTS_BUCKET = 'lead-attachments';
+
 export interface ProspectAttachment {
   path: string;
   name: string;
   size: number;
   type: string;
+  /** Ausente = bucket da Prospecção. Presente só nos anexos migrados das Oportunidades. */
+  bucket?: string;
 }
+
+const bucketDe = (anexo: Pick<ProspectAttachment, 'bucket'>) =>
+  anexo.bucket === LEGACY_OPPORTUNITY_ATTACHMENTS_BUCKET
+    ? LEGACY_OPPORTUNITY_ATTACHMENTS_BUCKET
+    : PROSPECT_ATTACHMENTS_BUCKET;
 
 /** Valida tipo e tamanho. Devolve a frase de erro, ou null quando o arquivo serve. */
 export function validateAttachment(file: File): string | null {
@@ -62,10 +76,13 @@ export async function uploadProspectAttachment(
 }
 
 /** URL assinada de curta duração — a RLS continua sendo aplicada no SELECT do storage. */
-export async function getProspectAttachmentUrl(path: string, expiresIn = 60): Promise<string> {
+export async function getProspectAttachmentUrl(
+  anexo: Pick<ProspectAttachment, 'path' | 'bucket'>,
+  expiresIn = 60,
+): Promise<string> {
   const { data, error } = await supabase.storage
-    .from(PROSPECT_ATTACHMENTS_BUCKET)
-    .createSignedUrl(path, expiresIn);
+    .from(bucketDe(anexo))
+    .createSignedUrl(anexo.path, expiresIn);
   if (error || !data?.signedUrl) throw error ?? new Error('Não foi possível gerar o link.');
   return data.signedUrl;
 }
@@ -75,10 +92,18 @@ export async function getProspectAttachmentUrl(path: string, expiresIn = 60): Pr
  * apagar antes deixaria a linha do tempo apontando para arquivo inexistente se o update
  * falhasse — e arquivo órfão é menos grave que anexo quebrado.
  */
-export async function deleteProspectAttachments(paths: string[]): Promise<void> {
-  if (paths.length === 0) return;
-  const { error } = await supabase.storage.from(PROSPECT_ATTACHMENTS_BUCKET).remove(paths);
-  if (error) throw error;
+export async function deleteProspectAttachments(
+  anexos: Pick<ProspectAttachment, 'path' | 'bucket'>[],
+): Promise<void> {
+  const porBucket = new Map<string, string[]>();
+  for (const anexo of anexos) {
+    const bucket = bucketDe(anexo);
+    porBucket.set(bucket, [...(porBucket.get(bucket) ?? []), anexo.path]);
+  }
+  for (const [bucket, paths] of porBucket) {
+    const { error } = await supabase.storage.from(bucket).remove(paths);
+    if (error) throw error;
+  }
 }
 
 export function formatFileSize(bytes: number): string {

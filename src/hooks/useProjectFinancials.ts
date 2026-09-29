@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format, parseISO, addMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { SERVICE_LINE_LABELS } from '@/types/lead';
+import { SERVICE_LINE_LABELS } from '@/types/serviceLine';
 import type { AnalyticsFilters } from './useAnalyticsData';
 import { fetchSuppliersWithActuals, fetchMaterials } from '@/services/projectCostsService';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';

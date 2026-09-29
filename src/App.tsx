@@ -42,7 +42,6 @@ import AdminLembretes from "./pages/AdminLembretes";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import Suppliers from "./pages/Suppliers";
-import CRM from "./pages/CRM";
 import Prospeccao from "./pages/Prospeccao";
 import ProspeccaoEmpresas from "./pages/ProspeccaoEmpresas";
 import Portfolio from "./pages/Portfolio";
@@ -62,7 +61,6 @@ import JornadaConfiguracoes from "./pages/JornadaConfiguracoes";
 import JornadaAprovacoes from "./pages/JornadaAprovacoes";
 import JornadaRelatorios from "./pages/JornadaRelatorios";
 import JornadaAuditoria from "./pages/JornadaAuditoria";
-import CommercialDashboard from "./pages/CommercialDashboard";
 import Welcome from "./pages/Welcome";
 import TesteEncerrado from "./pages/TesteEncerrado";
 import Terms from "./pages/Terms";
@@ -82,7 +80,6 @@ import EmployeeCreate from "./pages/EmployeeCreate";
 import MyVacation from "./pages/MyVacation";
 import VacationManagement from "./pages/VacationManagement";
 import Dashboard from "./pages/Dashboard";
-import DashboardRouter from "./pages/DashboardRouter";
 import SiteUnderConstruction from "./pages/SiteUnderConstruction";
 import { PwaRouteGuard } from "@/components/pwa/PwaRouteGuard";
 import { InstallPwaBanner } from "@/components/pwa/InstallPwaBanner";
@@ -382,13 +379,10 @@ const App = () => (
                   </RoleProtectedRoute>
                 }
               />
+              {/* As métricas comerciais passaram a ser a aba Métricas da Prospecção (29/09/2026). */}
               <Route
                 path="/analises/comercial"
-                element={
-                  <RoleProtectedRoute requireCapability="pipeline:ler">
-                    <CommercialDashboard />
-                  </RoleProtectedRoute>
-                }
+                element={<Navigate to="/comercial/prospeccao?aba=metricas" replace />}
               />
               <Route
                 path="/analises/folha-pagamento"
@@ -406,17 +400,10 @@ const App = () => (
                   </RoleProtectedRoute>
                 }
               />
-              {/* Pipeline */}
-              <Route
-                path="/pipeline"
-                element={
-                  <RoleProtectedRoute requireCapability="pipeline:ler">
-                    <CRM />
-                  </RoleProtectedRoute>
-                }
-              />
-              {/* Perdas viram uma aba dentro do Pipeline — a tela dedicada foi removida. */}
-              <Route path="/pipeline/archived" element={<Navigate to="/pipeline" replace />} />
+              {/* Oportunidades foram absorvidas pela Prospecção (29/09/2026): os endereços
+                  antigos levam ao quadro da Prospecção. */}
+              <Route path="/pipeline" element={<Navigate to="/comercial/prospeccao" replace />} />
+              <Route path="/pipeline/archived" element={<Navigate to="/comercial/prospeccao" replace />} />
               <Route
                 path="/comercial/prospeccao"
                 element={
@@ -436,8 +423,8 @@ const App = () => (
               <Route path="/comercial/servicos" element={<Navigate to="/admin/servicos" replace />} />
               <Route path="/comercial/servicos/:lineId" element={<RedirectLinhaServico />} />
               {/* Backward compat redirects */}
-              <Route path="/crm" element={<Navigate to="/pipeline" replace />} />
-              <Route path="/crm/archived" element={<Navigate to="/pipeline/archived" replace />} />
+              <Route path="/crm" element={<Navigate to="/comercial/prospeccao" replace />} />
+              <Route path="/crm/archived" element={<Navigate to="/comercial/prospeccao" replace />} />
               <Route path="/portfolio" element={<Navigate to="/projetos" replace />} />
               <Route path="/alocacao" element={<Navigate to="/projetos/alocacoes" replace />} />
               <Route path="/analises/alocacoes" element={<Navigate to="/projetos/alocacoes" replace />} />
@@ -445,8 +432,8 @@ const App = () => (
               <Route path="/analises/alocacoes/:employeeId" element={<RedirectAlocacaoEmployee />} />
               <Route path="/alocacao/:employeeId" element={<RedirectAlocacaoEmployee />} />
               <Route path="/analytics" element={<Navigate to="/analises/financeiro" replace />} />
-              <Route path="/comercial" element={<Navigate to="/analises/comercial" replace />} />
-              <Route path="/budgets" element={<Navigate to="/pipeline" replace />} />
+              <Route path="/comercial" element={<Navigate to="/comercial/prospeccao" replace />} />
+              <Route path="/budgets" element={<Navigate to="/comercial/prospeccao" replace />} />
               <Route 
                 path="/budgets/new" 
                 element={

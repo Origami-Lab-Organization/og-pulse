@@ -81,10 +81,10 @@ export function BudgetVersionModal({ version, open, onClose }: BudgetVersionModa
               )}
             </div>
 
-            {/* Client/Lead */}
+            {/* Cliente ou contato */}
             <div>
               <p className="text-sm text-muted-foreground">
-                {snapshot.client_id ? 'Cliente' : 'Lead'}
+                {snapshot.client_id ? 'Cliente' : 'Contato'}
               </p>
               <p className="font-medium">
                 {snapshot.client_name || snapshot.lead_name || '-'}

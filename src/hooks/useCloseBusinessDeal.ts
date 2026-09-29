@@ -5,12 +5,18 @@ import { budgetService } from '@/services/budgetService';
 import { projectService } from '@/services/projectService';
 import { BudgetWithDetails } from '@/types/budget';
 import { supabase } from '@/integrations/supabase/client';
-import { leadActivityService } from '@/services/leadActivityService';
+import { markProspectWon } from '@/services/prospectService';
 import { calculateCloseBusinessTotal, CloseBusinessInstallment } from '@/lib/closeBusinessFinancials';
 import { ProjectType } from '@/types/project';
 
 interface CloseBusinessInput {
-  leadId: string;
+  /** Contato em Ganho que origina o projeto (projects.prospect_id). */
+  prospectId: string;
+  /**
+   * Ganho registrado sem valor: o total do projeto passa a ser o valor vendido, com a
+   * mesma data do fechamento. Ausente quando o ganho já tem valor.
+   */
+  wonOnWithoutValue?: string | null;
   budget: BudgetWithDetails | null;
   managerId: string;
   paymentMethod: string;
@@ -78,7 +84,7 @@ export function useCloseBusinessDeal() {
             renewalDate: input.renewalDate || undefined,
             successFeePercent: input.successFeePercent,
             serviceLine: serviceLine || undefined,
-            leadId: input.leadId,
+            prospectId: input.prospectId,
             customInstallments: input.customInstallments,
           },
           tenantId
@@ -125,7 +131,7 @@ export function useCloseBusinessDeal() {
           renewalDate: input.renewalDate || undefined,
           successFeePercent: input.successFeePercent,
           serviceLine: serviceLine || undefined,
-          leadId: input.leadId,
+          prospectId: input.prospectId,
           customInstallments: input.customInstallments,
         },
         tenantId
@@ -240,35 +246,30 @@ export function useCloseBusinessDeal() {
 
       return project;
     },
-    onSuccess: (project, input) => {
-      queryClient.invalidateQueries({ queryKey: ['budgets'] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
-      queryClient.invalidateQueries({ queryKey: ['lead-activities', input.leadId] });
-
-      toast({
-        title: 'Negócio fechado com sucesso!',
-        description: `O projeto "${project.name}" foi criado automaticamente.`,
-      });
-
-      // Log deal closed activity (fire-and-forget)
-      if (employee && tenantId) {
-        const finalValue = calculateCloseBusinessTotal({
+    onSuccess: async (project, input) => {
+      // O ganho sem valor ganha o total do projeto: o número que acabou de ser acertado.
+      if (input.wonOnWithoutValue) {
+        const valor = calculateCloseBusinessTotal({
           projectType: (input.projectType || 'fixed_scope') as ProjectType,
           installments: input.customInstallments,
           totalValue: input.budget?.final_total ?? input.totalValue ?? 0,
           monthlyValue: input.monthlyValue,
           successFeePercent: input.successFeePercent,
         });
-        leadActivityService.logDealClosed(
-          tenantId,
-          input.leadId,
-          project.id,
-          input.projectType || 'fixed_scope',
-          finalValue,
-          employee.id
-        ).catch(console.warn);
+        if (valor > 0) {
+          await markProspectWon(input.prospectId, input.wonOnWithoutValue, valor).catch(console.warn);
+        }
       }
+
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      queryClient.invalidateQueries({ queryKey: ['prospect-project', input.prospectId] });
+
+      toast({
+        title: 'Negócio fechado com sucesso!',
+        description: `O projeto "${project.name}" foi criado automaticamente.`,
+      });
     },
     onError: (error: Error) => {
       console.error('Error closing business deal:', error);

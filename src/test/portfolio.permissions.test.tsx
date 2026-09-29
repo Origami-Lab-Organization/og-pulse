@@ -86,7 +86,7 @@ vi.mock('@/hooks/usePortfolioProjects', () => ({
           end_date: null,
           is_continuous: false,
           portfolio_stage: 'planning',
-          lead_id: null,
+          prospect_id: null,
           installments: [],
         },
       ],

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -29,6 +30,10 @@ import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
 import { useAuth } from '@/contexts/AuthContext';
 import { INTERACTION_CHANNELS } from '@/lib/interactionChannels';
 import { formatCNPJ, unformatCNPJ, validateCNPJ } from '@/lib/masks';
+import { CurrencyInput } from '@/components/ui/currency-input';
+import { Textarea } from '@/components/ui/textarea';
+import { CnpjLookupError, lookupCnpj } from '@/services/cnpjLookupService';
+import type { CompanyPrefill } from '@/types/cnpjLookup';
 import { ProspectCompanySelect } from './ProspectCompanySelect';
 import { PROSPECT_LEVERS, type ProspectCompanyDB } from '@/types/prospect';
 
@@ -42,6 +47,8 @@ const schema = z.object({
   primary_channel: z.string().min(1, 'Escolha o canal principal'),
   owner_id: z.string().min(1, 'Escolha o responsável'),
   lever: z.string().optional(),
+  estimated_value: z.number().min(0).optional(),
+  notes: z.string().max(10000, 'Observação longa demais').optional(),
   // Só usados quando a empresa está sendo cadastrada agora.
   company_name: z.string().optional(),
   company_cnpj: z.string().optional(),
@@ -51,6 +58,8 @@ const schema = z.object({
   company_segment: z.string().optional(),
   company_ring: z.string().optional(),
   company_tier: z.string().optional(),
+  // Empresa que já é cliente da carteira (escolhida no seletor).
+  company_client_id: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -83,10 +92,32 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
     setCnpjDisplay('');
   }, [open, employee?.id, form]);
 
-  const iniciarCadastroDeEmpresa = (nome: string) => {
+  const iniciarCadastroDeEmpresa = (prefill: CompanyPrefill) => {
     setEmpresa(null);
     setCadastrandoEmpresa(true);
-    form.setValue('company_name', nome);
+    form.setValue('company_name', prefill.name);
+    form.setValue('company_cnpj', prefill.cnpj ?? '');
+    form.setValue('company_segment', prefill.segment ?? '');
+    form.setValue('company_client_id', prefill.client_id ?? '');
+    setCnpjDisplay(prefill.cnpj ? formatCNPJ(prefill.cnpj) : '');
+  };
+
+  // Busca na Receita pelo CNPJ digitado no cadastro: preenche só o que está vazio.
+  const [consultandoCnpj, setConsultandoCnpj] = useState(false);
+  const preencherPeloCnpj = async () => {
+    setConsultandoCnpj(true);
+    try {
+      const dado = await lookupCnpj(form.getValues('company_cnpj') ?? '');
+      if (!form.getValues('company_name')?.trim()) form.setValue('company_name', dado.nomeFantasia ?? dado.razaoSocial);
+      if (!form.getValues('company_segment')?.trim()) form.setValue('company_segment', dado.segmento ?? '');
+      form.clearErrors('company_cnpj');
+    } catch (e) {
+      form.setError('company_cnpj', {
+        message: e instanceof CnpjLookupError ? e.message : 'Não foi possível consultar o CNPJ.',
+      });
+    } finally {
+      setConsultandoCnpj(false);
+    }
   };
 
   const onSubmit = async (values: FormData) => {
@@ -107,6 +138,7 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
         segment: values.company_segment || null,
         ring: values.company_ring || null,
         tier: values.company_tier || null,
+        client_id: values.company_client_id || null,
       });
       companyId = nova.id;
     }
@@ -122,6 +154,8 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
       primary_channel: values.primary_channel,
       owner_id: values.owner_id,
       lever: values.lever || null,
+      estimated_value: values.estimated_value ? values.estimated_value : null,
+      notes: values.notes?.trim() || null,
     });
 
     onOpenChange(false);
@@ -160,6 +194,11 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
               <>
                 <Separator />
                 <p className="text-sm font-medium">Dados da empresa nova</p>
+                {form.watch('company_client_id') && (
+                  <p className="text-xs text-muted-foreground">
+                    Ligada ao cliente da carteira: os dados básicos vêm do cadastro de Clientes.
+                  </p>
+                )}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <FormField
                     control={form.control}
@@ -178,16 +217,33 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>CNPJ</FormLabel>
-                        <FormControl>
-                          <Input
-                            value={cnpjDisplay}
-                            placeholder="00.000.000/0000-00"
-                            onChange={(e) => {
-                              setCnpjDisplay(formatCNPJ(e.target.value));
-                              field.onChange(unformatCNPJ(e.target.value));
-                            }}
-                          />
-                        </FormControl>
+                        <div className="flex gap-2">
+                          <FormControl>
+                            <Input
+                              value={cnpjDisplay}
+                              placeholder="00.000.000/0000-00"
+                              onChange={(e) => {
+                                setCnpjDisplay(formatCNPJ(e.target.value));
+                                field.onChange(unformatCNPJ(e.target.value));
+                              }}
+                            />
+                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            aria-label="Buscar dados do CNPJ na Receita"
+                            title="Buscar dados do CNPJ na Receita"
+                            disabled={consultandoCnpj || !validateCNPJ(field.value ?? '')}
+                            onClick={preencherPeloCnpj}
+                          >
+                            {consultandoCnpj ? (
+                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Search className="h-4 w-4" aria-hidden="true" />
+                            )}
+                          </Button>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -389,6 +445,30 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
                     <FormDescription>
                       É o corte que explica o que faz responder.
                     </FormDescription>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="estimated_value"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor estimado</FormLabel>
+                    <FormControl>
+                      <CurrencyInput value={field.value ?? 0} onValueChange={field.onChange} showPrefix />
+                    </FormControl>
+                    <FormDescription>Opcional. Com orçamento, vale o total dele.</FormDescription>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Observações</FormLabel>
+                    <FormControl><Textarea rows={3} {...field} value={field.value ?? ''} /></FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

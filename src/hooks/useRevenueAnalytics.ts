@@ -3,7 +3,7 @@ import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { SERVICE_LINE_LABELS } from '@/types/lead';
+import { SERVICE_LINE_LABELS } from '@/types/serviceLine';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface OverdueItem {

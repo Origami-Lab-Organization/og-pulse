@@ -29,11 +29,10 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: 'Comercial',
-    url: '/pipeline',
+    url: '/comercial/prospeccao',
     tabs: [
       { title: 'Prospecção', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
       { title: 'Empresas', url: '/comercial/empresas', requiresCapability: 'prospeccao:ler' },
-      { title: 'Oportunidades', url: '/pipeline', requiresCapability: 'pipeline:ler' },
     ],
   },
   {
@@ -50,7 +49,6 @@ export const NAV_SECTIONS: NavSection[] = [
     tabs: [
       { title: 'Meu Time', url: '/analises/meu-time', requiresCapability: 'timesheet-terceiro:ler' },
       { title: 'Financeiro', url: '/analises/financeiro', requiresCapability: 'financeiro:ler' },
-      { title: 'Comercial', url: '/analises/comercial', requiresCapability: 'pipeline:ler' },
     ],
   },
   {

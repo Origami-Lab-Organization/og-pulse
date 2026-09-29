@@ -55,44 +55,6 @@ export function useCreateBudget(options?: { isTemplate?: boolean; templateForSer
   });
 }
 
-export function useApplyServiceTemplate() {
-  const queryClient = useQueryClient();
-  const { employee } = useAuth();
-  const { toast } = useToast();
-  const tenantId = employee?.tenant_id;
-  const createdBy = employee?.id;
-
-  return useMutation({
-    mutationFn: ({
-      templateBudgetId,
-      leadId,
-      clientId,
-      title,
-    }: {
-      templateBudgetId: string;
-      leadId: string;
-      clientId: string | null;
-      title: string;
-    }) =>
-      budgetService.cloneTemplateForLead(templateBudgetId, leadId, clientId, title, tenantId!, createdBy!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
-      queryClient.invalidateQueries({ queryKey: ['budgets'] });
-      toast({
-        title: 'Preço padrão aplicado',
-        description: 'Os dados financeiros foram preenchidos a partir do serviço.',
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Erro ao aplicar preço padrão',
-        description: error?.message || 'Tente novamente.',
-        variant: 'destructive',
-      });
-    },
-  });
-}
-
 export function useUpdateBudget() {
   const queryClient = useQueryClient();
   const { employee } = useAuth();

@@ -159,7 +159,6 @@ export const useDeleteProject = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['portfolio-projects'] });
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       toast({
         title: 'Projeto excluído',

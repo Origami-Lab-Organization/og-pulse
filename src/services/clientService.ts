@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { countCommercialContactsByClient } from '@/services/commercialContactService';
 import { ClientDB, CreateClientInput } from '@/types/client';
 
 export const clientService = {
@@ -118,13 +119,10 @@ export const clientService = {
     clientId: string,
     tenantId: string,
   ): Promise<{ opportunities: number; projects: number }> {
+    // "Oportunidades" são os contatos da Prospecção das empresas ligadas ao cliente
+    // (29/09/2026). Sem `prospeccao:ler` a RLS nega; aí conta zero em vez de quebrar.
     const [opps, projs] = await Promise.all([
-      supabase
-        .from('leads')
-        .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', tenantId)
-        .eq('client_id', clientId)
-        .eq('archived', false),
+      countCommercialContactsByClient(tenantId, clientId).catch(() => 0),
       supabase
         .from('projects')
         .select('id', { count: 'exact', head: true })
@@ -133,7 +131,7 @@ export const clientService = {
     ]);
 
     return {
-      opportunities: opps.count ?? 0,
+      opportunities: opps,
       projects: projs.count ?? 0,
     };
   },

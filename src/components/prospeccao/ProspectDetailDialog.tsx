@@ -72,6 +72,8 @@ import { RegisterMeetingDialog } from './RegisterMeetingDialog';
 import { ProspectActivityComposer } from './ProspectActivityComposer';
 import { ProspectTaskComposer } from './ProspectTaskComposer';
 import { ProspectTaskTimeline } from './ProspectTaskTimeline';
+import { ProspectDealCard } from './ProspectDealCard';
+import { ProspectProjectDialog } from './ProspectProjectDialog';
 
 type Aba = 'registros' | 'tarefas';
 
@@ -110,6 +112,7 @@ export function ProspectDetailDialog({
 
   const [editando, setEditando] = useState(false);
   const [reuniaoAberta, setReuniaoAberta] = useState(false);
+  const [projetoAberto, setProjetoAberto] = useState(false);
   const [rascunho, setRascunho] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -227,6 +230,16 @@ export function ProspectDetailDialog({
               onEditar={abrirEdicao}
             />
 
+            <ProspectDealCard
+              prospect={prospect}
+              editando={editando}
+              rascunho={rascunho}
+              definir={definir}
+              podeEditar={!somenteLeitura}
+              onEditar={abrirEdicao}
+              onCriarProjeto={() => setProjetoAberto(true)}
+            />
+
             {editando && (
               <div className="flex gap-2">
                 <Button size="sm" onClick={salvar} disabled={salvando}>
@@ -255,6 +268,8 @@ export function ProspectDetailDialog({
           open={reuniaoAberta}
           onOpenChange={setReuniaoAberta}
         />
+
+        <ProspectProjectDialog prospect={prospect} open={projetoAberto} onOpenChange={setProjetoAberto} />
       </DialogContent>
     </Dialog>
   );
@@ -936,6 +951,9 @@ function rascunhoInicial(prospect: ProspectWithCompany): Record<string, string> 
     primary_channel: prospect.primary_channel,
     owner_id: prospect.owner_id ?? '',
     lever: prospect.lever ?? '',
+    estimated_value: prospect.estimated_value != null ? String(prospect.estimated_value) : '',
+    competitor_name: prospect.competitor_name ?? '',
+    notes: prospect.notes ?? '',
   };
 }
 
@@ -965,6 +983,9 @@ function contatoDoRascunho(rascunho: Record<string, string>, prospect: ProspectW
     primary_channel: rascunho.primary_channel || prospect.primary_channel,
     owner_id: rascunho.owner_id || prospect.owner_id,
     lever: rascunho.lever || null,
+    estimated_value: Number(rascunho.estimated_value) > 0 ? Number(rascunho.estimated_value) : null,
+    competitor_name: rascunho.competitor_name.trim() || null,
+    notes: rascunho.notes.trim() || null,
   };
 }
 

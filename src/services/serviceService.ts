@@ -113,10 +113,10 @@ export const serviceService = {
 
     if (error) {
       console.error('Error deleting service:', error);
-      // 23503 = foreign key violation (serviço referenciado por leads/orçamentos).
+      // 23503 = foreign key violation (serviço referenciado por orçamentos ou projetos).
       if (error.code === '23503') {
         throw new Error(
-          'Este serviço está vinculado a leads ou orçamentos. Desabilite-o em vez de excluir.'
+          'Este serviço está vinculado a orçamentos ou projetos. Desabilite-o em vez de excluir.'
         );
       }
       throw error;

@@ -13,7 +13,6 @@ import { AdminDashboardFilters, type Granularity } from '@/components/admin-dash
 import { AdminMetricCard } from '@/components/admin-dashboard/AdminMetricCard';
 import { AdminBirthdaysCard } from '@/components/admin-dashboard/AdminBirthdaysCard';
 import { AdminOperationalHealthCard } from '@/components/admin-dashboard/AdminOperationalHealthCard';
-import { AdminPipelineCard } from '@/components/admin-dashboard/AdminPipelineCard';
 import { AdminPayrollEvolutionChart } from '@/components/admin-dashboard/AdminPayrollEvolutionChart';
 import { AdminHeadcountFlowCard } from '@/components/admin-dashboard/AdminHeadcountFlowCard';
 import { useFinancialEvolution } from '@/hooks/useFinancialEvolution';
@@ -21,7 +20,6 @@ import { useTurnoverStats } from '@/hooks/useTurnoverStats';
 import { useProjects } from '@/hooks/useProjects';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useProjectHealthData } from '@/hooks/useProjectHealthData';
-import { useCommercialDashboard } from '@/hooks/useCommercialDashboard';
 import { calculatePayrollCost, calculateLoadedPersonnelCost } from '@/lib/payrollCalculator';
 import { calculateAdminDashboardRevenue } from '@/lib/adminDashboardRevenueCalculator';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
@@ -68,8 +66,6 @@ export default function AdminDashboard() {
   const { data: employees = [], isLoading: isEmployeesLoading } = useEmployees();
   const { data: healthRows = [], isLoading: isHealthLoading } =
     useProjectHealthData(filters, { enabled: true });
-  const { data: commercial, isLoading: isCommercialLoading } =
-    useCommercialDashboard(filters.startDate, filters.endDate, 'all', 'all');
   const { data: turnover, isLoading: isTurnoverLoading } = useTurnoverStats(filters);
 
   // ── KPIs financeiros: agrega os meses dentro do período selecionado ──────────
@@ -245,7 +241,7 @@ export default function AdminDashboard() {
           {/*<AdminHeadcountFlowCard data={turnover} loading={isTurnoverLoading} />*/}
         </div>
 
-        {/* ── Linha 4: cards maiores — Pipeline + Evolução da Folha ────────── */}
+        {/* ── Linha 4: cards maiores — Aniversariantes + Evolução da Folha ─── */}
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
           <AdminBirthdaysCard
             employees={employees}
@@ -256,17 +252,6 @@ export default function AdminDashboard() {
           <AdminPayrollEvolutionChart
             employees={employees}
             loading={isEmployeesLoading}
-          />
-        </div>
-
-        {/* ── Linha 5: Fluxo de pessoal — admissões vs. desligamentos ──────── */}
-        <div>
-          <AdminPipelineCard
-            activePipeline={commercial?.activePipeline ?? 0}
-            avgSalesCycleDays={commercial?.avgSalesCycleDays ?? null}
-            pipelineLeadsWithBudgetCount={commercial?.pipelineLeadsWithBudgetCount ?? 0}
-            pipelineByStage={commercial?.pipelineByStage ?? []}
-            loading={isCommercialLoading}
           />
         </div>
 

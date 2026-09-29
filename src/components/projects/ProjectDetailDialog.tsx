@@ -14,7 +14,7 @@ import { PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { ProjectMembersTable } from './ProjectMembersTable';
 import { ProjectInstallmentsTable } from './ProjectInstallmentsTable';
-import { LeadHistoryLink } from './LeadHistoryLink';
+import { ProspectOriginLink } from './ProspectOriginLink';
 import {
   Building2,
   User,
@@ -260,13 +260,13 @@ export function ProjectDetailDialog({
               </Card>
             </div>
 
-            {/* Lead de origem */}
+            {/* Origem comercial (contato da Prospecção) */}
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                 <History className="h-3.5 w-3.5" />
-                Lead de Origem
+                Origem comercial
               </p>
-              <LeadHistoryLink leadId={project.lead_id} />
+              <ProspectOriginLink prospectId={project.prospect_id} />
             </div>
           </TabsContent>
 

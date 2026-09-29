@@ -129,7 +129,7 @@ const INSTRUCOES = [
   'Ao falar com a pessoa, use Prospecção, Ganho, Perda e Oportunidade qualificada — nunca "lead", "CRM" ou "funil".',
 ].join('\n');
 
-const server = new McpServer({ name: 'og-pulse-prospeccao', version: '1.1.0' }, { instructions: INSTRUCOES });
+const server = new McpServer({ name: 'og-pulse-prospeccao', version: '1.2.0' }, { instructions: INSTRUCOES });
 
 const camposDeEmpresa = {
   cnpj: textoOpcional('CNPJ com ou sem máscara. Evita empresa duplicada.'),
@@ -151,6 +151,9 @@ const camposDeContato = {
   primary_channel: z.enum(CANAIS).optional().describe(`Canal principal: ${descrever(INTERACTION_CHANNELS)}.`),
   lever: z.enum(ALAVANCAS).optional().describe(`Alavanca / origem da lista: ${descrever(PROSPECT_LEVERS)}.`),
   responsavel: z.string().optional().describe('"eu", nome (ou parte) ou UUID de quem conduz. Padrão: eu.'),
+  estimated_value: z.number().min(0).nullable().optional().describe('Valor estimado do negócio em R$, antes do orçamento. null apaga.'),
+  competitor_name: textoOpcional('Concorrente na disputa.'),
+  observacoes: z.string().max(10000).optional().describe('Observações do contato (título do negócio, serviços, contexto).'),
 };
 
 // ── Empresas ─────────────────────────────────────────────────────────────────

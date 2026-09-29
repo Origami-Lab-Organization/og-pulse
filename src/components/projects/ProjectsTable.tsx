@@ -10,7 +10,7 @@ import {
 import { MoreHorizontal, Eye, Pencil, Trash2 } from 'lucide-react';
 import { ProjectWithRelations } from '@/types/project';
 import { PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
-import { SERVICE_LINE_LABELS } from '@/types/lead';
+import { SERVICE_LINE_LABELS } from '@/types/serviceLine';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { DataTableColumnHeader } from '@/components/data-table/DataTableColumnHeader';
 

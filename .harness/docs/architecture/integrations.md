@@ -106,7 +106,6 @@ floats), `delete-face-profile`, `submit-time-adjustment`,
 |---|---|
 | `notify-time-tracking-reminders` | `0 9 * * *` — `20260717120000_*.sql:21-34` |
 | `notify-installment-alerts` | `0 8 * * *` — `20260622130000_*.sql:22-35` |
-| `notify-lead-follow-ups` | `0 8 * * *` — `20260810150000_*.sql:23-36` |
 | `notify-timesheet-reminder`, `notify-timesheet-pending`, `timesheet-alert-managers`, `timesheet-reminder-employees` | **sem cron no repo e sem chamador** (ver divergência 3) |
 
 Crons só-SQL (sem edge function): ativação de versões de employee `0 3 * * *`
@@ -194,8 +193,9 @@ nunca foram aplicados e deixaram os três jobs falhando desde 22/06.
 
 ## Divergências código × doc
 
-1. **Nomenclatura**: função e cron `notify-lead-follow-ups` usam "lead";
-   boundaries exige Oportunidade/Pipeline na UI (backend segue histórico).
+1. **Nomenclatura**: resolvida em 29/09/2026 — a função e o cron `notify-lead-follow-ups`
+   saíram junto com a tabela `leads` (Prospecção absorveu Oportunidades, migração
+   20260929120000).
 2. **Resend meio-desligado**: `resend-employee-invite` e
    `request-first-access` declaram "não usa mais Resend" (`index.ts:7` de
    cada), mas `send-invite-email` (sem nenhum chamador no repo — provável
