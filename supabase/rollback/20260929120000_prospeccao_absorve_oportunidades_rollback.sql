@@ -486,10 +486,17 @@ ALTER TABLE public.projects DROP COLUMN IF EXISTS prospect_id;
 -- 5. Capacidades do Pipeline
 -- ---------------------------------------------------------------------------
 
+-- Mesma guarda da ida: só linhas de pipeline:*, que não mexem em quem gere perfis.
+ALTER TABLE public.role_capabilities DISABLE TRIGGER trg_role_capabilities_keeps_admin;
+ALTER TABLE public.user_capability_overrides DISABLE TRIGGER trg_user_capability_overrides_keeps_admin;
+
 INSERT INTO public.capabilities              SELECT * FROM legado_oportunidades.capabilities ON CONFLICT DO NOTHING;
 INSERT INTO public.role_capabilities         SELECT * FROM legado_oportunidades.role_capabilities ON CONFLICT DO NOTHING;
 INSERT INTO public.user_capability_overrides SELECT * FROM legado_oportunidades.user_capability_overrides ON CONFLICT DO NOTHING;
 INSERT INTO public.default_role_capabilities SELECT * FROM legado_oportunidades.default_role_capabilities ON CONFLICT DO NOTHING;
+
+ALTER TABLE public.user_capability_overrides ENABLE TRIGGER trg_user_capability_overrides_keeps_admin;
+ALTER TABLE public.role_capabilities ENABLE TRIGGER trg_role_capabilities_keeps_admin;
 
 -- ---------------------------------------------------------------------------
 -- 6. Anexos antigos: policy por tenant, como em 20260619120000

@@ -822,6 +822,15 @@ DROP TABLE public.lead_interactions;
 DROP TABLE public.lead_services;
 DROP TABLE public.leads;
 
+-- A guarda "o tenant não pode ficar sem quem gere perfis" (`assert_tenant_keeps_profile_admin`,
+-- constraint trigger adiado) reavalia o tenant INTEIRO a cada linha tocada. Com ela ligada, um
+-- tenant que já está sem ninguém com `pessoa:editar-papel` derruba esta migration — que não
+-- mexe nessa capacidade e não tem como piorar a invariante. Foi o que parou o deploy de
+-- 29/09/2026 ("A operacao deixaria este tenant sem ninguem capaz de gerir perfis"). Desligada
+-- só durante as linhas de pipeline:* / prospeccao:*, religada logo abaixo.
+ALTER TABLE public.role_capabilities DISABLE TRIGGER trg_role_capabilities_keeps_admin;
+ALTER TABLE public.user_capability_overrides DISABLE TRIGGER trg_user_capability_overrides_keeps_admin;
+
 -- Quem via ou editava Oportunidades continua vendo e editando: agora elas estão na
 -- Prospecção. O espelhamento de 20260915100000 já fez isso uma vez; aqui pega quem ganhou
 -- `pipeline:*` depois dele. Só acrescenta — nenhum acesso à Prospecção é retirado.
@@ -853,3 +862,6 @@ DELETE FROM public.user_capability_overrides WHERE capability IN ('pipeline:ler'
 DELETE FROM public.role_capabilities         WHERE capability IN ('pipeline:ler', 'pipeline:editar');
 DELETE FROM public.default_role_capabilities WHERE capability IN ('pipeline:ler', 'pipeline:editar');
 DELETE FROM public.capabilities              WHERE key        IN ('pipeline:ler', 'pipeline:editar');
+
+ALTER TABLE public.user_capability_overrides ENABLE TRIGGER trg_user_capability_overrides_keeps_admin;
+ALTER TABLE public.role_capabilities ENABLE TRIGGER trg_role_capabilities_keeps_admin;

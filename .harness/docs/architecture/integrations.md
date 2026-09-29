@@ -10,7 +10,9 @@ sources:
   - src/lib/faceRecognition.ts
   - supabase/migrations/20260622130000_installment_nf_alert_cron.sql
   - supabase/migrations/20260717120000_time_tracking_reminders_cron.sql
-  - supabase/migrations/20260810150000_lead_follow_up_reminder_cron.sql
+  - supabase/migrations/20260622130000_installment_nf_alert_cron.sql
+  - supabase/migrations/20260929120000_prospeccao_absorve_oportunidades.sql
+  - src/services/cnpjLookupService.ts
   - supabase/migrations/20260831120000_realtime_publication_and_cron_via_vault.sql
   - apps/mcp-drive/src/index.ts
   - apps/mcp-activities/src/index.ts
@@ -45,26 +47,30 @@ flowchart LR
     EXT1[Resend<br/>email transacional]
     EXT2[Anthropic<br/>análise de mercado]
     EXT3[Anthropic<br/>parse Cartão CNPJ]
+    EXT4[BrasilAPI<br/>consulta pública de CNPJ]
 
     SPA -->|"JWT anon (RLS)"| REST
     SPA -->|functions.invoke| EF
     SPA -->|"MSAL popup, sem secret<br/>msalClient.ts:51-54"| ENTRA
     SPA -->|"Bearer MSAL<br/>microsoftGraphService.ts:101"| GRAPH
     SPA -->|"consentimento incremental Files<br/>msalClient.ts:219"| GRAPH
-    CRON -->|"Bearer service_role<br/>lead_follow_up_cron.sql:27-34"| EF
+    CRON -->|"Bearer service_role<br/>installment_nf_alert_cron.sql e demais crons"| EF
     EF -->|service role| REST
     EF -->|"JWKS (verificação idToken)<br/>microsoft-sso/index.ts:91-95"| ENTRA
     EF -->|API key| EXT1
     EF -->|API key| EXT2
     EF -->|API key| EXT3
     EF --> SMTP
+    SPA -->|"GET /api/cnpj/v1, sem chave<br/>cnpjLookupService.ts"| EXT4
     MCP["apps/mcp-drive · mcp-activities · mcp-prospeccao<br/>(sessão da pessoa, sob RLS)"] --> REST
+    MCP -->|"lookup_cnpj"| EXT4
 ```
 
 ## Serviços externos
 
 | Serviço | Consumidor | O quê | Credencial |
 |---|---|---|---|
+| BrasilAPI (CNPJ) | Browser (`src/services/cnpjLookupService.ts`) e `mcp-prospeccao` (`lookup_cnpj`) | Dados públicos da empresa pelo CNPJ para o cadastro da Prospecção: razão social, nome fantasia, CNAE, cidade. Só o CNPJ sai. Contrato: `.harness/integrations/brasilapi-cnpj.md` | Nenhuma (API pública) |
 | Microsoft Entra ID | Browser (`msalClient.ts:54`) | Login OAuth Auth Code + PKCE | client_id público, sem secret (`config.ts:1-16`) |
 | Google Identity (**planejado**, ADR-0029 / PUL-225) | Browser (Google Identity Services) → Edge Function `google-sso` | Login social: ID token OpenID Connect com escopos mínimos `openid email profile`. A função valida JWKS do Google, `iss`, `aud`, `exp` e `email_verified`, casa o e-mail com funcionário ativo (o tenant vem dele) e emite magiclink pela Admin API. Nada do Drive | `VITE_GOOGLE_CLIENT_ID` (público) no front; `GOOGLE_CLIENT_ID` como secret da função; sem client secret (só ID token) |
 | Microsoft Graph v1.0 | Browser (`microsoftGraphService.ts:39`) | Calendário (`/me/calendarView`, `/me/events`) e Email (`/me/mailFolders/inbox/messages`); escopos `Calendars.ReadWrite`, `Mail.Read` (`:47`) | Bearer MSAL, renovado silent; backend nunca vê o token |
@@ -131,8 +137,8 @@ são importados de `src/` pelo alias `@/`, resolvido pelo esbuild. A situação 
 Não abordar" da empresa vem de `src/lib/prospecting/companyStatus.ts` (a mesma regra da
 tela Empresas), e tarefa herda tenant e responsável do contato pelo trigger
 `prospect_tasks_inherit_parent`. A única regra própria do MCP é a de duplicidade no
-cadastro conversacional (`apps/mcp-prospeccao/src/duplicidade.ts`: CNPJ → LinkedIn →
-nome sem contradição), que só lê e escolhe a empresa — o banco segue recusando CNPJ e
+cadastro conversacional (`apps/mcp-prospeccao/src/duplicidade.ts`: cliente já ligado →
+CNPJ → LinkedIn → nome sem contradição), que só lê e escolhe a empresa — o banco segue recusando CNPJ e
 LinkedIn repetidos.
 
 Desde 28/09/2026 a Prospecção é o quadro comercial de ponta a ponta e o contato termina
@@ -140,7 +146,11 @@ nela mesma, em Ganho ou Perda — a conversão em Oportunidade saiu. Em 29/09/20
 ferramentas de Oportunidade (`list_opportunities`, `create_opportunity`,
 `update_opportunity`, `move_opportunity_stage`) saíram do `mcp-drive` (versão 2.0.0), e o
 MCP deixou de escrever em `leads`: `mcp-prospeccao` (1.1.0) é o único servidor comercial, e
-as `instructions` dele dizem isso ao cliente. Ganho e data de etapa usam as mesmas RPCs da
+as `instructions` dele dizem isso ao cliente. Na 1.2.0 (29/09/2026, ADR-0040) o contato
+ganha valor estimado, concorrente e observações; `search_clients` liga a empresa a um
+cliente da carteira (`client_id`, checado no tenant — a FK não olha tenant), `lookup_cnpj`
+consulta a BrasilAPI pelo mesmo `cnpjLookupService.ts` da tela, e `get_contact` mostra o
+orçamento e o projeto vinculados (`budgets/projects.prospect_id`), só leitura. Ganho e data de etapa usam as mesmas RPCs da
 tela, `mark_prospect_won` e `set_prospect_stage` (`SECURITY INVOKER`); as regras de desfecho
 são do trigger `prospects_outcome_rules`. `get_prospecting_metrics` monta o texto com
 `src/lib/prospecting/periodMetrics.ts` e `metricsReadings.ts`, o mesmo cálculo da aba

@@ -11,13 +11,15 @@ ferramentas de Oportunidade saíram do `og-pulse-drive` em 29/09/2026.
 |---|---|
 | `list_prospecting_options` | Etapas (e como se chega a cada uma, inclusive Ganho e Perda), canais, alavancas, motivos de perda, períodos das métricas e responsáveis válidos |
 | `search_companies` | Busca empresas por parte do nome ou do CNPJ (com nº de contatos) |
+| `search_clients` | Busca clientes da carteira por nome ou CNPJ e diz se já têm empresa na Prospecção; o `client_id` liga a empresa ao cliente |
+| `lookup_cnpj` | Consulta o CNPJ na base pública da Receita (BrasilAPI): razão social, nome fantasia, segmento e cidade — não cadastra nada |
 | `check_company_duplicates` | Confere CNPJ, LinkedIn e nome idêntico antes de cadastrar, com a situação "Abordar / Não abordar" da tela Empresas |
 | `get_company` | Ficha da empresa e todos os contatos dela |
 | `create_company` | Cadastra empresa (valida CNPJ; avisa homônimo; o banco recusa CNPJ/LinkedIn duplicado) |
 | `update_company` | Atualiza empresa — vale para todos os contatos dela |
 | `list_contacts` | Lista contatos por empresa, nome, etapa, responsável e alavanca |
 | `my_agenda` | "O que tenho para hoje": tarefas pendentes até a data (o único aviso de vencimento do quadro) e toques sugeridos pela cadência |
-| `get_contact` | Ficha do contato (e-mail, telefone, redes, data e valor do ganho, motivo da perda) e últimas atividades |
+| `get_contact` | Ficha do contato (e-mail, telefone, redes, valor estimado, ganho, perda), orçamento e projeto vinculados (só leitura) e últimas atividades |
 | `create_contact` | Cadastra contato numa empresa existente, em "A abordar" |
 | `create_contact_with_company` | Cadastra contato com `company_id` **ou** empresa nova; reaproveita a empresa já cadastrada (CNPJ → LinkedIn → nome) e não duplica contato de mesmo nome/e-mail |
 | `update_contact` | Atualiza dados do contato, inclusive valor estimado, concorrente e observações (não muda etapa) |
