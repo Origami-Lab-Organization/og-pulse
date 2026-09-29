@@ -157,13 +157,13 @@ export default function BudgetDetail() {
           </Card>
         </div>
 
-        {/* Client/Lead and dates */}
+        {/* Cliente/empresa e datas */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {budget.client_id ? <Building2 className="h-5 w-5" /> : <User className="h-5 w-5" />}
-                {budget.client_id ? 'Cliente' : 'Lead'}
+                {budget.client_id ? 'Cliente' : 'Empresa'}
               </CardTitle>
             </CardHeader>
             <CardContent>

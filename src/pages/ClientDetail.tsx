@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Building2,
   Mail,
@@ -13,6 +13,8 @@ import {
   FolderKanban,
   Users,
   UserRound,
+  AlertCircle,
+  ChevronRight,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,18 +36,19 @@ import DeleteClientDialog from '@/components/clients/DeleteClientDialog';
 import {
   useClient,
   useClientContacts,
-  useClientOpportunities,
+  useClientCommercialContacts,
   useClientProjects,
   useClientRelationCounts,
   useDeleteClient,
 } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/AuthContext';
 import { Client, ClientContact } from '@/types/client';
-import { getStageLabel, type LeadWithBudget } from '@/types/lead';
+import { getProspectStageLabel } from '@/types/prospect';
+import type { CommercialContactSummary } from '@/types/commercialContact';
 import { PROJECT_STATUS_LABELS, type ProjectWithRelations } from '@/types/project';
 import { formatCNPJ, formatPhone } from '@/lib/masks';
 import { formatCurrency, formatDate } from '@/lib/formatters';
-import { resolveLeadEstimatedValue } from '@/lib/leadValue';
+import { commercialContactHref, commercialContactValue } from '@/services/commercialContactService';
 
 const SectionEmpty = ({ message }: { message: string }) => (
   <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -181,12 +184,19 @@ const ContadorAba = ({ valor }: { valor: number }) =>
     </Badge>
   ) : null;
 
+/**
+ * Oportunidades do cliente = contatos da Prospecção das empresas ligadas a ele
+ * (`prospect_companies.client_id`). Desde 29/09/2026 a Oportunidade vive na Prospecção;
+ * cada linha leva ao contato no quadro.
+ */
 const OpportunitiesTab = ({
-  opportunities,
+  contacts,
   isLoading,
+  isError,
 }: {
-  opportunities: LeadWithBudget[];
+  contacts: CommercialContactSummary[];
   isLoading: boolean;
+  isError: boolean;
 }) => (
   <Card>
     <CardHeader>
@@ -198,22 +208,38 @@ const OpportunitiesTab = ({
     <CardContent className="space-y-2">
       {isLoading ? (
         <Skeleton className="h-20 rounded-md" />
-      ) : opportunities.length === 0 ? (
-        <SectionEmpty message="Nenhuma oportunidade vinculada a este cliente." />
+      ) : isError ? (
+        <div role="alert" className="flex items-center gap-2 rounded-md border border-destructive/40 p-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          Não foi possível carregar as oportunidades deste cliente.
+        </div>
+      ) : contacts.length === 0 ? (
+        <SectionEmpty message="Nenhum contato da Prospecção vinculado a este cliente." />
       ) : (
-        opportunities.map((opp) => (
-          <div key={opp.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">{opp.name}</p>
-              <Badge variant="secondary" className="mt-1">
-                {getStageLabel(opp.crm_stage)}
-              </Badge>
-            </div>
-            <span className="shrink-0 text-sm font-medium text-foreground">
-              {formatCurrency(resolveLeadEstimatedValue(opp))}
-            </span>
-          </div>
-        ))
+        contacts.map((contact) => {
+          const value = commercialContactValue(contact);
+          return (
+            <Link
+              key={contact.id}
+              to={commercialContactHref(contact.id)}
+              className="flex items-center justify-between gap-3 rounded-md border p-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{contact.contact_name}</p>
+                {contact.company?.name && (
+                  <p className="truncate text-xs text-muted-foreground">{contact.company.name}</p>
+                )}
+                <Badge variant="secondary" className="mt-1">
+                  {getProspectStageLabel(contact.stage)}
+                </Badge>
+              </div>
+              <span className="flex shrink-0 items-center gap-2 text-sm font-medium text-foreground">
+                {value !== null ? formatCurrency(value) : <span className="text-muted-foreground">Sem valor</span>}
+                <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              </span>
+            </Link>
+          );
+        })
       )}
     </CardContent>
   </Card>
@@ -300,12 +326,17 @@ const ClientDetailSkeleton = () => (
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { employee } = useAuth();
+  const { employee, can } = useAuth();
   const canManage = employee?.is_gerente ?? false;
+  const canSeeOpportunities = can('prospeccao:ler');
 
   const { data: client, isLoading } = useClient(id);
   const { data: contacts = [], isLoading: loadingContacts } = useClientContacts(id);
-  const { data: opportunities = [], isLoading: loadingOpps } = useClientOpportunities(id);
+  const {
+    data: opportunities = [],
+    isLoading: loadingOpps,
+    isError: oppsError,
+  } = useClientCommercialContacts(id);
   const { data: projects = [], isLoading: loadingProjects } = useClientProjects(id);
   const { data: counts } = useClientRelationCounts(id);
   const deleteClient = useDeleteClient();
@@ -379,16 +410,18 @@ const ClientDetail = () => {
       actions={actions}
     >
       <Tabs defaultValue="dados" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={`grid w-full ${canSeeOpportunities ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="dados" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Dados do cliente</span>
           </TabsTrigger>
-          <TabsTrigger value="oportunidades" className="flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            <span className="hidden sm:inline">Oportunidades</span>
-            <ContadorAba valor={opportunities.length} />
-          </TabsTrigger>
+          {canSeeOpportunities && (
+            <TabsTrigger value="oportunidades" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              <span className="hidden sm:inline">Oportunidades</span>
+              <ContadorAba valor={opportunities.length} />
+            </TabsTrigger>
+          )}
           <TabsTrigger value="projetos" className="flex items-center gap-2">
             <FolderKanban className="h-4 w-4" />
             <span className="hidden sm:inline">Projetos</span>
@@ -405,9 +438,11 @@ const ClientDetail = () => {
           <ContactsCard client={client} contacts={contacts} isLoading={loadingContacts} />
         </TabsContent>
 
-        <TabsContent value="oportunidades" className="mt-4">
-          <OpportunitiesTab opportunities={opportunities} isLoading={loadingOpps} />
-        </TabsContent>
+        {canSeeOpportunities && (
+          <TabsContent value="oportunidades" className="mt-4">
+            <OpportunitiesTab contacts={opportunities} isLoading={loadingOpps} isError={oppsError} />
+          </TabsContent>
+        )}
 
         <TabsContent value="projetos" className="mt-4">
           <ProjectsTab

@@ -136,10 +136,10 @@ export function PortfolioCard({ project, canEdit = false, onRemove, hideValues }
         )}
       </div>
 
-      {project.lead_id && (
+      {project.prospect_id && (
         <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
           <History className="h-3 w-3" />
-          <span>Histórico comercial disponível</span>
+          <span>Origem comercial na Prospecção</span>
         </div>
       )}
 

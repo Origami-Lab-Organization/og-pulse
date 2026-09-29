@@ -15,7 +15,7 @@ import {
   PORTFOLIO_STAGE_LABELS,
   PortfolioStage,
 } from "@/types/portfolio";
-import { SERVICE_LINE_LABELS } from "@/types/lead";
+import { SERVICE_LINE_LABELS } from "@/types/serviceLine";
 import { MyProjectOverviewTab } from "@/components/my-projects/MyProjectOverviewTab";
 import { MyProjectOKRsTab } from "@/components/my-projects/MyProjectOKRsTab";
 import { MyProjectAllocationTab } from "@/components/my-projects/MyProjectAllocationTab";

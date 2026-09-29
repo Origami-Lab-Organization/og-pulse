@@ -62,12 +62,12 @@ export const TOUR_STEPS: readonly TourStep[] = [
     requiresCapability: 'portfolio:ler',
   },
   {
-    id: 'pipeline',
+    id: 'prospeccao',
     title: 'O que ainda não é projeto',
-    body: 'As oportunidades em aberto, por etapa. Quando uma fecha, ela vira projeto sem você redigitar nada.',
-    selectors: ['[data-tour="nav-/pipeline"]'],
-    fallback: 'Pipeline, no menu lateral, mostra as oportunidades em aberto por etapa.',
-    requiresCapability: 'pipeline:ler',
+    body: 'Os contatos comerciais em aberto, por etapa, do primeiro toque ao Ganho. Quando um fecha, ele vira projeto sem você redigitar nada.',
+    selectors: ['[data-tour="nav-/comercial/prospeccao"]', '[data-tour="nav-group-/comercial/prospeccao"]'],
+    fallback: 'Comercial > Prospecção, no menu lateral, mostra os contatos em aberto por etapa.',
+    requiresCapability: 'prospeccao:ler',
   },
   {
     id: 'people',

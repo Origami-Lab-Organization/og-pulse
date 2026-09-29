@@ -669,65 +669,6 @@ export const budgetService = {
     }
   },
 
-  async cloneTemplateForLead(
-    templateBudgetId: string,
-    leadId: string,
-    clientId: string | null,
-    title: string,
-    tenantId: string,
-    createdBy: string
-  ): Promise<BudgetDB> {
-    const template = await this.getById(templateBudgetId);
-    if (!template) throw new Error('Template de orçamento não encontrado');
-
-    const input: CreateBudgetInput = {
-      title,
-      clientId: clientId || undefined,
-      startDate: new Date().toISOString().split('T')[0],
-      durationMonths: template.duration_months,
-      adminExpensesPercent: template.admin_expenses_percent,
-      taxesPercent: template.taxes_percent,
-      commissionPercent: template.commission_percent,
-      netMarginPercent: template.net_margin_percent,
-      discountValue: (template as any).discount_value ?? 0,
-      notes: template.notes || undefined,
-      billingType: (template.billing_type as any) ?? 'fixed_scope',
-      roles: template.roles.map((role) => ({
-        tempId: crypto.randomUUID(),
-        roleRateId: role.role_rate_id || '',
-        roleName: role.role_name,
-        seniority: role.seniority,
-        hourlyRate: role.hourly_rate,
-        months: role.months.map((m) => ({
-          monthNumber: m.month_number,
-          hours: m.hours,
-        })),
-      })),
-      materials: (template.materials || []).map((m) => ({
-        tempId: crypto.randomUUID(),
-        description: m.description,
-        value: m.value,
-      })),
-      suppliers: (template.suppliers || []).map((s) => ({
-        tempId: crypto.randomUUID(),
-        name: s.name,
-        description: s.description || '',
-        monthlyValue: s.monthly_value,
-      })),
-    };
-
-    const newBudget = await this.create(input, tenantId, createdBy);
-
-    // Link to lead
-    const { error: linkError } = await fromTable('leads')
-      .update({ budget_id: newBudget.id })
-      .eq('id', leadId);
-
-    if (linkError) throw linkError;
-
-    return newBudget;
-  },
-
   async duplicate(id: string, tenantId: string, createdBy: string): Promise<BudgetDB> {
     // Get original budget with details
     const original = await this.getById(id);

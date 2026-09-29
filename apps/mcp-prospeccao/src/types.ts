@@ -9,9 +9,25 @@ export interface PgError {
 export type CompanyFields = Partial<
   Pick<
     ProspectCompanyDB,
-    'name' | 'cnpj' | 'linkedin_url' | 'instagram_url' | 'website' | 'segment' | 'ring' | 'tier' | 'notes'
+    'name' | 'cnpj' | 'linkedin_url' | 'instagram_url' | 'website' | 'segment' | 'ring' | 'tier' | 'notes' | 'client_id'
   >
 >;
+
+/** Cliente da carteira, como `search_clients` o mostra (29/09/2026). */
+export interface ClientLite {
+  id: string;
+  company_name: string;
+  trading_name: string | null;
+  cnpj: string | null;
+  /** Empresa da Prospecção já ligada a este cliente, se houver. */
+  prospectCompanyId?: string | null;
+}
+
+/** Orçamento e projeto que nasceram do contato — `budgets/projects.prospect_id`. */
+export interface ContactDeal {
+  orcamento: { id: string; budget_number: string; title: string; final_total: number; status: string } | null;
+  projeto: { id: string; name: string; status: string } | null;
+}
 
 export interface ContactFields {
   contact_name?: string;
@@ -23,6 +39,11 @@ export interface ContactFields {
   primary_channel?: string;
   owner_id?: string | null;
   lever?: string | null;
+  /** Valor estimado do negócio antes do orçamento (29/09/2026). */
+  estimated_value?: number | null;
+  competitor_name?: string | null;
+  /** Observações do contato — `prospects.notes`. Nome próprio para não colidir com as da empresa. */
+  observacoes?: string | null;
 }
 
 export interface ContactFilter {
@@ -46,7 +67,7 @@ export interface ActivityInput {
 }
 
 /** Por onde uma empresa já cadastrada foi reconhecida. */
-export type CompanyMatchCriterion = 'CNPJ' | 'LinkedIn' | 'nome';
+export type CompanyMatchCriterion = 'CNPJ' | 'LinkedIn' | 'nome' | 'cliente';
 
 export interface CompanyMatch {
   empresa: ProspectCompanyDB;

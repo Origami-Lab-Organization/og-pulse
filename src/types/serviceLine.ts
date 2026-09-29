@@ -35,3 +35,19 @@ export const dbToServiceLine = (db: ServiceLineDB): ServiceLine => ({
   createdAt: db.created_at,
   updatedAt: db.updated_at,
 });
+
+/**
+ * Linhas de serviço fixas usadas para classificar projetos (`projects.service_line`).
+ * Vivia em `src/types/lead.ts` até a Prospecção absorver as Oportunidades (29/09/2026).
+ */
+export const SERVICE_LINE_OPTIONS = [
+  { value: 'financiamento_inovacao', label: 'Financiamento da Inovação' },
+  { value: 'consultoria_estrategica', label: 'Consultoria Estratégica' },
+  { value: 'product_studio', label: 'Product Studio' },
+  { value: 'educacao_corporativa', label: 'Educação Corporativa' },
+  { value: 'ventures', label: 'Ventures' },
+] as const;
+
+export const SERVICE_LINE_LABELS: Record<string, string> = Object.fromEntries(
+  SERVICE_LINE_OPTIONS.map((o) => [o.value, o.label])
+);

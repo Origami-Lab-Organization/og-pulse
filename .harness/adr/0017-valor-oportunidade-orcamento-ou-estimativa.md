@@ -113,3 +113,11 @@ O gate de orçamento é **apenas frontend**: `updateLeadStage`
 (`src/services/leadService.ts`) grava `crm_stage` sem validar, e não há
 CHECK/trigger/RLS no banco impedindo `negotiation`/`closed` sem `budget_id`.
 Registrado como dívida técnica.
+
+## Atualização — 29/09/2026 (ADR-0040)
+
+A Oportunidade foi absorvida pela Prospecção. A regra continua valendo, agora para o
+contato, com um passo novo no início: **valor vendido (`won_value`, em Ganho) → orçamento
+vinculado com total > 0 (`budgets.prospect_id`) → `prospects.estimated_value` → 0**. A
+fonte única passou a ser `src/lib/prospecting/value.ts` (`resolveProspectValue`), e
+`src/lib/leadValue.ts` foi removido. As evidências acima citam arquivos que não existem mais.

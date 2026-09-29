@@ -245,7 +245,7 @@ export const projectService = {
         // porque aí a hora herda o centro do serviço (ADR-0035).
         is_billable: input.isBillable ?? true,
         cost_center_id: input.isBillable === false ? (input.costCenterId ?? null) : null,
-        lead_id: input.leadId || null,
+        prospect_id: input.prospectId || null,
       })
       .select()
       .single();
@@ -527,10 +527,11 @@ export const projectService = {
   },
 
   async deleteWithCascade(id: string): Promise<void> {
-    // Get project info for commercial cleanup
+    // Orçamento vinculado sai junto. O contato da Prospecção que originou o projeto fica:
+    // é histórico comercial, não dado do projeto.
     const { data: project } = await supabase
       .from('projects')
-      .select('budget_id, lead_id')
+      .select('budget_id')
       .eq('id', id)
       .single();
 
@@ -544,11 +545,6 @@ export const projectService = {
     // Clean up budget if exists
     if (project?.budget_id) {
       await supabase.from('budgets').delete().eq('id', project.budget_id);
-    }
-
-    // Clean up lead if exists
-    if (project?.lead_id) {
-      await supabase.from('leads').delete().eq('id', project.lead_id);
     }
   },
 

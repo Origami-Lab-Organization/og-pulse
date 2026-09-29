@@ -47,7 +47,7 @@ const MANTER = [
 ];
 
 /** Tabelas que, se tiverem qualquer linha no alvo, cancelam tudo: não era teste. */
-const NAO_PODE_TER = ['projects', 'clients', 'services', 'leads', 'budgets', 'activity_types'];
+const NAO_PODE_TER = ['projects', 'clients', 'services', 'prospects', 'budgets', 'activity_types'];
 
 const env = Object.fromEntries(
   readFileSync(new URL('../.env.migration', import.meta.url), 'utf8')

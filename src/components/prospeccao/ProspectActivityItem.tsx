@@ -169,8 +169,7 @@ function EditorDeAtividade({
 
       // Só depois de a linha estar salva sem eles: arquivo órfão é menos grave que anexo quebrado.
       const removidos = originais
-        .filter((a) => !mantidos.some((m) => m.path === a.path))
-        .map((a) => a.path);
+        .filter((a) => !mantidos.some((m) => m.path === a.path));
       await deleteProspectAttachments(removidos).catch(console.warn);
 
       onFechar();
@@ -318,7 +317,7 @@ function LinkDeAnexo({ anexo }: { anexo: ProspectAttachment }) {
   const abrir = async () => {
     setCarregando(true);
     try {
-      const url = await getProspectAttachmentUrl(anexo.path);
+      const url = await getProspectAttachmentUrl(anexo);
       window.open(url, '_blank', 'noopener,noreferrer');
     } catch {
       toast({ title: 'Não foi possível abrir o anexo', variant: 'destructive' });

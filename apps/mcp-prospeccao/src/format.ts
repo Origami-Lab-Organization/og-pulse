@@ -19,6 +19,9 @@ import {
   type ProspectTaskDB,
   type ProspectWithCompany,
 } from '@/types/prospect';
+import { resolveProspectValue } from '@/lib/prospecting/value';
+import type { CnpjLookupResult } from '@/types/cnpjLookup';
+import type { ClientLite, ContactDeal } from './types.js';
 
 type Valor = string | number | null | undefined;
 type Par = [rotulo: string, valor: Valor];
@@ -76,6 +79,7 @@ export function empresaCompleta(e: ProspectCompanyDB): string {
       ['LinkedIn', e.linkedin_url],
       ['Instagram', e.instagram_url],
       ['Observações', e.notes],
+      ['Cliente da carteira', e.client_id && `sim — client_id \`${e.client_id}\``],
       ['ID', `\`${e.id}\``],
     ],
     '\n',
@@ -116,6 +120,8 @@ export function contatoCompleto(p: ProspectWithCompany, pessoas: Map<string, str
       ['Ganho em', p.stage === ETAPA_GANHO ? data(p.won_on) : null],
       ['Valor vendido', valorDoGanho(p)],
       ['Motivo da perda', motivoDaPerda(p)],
+      ['Valor estimado', p.estimated_value != null ? reais(Number(p.estimated_value)) : null],
+      ['Concorrente', p.competitor_name],
       ['E-mail', p.contact_email],
       ['Telefone', p.contact_phone],
       ['LinkedIn', p.linkedin_url],
@@ -126,7 +132,7 @@ export function contatoCompleto(p: ProspectWithCompany, pessoas: Map<string, str
       ['Atividades', p.activity_count],
       ['1º toque', p.first_touch_at && data(p.first_touch_at)],
       ['Próxima atividade', data(p.next_activity_on)],
-      ['Convertido em oportunidade (antes de 28/09/2026)', p.converted_lead_id && `\`${p.converted_lead_id}\``],
+      ['Observações', p.notes],
       ['ID', `\`${p.id}\``],
     ],
     '\n',
@@ -160,4 +166,45 @@ function estadoDaTarefa(t: ProspectTaskDB): string {
 export function tarefa(t: ProspectTaskDB, pessoas: Map<string, string>, contexto?: string | null): string {
   const detalhes = juntar([estadoDaTarefa(t), pessoas.get(t.owner_id ?? ''), contexto]);
   return `- ${t.done_at ? '☑' : '☐'} ${t.description} — ${detalhes}\n  ID: \`${t.id}\``;
+}
+
+export function clienteResumo(c: ClientLite): string {
+  const nome = c.trading_name && c.trading_name !== c.company_name ? `${c.trading_name} (${c.company_name})` : c.company_name;
+  const empresa = c.prospectCompanyId
+    ? ` — já na Prospecção: company_id \`${c.prospectCompanyId}\``
+    : ' — ainda sem empresa na Prospecção';
+  return `- **${nome}**${c.cnpj ? ` · ${cnpj(c.cnpj)}` : ''} — client_id \`${c.id}\`${empresa}`;
+}
+
+export function dadosDoCnpj(d: CnpjLookupResult): string {
+  return rotulado(
+    [
+      ['', `**${d.nomeFantasia ?? d.razaoSocial}** (Receita, via BrasilAPI)`],
+      ['Razão social', d.razaoSocial],
+      ['Nome fantasia', d.nomeFantasia],
+      ['CNPJ', cnpj(d.cnpj)],
+      ['Segmento (CNAE)', d.segmento],
+      ['Cidade', d.cidade && d.uf ? `${d.cidade}/${d.uf}` : d.cidade],
+    ],
+    '\n',
+  );
+}
+
+/** O negócio do contato: valor pela regra única (ADR-0017), orçamento e projeto vinculados. */
+export function negocio(p: ProspectWithCompany, n: ContactDeal): string {
+  const valor = resolveProspectValue({ ...p, budget: n.orcamento });
+  return rotulado(
+    [
+      ['', '**Negócio:**'],
+      ['Valor do contato', valor > 0 ? reais(valor) : 'sem valor'],
+      [
+        'Orçamento',
+        n.orcamento
+          ? `${n.orcamento.budget_number} · ${n.orcamento.title} · ${reais(Number(n.orcamento.final_total))} · ${n.orcamento.status}`
+          : 'nenhum vinculado (ou sem permissão de orçamento)',
+      ],
+      ['Projeto', n.projeto ? `${n.projeto.name} · ${n.projeto.status}` : p.stage === ETAPA_GANHO ? 'ainda não criado' : null],
+    ],
+    '\n',
+  );
 }

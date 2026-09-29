@@ -37,7 +37,7 @@ import {
   PORTFOLIO_STAGE_LABELS,
   PortfolioStage
 } from "@/types/portfolio";
-import { SERVICE_LINE_LABELS } from "@/types/lead";
+import { SERVICE_LINE_LABELS } from "@/types/serviceLine";
 import { formatDate, formatHours } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 

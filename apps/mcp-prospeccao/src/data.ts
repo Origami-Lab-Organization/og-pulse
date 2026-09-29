@@ -26,7 +26,15 @@ import {
   type ProspectWithCompany,
 } from '@/types/prospect';
 import { currentEmployee, getSupabase } from './supabase.js';
-import type { ActivityInput, CompanyFields, ContactFields, ContactFilter, PgError } from './types.js';
+import type {
+  ActivityInput,
+  ClientLite,
+  CompanyFields,
+  ContactDeal,
+  ContactFields,
+  ContactFilter,
+  PgError,
+} from './types.js';
 
 const PROSPECT_SELECT = '*, company:prospect_companies!prospects_company_id_fkey(*)';
 const PROSPECT_SELECT_INNER = '*, company:prospect_companies!prospects_company_id_fkey!inner(*)';
@@ -161,7 +169,99 @@ function normalizarEmpresa(campos: CompanyFields): Record<string, string | null>
   return saida;
 }
 
+/**
+ * O vínculo com cliente só aceita cliente do MESMO tenant. A FK de `client_id` não olha
+ * tenant, e o id chega por parâmetro de tool — sem esta checagem, um UUID de outra
+ * organização ligaria as duas (boundaries: nunca expor dado entre tenants).
+ */
+async function exigirClienteDoTenant(clientId: string | null | undefined): Promise<void> {
+  if (!clientId) return;
+  const eu = await currentEmployee();
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id')
+    .eq('id', clientId)
+    .eq('tenant_id', eu.tenantId)
+    .maybeSingle();
+  if (error) throw explicar(error);
+  if (!data) throw new ProspeccaoError('Cliente não encontrado (ou sem permissão para vê-lo) — use search_clients.');
+}
+
+/** A empresa da Prospecção já ligada ao cliente — a primeira, se por acaso houver duas. */
+export async function empresaPorCliente(clientId: string): Promise<ProspectCompanyDB | null> {
+  const eu = await currentEmployee();
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('prospect_companies')
+    .select('*')
+    .eq('tenant_id', eu.tenantId)
+    .eq('client_id', clientId)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle();
+  if (error) throw explicar(error);
+  return (data as ProspectCompanyDB) ?? null;
+}
+
+/** Clientes da carteira por nome, nome fantasia ou CNPJ, com a empresa da Prospecção ligada. */
+export async function buscarClientes(termo: string, limite: number): Promise<ClientLite[]> {
+  const eu = await currentEmployee();
+  const supabase = await getSupabase();
+  const seguro = termoSeguro(termo);
+  let query = supabase
+    .from('clients')
+    .select('id, company_name, trading_name, cnpj')
+    .eq('tenant_id', eu.tenantId);
+  if (seguro) {
+    const filtros = [`company_name.ilike.*${seguro}*`, `trading_name.ilike.*${seguro}*`];
+    const digitos = seguro.replace(/\D/g, '');
+    if (digitos.length >= 3) filtros.push(`cnpj.ilike.*${digitos}*`);
+    query = query.or(filtros.join(','));
+  }
+  const { data, error } = await query.order('company_name').limit(limite);
+  if (error) throw explicar(error);
+  const clientes = (data ?? []) as ClientLite[];
+  if (clientes.length === 0) return clientes;
+
+  const { data: ligadas, error: erroLigadas } = await supabase
+    .from('prospect_companies')
+    .select('id, client_id')
+    .eq('tenant_id', eu.tenantId)
+    .in('client_id', clientes.map((c) => c.id));
+  if (erroLigadas) throw explicar(erroLigadas);
+  const porCliente = new Map((ligadas ?? []).map((l) => [l.client_id as string, l.id as string]));
+  return clientes.map((c) => ({ ...c, prospectCompanyId: porCliente.get(c.id) ?? null }));
+}
+
+/**
+ * Orçamento e projeto do contato. Cada um passa pela RLS da própria tabela: sem
+ * `orcamento:ler`, "nenhum orçamento" — não é erro, é o que a pessoa pode ver.
+ */
+export async function negocioDoContato(prospectId: string): Promise<ContactDeal> {
+  const supabase = await getSupabase();
+  const [orcamento, projeto] = await Promise.all([
+    supabase
+      .from('budgets')
+      .select('id, budget_number, title, final_total, status')
+      .eq('prospect_id', prospectId)
+      .maybeSingle(),
+    supabase
+      .from('projects')
+      .select('id, name, status')
+      .eq('prospect_id', prospectId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  return {
+    orcamento: orcamento.error ? null : (orcamento.data as ContactDeal['orcamento']),
+    projeto: projeto.error ? null : (projeto.data as ContactDeal['projeto']),
+  };
+}
+
 export async function criarEmpresa(campos: CompanyFields & { name: string }): Promise<ProspectCompanyDB> {
+  await exigirClienteDoTenant(campos.client_id);
   const eu = await currentEmployee();
   const supabase = await getSupabase();
   const { data, error } = await supabase
@@ -174,6 +274,7 @@ export async function criarEmpresa(campos: CompanyFields & { name: string }): Pr
 }
 
 export async function atualizarEmpresa(id: string, campos: CompanyFields): Promise<ProspectCompanyDB> {
+  await exigirClienteDoTenant(campos.client_id);
   const supabase = await getSupabase();
   const { data, error } = await supabase
     .from('prospect_companies')
@@ -247,11 +348,14 @@ export async function atividadesDoContato(prospectId: string, limite: number): P
   return (data ?? []) as ProspectActivityDB[];
 }
 
-function normalizarContato(campos: ContactFields): Record<string, string | null> {
-  const saida: Record<string, string | null> = {};
+/** Campo da tool que tem outro nome no banco. */
+const COLUNA: Record<string, string> = { observacoes: 'notes' };
+
+function normalizarContato(campos: ContactFields): Record<string, string | number | null> {
+  const saida: Record<string, string | number | null> = {};
   for (const [chave, valor] of Object.entries(campos)) {
     if (valor === undefined) continue;
-    saida[chave] = typeof valor === 'string' ? valor.trim() || null : valor;
+    saida[COLUNA[chave] ?? chave] = typeof valor === 'string' ? valor.trim() || null : valor;
   }
   return saida;
 }

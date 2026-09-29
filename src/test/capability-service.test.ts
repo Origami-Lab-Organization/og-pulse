@@ -12,8 +12,8 @@ describe('fetchMyCapabilities', () => {
   });
 
   it('chama my_capabilities com o tenant e devolve as chaves', async () => {
-    rpcMock.mockResolvedValue({ data: ['financeiro:ler', 'pipeline:ler'], error: null });
-    await expect(fetchMyCapabilities('t-1')).resolves.toEqual(['financeiro:ler', 'pipeline:ler']);
+    rpcMock.mockResolvedValue({ data: ['financeiro:ler', 'prospeccao:ler'], error: null });
+    await expect(fetchMyCapabilities('t-1')).resolves.toEqual(['financeiro:ler', 'prospeccao:ler']);
     expect(rpcMock).toHaveBeenCalledWith('my_capabilities', { _tenant_id: 't-1' });
   });
 

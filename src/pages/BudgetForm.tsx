@@ -33,7 +33,9 @@ import { useActiveRoleRates } from '@/hooks/useRoleRates';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget, useCreateBudget, useUpdateBudget } from '@/hooks/useBudgets';
 import { useToast } from '@/hooks/use-toast';
-import { useLead, useLinkBudgetToLead } from '@/hooks/useLeads';
+import { useQueryClient } from '@tanstack/react-query';
+import { useProspect } from '@/hooks/useProspects';
+import { linkBudgetToProspect } from '@/services/prospectDealService';
 import { useServices, useLinkServiceTemplate } from '@/hooks/useServices';
 import { serviceService } from '@/services/serviceService';
 import { supabase } from '@/integrations/supabase/client';
@@ -94,7 +96,8 @@ export default function BudgetForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const leadId = searchParams.get('leadId');
+  // Orçamento nasce do contato da Prospecção (29/09/2026) — antes, da Oportunidade.
+  const prospectId = searchParams.get('prospectId');
   const templateForServiceId = searchParams.get('templateForServiceId');
   const isEditing = !!id;
   const isTemplateMode = !!templateForServiceId && !isEditing;
@@ -106,19 +109,19 @@ export default function BudgetForm() {
   const { data: clients = [] } = useClients();
   const { data: roleRates = [] } = useActiveRoleRates();
   const { data: financialSettings } = useFinancialSettings();
-  const { data: leadData } = useLead(leadId);
+  const { data: prospect } = useProspect(prospectId);
+  const queryClient = useQueryClient();
   const { data: services = [] } = useServices();
   const createMutation = useCreateBudget(
     isTemplateMode ? { isTemplate: true, templateForServiceId: templateForServiceId! } : undefined
   );
   const linkServiceTemplate = useLinkServiceTemplate();
   const updateMutation = useUpdateBudget();
-  const linkBudgetToLead = useLinkBudgetToLead();
-  const isFromLead = !!leadId;
+  const isFromProspect = !!prospectId;
 
   const templateService = services.find(s => s.id === templateForServiceId);
 
-  // Manual override: set when user changes billing type via selector (no-lead edit/create)
+  // Manual override: set when user changes billing type via selector
   const [overrideBillingType, setOverrideBillingType] = useState<BillingType | null>(null);
   // Whether the budget uses continuous (monthly) mode — relevant for no_revenue budgets
   const [isContinuous, setIsContinuous] = useState(false);
@@ -128,18 +131,13 @@ export default function BudgetForm() {
     if (overrideBillingType) return overrideBillingType;
     // When creating template, derive from service billing type
     if (isTemplateMode && templateService) return templateService.billingType;
-    // When creating from a lead, derive from lead's service
-    if (isFromLead && leadData?.service_line && services.length) {
-      const service = services.find(s => s.id === leadData.service_line);
-      if (service?.billingType) return service.billingType;
-    }
     // When editing an existing budget, derive from billing_type (preferred) or is_recurring flag
     if (isEditing && budget) {
       if (budget.billing_type) return budget.billing_type as BillingType;
       return budget.is_recurring ? 'recurring' : 'fixed_scope';
     }
     return 'fixed_scope';
-  }, [overrideBillingType, isTemplateMode, templateService, isFromLead, leadData?.service_line, services, isEditing, budget]);
+  }, [overrideBillingType, isTemplateMode, templateService, isEditing, budget]);
 
   const wizardSteps = getWizardSteps(billingType, isContinuous);
 
@@ -184,27 +182,28 @@ export default function BudgetForm() {
   const durationMonths = form.watch('durationMonths');
   const watchedTitle = form.watch('title');
 
-  // Guard: new budgets must come from a lead or be a template
+  // Guard: orçamento novo nasce de um contato da Prospecção ou é template de serviço
   useEffect(() => {
-    if (!isEditing && !leadId && !templateForServiceId) {
+    if (!isEditing && !prospectId && !templateForServiceId) {
       toast({
         title: 'Aviso',
-        description: 'orçamentos devem ser criados a partir de um lead no Pipeline',
+        description: 'Orçamentos são criados a partir de um contato da Prospecção.',
         variant: 'destructive',
       });
-      navigate('/pipeline');
+      navigate('/comercial/prospeccao');
     }
-  }, [isEditing, leadId, templateForServiceId, navigate, toast]);
+  }, [isEditing, prospectId, templateForServiceId, navigate, toast]);
 
-  // Pre-fill from lead data
+  // Pré-preenche com a empresa do contato; o cliente vem do vínculo da empresa, se houver.
   useEffect(() => {
-    if (leadData && !isEditing) {
-      form.setValue('title', leadData.name);
-      if (leadData.client_id) {
-        form.setValue('clientId', leadData.client_id);
+    if (prospect && !isEditing) {
+      const empresa = prospect.company?.name;
+      form.setValue('title', empresa ? `Proposta — ${empresa}` : `Proposta — ${prospect.contact_name}`);
+      if (prospect.company?.client_id) {
+        form.setValue('clientId', prospect.company.client_id);
       }
     }
-  }, [leadData, isEditing, form]);
+  }, [prospect, isEditing, form]);
 
   // Pre-fill title from service name in template mode
   useEffect(() => {
@@ -214,15 +213,6 @@ export default function BudgetForm() {
     }
   }, [isTemplateMode, templateService, isEditing, form]);
 
-  // Pre-fill successFeePercent from service defaultValue when available
-  useEffect(() => {
-    if (billingType === 'success_fee' && leadData?.service_line && services.length) {
-      const service = services.find(s => s.id === leadData.service_line);
-      if (service?.billingUnit === '%' && service.defaultValue != null) {
-        setSuccessFeePercent(service.defaultValue);
-      }
-    }
-  }, [billingType, leadData?.service_line, services]);
 
   const isMonthlyMode = billingType === 'recurring' || (billingType === 'no_revenue' && isContinuous);
 
@@ -436,13 +426,20 @@ export default function BudgetForm() {
       createMutation.mutate(input, {
         onSuccess: async (data: any) => {
           if (needsApprovalNotif && data?.id) await sendMarginApprovalNotifications(data.id, input.title);
-          if (isFromLead && leadId && data?.id) {
-            linkBudgetToLead.mutate(
-              { leadId, budgetId: data.id },
-              { onSuccess: () => navigate('/pipeline') }
-            );
+          if (isFromProspect && prospectId && data?.id) {
+            try {
+              await linkBudgetToProspect(data.id, prospectId);
+              queryClient.invalidateQueries({ queryKey: ['prospect-budget', prospectId] });
+            } catch {
+              toast({
+                title: 'Orçamento salvo sem vínculo',
+                description: 'Não foi possível ligar o orçamento ao contato. Tente de novo pela ficha do contato.',
+                variant: 'destructive',
+              });
+            }
+            navigate(`/comercial/prospeccao?contato=${prospectId}`);
           } else {
-            navigate('/budgets');
+            navigate(`/budgets/${data?.id ?? ''}`);
           }
         },
       });
@@ -488,7 +485,7 @@ export default function BudgetForm() {
     return (
       <AppLayout
         title="Carregando..."
-        breadcrumbs={[{ label: 'Pipeline', href: '/pipeline' }, { label: 'Carregando...' }]}
+        breadcrumbs={[{ label: 'Prospecção', href: '/comercial/prospeccao' }, { label: 'Carregando...' }]}
       >
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -541,7 +538,7 @@ export default function BudgetForm() {
                 <Alert className="border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    Você está definindo a composição de custos para o serviço <strong>{templateService.name}</strong>. O preço calculado será aplicado automaticamente nos leads que usarem este serviço.
+                    Você está definindo a composição de custos para o serviço <strong>{templateService.name}</strong>. O preço calculado vira o valor padrão do serviço.
                   </AlertDescription>
                 </Alert>
               )}
@@ -556,26 +553,24 @@ export default function BudgetForm() {
                 </Alert>
               )}
 
-              {/* Billing type selector — shown when there's no lead context to auto-detect */}
-              {!isFromLead && (
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Orçamento</p>
-                  <Select
-                    value={billingType}
-                    onValueChange={(v) => { setOverrideBillingType(v as BillingType); setIsContinuous(false); }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="fixed_scope">Escopo Fixo</SelectItem>
-                      <SelectItem value="recurring">Receita Recorrente</SelectItem>
-                      <SelectItem value="success_fee">Taxa de Sucesso</SelectItem>
-                      <SelectItem value="no_revenue">Interno (sem receita)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              {/* Tipo de orçamento: o contato não guarda serviço, então a pessoa escolhe */}
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tipo de Orçamento</p>
+                <Select
+                  value={billingType}
+                  onValueChange={(v) => { setOverrideBillingType(v as BillingType); setIsContinuous(false); }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed_scope">Escopo Fixo</SelectItem>
+                    <SelectItem value="recurring">Receita Recorrente</SelectItem>
+                    <SelectItem value="success_fee">Taxa de Sucesso</SelectItem>
+                    <SelectItem value="no_revenue">Interno (sem receita)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* Segmented control Pontual/Contínuo — for success_fee */}
               {billingType === 'success_fee' && (
@@ -1294,7 +1289,7 @@ export default function BudgetForm() {
       description={isTemplateMode ? 'Defina a composição de custos para calcular o preço fixo do serviço' : isEditing ? `Editando: ${budget?.title}` : 'Crie uma nova proposta comercial'}
       breadcrumbs={isTemplateMode
         ? [{ label: 'Serviços', href: '/services' }, { label: 'Composição de Custos' }]
-        : [{ label: 'Pipeline', href: '/pipeline' }, { label: isEditing ? 'Editar' : 'Novo' }]
+        : [{ label: 'Prospecção', href: '/comercial/prospeccao' }, { label: isEditing ? 'Editar' : 'Novo' }]
       }
     >
       <Form {...form}>
@@ -1339,7 +1334,7 @@ export default function BudgetForm() {
                 isSaveDisabled={isSaveBlocked}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
-                onCancel={() => navigate('/pipeline')}
+                onCancel={() => navigate(prospectId ? `/comercial/prospeccao?contato=${prospectId}` : '/comercial/prospeccao')}
                 onSubmit={() => form.handleSubmit(handleSubmit, (errors) => {
                   console.error('Form validation errors:', errors);
                   toast({

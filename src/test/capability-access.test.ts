@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { CAPABILITY_KEYS, hasAnyCapability } from '@/lib/access/capabilities';
 
 describe('hasAnyCapability', () => {
-  const granted = new Set(['financeiro:ler', 'pipeline:ler']);
+  const granted = new Set(['financeiro:ler', 'prospeccao:ler']);
 
   it('sem exigência, todo mundo passa', () => {
     expect(hasAnyCapability(granted)).toBe(true);
@@ -17,7 +17,7 @@ describe('hasAnyCapability', () => {
   });
 
   it('lista: qualquer uma basta', () => {
-    expect(hasAnyCapability(granted, ['folha:ler', 'pipeline:ler'])).toBe(true);
+    expect(hasAnyCapability(granted, ['folha:ler', 'prospeccao:ler'])).toBe(true);
     expect(hasAnyCapability(granted, ['folha:ler', 'okr:editar'])).toBe(false);
     expect(hasAnyCapability(granted, [])).toBe(false);
   });

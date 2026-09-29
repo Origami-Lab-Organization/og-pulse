@@ -647,6 +647,7 @@ export type Database = {
           notes: string | null
           planned_costs: number | null
           project_start_date: string | null
+          prospect_id: string | null
           start_date: string
           status: Database["public"]["Enums"]["budget_status"]
           subtotal: number
@@ -686,6 +687,7 @@ export type Database = {
           notes?: string | null
           planned_costs?: number | null
           project_start_date?: string | null
+          prospect_id?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["budget_status"]
           subtotal?: number
@@ -725,6 +727,7 @@ export type Database = {
           notes?: string | null
           planned_costs?: number | null
           project_start_date?: string | null
+          prospect_id?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["budget_status"]
           subtotal?: number
@@ -1904,400 +1907,6 @@ export type Database = {
             columns: ["key_result_id"]
             isOneToOne: false
             referencedRelation: "project_key_results"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      lead_activity_log: {
-        Row: {
-          activity_type: string
-          created_at: string
-          created_by: string | null
-          description: string
-          id: string
-          lead_id: string
-          metadata: Json
-          tenant_id: string
-        }
-        Insert: {
-          activity_type: string
-          created_at?: string
-          created_by?: string | null
-          description: string
-          id?: string
-          lead_id: string
-          metadata?: Json
-          tenant_id: string
-        }
-        Update: {
-          activity_type?: string
-          created_at?: string
-          created_by?: string | null
-          description?: string
-          id?: string
-          lead_id?: string
-          metadata?: Json
-          tenant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_activity_log_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_activity_log_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_activity_log_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      lead_follow_ups: {
-        Row: {
-          assigned_to: string | null
-          completed_by: string | null
-          created_at: string
-          created_by: string | null
-          description: string
-          id: string
-          lead_id: string
-          notified: boolean
-          scheduled_at: string
-          status: string
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          assigned_to?: string | null
-          completed_by?: string | null
-          created_at?: string
-          created_by?: string | null
-          description: string
-          id?: string
-          lead_id: string
-          notified?: boolean
-          scheduled_at: string
-          status?: string
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          assigned_to?: string | null
-          completed_by?: string | null
-          created_at?: string
-          created_by?: string | null
-          description?: string
-          id?: string
-          lead_id?: string
-          notified?: boolean
-          scheduled_at?: string
-          status?: string
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_follow_ups_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_follow_ups_completed_by_fkey"
-            columns: ["completed_by"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_follow_ups_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_follow_ups_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_follow_ups_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      lead_interactions: {
-        Row: {
-          attachments: Json
-          channel: string
-          created_at: string
-          created_by: string | null
-          id: string
-          interaction_date: string
-          lead_id: string
-          message: string
-          tenant_id: string
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          attachments?: Json
-          channel: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          interaction_date: string
-          lead_id: string
-          message: string
-          tenant_id: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          attachments?: Json
-          channel?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          interaction_date?: string
-          lead_id?: string
-          message?: string
-          tenant_id?: string
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_interactions_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_interactions_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_interactions_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_interactions_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      lead_services: {
-        Row: {
-          created_at: string
-          custom_billing_unit: string | null
-          custom_value: number | null
-          id: string
-          lead_id: string
-          notes: string | null
-          service_id: string
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          custom_billing_unit?: string | null
-          custom_value?: number | null
-          id?: string
-          lead_id: string
-          notes?: string | null
-          service_id: string
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          custom_billing_unit?: string | null
-          custom_value?: number | null
-          id?: string
-          lead_id?: string
-          notes?: string | null
-          service_id?: string
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_services_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_services_service_id_fkey"
-            columns: ["service_id"]
-            isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_services_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      leads: {
-        Row: {
-          archive_notes: string | null
-          archive_reason: string | null
-          archived: boolean
-          archived_at: string | null
-          budget_id: string | null
-          client_id: string | null
-          closed_at: string | null
-          company_name: string | null
-          competitor_name: string | null
-          contact_email: string | null
-          contact_name: string | null
-          contact_phone: string | null
-          created_at: string
-          created_by: string | null
-          crm_stage: string
-          estimated_value: number
-          id: string
-          lost_at: string | null
-          name: string
-          notes: string | null
-          responsible_id: string | null
-          restored_at: string | null
-          service_line: string | null
-          source: string | null
-          stand_by_return_stage: string | null
-          stand_by_since: string | null
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          archive_notes?: string | null
-          archive_reason?: string | null
-          archived?: boolean
-          archived_at?: string | null
-          budget_id?: string | null
-          client_id?: string | null
-          closed_at?: string | null
-          company_name?: string | null
-          competitor_name?: string | null
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_phone?: string | null
-          created_at?: string
-          created_by?: string | null
-          crm_stage?: string
-          estimated_value?: number
-          id?: string
-          lost_at?: string | null
-          name: string
-          notes?: string | null
-          responsible_id?: string | null
-          restored_at?: string | null
-          service_line?: string | null
-          source?: string | null
-          stand_by_return_stage?: string | null
-          stand_by_since?: string | null
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          archive_notes?: string | null
-          archive_reason?: string | null
-          archived?: boolean
-          archived_at?: string | null
-          budget_id?: string | null
-          client_id?: string | null
-          closed_at?: string | null
-          company_name?: string | null
-          competitor_name?: string | null
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_phone?: string | null
-          created_at?: string
-          created_by?: string | null
-          crm_stage?: string
-          estimated_value?: number
-          id?: string
-          lost_at?: string | null
-          name?: string
-          notes?: string | null
-          responsible_id?: string | null
-          restored_at?: string | null
-          service_line?: string | null
-          source?: string | null
-          stand_by_return_stage?: string | null
-          stand_by_since?: string | null
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "leads_budget_id_fkey"
-            columns: ["budget_id"]
-            isOneToOne: false
-            referencedRelation: "budgets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_responsible_id_fkey"
-            columns: ["responsible_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -5197,7 +4806,6 @@ export type Database = {
           id: string
           installments_count: number
           is_continuous: boolean
-          lead_id: string | null
           manager_id: string
           name: string
           nf_emission_lead_days: number
@@ -5208,6 +4816,7 @@ export type Database = {
           onedrive_root_path: string | null
           payment_method: string
           portfolio_stage: string | null
+          prospect_id: string | null
           renewal_date: string | null
           service_line: string | null
           start_date: string
@@ -5237,7 +4846,6 @@ export type Database = {
           id?: string
           installments_count?: number
           is_continuous?: boolean
-          lead_id?: string | null
           manager_id: string
           name: string
           nf_emission_lead_days?: number
@@ -5248,6 +4856,7 @@ export type Database = {
           onedrive_root_path?: string | null
           payment_method?: string
           portfolio_stage?: string | null
+          prospect_id?: string | null
           renewal_date?: string | null
           service_line?: string | null
           start_date: string
@@ -5277,7 +4886,6 @@ export type Database = {
           id?: string
           installments_count?: number
           is_continuous?: boolean
-          lead_id?: string | null
           manager_id?: string
           name?: string
           nf_emission_lead_days?: number
@@ -5288,6 +4896,7 @@ export type Database = {
           onedrive_root_path?: string | null
           payment_method?: string
           portfolio_stage?: string | null
+          prospect_id?: string | null
           renewal_date?: string | null
           service_line?: string | null
           start_date?: string
@@ -5303,13 +4912,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "projects_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
@@ -7724,11 +7326,6 @@ export type Database = {
           project_planned_month: number
           project_planned_ytd: number
         }[]
-      }
-      get_crm_received_value: { Args: { p_tenant_id: string }; Returns: number }
-      get_crm_received_value_unguarded: {
-        Args: { p_tenant_id: string }
-        Returns: number
       }
       get_employee_directory: {
         Args: never

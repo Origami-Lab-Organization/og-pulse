@@ -11,8 +11,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
 import { useMarkProspectWon } from '@/hooks/useProspects';
-import { toISODate, type ProspectWithCompany } from '@/types/prospect';
+import { ProspectProjectDialog } from './ProspectProjectDialog';
+import { toISODate, type ProspectStage, type ProspectWithCompany } from '@/types/prospect';
+
+const ETAPA_GANHO: ProspectStage = 'ganho';
 
 interface ProspectWonDialogProps {
   prospect: ProspectWithCompany | null;
@@ -27,12 +31,20 @@ interface ProspectWonDialogProps {
  * pular é uma escolha visível: o card fica sinalizado "Sem valor" até alguém preencher, em
  * vez de o ganho entrar como R$ 0 e puxar o ticket médio para baixo em silêncio.
  * Aberto num contato que já está em Ganho, corrige data e valor.
+ *
+ * Ganho novo oferece criar o projeto na sequência (29/09/2026) — era o "Fechar negócio" das
+ * Oportunidades. É oferta, não passo obrigatório: quem ainda não tem data de início fecha e
+ * cria depois pela ficha do contato.
  */
 export function ProspectWonDialog(props: ProspectWonDialogProps) {
   const { prospect, open, onOpenChange } = props;
   const registrar = useMarkProspectWon();
   const [data, setData] = useState(toISODate(new Date()));
   const [valor, setValor] = useState(0);
+  // Cópia do contato ganho: o pai zera `prospect` ao fechar, e a oferta vem depois.
+  const [ganho, setGanho] = useState<ProspectWithCompany | null>(null);
+  const [projetoAberto, setProjetoAberto] = useState(false);
+  const { can } = useAuth();
 
   useEffect(() => {
     if (!open || !prospect) return;
@@ -40,17 +52,43 @@ export function ProspectWonDialog(props: ProspectWonDialogProps) {
     setValor(prospect.won_value ?? 0);
   }, [open, prospect]);
 
-  if (!prospect) return null;
+  const posGanho = (
+    <>
+      <OfertaDeProjeto
+        aberta={!!ganho && !projetoAberto}
+        onAgoraNao={() => setGanho(null)}
+        onCriar={() => setProjetoAberto(true)}
+      />
+      <ProspectProjectDialog
+        prospect={ganho}
+        open={projetoAberto}
+        onOpenChange={(aberto) => {
+          setProjetoAberto(aberto);
+          if (!aberto) setGanho(null);
+        }}
+      />
+    </>
+  );
+
+  if (!prospect) return posGanho;
+
+  const editando = !!prospect.won_on;
 
   const salvar = (comValor: boolean) =>
     registrar.mutate(
       { id: prospect.id, wonOn: data, value: comValor ? valor : null },
-      { onSuccess: () => onOpenChange(false) },
+      {
+        onSuccess: () => {
+          onOpenChange(false);
+          if (!editando && can('projeto:editar')) {
+            setGanho({ ...prospect, stage: ETAPA_GANHO, won_on: data, won_value: comValor ? valor : null });
+          }
+        },
+      },
     );
 
-  const editando = !!prospect.won_on;
-
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -87,6 +125,9 @@ export function ProspectWonDialog(props: ProspectWonDialogProps) {
         />
       </DialogContent>
     </Dialog>
+
+      {posGanho}
+    </>
   );
 }
 
@@ -122,5 +163,25 @@ function Rodape(props: RodapeProps) {
         </Button>
       </div>
     </DialogFooter>
+  );
+}
+
+function OfertaDeProjeto(props: { aberta: boolean; onAgoraNao: () => void; onCriar: () => void }) {
+  const { aberta, onAgoraNao, onCriar } = props;
+  return (
+    <Dialog open={aberta} onOpenChange={(v) => !v && onAgoraNao()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Ganho registrado</DialogTitle>
+          <DialogDescription>
+            Quer criar o projeto agora? Com orçamento vinculado, equipe, fornecedores e materiais vêm dele.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onAgoraNao}>Agora não</Button>
+          <Button onClick={onCriar}>Criar projeto</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

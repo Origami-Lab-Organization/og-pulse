@@ -11,16 +11,18 @@ ferramentas de Oportunidade saíram do `og-pulse-drive` em 29/09/2026.
 |---|---|
 | `list_prospecting_options` | Etapas (e como se chega a cada uma, inclusive Ganho e Perda), canais, alavancas, motivos de perda, períodos das métricas e responsáveis válidos |
 | `search_companies` | Busca empresas por parte do nome ou do CNPJ (com nº de contatos) |
+| `search_clients` | Busca clientes da carteira por nome ou CNPJ e diz se já têm empresa na Prospecção; o `client_id` liga a empresa ao cliente |
+| `lookup_cnpj` | Consulta o CNPJ na base pública da Receita (BrasilAPI): razão social, nome fantasia, segmento e cidade — não cadastra nada |
 | `check_company_duplicates` | Confere CNPJ, LinkedIn e nome idêntico antes de cadastrar, com a situação "Abordar / Não abordar" da tela Empresas |
 | `get_company` | Ficha da empresa e todos os contatos dela |
 | `create_company` | Cadastra empresa (valida CNPJ; avisa homônimo; o banco recusa CNPJ/LinkedIn duplicado) |
 | `update_company` | Atualiza empresa — vale para todos os contatos dela |
 | `list_contacts` | Lista contatos por empresa, nome, etapa, responsável e alavanca |
 | `my_agenda` | "O que tenho para hoje": tarefas pendentes até a data (o único aviso de vencimento do quadro) e toques sugeridos pela cadência |
-| `get_contact` | Ficha do contato (e-mail, telefone, redes, data e valor do ganho, motivo da perda) e últimas atividades |
+| `get_contact` | Ficha do contato (e-mail, telefone, redes, valor estimado, ganho, perda), orçamento e projeto vinculados (só leitura) e últimas atividades |
 | `create_contact` | Cadastra contato numa empresa existente, em "A abordar" |
 | `create_contact_with_company` | Cadastra contato com `company_id` **ou** empresa nova; reaproveita a empresa já cadastrada (CNPJ → LinkedIn → nome) e não duplica contato de mesmo nome/e-mail |
-| `update_contact` | Atualiza dados do contato (não muda etapa) |
+| `update_contact` | Atualiza dados do contato, inclusive valor estimado, concorrente e observações (não muda etapa) |
 | `register_activity` | Registra um toque com relato obrigatório; o banco conta, agenda e move a etapa. Cadência esgotada fica em "Em cadência" — nenhum desfecho é automático |
 | `move_contact_stage` | Move para etapa conduzida à mão (A abordar, Reunião agendada, Reunião feita, Oportunidade qualificada), com a `data` do fato — é ela que conta nas métricas |
 | `mark_contact_won` | Registra o **Ganho** (de Reunião feita em diante): data obrigatória, valor opcional; chamar de novo corrige |
@@ -31,6 +33,11 @@ ferramentas de Oportunidade saíram do `og-pulse-drive` em 29/09/2026.
 | `create_prospect_task` | Cria tarefa (texto + prazo); fica com o responsável do contato |
 | `update_prospect_task` | Altera texto/prazo, conclui ou reabre a tarefa |
 | `get_prospecting_metrics` | O mesmo cálculo da aba Métricas: números do período com variação, jornada dos ativados com taxas e gargalo, leituras, pendências, tempo de ciclo, perdas e valor ganho; quebra por alavanca ou responsável |
+
+**Oportunidades absorvidas (29/09/2026).** O Pipeline de Oportunidades saiu do Pulse e cada
+oportunidade virou contato aqui (migration `20260929120000_prospeccao_absorve_oportunidades`).
+O contato ganhou `estimated_value`, `competitor_name` e observações (`observacoes` na tool,
+`notes` no banco); orçamento e projeto passam a apontar para ele.
 
 **Desfecho.** O servidor declara `instructions` para o cliente MCP: todo pedido comercial é
 feito aqui, e cada contato termina em Ganho (`mark_contact_won`) ou Perda (`discard_contact`).
