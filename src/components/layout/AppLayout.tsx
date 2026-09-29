@@ -10,6 +10,7 @@ import { CapabilitiesUnavailableBanner } from '@/components/access/CapabilitiesU
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 import { HideValuesToggle } from '@/components/layout/HideValuesToggle';
 import { HideValuesProvider, useHideValuesPreference } from '@/contexts/HideValuesContext';
+import { cn } from '@/lib/utils';
 
 // The shadcn SidebarProvider writes this cookie on every state change but never reads it.
 // Reading it here persists the collapsed/expanded state across page navigations.
@@ -53,6 +54,14 @@ interface AppLayoutProps {
    * esconder o que não existe.
    */
   financialValues?: boolean;
+  /**
+   * A página ocupa exatamente a altura da janela: cabeçalho e rodapé ficam no lugar e o
+   * conteúdo se estica no espaço que sobra. Para quadros kanban, que rolam só DENTRO das
+   * colunas — com altura em `calc(100vh - Npx)`, qualquer banner ou descrição que quebre
+   * linha empurra a página e a janela inteira passa a rolar. Em janela baixa demais o
+   * conteúdo ainda rola, em vez de ser cortado.
+   */
+  fillViewport?: boolean;
 }
 
 export function AppLayout({
@@ -62,6 +71,7 @@ export function AppLayout({
   actions,
   hideHeader = false,
   financialValues = false,
+  fillViewport = false,
 }: AppLayoutProps) {
   // O provider mora aqui para a página não precisar refazer a fiação: qualquer tela pode
   // chamar `useMaskedCurrency()` e reagir ao olho, tenha ou não o botão no cabeçalho.
@@ -70,7 +80,7 @@ export function AppLayout({
   return (
     <SidebarProvider defaultOpen={getSidebarDefaultOpen()}>
       <AppSidebar />
-      <SidebarInset className="relative">
+      <SidebarInset className={cn('relative', fillViewport && 'h-svh')}>
         <DesktopSidebarToggle />
 
         {/* Mobile-only top bar */}
@@ -105,8 +115,8 @@ export function AppLayout({
         )}
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto min-w-0">
-          <div className="py-4 px-4 sm:py-6 sm:px-6 max-w-full">
+        <main className={cn('flex-1 overflow-auto min-w-0', fillViewport && 'flex min-h-0 flex-col')}>
+          <div className={cn('py-4 px-4 sm:py-6 sm:px-6 max-w-full', fillViewport && 'flex min-h-0 flex-1 flex-col')}>
             <OnboardingBanner />
             {/* Sem `key` de remontagem: quem faz a tela reagir é o contexto, então alternar o
                 olho não perde aba aberta, rolagem nem filtro preenchido. */}

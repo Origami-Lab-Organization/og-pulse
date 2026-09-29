@@ -21,6 +21,7 @@ import {
   type ProspectFilter,
 } from '@/lib/prospecting/filters';
 import { DEFAULT_PERIOD } from '@/lib/prospecting/periods';
+import { cn } from '@/lib/utils';
 import { PROSPECT_BOARD_STAGES, type ProspectWithCompany } from '@/types/prospect';
 import type { MetricFilter, PeriodSelection } from '@/types/prospectMetrics';
 
@@ -62,8 +63,12 @@ export default function Prospeccao() {
     [selecionado, todos],
   );
 
+  // O quadro prende a altura na janela e rola só dentro das colunas; as métricas rolam a página.
+  const noQuadro = aba === 'pipeline';
+
   return (
     <AppLayout
+      fillViewport={noQuadro}
       title="Prospecção"
       description="Do primeiro contato ao fechamento: cada contato termina em Ganho ou Perda"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Prospecção' }]}
@@ -74,7 +79,7 @@ export default function Prospeccao() {
         </Button>
       }
     >
-      <Tabs value={aba} onValueChange={setAba} className="space-y-4">
+      <Tabs value={aba} onValueChange={setAba} className={cn('flex flex-col gap-4', noQuadro && 'min-h-0 flex-1')}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TabsList>
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
@@ -83,7 +88,7 @@ export default function Prospeccao() {
 
           {/* Cada aba com o seu filtro: o do quadro não age sobre as métricas, e um
               controle visível que não muda a tela é pior que controle ausente. */}
-          {aba === 'pipeline' ? (
+          {noQuadro ? (
             <div className="flex flex-wrap items-center gap-2">
               {filtrando && (
                 <p className="text-sm text-muted-foreground">
@@ -104,9 +109,9 @@ export default function Prospeccao() {
           )}
         </div>
 
-        <TabsContent value="pipeline" className="space-y-3">
+        <TabsContent value="pipeline" className="mt-0 flex min-h-0 flex-1 flex-col">
           {isLoading ? (
-            <Skeleton className="h-96 w-full" />
+            <Skeleton className="w-full flex-1" />
           ) : (
             <ProspectKanbanBoard
               prospects={noFunilFiltrado}
@@ -116,7 +121,7 @@ export default function Prospeccao() {
           )}
         </TabsContent>
 
-        <TabsContent value="metricas" className="mt-5">
+        <TabsContent value="metricas" className="mt-1">
           <ProspectMetrics
             prospects={todos}
             onOpenProspect={setSelecionado}

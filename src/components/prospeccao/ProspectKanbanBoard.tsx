@@ -110,9 +110,11 @@ export function ProspectKanbanBoard({ prospects, emConversaPorEmpresa, onOpen }:
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      {/* Colunas derivadas das etapas: acrescentar uma etapa não pode exigir lembrar deste grid. */}
+      {/* Colunas derivadas das etapas: acrescentar uma etapa não pode exigir lembrar deste grid.
+          A altura vem do espaço que sobra na página (AppLayout `fillViewport`), não de uma
+          conta com o viewport: o piso só impede colunas espremidas em janela baixa. */}
       <div
-        className="grid gap-3 h-[calc(100vh-290px)] overflow-x-auto"
+        className="grid min-h-[20rem] flex-1 grid-rows-1 gap-3 overflow-x-auto"
         style={{ gridTemplateColumns: `repeat(${PROSPECT_BOARD_STAGES.length}, minmax(210px, 1fr))` }}
       >
         {PROSPECT_BOARD_STAGES.map((stage) => {
