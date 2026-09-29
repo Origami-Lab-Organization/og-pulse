@@ -1,0 +1,5 @@
+# WhisperX traz junto torch, faster-whisper/ctranslate2 e pyannote.audio.
+# A instalação é grande (vários GB) — ver README para a ordem certa com GPU.
+whisperx>=3.3.0
+supabase>=2.9.0
+requests>=2.32.0
