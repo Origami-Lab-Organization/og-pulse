@@ -292,6 +292,9 @@ export interface ProspectCompanyDB {
   /** Leitura do site oficial (Edge Function company-site-scan). */
   site_scan?: import('@/types/receita').SiteScan | null;
   site_scan_em?: string | null;
+  /** Cruzamento de fomento público (Edge Function company-funding-check). */
+  fomento?: import('@/types/receita').FundingSignals | null;
+  fomento_consultado_em?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

@@ -57,3 +57,13 @@ verify_jwt = false
 # leitura/escrita passa pela RLS de quem chama, como nas outras funções autenticadas.
 [functions.company-site-scan]
 verify_jwt = false
+
+# Cruza a empresa com fomento público (BNDES, FINEP, Lei do Bem, Transparência). Sessão
+# validada dentro; leitura/escrita sob a RLS de quem chama.
+[functions.company-funding-check]
+verify_jwt = false
+
+# Gatilhos comerciais: chamada só pelo cron diário. A função confere o Bearer contra a
+# service role key; verify_jwt desligado como nos outros notify-* agendados.
+[functions.company-watch]
+verify_jwt = false

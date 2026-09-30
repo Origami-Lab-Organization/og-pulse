@@ -7,6 +7,7 @@ import { createProspect } from '@/services/prospectService';
 import {
   fetchCompanyPartners,
   scanCompanySite,
+  checkCompanyFunding,
   SiteScanError,
   saveCompanyReceita,
   updatePartner,
@@ -78,6 +79,27 @@ export function useScanCompanySite() {
     onError: (err: unknown) => {
       const descricao = err instanceof SiteScanError ? err.message : mensagemParaUsuario(err);
       toast({ title: 'Não foi possível ler o site', description: descricao, variant: 'destructive' });
+    },
+  });
+}
+
+/** "Consultar fomento": Lei do Bem, FINEP, BNDES e contratos com o governo, pelo CNPJ. */
+export function useCheckCompanyFunding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (empresa: ProspectCompanyDB) => checkCompanyFunding(empresa.id),
+    onSuccess: ({ indisponiveis }, empresa) => {
+      invalidarEmpresa(qc, empresa.id);
+      toast({
+        title: 'Fomento consultado',
+        description: indisponiveis.length
+          ? `${empresa.name} — sem resposta de: ${indisponiveis.join(', ')}. O resto foi gravado.`
+          : empresa.name,
+      });
+    },
+    onError: (err: unknown) => {
+      const descricao = err instanceof SiteScanError ? err.message : mensagemParaUsuario(err);
+      toast({ title: 'Não foi possível consultar o fomento', description: descricao, variant: 'destructive' });
     },
   });
 }

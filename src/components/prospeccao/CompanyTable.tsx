@@ -245,7 +245,7 @@ function pararPropagacao(e: MouseEvent) {
 
 /** A maior nota e a frente dela no título: a lista ordena por "quem vale abordar primeiro". */
 function CelulaFit({ row }: { row: CompanyRow }) {
-  const melhor = bestFit(companyFit(row.company));
+  const melhor = bestFit(companyFit(row.company, row.company.fomento ?? null));
   if (!melhor) return <Vazio />;
   return (
     <span

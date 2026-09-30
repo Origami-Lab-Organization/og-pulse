@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { rpc, tabela } from '@/services/prospectingTables';
-import type { ProspectCompanyPartnerDB, ReceitaSnapshot, SiteScan } from '@/types/receita';
+import type { FundingSignals, ProspectCompanyPartnerDB, ReceitaSnapshot, SiteScan } from '@/types/receita';
 
 /**
  * Retrato da Receita e quadro de sócios da empresa (29/09/2026, ADR-0041).
@@ -48,4 +48,20 @@ export async function scanCompanySite(companyId: string): Promise<SiteScan> {
     throw new SiteScanError(corpo?.error ?? 'Não foi possível ler o site agora.');
   }
   return (data as { achados: SiteScan }).achados;
+}
+
+export interface FundingCheckResult {
+  fomento: FundingSignals;
+  /** Fontes que não responderam nesta consulta — o resto foi gravado. */
+  indisponiveis: string[];
+}
+
+/** Cruza a empresa com BNDES, FINEP, Lei do Bem e Portal da Transparência (company-funding-check). */
+export async function checkCompanyFunding(companyId: string): Promise<FundingCheckResult> {
+  const { data, error } = await supabase.functions.invoke('company-funding-check', { body: { company_id: companyId } });
+  if (error) {
+    const corpo = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    throw new SiteScanError(corpo?.error ?? 'Não foi possível consultar o fomento agora.');
+  }
+  return data as FundingCheckResult;
 }

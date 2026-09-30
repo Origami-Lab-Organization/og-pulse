@@ -121,7 +121,7 @@ const VALOR_DE_ORDEM: Record<CompanySortKey, (r: CompanyRow) => string | number 
   tier: (r) => r.tier,
   next: (r) => r.nextTaskOn,
   // Maior nota entre as frentes (fit.ts); sem dados da Receita, vai para o fim.
-  fit: (r) => bestFit(companyFit(r.company))?.nota ?? null,
+  fit: (r) => bestFit(companyFit(r.company, r.company.fomento ?? null))?.nota ?? null,
 };
 
 /** Nulos vão sempre para o fim, nos dois sentidos; empate desempata por nome. */

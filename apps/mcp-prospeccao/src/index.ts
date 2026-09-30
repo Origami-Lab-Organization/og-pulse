@@ -225,9 +225,11 @@ server.tool(
     const lista = contatos.length ? contatos.map((p) => fmt.contatoResumo(p, pessoas)) : ['Nenhum contato ainda.'];
     const socios = await db.sociosDaEmpresa(company_id);
     const receita = fmt.receitaDaEmpresa(empresa);
+    const extras = [fmt.fitDaEmpresa(empresa), fmt.fomentoDaEmpresa(empresa)].filter((t): t is string => !!t);
     return [
       fmt.empresaCompleta(empresa),
       ...(receita ? ['', receita] : []),
+      ...extras.flatMap((t) => ['', t]),
       '',
       fmt.redeDaEmpresa(socios),
       '',

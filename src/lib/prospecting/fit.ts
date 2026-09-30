@@ -81,6 +81,11 @@ function fomentoPontos(fomento: FundingSignals | null, lucroReal: boolean): Pont
   ];
 }
 
+function governoPontos(fomento: FundingSignals | null): Pontos {
+  const contratos = fomento?.governo?.contratos ?? 0;
+  return [[contratos > 0 ? 10 : 0, `Vende para o governo federal (${contratos} contrato(s)) — porte real`]];
+}
+
 function financiamentoPontos(empresa: ProspectCompanyDB, fomento: FundingSignals | null): Pontos {
   const sinal = leiDoBemSignal(empresa.regime_tributario);
   const { sinais } = sinaisDoSite(empresa);
@@ -95,7 +100,7 @@ function financiamentoPontos(empresa: ProspectCompanyDB, fomento: FundingSignals
   ];
 }
 
-function consultoriaPontos(empresa: ProspectCompanyDB): Pontos {
+function consultoriaPontos(empresa: ProspectCompanyDB, fomento: FundingSignals | null): Pontos {
   const { sinais } = sinaisDoSite(empresa);
   const maturidade = sinais.filter((s) => SINAIS_DE_MATURIDADE.has(s));
   const idade = anosDesde(empresa.data_abertura);
@@ -104,13 +109,14 @@ function consultoriaPontos(empresa: ProspectCompanyDB): Pontos {
     industriaPontos(empresa, 20, 12),
     [idade != null && idade >= 5 ? 15 : 0, 'Mais de 5 anos de operação'],
     [Math.min(15, maturidade.length * 8), `Site fala em ${maturidade.join(' e ')}`],
+    ...governoPontos(fomento),
   ];
 }
 
 const FRENTES: Array<{ frente: FitFront; rotulo: string; pontos: (e: ProspectCompanyDB, f: FundingSignals | null) => Pontos }> = [
   { frente: 'software', rotulo: 'Indústria · software e integração', pontos: (e) => softwarePontos(e) },
   { frente: 'financiamento', rotulo: 'Financiamento de inovação', pontos: financiamentoPontos },
-  { frente: 'consultoria', rotulo: 'Consultoria', pontos: (e) => consultoriaPontos(e) },
+  { frente: 'consultoria', rotulo: 'Consultoria', pontos: consultoriaPontos },
 ];
 
 export function companyFit(empresa: ProspectCompanyDB, fomento: FundingSignals | null = null): CompanyFit[] | null {

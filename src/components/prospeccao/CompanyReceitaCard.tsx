@@ -14,6 +14,7 @@ import type { LeiDoBemSignal, ReceitaDetails } from '@/types/receita';
 import { CompanyPartnersList } from './CompanyPartnersList';
 import { CompanySiteSection } from './CompanySiteSection';
 import { CompanyFitSection } from './CompanyFitSection';
+import { CompanyFundingSection } from './CompanyFundingSection';
 
 interface CompanyReceitaCardProps {
   empresa: ProspectCompanyDB;
@@ -63,6 +64,7 @@ export function CompanyReceitaCard({ empresa, podeEditar }: CompanyReceitaCardPr
       {consultada ? <Retrato empresa={empresa} /> : <SemConsulta temCnpj={!!empresa.cnpj} />}
 
       <CompanySiteSection empresa={empresa} podeEditar={podeEditar} />
+      <CompanyFundingSection empresa={empresa} podeEditar={podeEditar} />
       <CompanyPartnersList empresa={empresa} podeEditar={podeEditar} />
     </section>
   );
@@ -93,7 +95,7 @@ function Retrato({ empresa }: { empresa: ProspectCompanyDB }) {
         </div>
       )}
 
-      <CompanyFitSection empresa={empresa} />
+      <CompanyFitSection empresa={empresa} fomento={empresa.fomento ?? null} />
 
       <div className="flex flex-wrap gap-1.5">
         {industria && (

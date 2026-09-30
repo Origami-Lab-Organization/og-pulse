@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, FileUp, Search, X } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -63,6 +64,17 @@ export default function ProspeccaoEmpresas() {
   const [empresaAberta, setEmpresaAberta] = useState<string | null>(null);
   const [contatoAberto, setContatoAberto] = useState<ProspectWithCompany | null>(null);
   const [importando, setImportando] = useState(false);
+  // `?empresa=<id>`: o link das notificações de gatilho (company-watch) abre a ficha.
+  const [params, setParams] = useSearchParams();
+  const empresaDoLink = params.get('empresa');
+  useEffect(() => {
+    if (!empresaDoLink) return;
+    setEmpresaAberta(empresaDoLink);
+    setParams((atual) => {
+      atual.delete('empresa');
+      return atual;
+    }, { replace: true });
+  }, [empresaDoLink, setParams]);
   const { can } = useAuth();
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);

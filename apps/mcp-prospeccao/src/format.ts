@@ -22,6 +22,7 @@ import {
 import { resolveProspectValue } from '@/lib/prospecting/value';
 import { LEI_DO_BEM_LABEL, isSituacaoAtiva, leiDoBemSignal, porteLabel } from '@/lib/prospecting/receita';
 import { industryLabel, industrySignal } from '@/lib/prospecting/industria';
+import { companyFit } from '@/lib/prospecting/fit';
 import type { ProspectCompanyPartnerDB, ReceitaSnapshot } from '@/types/receita';
 import type { ClientLite, ContactDeal } from './types.js';
 
@@ -297,4 +298,24 @@ export function negocio(p: ProspectWithCompany, n: ContactDeal): string {
     ],
     '\n',
   );
+}
+
+/** Fit com cada frente da Origami e o porquê — a mesma regra da tela (src/lib/prospecting/fit.ts). */
+export function fitDaEmpresa(e: ProspectCompanyDB): string | null {
+  const fits = companyFit(e, e.fomento ?? null);
+  if (!fits) return null;
+  const linhas = [...fits]
+    .sort((a, b) => b.nota - a.nota)
+    .map((f) => `- **${f.rotulo}: ${f.nota}/100** — ${f.motivos.map((m) => m.texto).join('; ') || 'sem sinais'}`);
+  return ['**Fit com a Origami:**', ...linhas].join('\n');
+}
+
+/** Fomento público gravado na empresa (Lei do Bem, FINEP/BNDES, governo). */
+export function fomentoDaEmpresa(e: ProspectCompanyDB): string | null {
+  const f = e.fomento;
+  if (!f) return null;
+  const lei = { ja_usa: 'já declara', nunca_usou: 'nunca apareceu na lista', desconhecido: 'lista ainda não importada' }[f.leiDoBem];
+  const ops = f.fomentos.slice(0, 5).map((o) => `- ${o.fonte}${o.ano ? ` ${o.ano}` : ''}${o.valor ? ` · ${reais(o.valor)}` : ''}${o.instrumento ? ` · ${o.instrumento}` : ''}`);
+  const governo = f.governo ? `${f.governo.contratos} contrato(s) com o governo federal` : 'contratos com o governo: fonte não configurada';
+  return [`**Fomento público:** Lei do Bem ${lei}${f.leiDoBemAno ? ` (ano-base ${f.leiDoBemAno})` : ''} · ${governo}`, ...ops].join('\n');
 }
