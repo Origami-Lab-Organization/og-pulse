@@ -4,6 +4,7 @@
 import { readFile } from 'node:fs/promises';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { receitaFromBrasilApi, type ReceitaSnapshot, type RespostaBrasilApi } from '../supabase/functions/_shared/receita';
+import { montarSinais, operacoesBndes, type LinhaDeReferencia } from '../supabase/functions/_shared/fomento';
 
 const PAUSA_MS = 400;
 const args = process.argv.slice(2);
@@ -12,6 +13,10 @@ const opcao = (nome: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const aplicar = args.includes('--aplicar');
+// Só recalcula o fomento das empresas do arquivo que já estão no tenant (nada de Receita).
+const soFomento = args.includes('--so-fomento');
+// --porte DEMAIS = só médias e grandes (a Receita não separa as duas; micro e pequena ficam fora).
+const portes = opcao('porte')?.split(',').map((p) => p.trim().toUpperCase());
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function cnpjsDoArquivo(texto: string): string[] {
@@ -40,6 +45,26 @@ async function existentes(supabase: SupabaseClient, tenant: string, cnpjs: strin
   return new Set((data ?? []).map((e: { cnpj: string }) => e.cnpj));
 }
 
+let temLeiDoBem: boolean | null = null;
+
+/** O mesmo cruzamento do botão "Consultar" (company-funding-check), sem o Portal da Transparência. */
+async function gravarFomento(supabase: SupabaseClient, companyId: string, cnpj: string): Promise<void> {
+  if (temLeiDoBem === null) {
+    const { count } = await supabase.from('fomento_publico').select('id', { count: 'exact', head: true }).eq('fonte', 'lei_do_bem');
+    temLeiDoBem = (count ?? 0) > 0;
+  }
+  const [{ data: referencia }, bndes] = await Promise.all([
+    supabase.from('fomento_publico').select('fonte, ano, valor, instrumento, descricao').eq('cnpj', cnpj).limit(200),
+    operacoesBndes(cnpj).catch(() => []),
+  ]);
+  const fomento = montarSinais((referencia ?? []) as LinhaDeReferencia[], temLeiDoBem, bndes, null);
+  const { error } = await supabase
+    .from('prospect_companies')
+    .update({ fomento, fomento_consultado_em: new Date().toISOString() })
+    .eq('id', companyId);
+  if (error) throw new Error(`fomento: ${error.message}`);
+}
+
 async function gravar(supabase: SupabaseClient, tenant: string, cnpj: string, receita: ReceitaSnapshot): Promise<void> {
   const origem = opcao('origem');
   const { data: empresa, error } = await supabase
@@ -60,19 +85,38 @@ async function gravar(supabase: SupabaseClient, tenant: string, cnpj: string, re
     p_receita: receita,
   });
   if (erroReceita) throw new Error(`receita: ${erroReceita.message}`);
+  await gravarFomento(supabase, empresa.id, cnpj);
 }
 
-async function processar(supabase: SupabaseClient | null, tenant: string, cnpj: string, n: number): Promise<boolean> {
+type Desfecho = 'criadas' | 'foraDoPorte' | 'falhas';
+
+async function processar(supabase: SupabaseClient | null, tenant: string, cnpj: string, n: number): Promise<Desfecho> {
   try {
     const receita = await consultar(cnpj);
+    if (portes && !portes.includes((receita.porte ?? '').toUpperCase())) {
+      console.log(`${n}. fora do porte: ${receita.nomeFantasia ?? receita.razaoSocial} (${receita.porte ?? 'sem porte'})`);
+      return 'foraDoPorte';
+    }
     if (supabase) await gravar(supabase, tenant, cnpj, receita);
     const regime = receita.regimeTributario ?? 'regime não informado';
     console.log(`${n}. ${receita.nomeFantasia ?? receita.razaoSocial} · ${receita.porte ?? '-'} · ${regime} · ${receita.socios.length} sócios`);
-    return true;
+    return 'criadas';
   } catch (erro) {
     console.log(`${n}. falhou ${cnpj}: ${(erro as Error).message}`);
-    return false;
+    return 'falhas';
   }
+}
+
+async function recalcularFomento(supabase: SupabaseClient, tenant: string, cnpjs: string[]): Promise<void> {
+  const { data, error } = await supabase.from('prospect_companies').select('id, cnpj, name').eq('tenant_id', tenant).in('cnpj', cnpjs);
+  if (error) throw new Error(`leitura de empresas: ${error.message}`);
+  let feitas = 0;
+  for (const empresa of data ?? []) {
+    await gravarFomento(supabase, empresa.id, empresa.cnpj).catch((e) => console.log(`falhou ${empresa.name}: ${(e as Error).message}`)); // harness-ok: uma empresa por volta
+    feitas += 1;
+    process.stdout.write(`\r  fomento ${feitas} de ${data?.length ?? 0}`);
+  }
+  console.log('\nfomento recalculado.');
 }
 
 async function principal() {
@@ -81,14 +125,17 @@ async function principal() {
   if (!arquivo || !tenant) throw new Error('Use --arquivo <lote.txt> --tenant <tenant_id>.');
   const cnpjs = cnpjsDoArquivo(await readFile(arquivo, 'utf8'));
   const supabase = aplicar ? cliente() : null;
+  if (soFomento) {
+    if (!supabase) throw new Error('--so-fomento exige --aplicar.');
+    return recalcularFomento(supabase, tenant, cnpjs);
+  }
   const jaTem = supabase ? await existentes(supabase, tenant, cnpjs) : new Set<string>();
   const fila = cnpjs.filter((c) => !jaTem.has(c));
   console.log(`${cnpjs.length} CNPJs no arquivo · ${jaTem.size} já no tenant · ${fila.length} a importar.`);
 
-  const resumo = { criadas: 0, falhas: 0 };
+  const resumo: Record<Desfecho, number> = { criadas: 0, foraDoPorte: 0, falhas: 0 };
   for (const [i, cnpj] of fila.entries()) {
-    const ok = await processar(supabase, tenant, cnpj, i + 1); // harness-ok: um CNPJ diferente a cada volta
-    resumo[ok ? 'criadas' : 'falhas'] += 1;
+    resumo[await processar(supabase, tenant, cnpj, i + 1)] += 1; // harness-ok: um CNPJ diferente a cada volta
     await esperar(PAUSA_MS); // harness-ok: pausa proposital (limite da BrasilAPI)
   }
   console.log(`\n${aplicar ? 'gravado' : 'simulação — nada gravado'}:`, { ...resumo, jaExistiam: jaTem.size });
