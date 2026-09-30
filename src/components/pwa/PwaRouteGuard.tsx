@@ -1,18 +1,12 @@
-import { ReactNode, useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { toast } from 'sonner';
-import { usePwaEnvironment } from '@/hooks/use-pwa-environment';
-import { isPwaAllowedRoute } from '@/lib/pwa';
+import { ReactNode } from 'react';
 
+/**
+ * Até 29/09/2026 o app instalado (PWA) abria só Timesheet e Meu Kanban e mandava o resto de
+ * volta com "disponível apenas no navegador". Agora tudo funciona no celular (ADR-0043):
+ * o guard não bloqueia mais rota nenhuma. O que continua restrito é o cache offline, que
+ * segue só na allowlist do service worker (src/sw.ts, ADR-0004) — as outras telas
+ * funcionam online, sem guardar resposta no aparelho.
+ */
 export function PwaRouteGuard({ children }: { children: ReactNode }) {
-  const location = useLocation();
-  const { isStandalone } = usePwaEnvironment();
-  const blocked = isStandalone && !isPwaAllowedRoute(location.pathname);
-
-  useEffect(() => {
-    if (blocked) toast.info('Esta funcionalidade está disponível apenas no navegador.');
-  }, [blocked]);
-
-  if (blocked) return <Navigate to="/my-timesheet" replace />;
   return <>{children}</>;
 }

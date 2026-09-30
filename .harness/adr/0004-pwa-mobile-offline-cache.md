@@ -34,3 +34,8 @@ O service worker aplica `NetworkFirst` somente a `GET`s de uma allowlist das tr�
 - História: `jornadas/tasks/funcionario/J12-pwa.md`
 - Configuração: `vite.config.ts`
 - Service worker: `src/sw.ts`
+
+
+## Atualização — 29/09/2026 (ADR-0043)
+
+A restrição de rotas do modo standalone foi retirada: o app instalado abre todas as telas. O cache offline (allowlist, chave por `sub`, 24 h, limpeza no logout) continua exatamente como descrito acima.
