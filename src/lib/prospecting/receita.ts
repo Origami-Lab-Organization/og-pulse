@@ -39,7 +39,8 @@ function socioDe(bruto: NonNullable<RespostaBrasilApi['qsa']>[number]): ReceitaP
 }
 
 function cnae(codigo?: number | null, descricao?: string | null): ReceitaCnae | null {
-  return codigo && descricao ? { codigo: String(codigo), descricao: descricao.trim() } : null;
+  // A BrasilAPI manda número: 0510200 chega como 510200. O código tem sempre 7 dígitos.
+  return codigo && descricao ? { codigo: String(codigo).padStart(7, '0'), descricao: descricao.trim() } : null;
 }
 
 function regimeMaisRecente(regimes: ReceitaDetails['regimes']) {

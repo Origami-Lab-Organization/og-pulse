@@ -68,6 +68,14 @@ export interface ReceitaSnapshot {
   socios: ReceitaPartner[];
 }
 
+/** Indústria pelo CNAE (divisões 05–33). `fonte` diz se veio do CNAE principal ou de um secundário. */
+export interface IndustrySignal {
+  industrial: boolean;
+  ramo: string | null;
+  tipo: 'extrativa' | 'transformacao' | null;
+  fonte: 'principal' | 'secundaria' | null;
+}
+
 /** Sinal de elegibilidade à Lei do Bem, lido do regime tributário. */
 export type LeiDoBemSignal = 'elegivel' | 'nao_elegivel' | 'sem_regime';
 
@@ -132,3 +140,42 @@ export interface RespostaBrasilApi {
   }> | null;
 }
 
+
+/** O que o site oficial da empresa publica (`prospect_companies.site_scan`). */
+export interface SiteScan {
+  url: string;
+  redes: { linkedin: string | null; instagram: string | null; facebook: string | null; youtube: string | null };
+  whatsapp: string[];
+  telefones: string[];
+  emails: string[];
+  /** ERPs e sistemas citados no site (TOTVS, SAP...): gancho de integração. */
+  sistemas: string[];
+  /** MES, Indústria 4.0, P&D, vagas de TI, ISO, exportação... */
+  sinais: string[];
+  paginas: string[];
+}
+
+/** As frentes que a Origami vende hoje (set/2026): sem Sprint 0. */
+export type FitFront = 'software' | 'financiamento' | 'consultoria';
+
+export interface FitReason {
+  pontos: number;
+  texto: string;
+}
+
+/** Nota de 0 a 100 de uma frente, com o porquê de cada ponto. */
+export interface CompanyFit {
+  frente: FitFront;
+  rotulo: string;
+  nota: number;
+  motivos: FitReason[];
+}
+
+/** Sinais de fomento público cruzados por CNPJ (MCTI/FINEP/BNDES) — null enquanto não importados. */
+export interface FundingSignals {
+  leiDoBem: 'ja_usa' | 'nunca_usou' | 'desconhecido';
+  /** Ano-base mais recente em que declarou a Lei do Bem. */
+  leiDoBemAno: number | null;
+  captouFomento: boolean;
+  fomentos: Array<{ fonte: 'FINEP' | 'BNDES'; ano: number | null; valor: number | null; descricao: string | null }>;
+}

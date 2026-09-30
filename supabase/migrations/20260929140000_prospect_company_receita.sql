@@ -3,7 +3,7 @@
 -- Pedido de 29/09/2026 (Italo): a busca por CNPJ traz o máximo da empresa e já grava tudo.
 -- O dado que mais pesa para a Origami é o REGIME TRIBUTÁRIO: Lei do Bem só alcança empresa
 -- no Lucro Real, e a Receita informa a forma de tributação por ano. Porte, abertura e
--- situação cadastral completam o retrato para Acesso a Capital e Sprint 0 (ADR-0041).
+-- situação cadastral completam o retrato para financiamento de inovação e software (ADR-0041).
 --
 -- Duas decisões do mesmo dia:
 --   - sócios ficam na EMPRESA, não viram contato sozinhos: quem conduz escolhe quem abordar

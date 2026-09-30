@@ -26,6 +26,9 @@ import type { ProspectWithCompany } from '@/types/prospect';
 import { AbordagemBadge, SituacaoDot, TierBadge } from './CompanyBadges';
 import { CompanyContactList } from './CompanyContactList';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
+import { CnpjLookupField } from './CnpjLookupField';
+import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
+import type { ReceitaSnapshot } from '@/types/receita';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface CompanyDetailDialogProps {
@@ -201,9 +204,24 @@ const CAMPOS: ReadonlyArray<{ chave: keyof Rascunho; rotulo: string; largo?: boo
   { chave: 'tier', rotulo: 'Tier', placeholder: '1, 2 ou 3' },
 ];
 
+const CAMPO_CNPJ: keyof Rascunho = 'cnpj';
+
 function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
   const atualizar = useUpdateProspectCompany();
+  const gravarReceita = useSaveCompanyReceita();
   const [rascunho, setRascunho] = useState<Rascunho>(() => rascunhoInicial(row));
+  // Retrato achado pela busca de CNPJ: gravado junto ao salvar (empresa + sócios, ADR-0041).
+  const [receita, setReceita] = useState<ReceitaSnapshot | null>(null);
+  const pendente = atualizar.isPending || gravarReceita.isPending;
+
+  const aplicarReceita = (achada: ReceitaSnapshot) => {
+    setReceita(achada);
+    setRascunho((atual) => ({
+      ...atual,
+      name: atual.name.trim() ? atual.name : achada.nomeFantasia ?? achada.razaoSocial,
+      segmento: atual.segmento.trim() ? atual.segmento : achada.segmento ?? '',
+    }));
+  };
 
   const salvar = async () => {
     const { company } = row;
@@ -222,6 +240,9 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
         notes: company.notes,
       },
     });
+    if (receita && receita.cnpj === rascunho.cnpj.replace(/\D/g, '')) {
+      await gravarReceita.mutateAsync({ companyId: company.id, receita }).catch(() => undefined);
+    }
     onFechar();
   };
 
@@ -239,27 +260,43 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
             <Label htmlFor={`empresa-${campo.chave}`} className="text-[12.5px] font-medium text-muted-foreground">
               {campo.rotulo}
             </Label>
-            <Input
-              id={`empresa-${campo.chave}`}
-              value={rascunho[campo.chave]}
-              placeholder={campo.placeholder}
-              onChange={(e) => setRascunho((atual) => ({ ...atual, [campo.chave]: e.target.value }))}
-              disabled={atualizar.isPending}
-              className="h-[38px]"
-            />
+            {campo.chave === CAMPO_CNPJ ? (
+              <CnpjLookupField
+                id={`empresa-${campo.chave}`}
+                value={rascunho.cnpj}
+                onChange={(valor) => setRascunho((atual) => ({ ...atual, cnpj: valor }))}
+                onFound={aplicarReceita}
+                disabled={pendente}
+                className="h-[38px]"
+              />
+            ) : (
+              <Input
+                id={`empresa-${campo.chave}`}
+                value={rascunho[campo.chave]}
+                placeholder={campo.placeholder}
+                onChange={(e) => setRascunho((atual) => ({ ...atual, [campo.chave]: e.target.value }))}
+                disabled={pendente}
+                className="h-[38px]"
+              />
+            )}
           </div>
         ))}
+        {receita && (
+          <p className="col-span-2 text-xs text-muted-foreground" role="status">
+            Dados da Receita encontrados ({receita.socios.length} sócios): gravados ao salvar.
+          </p>
+        )}
         <p className="col-span-2 text-xs text-muted-foreground">
           Os dados da empresa valem para todos os contatos dela.
         </p>
       </div>
 
       <Rodape>
-        <Button type="button" variant="outline" onClick={onFechar} disabled={atualizar.isPending}>
+        <Button type="button" variant="outline" onClick={onFechar} disabled={pendente}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={atualizar.isPending}>
-          {atualizar.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+        <Button type="submit" disabled={pendente}>
+          {pendente && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
           Salvar alterações
         </Button>
       </Rodape>

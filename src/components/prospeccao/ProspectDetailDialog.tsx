@@ -74,6 +74,9 @@ import { ProspectTaskComposer } from './ProspectTaskComposer';
 import { ProspectTaskTimeline } from './ProspectTaskTimeline';
 import { ProspectDealCard } from './ProspectDealCard';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
+import { CnpjLookupField } from './CnpjLookupField';
+import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
+import type { ReceitaSnapshot } from '@/types/receita';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProspectProjectDialog } from './ProspectProjectDialog';
 
@@ -117,18 +120,22 @@ export function ProspectDetailDialog({
   const [reuniaoAberta, setReuniaoAberta] = useState(false);
   const [projetoAberto, setProjetoAberto] = useState(false);
   const [rascunho, setRascunho] = useState<Record<string, string>>({});
+  // Retrato achado pela busca de CNPJ na edição: gravado junto ao salvar a empresa.
+  const [receitaDaEdicao, setReceitaDaEdicao] = useState<ReceitaSnapshot | null>(null);
+  const gravarReceita = useSaveCompanyReceita();
 
   useEffect(() => {
     if (!open || !prospect) return;
     setEditando(false);
     setRascunho(rascunhoInicial(prospect));
+    setReceitaDaEdicao(null);
   }, [open, prospect]);
 
   if (!prospect) return null;
 
   const somenteLeitura = isProspectReadOnly(prospect);
   const empresa = prospect.company;
-  const salvando = atualizarContato.isPending || atualizarEmpresa.isPending;
+  const salvando = atualizarContato.isPending || atualizarEmpresa.isPending || gravarReceita.isPending;
   const respostas = atividades.filter((a) => a.got_response).length;
   const ultima = atividades[0]?.activity_date ?? null;
   const responsavel = diretorio.find((p) => p.id === prospect.owner_id)?.nome ?? null;
@@ -136,6 +143,10 @@ export function ProspectDetailDialog({
   const salvar = async () => {
     if (empresa) {
       await atualizarEmpresa.mutateAsync({ id: empresa.id, input: empresaDoRascunho(rascunho, empresa) });
+      const cnpjDoRascunho = (rascunho.company_cnpj ?? '').replace(/\D/g, '');
+      if (receitaDaEdicao && receitaDaEdicao.cnpj === cnpjDoRascunho) {
+        await gravarReceita.mutateAsync({ companyId: empresa.id, receita: receitaDaEdicao }).catch(() => undefined);
+      }
     }
     await atualizarContato.mutateAsync({ id: prospect.id, updates: contatoDoRascunho(rascunho, prospect) });
     setEditando(false);
@@ -143,6 +154,16 @@ export function ProspectDetailDialog({
 
   const definir = (campo: string) => (valor: string) =>
     setRascunho((atual) => ({ ...atual, [campo]: valor }));
+
+  // A Receita só preenche o que está vazio: o que a pessoa escreveu vence.
+  const aplicarReceita = (receita: ReceitaSnapshot) => {
+    setReceitaDaEdicao(receita);
+    setRascunho((atual) => ({
+      ...atual,
+      company_name: atual.company_name?.trim() ? atual.company_name : receita.nomeFantasia ?? receita.razaoSocial,
+      company_segment: atual.company_segment?.trim() ? atual.company_segment : receita.segmento ?? '',
+    }));
+  };
 
   const abrirEdicao = () => setEditando(true);
 
@@ -218,6 +239,8 @@ export function ProspectDetailDialog({
               editando={editando}
               rascunho={rascunho}
               definir={definir}
+              onReceita={aplicarReceita}
+              receitaAchada={receitaDaEdicao}
               podeEditar={!somenteLeitura}
               onEditar={abrirEdicao}
             />
@@ -653,6 +676,8 @@ function CartaoEmpresa({
   definir,
   podeEditar,
   onEditar,
+  onReceita,
+  receitaAchada,
 }: {
   empresa?: ProspectCompanyDB | null;
   editando: boolean;
@@ -660,6 +685,8 @@ function CartaoEmpresa({
   definir: (campo: string) => (valor: string) => void;
   podeEditar: boolean;
   onEditar: () => void;
+  onReceita: (receita: ReceitaSnapshot) => void;
+  receitaAchada: ReceitaSnapshot | null;
 }) {
   const chips = [empresa?.segment, empresa?.ring && `Anel ${empresa.ring}`, empresa?.tier && `Tier ${empresa.tier}`]
     .filter(Boolean) as string[];
@@ -671,7 +698,20 @@ function CartaoEmpresa({
       {editando ? (
         <div className="space-y-3">
           <Campo label="Nome" draft={rascunho.company_name} onChange={definir('company_name')} />
-          <Campo label="CNPJ" draft={rascunho.company_cnpj} onChange={definir('company_cnpj')} />
+          <div className="space-y-1">
+            <Label htmlFor="ficha-empresa-cnpj" className="text-xs text-muted-foreground">CNPJ</Label>
+            <CnpjLookupField
+              id="ficha-empresa-cnpj"
+              value={rascunho.company_cnpj ?? ''}
+              onChange={definir('company_cnpj')}
+              onFound={onReceita}
+            />
+            {receitaAchada && (
+              <p className="text-xs text-muted-foreground" role="status">
+                Dados da Receita encontrados ({receitaAchada.socios.length} sócios): gravados ao salvar.
+              </p>
+            )}
+          </div>
           <Campo label="LinkedIn" draft={rascunho.company_linkedin} onChange={definir('company_linkedin')} />
           <Campo label="Instagram" draft={rascunho.company_instagram} onChange={definir('company_instagram')} />
           <Campo label="Site" draft={rascunho.company_website} onChange={definir('company_website')} />
@@ -940,7 +980,7 @@ function rascunhoInicial(prospect: ProspectWithCompany): Record<string, string> 
   const empresa = prospect.company;
   return {
     company_name: empresa?.name ?? '',
-    company_cnpj: empresa?.cnpj ?? '',
+    company_cnpj: empresa?.cnpj ? formatCNPJ(empresa.cnpj) : '',
     company_linkedin: empresa?.linkedin_url ?? '',
     company_instagram: empresa?.instagram_url ?? '',
     company_website: empresa?.website ?? '',

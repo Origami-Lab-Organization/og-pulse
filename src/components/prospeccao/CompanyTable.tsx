@@ -10,6 +10,7 @@ import { COMPANY_STATUS_META, type CompanyRow } from '@/lib/prospecting/companyS
 import { nomeCurto } from '@/lib/prospecting/iniciais';
 import { comProtocolo, urlDoInstagram } from '@/lib/prospecting/links';
 import { cn } from '@/lib/utils';
+import { bestFit, companyFit } from '@/lib/prospecting/fit';
 import {
   AbordagemBadge,
   AnelBadge,
@@ -27,11 +28,11 @@ interface CompanyTableProps {
 
 /** Mesmo grid no cabeçalho e nas linhas: é o que mantém as colunas alinhadas sem <table>. */
 const GRADE =
-  'grid grid-cols-[minmax(250px,2.2fr)_minmax(170px,1.4fr)_60px_60px_124px_minmax(140px,1fr)_80px_minmax(140px,1fr)_124px] items-center gap-x-4 px-5';
+  'grid grid-cols-[minmax(250px,2.2fr)_minmax(170px,1.4fr)_60px_60px_56px_124px_minmax(140px,1fr)_80px_minmax(140px,1fr)_124px] items-center gap-x-4 px-5';
 
 export function CompanyTable({ rows, sort, onSort, onOpen }: CompanyTableProps) {
   return (
-    <div role="table" aria-label="Empresas" className="min-w-[1180px]">
+    <div role="table" aria-label="Empresas" className="min-w-[1250px]">
       <div role="rowgroup">
         <div
           role="row"
@@ -44,6 +45,9 @@ export function CompanyTable({ rows, sort, onSort, onOpen }: CompanyTableProps) 
           </Cabecalho>
           <Cabecalho chave="tier" sort={sort} onSort={onSort} centro titulo="Prioridade da conta">
             Tier
+          </Cabecalho>
+          <Cabecalho chave="fit" sort={sort} onSort={onSort} centro titulo="Maior nota de fit entre as frentes da Origami (0 a 100)">
+            Fit
           </Cabecalho>
           <div role="columnheader">Abordagem</div>
           <div role="columnheader">Situação</div>
@@ -124,6 +128,7 @@ function Linha({ row, onOpen }: { row: CompanyRow; onOpen: () => void }) {
       <div role="cell" className="flex justify-center">
         {row.tier ? <TierBadge tier={row.tier} /> : <Vazio />}
       </div>
+      <div role="cell" className="flex justify-center"><CelulaFit row={row} /></div>
       <div role="cell"><AbordagemBadge status={row.status} /></div>
       <div role="cell" className="min-w-0" title={COMPANY_STATUS_META[row.status].hint}>
         <span className="flex items-center gap-2 text-[13.5px]">
@@ -236,4 +241,21 @@ function Vazio() {
 
 function pararPropagacao(e: MouseEvent) {
   e.stopPropagation();
+}
+
+/** A maior nota e a frente dela no título: a lista ordena por "quem vale abordar primeiro". */
+function CelulaFit({ row }: { row: CompanyRow }) {
+  const melhor = bestFit(companyFit(row.company));
+  if (!melhor) return <Vazio />;
+  return (
+    <span
+      className={cn(
+        'rounded-md px-1.5 py-0.5 text-[12.5px] font-semibold tabular-nums',
+        melhor.nota >= 70 ? 'bg-success-subtle text-success-emphasis' : melhor.nota >= 40 ? 'bg-muted text-foreground' : 'text-muted-foreground',
+      )}
+      title={`${melhor.rotulo}: ${melhor.nota}`}
+    >
+      {melhor.nota}
+    </span>
+  );
 }

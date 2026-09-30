@@ -52,3 +52,8 @@ verify_jwt = false
 [functions.notify-installment-alerts]
 verify_jwt = false
 
+
+# Lê o site da empresa da Prospecção. A sessão é validada dentro (auth.getUser) e toda
+# leitura/escrita passa pela RLS de quem chama, como nas outras funções autenticadas.
+[functions.company-site-scan]
+verify_jwt = false

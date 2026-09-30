@@ -42,6 +42,8 @@ sources:
 # ganha budgets.prospect_id, projects.prospect_id, estimated_value/notes/competitor_name;
 # conferido contra ProspectDB e ensaiado sobre o dump de produção (ida/volta/ida).
 # 29/09/2026: 20260929140000 — retrato da Receita em prospect_companies e o quadro de sócios
+# (reconferido após renumerar 130000→140000 e trocar só o comentário do cabeçalho;
+#  tabelas, colunas e relações iguais ao diagrama)
 # (prospect_company_partners), gravados pela RPC save_prospect_company_receita; conferido
 # contra ProspectCompanyDB/ProspectCompanyPartnerDB e ensaiado com retrato real.
 # Correção do deploy (mesmo dia): a migration desliga trg_*_keeps_admin só no trecho de

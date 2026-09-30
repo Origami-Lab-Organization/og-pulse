@@ -1,3 +1,4 @@
+import { bestFit, companyFit } from '@/lib/prospecting/fit';
 import { COMPANY_STATUS_META, type CompanyApproachAction, type CompanyRow } from './companyStatus';
 
 /**
@@ -9,7 +10,7 @@ import { COMPANY_STATUS_META, type CompanyApproachAction, type CompanyRow } from
 
 export type CompanyTab = 'todas' | CompanyApproachAction;
 export type CompanyFacetKey = 'setor' | 'anel' | 'tier' | 'resp';
-export type CompanySortKey = 'name' | 'anel' | 'tier' | 'next';
+export type CompanySortKey = 'name' | 'anel' | 'tier' | 'next' | 'fit';
 export type CompanyFilters = Record<CompanyFacetKey, string[]>;
 
 export const FILTROS_VAZIOS: CompanyFilters = { setor: [], anel: [], tier: [], resp: [] };
@@ -119,6 +120,8 @@ const VALOR_DE_ORDEM: Record<CompanySortKey, (r: CompanyRow) => string | number 
   anel: (r) => r.anel,
   tier: (r) => r.tier,
   next: (r) => r.nextTaskOn,
+  // Maior nota entre as frentes (fit.ts); sem dados da Receita, vai para o fim.
+  fit: (r) => bestFit(companyFit(r.company))?.nota ?? null,
 };
 
 /** Nulos vão sempre para o fim, nos dois sentidos; empate desempata por nome. */

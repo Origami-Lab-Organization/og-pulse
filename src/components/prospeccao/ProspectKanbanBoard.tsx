@@ -54,9 +54,10 @@ interface ProspectKanbanBoardProps {
   /** Empresa → contatos dela em conversa ou além (ver `contactsInConversationByCompany`). */
   emConversaPorEmpresa: Map<string, ProspectWithCompany[]>;
   onOpen: (prospect: ProspectWithCompany) => void;
+  agruparPorEmpresa?: boolean;
 }
 
-export function ProspectKanbanBoard({ prospects, emConversaPorEmpresa, onOpen }: ProspectKanbanBoardProps) {
+export function ProspectKanbanBoard({ prospects, emConversaPorEmpresa, onOpen, agruparPorEmpresa }: ProspectKanbanBoardProps) {
   const atualizarEtapa = useUpdateProspectStage();
   const { porContato: proximaTarefa } = usePendingProspectTasks();
   const [arrastando, setArrastando] = useState<ProspectWithCompany | null>(null);
@@ -131,6 +132,7 @@ export function ProspectKanbanBoard({ prospects, emConversaPorEmpresa, onOpen }:
               emConversaPorEmpresa={emConversaPorEmpresa}
               proximaTarefaPorContato={proximaTarefa}
               onOpen={onOpen}
+              agruparPorEmpresa={agruparPorEmpresa}
             />
           );
         })}

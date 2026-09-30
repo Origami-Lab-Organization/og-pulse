@@ -13,7 +13,7 @@ serviço:
 
 - **Lei do Bem** só alcança empresa tributada pelo Lucro Real, e a Receita informa a forma
   de tributação ano a ano.
-- **Acesso a Capital** e **Sprint 0** dependem de porte, idade, situação e setor.
+- **Financiamento de inovação** (FINEP, BNDES, FAPs) e **software sob medida para indústria** dependem de porte, idade, situação e setor (CNAE).
 
 Fontes avaliadas em 29/09/2026:
 

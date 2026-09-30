@@ -6,6 +6,8 @@ import { CnpjLookupError, lookupCnpj } from '@/services/cnpjLookupService';
 import { createProspect } from '@/services/prospectService';
 import {
   fetchCompanyPartners,
+  scanCompanySite,
+  SiteScanError,
   saveCompanyReceita,
   updatePartner,
   type PartnerContactFields,
@@ -60,6 +62,22 @@ export function useRefreshCompanyReceita() {
     onError: (err: unknown) => {
       const descricao = err instanceof CnpjLookupError ? err.message : mensagemParaUsuario(err);
       toast({ title: 'Não foi possível consultar a Receita', description: descricao, variant: 'destructive' });
+    },
+  });
+}
+
+/** "Ler site": redes, contatos e pistas de sistema publicados pela própria empresa. */
+export function useScanCompanySite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (empresa: ProspectCompanyDB) => scanCompanySite(empresa.id),
+    onSuccess: (_, empresa) => {
+      invalidarEmpresa(qc, empresa.id);
+      toast({ title: 'Site lido', description: empresa.name });
+    },
+    onError: (err: unknown) => {
+      const descricao = err instanceof SiteScanError ? err.message : mensagemParaUsuario(err);
+      toast({ title: 'Não foi possível ler o site', description: descricao, variant: 'destructive' });
     },
   });
 }

@@ -3,6 +3,8 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DiscardProspectDialog } from '@/components/prospeccao/DiscardProspectDialog';
 import { ProspectDetailDialog } from '@/components/prospeccao/ProspectDetailDialog';
@@ -37,6 +39,7 @@ export default function Prospeccao() {
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
   const [filtro, setFiltro] = useState<ProspectFilter>(FILTRO_VAZIO);
+  const [agrupar, setAgrupar] = useState(lerPreferenciaDeAgrupar);
   // `?contato=<id>`: o link que vem de Clientes, Projetos e das Métricas (29/09/2026).
   const [params, setParams] = useSearchParams();
   const contatoDoLink = params.get('contato');
@@ -90,6 +93,17 @@ export default function Prospeccao() {
               {noFunil.length === 1 ? 'contato' : 'contatos'}
             </p>
           )}
+          <div className="flex items-center gap-2">
+            <Switch
+              id="agrupar-empresa"
+              checked={agrupar}
+              onCheckedChange={(v) => {
+                setAgrupar(v);
+                guardarPreferenciaDeAgrupar(v);
+              }}
+            />
+            <Label htmlFor="agrupar-empresa" className="text-sm font-normal">Agrupar por empresa</Label>
+          </div>
           <ProspectFilterButton filtro={filtro} onChange={setFiltro} />
         </div>
 
@@ -100,6 +114,7 @@ export default function Prospeccao() {
             prospects={noFunilFiltrado}
             emConversaPorEmpresa={emConversaPorEmpresa}
             onOpen={setSelecionado}
+            agruparPorEmpresa={agrupar}
           />
         )}
       </div>
@@ -127,4 +142,23 @@ export default function Prospeccao() {
       />
     </AppLayout>
   );
+}
+
+/** Preferência de quem está vendo, neste navegador: conveniência, não dado do sistema. */
+const CHAVE_AGRUPAR = 'pulse.prospeccao.agruparPorEmpresa';
+
+function lerPreferenciaDeAgrupar(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_AGRUPAR) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function guardarPreferenciaDeAgrupar(valor: boolean): void {
+  try {
+    localStorage.setItem(CHAVE_AGRUPAR, valor ? '1' : '0');
+  } catch {
+    // navegação privada ou storage bloqueado: a chave só não é lembrada
+  }
 }

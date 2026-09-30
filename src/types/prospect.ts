@@ -289,6 +289,9 @@ export interface ProspectCompanyDB {
   regime_tributario_ano?: number | null;
   receita?: import('@/types/receita').ReceitaDetails | null;
   receita_consultada_em?: string | null;
+  /** Leitura do site oficial (Edge Function company-site-scan). */
+  site_scan?: import('@/types/receita').SiteScan | null;
+  site_scan_em?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

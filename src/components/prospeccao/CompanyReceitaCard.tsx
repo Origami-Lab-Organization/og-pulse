@@ -7,10 +7,13 @@ import { useRefreshCompanyReceita } from '@/hooks/useCompanyReceita';
 import { formatCurrency } from '@/lib/formatters';
 import { formatCNPJ } from '@/lib/masks';
 import { isSituacaoAtiva, LEI_DO_BEM_LABEL, leiDoBemSignal, porteLabel } from '@/lib/prospecting/receita';
+import { industryLabel, industrySignal } from '@/lib/prospecting/industria';
 import { cn } from '@/lib/utils';
 import type { ProspectCompanyDB } from '@/types/prospect';
 import type { LeiDoBemSignal, ReceitaDetails } from '@/types/receita';
 import { CompanyPartnersList } from './CompanyPartnersList';
+import { CompanySiteSection } from './CompanySiteSection';
+import { CompanyFitSection } from './CompanyFitSection';
 
 interface CompanyReceitaCardProps {
   empresa: ProspectCompanyDB;
@@ -59,6 +62,7 @@ export function CompanyReceitaCard({ empresa, podeEditar }: CompanyReceitaCardPr
 
       {consultada ? <Retrato empresa={empresa} /> : <SemConsulta temCnpj={!!empresa.cnpj} />}
 
+      <CompanySiteSection empresa={empresa} podeEditar={podeEditar} />
       <CompanyPartnersList empresa={empresa} podeEditar={podeEditar} />
     </section>
   );
@@ -77,6 +81,7 @@ function SemConsulta({ temCnpj }: { temCnpj: boolean }) {
 function Retrato({ empresa }: { empresa: ProspectCompanyDB }) {
   const sinal = leiDoBemSignal(empresa.regime_tributario);
   const ativa = isSituacaoAtiva(empresa.situacao_cadastral);
+  const industria = industryLabel(industrySignal(empresa.receita));
   return (
     <div className="space-y-3">
       {!ativa && (
@@ -88,7 +93,12 @@ function Retrato({ empresa }: { empresa: ProspectCompanyDB }) {
         </div>
       )}
 
+      <CompanyFitSection empresa={empresa} />
+
       <div className="flex flex-wrap gap-1.5">
+        {industria && (
+          <Badge variant="secondary" className="bg-primary/10 font-normal text-primary">{industria}</Badge>
+        )}
         <Badge variant="secondary" className={cn('font-normal', COR_LEI_DO_BEM[sinal])}>
           {LEI_DO_BEM_LABEL[sinal]}
           {empresa.regime_tributario_ano ? ` (${empresa.regime_tributario_ano})` : ''}

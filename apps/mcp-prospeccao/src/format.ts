@@ -21,6 +21,7 @@ import {
 } from '@/types/prospect';
 import { resolveProspectValue } from '@/lib/prospecting/value';
 import { LEI_DO_BEM_LABEL, isSituacaoAtiva, leiDoBemSignal, porteLabel } from '@/lib/prospecting/receita';
+import { industryLabel, industrySignal } from '@/lib/prospecting/industria';
 import type { ProspectCompanyPartnerDB, ReceitaSnapshot } from '@/types/receita';
 import type { ClientLite, ContactDeal } from './types.js';
 
@@ -193,6 +194,7 @@ export function dadosDoCnpj(d: ReceitaSnapshot): string {
       situacao: d.situacaoCadastral,
       abertura: d.dataAbertura,
       capital: d.capitalSocial,
+      industria: industryLabel(industrySignal(d.detalhes)),
     }),
     rotulado(
       [
@@ -220,6 +222,7 @@ interface Retrato {
   situacao: string | null;
   abertura: string | null;
   capital: number | null;
+  industria: string | null;
 }
 
 /** Os sinais que decidem a abordagem: Lei do Bem pelo regime, porte, situação e idade. */
@@ -231,6 +234,7 @@ function retratoDaReceita(r: Retrato): string {
       ['', alerta],
       ['Razão social', r.razaoSocial],
       ['CNPJ', cnpj(r.cnpj)],
+      ['Setor', r.industria ?? 'fora da indústria (CNAE)'],
       ['Lei do Bem', `${LEI_DO_BEM_LABEL[leiDoBemSignal(r.regime)]}${r.regimeAno ? ` (${r.regimeAno})` : ''}`],
       ['Porte', porteLabel(r.porte)],
       ['Abertura', r.abertura && data(r.abertura)],
@@ -254,6 +258,7 @@ export function receitaDaEmpresa(e: ProspectCompanyDB): string | null {
       situacao: e.situacao_cadastral ?? null,
       abertura: e.data_abertura ?? null,
       capital: e.capital_social ?? null,
+      industria: industryLabel(industrySignal(e.receita)),
     }).replace('(Receita, via BrasilAPI)', `(consultado em ${data(e.receita_consultada_em.slice(0, 10))})`),
   ].join('\n');
 }
