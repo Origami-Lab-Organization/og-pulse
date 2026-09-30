@@ -15,7 +15,8 @@ export type TabelaDeProspeccao =
   | 'prospect_companies'
   | 'prospect_activities'
   | 'prospect_tasks'
-  | 'prospect_stage_changes';
+  | 'prospect_stage_changes'
+  | 'prospect_company_partners';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver comentário acima
 const clienteSemTipos = supabase as any;
@@ -25,7 +26,7 @@ export function tabela(nome: TabelaDeProspeccao) {
 }
 
 /** RPCs da prospecção criadas depois da última geração de tipos (20260928160000). */
-export type RpcDeProspeccao = 'set_prospect_stage' | 'mark_prospect_won';
+export type RpcDeProspeccao = 'set_prospect_stage' | 'mark_prospect_won' | 'save_prospect_company_receita';
 
 export function rpc(nome: RpcDeProspeccao, args: Record<string, unknown>) {
   return clienteSemTipos.rpc(nome, args);

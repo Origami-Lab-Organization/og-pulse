@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, FileUp, Search, X } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BulkCompanyImportDialog } from '@/components/prospeccao/BulkCompanyImportDialog';
 import { CompanyDetailDialog } from '@/components/prospeccao/CompanyDetailDialog';
+import { useAuth } from '@/contexts/AuthContext';
 import { CompanyFilterButton } from '@/components/prospeccao/CompanyFilterButton';
 import { CompanyTable } from '@/components/prospeccao/CompanyTable';
 import { DiscardProspectDialog } from '@/components/prospeccao/DiscardProspectDialog';
@@ -35,6 +38,7 @@ import { cn } from '@/lib/utils';
 import type { ProspectWithCompany } from '@/types/prospect';
 
 const POR_PAGINA = 25;
+const ORDEM_FIT: CompanySortKey = 'fit';
 
 const ABAS: ReadonlyArray<{ valor: CompanyTab; rotulo: string }> = [
   { valor: 'todas', rotulo: 'Todas' },
@@ -59,6 +63,19 @@ export default function ProspeccaoEmpresas() {
   const [pagina, setPagina] = useState(0);
   const [empresaAberta, setEmpresaAberta] = useState<string | null>(null);
   const [contatoAberto, setContatoAberto] = useState<ProspectWithCompany | null>(null);
+  const [importando, setImportando] = useState(false);
+  // `?empresa=<id>`: o link das notificações de gatilho (company-watch) abre a ficha.
+  const [params, setParams] = useSearchParams();
+  const empresaDoLink = params.get('empresa');
+  useEffect(() => {
+    if (!empresaDoLink) return;
+    setEmpresaAberta(empresaDoLink);
+    setParams((atual) => {
+      atual.delete('empresa');
+      return atual;
+    }, { replace: true });
+  }, [empresaDoLink, setParams]);
+  const { can } = useAuth();
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
 
@@ -82,7 +99,8 @@ export default function ProspeccaoEmpresas() {
   const definirFiltro = (key: CompanyFacetKey) => (valores: string[]) =>
     setConsulta((c) => ({ ...c, filtros: { ...c.filtros, [key]: valores } }));
   const alternarOrdem = (key: CompanySortKey) =>
-    setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
+    // Fit começa do maior: a pergunta é "quem vale abordar primeiro".
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: key === ORDEM_FIT ? -1 : 1 }));
   const rotuloDoValor = (key: CompanyFacetKey) => (valor: string) => rotuloDeFaceta(key, valor, byId);
 
   return (
@@ -90,7 +108,16 @@ export default function ProspeccaoEmpresas() {
       title="Empresas"
       description="Contas da prospecção: quem já está sendo abordado e quem está livre"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Empresas' }]}
+      actions={
+        can('prospeccao:editar') && (
+          <Button onClick={() => setImportando(true)}>
+            <FileUp className="mr-2 h-4 w-4" aria-hidden="true" />
+            Importar CNPJs
+          </Button>
+        )
+      }
     >
+      <BulkCompanyImportDialog open={importando} onOpenChange={setImportando} />
       <div className="space-y-3.5">
         <div className="flex flex-wrap items-center gap-3">
           <AbasDeAbordagem

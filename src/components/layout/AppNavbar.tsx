@@ -12,7 +12,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserMenu } from "./UserMenu";
 import logo from "@/assets/logo.png";
 import { cn } from "@/lib/utils";
-import { usePwaEnvironment } from "@/hooks/use-pwa-environment";
 import { NAV_SECTIONS, isSectionActive, isSectionVisible, visibleTabs, type NavSection } from "./nav-config";
 
 export function AppNavbar() {
@@ -20,7 +19,6 @@ export function AppNavbar() {
   const navigate = useNavigate();
   const { can } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isStandalone } = usePwaEnvironment();
 
 
   // Mesmo destino de "/" (HomeRedirect) e do logo do sidebar: gerente também vai
@@ -28,10 +26,8 @@ export function AppNavbar() {
   // outros dois pontos de entrada (PUL-169).
   const homeRoute = can('configuracao:editar') ? '/admin-dashboard' : '/dashboard';
 
-  const isVisible = (section: NavSection): boolean => {
-    if (isStandalone && section.label !== "Início") return false;
-    return isSectionVisible(section, can);
-  };
+  // O app instalado mostra o menu inteiro, como o navegador (ADR-0043).
+  const isVisible = (section: NavSection): boolean => isSectionVisible(section, can);
 
   const visibleSections = NAV_SECTIONS.filter(isVisible);
 

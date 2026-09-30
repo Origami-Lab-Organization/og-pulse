@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DiscardProspectDialog } from '@/components/prospeccao/DiscardProspectDialog';
 import { ProspectDetailDialog } from '@/components/prospeccao/ProspectDetailDialog';
 import { ProspectFilterButton } from '@/components/prospeccao/ProspectFilterButton';
 import { ProspectFormDialog } from '@/components/prospeccao/ProspectFormDialog';
 import { ProspectKanbanBoard } from '@/components/prospeccao/ProspectKanbanBoard';
-import { ProspectMetrics } from '@/components/prospeccao/ProspectMetrics';
 import { ProspectWonDialog } from '@/components/prospeccao/ProspectWonDialog';
-import { MetricsFilterBar } from '@/components/prospeccao/metrics/MetricsFilterBar';
 import { useProspects } from '@/hooks/useProspects';
 import { contactsInConversationByCompany } from '@/lib/prospecting/companyStatus';
 import {
@@ -21,21 +20,17 @@ import {
   FILTRO_VAZIO,
   type ProspectFilter,
 } from '@/lib/prospecting/filters';
-import { DEFAULT_PERIOD } from '@/lib/prospecting/periods';
-import { cn } from '@/lib/utils';
 import { PROSPECT_BOARD_STAGES, type ProspectWithCompany } from '@/types/prospect';
-import type { MetricFilter, PeriodSelection } from '@/types/prospectMetrics';
 
 /**
  * Prospecção — o quadro comercial de ponta a ponta (28/09/2026): do primeiro toque ao
  * fechamento. O contato sai do trabalho de dois jeitos só, Ganho ou Perda, e os dois são
- * colunas do quadro — a aba de encerrados deixou de existir.
+ * colunas do quadro — a aba de encerrados deixou de existir. As Métricas, que eram a outra
+ * aba, viraram item do menu Comercial em 29/09/2026 (`/comercial/metricas`).
  *
  * O quadro abre primeiro: com a lista diária removida (17/09/2026), é por ele que a pessoa
  * encontra o que precisa de ação — a data de vencimento fica no card.
  */
-const ABA_METRICAS = 'metricas';
-
 export default function Prospeccao() {
   const { data: todos = [], isLoading } = useProspects();
 
@@ -44,16 +39,10 @@ export default function Prospeccao() {
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
   const [filtro, setFiltro] = useState<ProspectFilter>(FILTRO_VAZIO);
-  // Tabs controladas só para saber em qual aba o filtro faz sentido.
-  // `?aba=metricas` e `?contato=<id>`: os links que vêm de Clientes, Projetos e dos
-  // redirecionamentos das antigas Oportunidades (29/09/2026).
+  const [agrupar, setAgrupar] = useState(lerPreferenciaDeAgrupar);
+  // `?contato=<id>`: o link que vem de Clientes, Projetos e das Métricas (29/09/2026).
   const [params, setParams] = useSearchParams();
-  const [aba, setAba] = useState(params.get('aba') === ABA_METRICAS ? ABA_METRICAS : 'pipeline');
   const contatoDoLink = params.get('contato');
-  // Período e filtro das Métricas ficam aqui porque os controles moram na linha das abas.
-  const [periodoMetricas, setPeriodoMetricas] = useState<PeriodSelection>(DEFAULT_PERIOD);
-  const [filtroMetricas, setFiltroMetricas] = useState<MetricFilter>({});
-
   // O quadro inteiro: o trabalho em aberto e os dois desfechos, Ganho e Perda (28/09/2026).
   const noFunil = useMemo(
     () => todos.filter((p) => PROSPECT_BOARD_STAGES.includes(p.stage)),
@@ -81,12 +70,13 @@ export default function Prospeccao() {
     [selecionado, todos],
   );
 
-  // O quadro prende a altura na janela e rola só dentro das colunas; as métricas rolam a página.
-  const noQuadro = aba === 'pipeline';
+  // Métricas viraram item do menu (29/09/2026): link antigo com `?aba=metricas` segue valendo.
+  if (params.get('aba') === 'metricas') return <Navigate to="/comercial/metricas" replace />;
 
   return (
+    // A página é só o quadro: ele prende a altura na janela e rola só dentro das colunas.
     <AppLayout
-      fillViewport={noQuadro}
+      fillViewport
       title="Prospecção"
       description="Do primeiro contato ao fechamento: cada contato termina em Ganho ou Perda"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Prospecção' }]}
@@ -97,58 +87,39 @@ export default function Prospeccao() {
         </Button>
       }
     >
-      <Tabs value={aba} onValueChange={setAba} className={cn('flex flex-col gap-4', noQuadro && 'min-h-0 flex-1')}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <TabsList>
-            <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-            <TabsTrigger value={ABA_METRICAS}>Métricas</TabsTrigger>
-          </TabsList>
-
-          {/* Cada aba com o seu filtro: o do quadro não age sobre as métricas, e um
-              controle visível que não muda a tela é pior que controle ausente. */}
-          {noQuadro ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {filtrando && (
-                <p className="text-sm text-muted-foreground">
-                  {noFunilFiltrado.length} de {noFunil.length}{' '}
-                  {noFunil.length === 1 ? 'contato' : 'contatos'}
-                </p>
-              )}
-              <ProspectFilterButton filtro={filtro} onChange={setFiltro} />
-            </div>
-          ) : (
-            <MetricsFilterBar
-              selection={periodoMetricas}
-              onSelectionChange={setPeriodoMetricas}
-              filter={filtroMetricas}
-              onFilterChange={setFiltroMetricas}
-              prospects={todos}
-            />
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {filtrando && (
+            <p className="text-sm text-muted-foreground">
+              {noFunilFiltrado.length} de {noFunil.length}{' '}
+              {noFunil.length === 1 ? 'contato' : 'contatos'}
+            </p>
           )}
+          <div className="flex items-center gap-2">
+            <Switch
+              id="agrupar-empresa"
+              checked={agrupar}
+              onCheckedChange={(v) => {
+                setAgrupar(v);
+                guardarPreferenciaDeAgrupar(v);
+              }}
+            />
+            <Label htmlFor="agrupar-empresa" className="text-sm font-normal">Agrupar por empresa</Label>
+          </div>
+          <ProspectFilterButton filtro={filtro} onChange={setFiltro} />
         </div>
 
-        <TabsContent value="pipeline" className="mt-0 flex min-h-0 flex-1 flex-col">
-          {isLoading ? (
-            <Skeleton className="w-full flex-1" />
-          ) : (
-            <ProspectKanbanBoard
-              prospects={noFunilFiltrado}
-              emConversaPorEmpresa={emConversaPorEmpresa}
-              onOpen={setSelecionado}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value={ABA_METRICAS} className="mt-1">
-          <ProspectMetrics
-            prospects={todos}
-            onOpenProspect={setSelecionado}
-            selection={periodoMetricas}
-            onSelectionChange={setPeriodoMetricas}
-            filter={filtroMetricas}
+        {isLoading ? (
+          <Skeleton className="w-full flex-1" />
+        ) : (
+          <ProspectKanbanBoard
+            prospects={noFunilFiltrado}
+            emConversaPorEmpresa={emConversaPorEmpresa}
+            onOpen={setSelecionado}
+            agruparPorEmpresa={agrupar}
           />
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
 
       <ProspectFormDialog open={novoAberto} onOpenChange={setNovoAberto} />
 
@@ -173,4 +144,23 @@ export default function Prospeccao() {
       />
     </AppLayout>
   );
+}
+
+/** Preferência de quem está vendo, neste navegador: conveniência, não dado do sistema. */
+const CHAVE_AGRUPAR = 'pulse.prospeccao.agruparPorEmpresa';
+
+function lerPreferenciaDeAgrupar(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_AGRUPAR) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function guardarPreferenciaDeAgrupar(valor: boolean): void {
+  try {
+    localStorage.setItem(CHAVE_AGRUPAR, valor ? '1' : '0');
+  } catch {
+    // navegação privada ou storage bloqueado: a chave só não é lembrada
+  }
 }

@@ -25,6 +25,7 @@ import {
   type ProspectTaskDB,
   type ProspectWithCompany,
 } from '@/types/prospect';
+import type { ProspectCompanyPartnerDB, ReceitaSnapshot } from '@/types/receita';
 import { currentEmployee, getSupabase } from './supabase.js';
 import type {
   ActivityInput,
@@ -186,6 +187,57 @@ async function exigirClienteDoTenant(clientId: string | null | undefined): Promi
     .maybeSingle();
   if (error) throw explicar(error);
   if (!data) throw new ProspeccaoError('Cliente não encontrado (ou sem permissão para vê-lo) — use search_clients.');
+}
+
+/** Grava o retrato da Receita na empresa e nos sócios — a mesma RPC atômica da tela. */
+export async function gravarReceita(companyId: string, receita: ReceitaSnapshot): Promise<void> {
+  const supabase = await getSupabase();
+  const { error } = await supabase.rpc('save_prospect_company_receita', {
+    p_company_id: companyId,
+    p_receita: receita,
+  });
+  if (error) throw explicar(error);
+}
+
+export async function sociosDaEmpresa(companyId: string): Promise<ProspectCompanyPartnerDB[]> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('prospect_company_partners')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('ativo', { ascending: false })
+    .order('nome');
+  if (error) throw explicar(error);
+  return (data ?? []) as ProspectCompanyPartnerDB[];
+}
+
+export async function sociosPorId(id: string): Promise<ProspectCompanyPartnerDB> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase.from('prospect_company_partners').select('*').eq('id', id).maybeSingle();
+  if (error) throw explicar(error);
+  if (!data) throw new ProspeccaoError('Sócio não encontrado (ou sem permissão para vê-lo) — use get_company.');
+  return data as ProspectCompanyPartnerDB;
+}
+
+export async function atualizarSocio(
+  id: string,
+  campos: Partial<Pick<ProspectCompanyPartnerDB, 'linkedin_url' | 'instagram_url' | 'telefone' | 'prospect_id'>>,
+): Promise<ProspectCompanyPartnerDB> {
+  const supabase = await getSupabase();
+  const limpo = Object.fromEntries(
+    Object.entries(campos)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, typeof v === 'string' ? v.trim() || null : v]),
+  );
+  const { data, error } = await supabase
+    .from('prospect_company_partners')
+    .update(limpo)
+    .eq('id', id)
+    .select()
+    .maybeSingle();
+  if (error) throw explicar(error);
+  if (!data) throw new ProspeccaoError('Sócio não encontrado (ou sem permissão para editá-lo).');
+  return data as ProspectCompanyPartnerDB;
 }
 
 /** A empresa da Prospecção já ligada ao cliente — a primeira, se por acaso houver duas. */

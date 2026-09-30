@@ -20,7 +20,10 @@ import {
   type ProspectWithCompany,
 } from '@/types/prospect';
 import { resolveProspectValue } from '@/lib/prospecting/value';
-import type { CnpjLookupResult } from '@/types/cnpjLookup';
+import { LEI_DO_BEM_LABEL, isSituacaoAtiva, leiDoBemSignal, porteLabel } from '@/lib/prospecting/receita';
+import { industryLabel, industrySignal } from '@/lib/prospecting/industria';
+import { companyFit } from '@/lib/prospecting/fit';
+import type { ProspectCompanyPartnerDB, ReceitaSnapshot } from '@/types/receita';
 import type { ClientLite, ContactDeal } from './types.js';
 
 type Valor = string | number | null | undefined;
@@ -176,18 +179,106 @@ export function clienteResumo(c: ClientLite): string {
   return `- **${nome}**${c.cnpj ? ` · ${cnpj(c.cnpj)}` : ''} — client_id \`${c.id}\`${empresa}`;
 }
 
-export function dadosDoCnpj(d: CnpjLookupResult): string {
+export function dadosDoCnpj(d: ReceitaSnapshot): string {
+  const e = d.detalhes.endereco;
+  const socios = d.socios.length
+    ? d.socios.map((s) => `- ${s.nome}${s.qualificacao ? ` — ${s.qualificacao}` : ''}`)
+    : ['- a Receita não informa sócios'];
+  return [
+    retratoDaReceita({
+      nome: d.nomeFantasia ?? d.razaoSocial,
+      razaoSocial: d.razaoSocial,
+      cnpj: d.cnpj,
+      regime: d.regimeTributario,
+      regimeAno: d.regimeTributarioAno,
+      porte: d.porte,
+      situacao: d.situacaoCadastral,
+      abertura: d.dataAbertura,
+      capital: d.capitalSocial,
+      industria: industryLabel(industrySignal(d.detalhes)),
+    }),
+    rotulado(
+      [
+        ['Segmento (CNAE)', d.segmento],
+        ['Natureza jurídica', d.detalhes.naturezaJuridica],
+        ['Cidade', e.municipio && e.uf ? `${e.municipio}/${e.uf}` : e.municipio],
+        ['Telefones', d.detalhes.telefones.join(' · ') || null],
+        ['E-mail de cadastro', d.detalhes.email],
+      ],
+      '\n',
+    ),
+    '',
+    `**Sócios e representantes (${d.socios.length}):**`,
+    ...socios,
+  ].join('\n');
+}
+
+interface Retrato {
+  nome: string;
+  razaoSocial: string | null;
+  cnpj: string | null;
+  regime: string | null;
+  regimeAno: number | null;
+  porte: string | null;
+  situacao: string | null;
+  abertura: string | null;
+  capital: number | null;
+  industria: string | null;
+}
+
+/** Os sinais que decidem a abordagem: Lei do Bem pelo regime, porte, situação e idade. */
+function retratoDaReceita(r: Retrato): string {
+  const alerta = isSituacaoAtiva(r.situacao) ? null : `⚠️ Situação na Receita: ${r.situacao} — confirmar antes de abordar.`;
   return rotulado(
     [
-      ['', `**${d.nomeFantasia ?? d.razaoSocial}** (Receita, via BrasilAPI)`],
-      ['Razão social', d.razaoSocial],
-      ['Nome fantasia', d.nomeFantasia],
-      ['CNPJ', cnpj(d.cnpj)],
-      ['Segmento (CNAE)', d.segmento],
-      ['Cidade', d.cidade && d.uf ? `${d.cidade}/${d.uf}` : d.cidade],
+      ['', `**${r.nome}** (Receita, via BrasilAPI)`],
+      ['', alerta],
+      ['Razão social', r.razaoSocial],
+      ['CNPJ', cnpj(r.cnpj)],
+      ['Setor', r.industria ?? 'fora da indústria (CNAE)'],
+      ['Lei do Bem', `${LEI_DO_BEM_LABEL[leiDoBemSignal(r.regime)]}${r.regimeAno ? ` (${r.regimeAno})` : ''}`],
+      ['Porte', porteLabel(r.porte)],
+      ['Abertura', r.abertura && data(r.abertura)],
+      ['Capital social', r.capital != null ? reais(r.capital) : null],
     ],
     '\n',
   );
+}
+
+/** Dados da Receita já gravados na empresa — `get_company`. */
+export function receitaDaEmpresa(e: ProspectCompanyDB): string | null {
+  if (!e.receita_consultada_em) return null;
+  return [
+    retratoDaReceita({
+      nome: 'Dados da Receita',
+      razaoSocial: e.razao_social ?? null,
+      cnpj: null,
+      regime: e.regime_tributario ?? null,
+      regimeAno: e.regime_tributario_ano ?? null,
+      porte: e.porte ?? null,
+      situacao: e.situacao_cadastral ?? null,
+      abertura: e.data_abertura ?? null,
+      capital: e.capital_social ?? null,
+      industria: industryLabel(industrySignal(e.receita)),
+    }).replace('(Receita, via BrasilAPI)', `(consultado em ${data(e.receita_consultada_em.slice(0, 10))})`),
+  ].join('\n');
+}
+
+/** A rede da empresa: sócios com o que o time já descobriu deles. */
+export function redeDaEmpresa(socios: ProspectCompanyPartnerDB[]): string {
+  const ativos = socios.filter((s) => s.ativo);
+  if (ativos.length === 0) return '**Rede da empresa:** nenhum sócio registrado.';
+  const linhas = ativos.map((s) => {
+    const extras = juntar([
+      s.qualificacao,
+      s.linkedin_url && `LinkedIn ${s.linkedin_url}`,
+      s.instagram_url && `Instagram ${s.instagram_url}`,
+      s.telefone && `Tel. ${s.telefone}`,
+      s.prospect_id ? 'já é contato' : null,
+    ]);
+    return `- **${s.nome}**${extras ? ` — ${extras}` : ''} — partner_id \`${s.id}\``;
+  });
+  return [`**Rede da empresa (${ativos.length}):**`, ...linhas].join('\n');
 }
 
 /** O negócio do contato: valor pela regra única (ADR-0017), orçamento e projeto vinculados. */
@@ -207,4 +298,24 @@ export function negocio(p: ProspectWithCompany, n: ContactDeal): string {
     ],
     '\n',
   );
+}
+
+/** Fit com cada frente da Origami e o porquê — a mesma regra da tela (src/lib/prospecting/fit.ts). */
+export function fitDaEmpresa(e: ProspectCompanyDB): string | null {
+  const fits = companyFit(e, e.fomento ?? null);
+  if (!fits) return null;
+  const linhas = [...fits]
+    .sort((a, b) => b.nota - a.nota)
+    .map((f) => `- **${f.rotulo}: ${f.nota}/100** — ${f.motivos.map((m) => m.texto).join('; ') || 'sem sinais'}`);
+  return ['**Fit com a Origami:**', ...linhas].join('\n');
+}
+
+/** Fomento público gravado na empresa (Lei do Bem, FINEP/BNDES, governo). */
+export function fomentoDaEmpresa(e: ProspectCompanyDB): string | null {
+  const f = e.fomento;
+  if (!f) return null;
+  const lei = { ja_usa: 'já declara', nunca_usou: 'nunca apareceu na lista', desconhecido: 'lista ainda não importada' }[f.leiDoBem];
+  const ops = f.fomentos.slice(0, 5).map((o) => `- ${o.fonte}${o.ano ? ` ${o.ano}` : ''}${o.valor ? ` · ${reais(o.valor)}` : ''}${o.instrumento ? ` · ${o.instrumento}` : ''}`);
+  const governo = f.governo ? `${f.governo.contratos} contrato(s) com o governo federal` : 'contratos com o governo: fonte não configurada';
+  return [`**Fomento público:** Lei do Bem ${lei}${f.leiDoBemAno ? ` (ano-base ${f.leiDoBemAno})` : ''} · ${governo}`, ...ops].join('\n');
 }

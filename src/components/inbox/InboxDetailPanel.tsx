@@ -24,6 +24,7 @@ import {
 
 // Rótulo do botão de ação primária por tipo (usa action_url da notificação).
 const typeActionLabel: Record<string, string> = {
+  prospeccao_gatilho: "Ver empresa",
   document_available: "Ver documento",
   project_started: "Ver projeto",
   project_health_alert: "Ver projeto",

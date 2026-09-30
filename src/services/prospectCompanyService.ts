@@ -59,6 +59,17 @@ export const prospectCompanyService = {
   },
 
   /** A empresa da Prospecção já ligada a este cliente, se houver — para não duplicar. */
+  /** Empresas do tenant com estes CNPJs — a deduplicação do cadastro em lote. */
+  async findByCnpjs(cnpjs: string[], tenantId: string): Promise<ProspectCompanyDB[]> {
+    if (cnpjs.length === 0) return [];
+    const { data, error } = await tabela('prospect_companies')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .in('cnpj', cnpjs);
+    if (error) throw error;
+    return (data || []) as unknown as ProspectCompanyDB[];
+  },
+
   async findByClientId(clientId: string, tenantId: string): Promise<ProspectCompanyDB | null> {
     const { data, error } = await tabela('prospect_companies')
       .select('*')

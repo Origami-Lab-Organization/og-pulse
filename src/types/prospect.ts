@@ -277,6 +277,24 @@ export interface ProspectCompanyDB {
   tier: string | null;
   client_id: string | null;
   notes: string | null;
+  /** Retrato da Receita (29/09/2026, ADR-0041) — preenchido pela consulta de CNPJ. */
+  razao_social?: string | null;
+  nome_fantasia?: string | null;
+  porte?: string | null;
+  capital_social?: number | null;
+  data_abertura?: string | null;
+  situacao_cadastral?: string | null;
+  /** Forma de tributação mais recente: o filtro da Lei do Bem. */
+  regime_tributario?: string | null;
+  regime_tributario_ano?: number | null;
+  receita?: import('@/types/receita').ReceitaDetails | null;
+  receita_consultada_em?: string | null;
+  /** Leitura do site oficial (Edge Function company-site-scan). */
+  site_scan?: import('@/types/receita').SiteScan | null;
+  site_scan_em?: string | null;
+  /** Cruzamento de fomento público (Edge Function company-funding-check). */
+  fomento?: import('@/types/receita').FundingSignals | null;
+  fomento_consultado_em?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

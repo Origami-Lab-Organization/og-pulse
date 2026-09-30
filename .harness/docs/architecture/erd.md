@@ -19,6 +19,10 @@ sources:
   - supabase/migrations/20260928160000_prospect_meeting_dates.sql
   - supabase/migrations/20260928200000_prospect_ganho_perda.sql
   - supabase/migrations/20260929120000_prospeccao_absorve_oportunidades.sql
+  - supabase/migrations/20260929140000_prospect_company_receita.sql
+  - supabase/migrations/20260929150000_prospect_company_site_scan.sql
+  - supabase/migrations/20260929160000_fomento_publico.sql
+  - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
   - src/types/portfolio.ts
@@ -39,6 +43,13 @@ sources:
 # 29/09/2026 (tarde): 20260929120000 dropa leads/lead_*; Cluster 1 removido, Cluster 1b
 # ganha budgets.prospect_id, projects.prospect_id, estimated_value/notes/competitor_name;
 # conferido contra ProspectDB e ensaiado sobre o dump de produção (ida/volta/ida).
+# 29/09/2026: 20260929140000 — retrato da Receita em prospect_companies e o quadro de sócios
+# 29/09/2026: 20260929150000 (site_scan) e 20260929160000 (fomento_publico + fomento),
+#  conferidos contra ProspectCompanyDB e ensaiados (ida/volta) sobre o dump atual.
+# (reconferido após renumerar 130000→140000 e trocar só o comentário do cabeçalho;
+#  tabelas, colunas e relações iguais ao diagrama)
+# (prospect_company_partners), gravados pela RPC save_prospect_company_receita; conferido
+# contra ProspectCompanyDB/ProspectCompanyPartnerDB e ensaiado com retrato real.
 # Correção do deploy (mesmo dia): a migration desliga trg_*_keeps_admin só no trecho de
 # capacidades — trigger, não coluna nem relação; o diagrama não muda.
 # 29/09/2026: src/types/prospectMetrics.ts ganhou só contratos de tela (CutSafraRow no
@@ -93,6 +104,9 @@ erDiagram
     tenants ||--o{ prospects : ""
     clients |o--o{ prospect_companies : "client_id (quando já é cliente)"
     prospect_companies ||--o{ prospects : "company_id"
+    prospect_companies ||--o{ prospect_company_partners : "QSA da Receita (ADR-0041)"
+    prospect_company_partners |o--o| prospects : "prospect_id (Virar contato)"
+    fomento_publico }o..o{ prospect_companies : "por CNPJ (sem FK: referência pública)"
     prospects ||--o{ prospect_activities : ""
     prospects ||--o{ prospect_tasks : ""
     prospects ||--o{ prospect_stage_changes : "trigger em INSERT e UPDATE OF stage"
@@ -108,6 +122,26 @@ erDiagram
         text instagram_url "livre — fora da deduplicação"
         text ring "Anel — livre, editável no card"
         text tier "Tier — livre, editável no card"
+        text regime_tributario "ano mais recente — filtro da Lei do Bem"
+        text porte "MICRO EMPRESA | EMPRESA DE PEQUENO PORTE | DEMAIS"
+        text situacao_cadastral "alerta quando não ATIVA"
+        jsonb receita "CNAEs, endereço, histórico de regime, Simples/MEI"
+        jsonb site_scan "redes, contatos e pistas de sistema do site (ADR-0042)"
+        jsonb fomento "Lei do Bem, FINEP/BNDES, governo (ADR-0042)"
+    }
+    fomento_publico {
+        text fonte "finep | lei_do_bem — referência de dados abertos, sem tenant"
+        text cnpj "14 dígitos; cruzado com prospect_companies.cnpj"
+        int ano ""
+        numeric valor ""
+    }
+    prospect_company_partners {
+        text nome "chave da atualização: único por empresa (sem caixa)"
+        text qualificacao "Diretor, Sócio-Administrador..."
+        text tipo "pessoa | empresa | estrangeiro"
+        text cnpj "só de sócio-empresa (CHECK) — de pessoa, nenhum documento"
+        text linkedin_url "colado pela pessoa, nunca raspado"
+        bool ativo "false = saiu do quadro na última consulta"
     }
     prospects {
         text stage "6 de trabalho + ganho + descartado (Perda); sem_resposta só em linhas antigas"

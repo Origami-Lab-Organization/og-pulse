@@ -245,7 +245,7 @@ function BuscaNaReceita(props: {
     setErro(null);
     try {
       const dado = await lookupCnpj(termo);
-      onCadastrar({ name: dado.nomeFantasia ?? dado.razaoSocial, cnpj: dado.cnpj, segment: dado.segmento });
+      onCadastrar({ name: dado.nomeFantasia ?? dado.razaoSocial, cnpj: dado.cnpj, segment: dado.segmento, receita: dado });
     } catch (e) {
       setErro(e instanceof CnpjLookupError ? e.message : 'Não foi possível consultar o CNPJ.');
     } finally {

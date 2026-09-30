@@ -12,10 +12,13 @@ ferramentas de Oportunidade saíram do `og-pulse-drive` em 29/09/2026.
 | `list_prospecting_options` | Etapas (e como se chega a cada uma, inclusive Ganho e Perda), canais, alavancas, motivos de perda, períodos das métricas e responsáveis válidos |
 | `search_companies` | Busca empresas por parte do nome ou do CNPJ (com nº de contatos) |
 | `search_clients` | Busca clientes da carteira por nome ou CNPJ e diz se já têm empresa na Prospecção; o `client_id` liga a empresa ao cliente |
-| `lookup_cnpj` | Consulta o CNPJ na base pública da Receita (BrasilAPI): razão social, nome fantasia, segmento e cidade — não cadastra nada |
+| `lookup_cnpj` | Consulta o CNPJ na Receita (BrasilAPI): regime tributário por ano (sinal de Lei do Bem), porte, situação, abertura, capital, CNAE, contatos de cadastro e sócios — não cadastra nada |
+| `enrich_company_from_cnpj` | Grava na empresa já cadastrada os dados da Receita e a rede de sócios (reconsultar atualiza sem duplicar) |
+| `update_company_partner` | Registra LinkedIn, Instagram e telefone de um sócio — só o que a pessoa confirmou |
+| `promote_partner_to_contact` | Sócio vira contato em "A abordar", com cargo e redes |
 | `check_company_duplicates` | Confere CNPJ, LinkedIn e nome idêntico antes de cadastrar, com a situação "Abordar / Não abordar" da tela Empresas |
 | `get_company` | Ficha da empresa e todos os contatos dela |
-| `create_company` | Cadastra empresa (valida CNPJ; avisa homônimo; o banco recusa CNPJ/LinkedIn duplicado) |
+| `create_company` | Cadastra empresa (valida CNPJ; avisa homônimo; o banco recusa CNPJ/LinkedIn duplicado). Com CNPJ, já grava os dados da Receita e os sócios |
 | `update_company` | Atualiza empresa — vale para todos os contatos dela |
 | `list_contacts` | Lista contatos por empresa, nome, etapa, responsável e alavanca |
 | `my_agenda` | "O que tenho para hoje": tarefas pendentes até a data (o único aviso de vencimento do quadro) e toques sugeridos pela cadência |

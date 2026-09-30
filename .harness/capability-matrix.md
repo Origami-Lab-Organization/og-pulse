@@ -115,8 +115,8 @@ Tres coisas que a tornam diferente de todas as outras:
 | `catalogo:ler` — servicos, linhas de servico | sim | sim | sim | sim | SELECT tenant-wide **de proposito** (ADR-0023) |
 | `catalogo:editar` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
 | `cliente:ler` / `cliente:editar` | sim | sim | — | — | rota `requireManager` |
-| `prospeccao:ler` — quadro comercial (inclui Ganho com valor vendido e Perda), valor estimado e orçamento vinculado do contato, empresas (tela `/comercial/empresas`), atividades, tarefas, histórico de etapa e métricas (inclusive as métricas comerciais que eram `/analises/comercial`); também a aba Oportunidades da ficha do cliente e a origem comercial do projeto | sim | sim | — | — | `has_capability` (migration 20260915100000) |
-| `prospeccao:editar` — cadastro, atividade, tarefa, registrar ganho (com valor) e perda | sim | sim | — | — | `has_capability` (migration 20260915100000) |
+| `prospeccao:ler` — quadro comercial (inclui Ganho com valor vendido e Perda), valor estimado e orçamento vinculado do contato, empresas (tela `/comercial/empresas`), atividades, tarefas, histórico de etapa e métricas (tela `/comercial/metricas`, item do menu desde 29/09/2026, que absorveu `/analises/comercial`); dados da Receita da empresa e a rede de sócios (`prospect_company_partners`, ADR-0041); site da empresa, fomento público e nota de fit (ADR-0042); também a aba Oportunidades da ficha do cliente e a origem comercial do projeto | sim | sim | — | — | `has_capability` (migration 20260915100000) |
+| `prospeccao:editar` — cadastro, atividade, tarefa, registrar ganho (com valor) e perda, consultar/atualizar a Receita, editar redes e telefone de sócio e "Virar contato", importar CNPJs em lote, ler site e consultar fomento | sim | sim | — | — | `has_capability` (migration 20260915100000) |
 
 **29/09/2026 — Prospecção absorveu Oportunidades** (migration 20260929120000). A tabela
 `leads` e as `lead_*` saíram, e com elas `/pipeline`, `/analises/comercial` e as capacidades
@@ -423,3 +423,12 @@ o comportamento medido.
 | RLS de ponto concede a `rh`; `manager` fora | PROVADO | `20260716120100`, policies `time_*` |
 | RH sem acesso a `employees` e a folha | PROVADO | `20260301031026` (so `admin` + `is_manager_in_tenant`) |
 | Necessidade de perfis diretor/comercial/financeiro | PENDENTE | decisao de negocio (**P1**) |
+
+
+> **Fomento público (29/09/2026, ADR-0042).** `fomento_publico` é referência de dados abertos
+> (FINEP e Lei do Bem), igual para todos os tenants: SELECT para qualquer `authenticated`, sem
+> policy de escrita, e carga só pela `import_fomento_publico` (executável apenas pelo
+> `service_role`). Não é dado de tenant, então não precisa de capacidade. O cruzamento por empresa
+> (`prospect_companies.fomento`) segue a RLS da empresa (`prospeccao:ler`/`:editar`). A
+> Edge Function `company-watch` roda com service role, só chamada pelo cron, e grava/avisa
+> sempre no tenant da própria linha.
