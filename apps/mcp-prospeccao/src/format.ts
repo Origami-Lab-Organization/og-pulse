@@ -124,7 +124,6 @@ export function contatoCompleto(p: ProspectWithCompany, pessoas: Map<string, str
       ['Valor vendido', valorDoGanho(p)],
       ['Motivo da perda', motivoDaPerda(p)],
       ['Valor estimado', p.estimated_value != null ? reais(Number(p.estimated_value)) : null],
-      ['Concorrente', p.competitor_name],
       ['E-mail', p.contact_email],
       ['Telefone', p.contact_phone],
       ['LinkedIn', p.linkedin_url],

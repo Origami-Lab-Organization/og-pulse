@@ -28,7 +28,9 @@ Alternativas consideradas:
    houver, é criada. Os de-paras de etapa, motivo e origem estão no cabeçalho da migration.
 3. O contato ganha o essencial da oportunidade: `estimated_value`, `notes` e
    `competitor_name`. Título, serviços, Stand By e a observação da perda vão como texto
-   para `notes`.
+   para `notes`. *(30/09/2026: `competitor_name` saiu do contato e do arquivo, a pedido do
+   Guilherme — migration `20260930120000_prospect_remove_competitor_name`. O motivo de
+   perda `concorrente` continua.)*
 4. O **orçamento** nasce do contato (`budgets.prospect_id`, um por contato), e o **Ganho**
    oferece criar o projeto (`projects.prospect_id`, no fluxo do antigo "Fechar negócio").
 5. O valor do contato segue o ADR-0017, agora nesta ordem: valor vendido, depois orçamento

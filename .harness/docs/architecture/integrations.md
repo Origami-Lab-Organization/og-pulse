@@ -158,7 +158,8 @@ ferramentas de Oportunidade (`list_opportunities`, `create_opportunity`,
 `update_opportunity`, `move_opportunity_stage`) saíram do `mcp-drive` (versão 2.0.0), e o
 MCP deixou de escrever em `leads`: `mcp-prospeccao` (1.1.0) é o único servidor comercial, e
 as `instructions` dele dizem isso ao cliente. Na 1.2.0 (29/09/2026, ADR-0040) o contato
-ganha valor estimado, concorrente e observações; `search_clients` liga a empresa a um
+ganha valor estimado e observações (o concorrente veio junto e saiu em 30/09/2026,
+migration `20260930120000`); `search_clients` liga a empresa a um
 cliente da carteira (`client_id`, checado no tenant — a FK não olha tenant), `lookup_cnpj`
 consulta a BrasilAPI pelo mesmo `cnpjLookupService.ts` da tela, e `get_contact` mostra o
 orçamento e o projeto vinculados (`budgets/projects.prospect_id`), só leitura. Ganho e data de etapa usam as mesmas RPCs da

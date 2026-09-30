@@ -156,7 +156,6 @@ const camposDeContato = {
   lever: z.enum(ALAVANCAS).optional().describe(`Alavanca / origem da lista: ${descrever(PROSPECT_LEVERS)}.`),
   responsavel: z.string().optional().describe('"eu", nome (ou parte) ou UUID de quem conduz. Padrão: eu.'),
   estimated_value: z.number().min(0).nullable().optional().describe('Valor estimado do negócio em R$, antes do orçamento. null apaga.'),
-  competitor_name: textoOpcional('Concorrente na disputa.'),
   observacoes: z.string().max(10000).optional().describe('Observações do contato (título do negócio, serviços, contexto).'),
 };
 

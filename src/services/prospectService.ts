@@ -33,7 +33,6 @@ export interface CreateProspectInput {
   /** Valor estimado antes do orçamento (29/09/2026). */
   estimated_value?: number | null;
   notes?: string | null;
-  competitor_name?: string | null;
   created_by?: string | null;
 }
 

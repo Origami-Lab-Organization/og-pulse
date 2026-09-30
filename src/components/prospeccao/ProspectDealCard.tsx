@@ -2,7 +2,6 @@ import { Briefcase, FileText, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,8 +26,8 @@ interface ProspectDealCardProps {
 }
 
 /**
- * O negócio do contato (29/09/2026): o que era da Oportunidade — valor, concorrente,
- * observações, orçamento e o projeto do Ganho.
+ * O negócio do contato (29/09/2026): o que era da Oportunidade — valor, observações,
+ * orçamento e o projeto do Ganho. O concorrente saiu em 30/09/2026.
  *
  * O valor exibido segue a regra única (`resolveProspectValue`, ADR-0017) e diz de onde veio:
  * quem lê "R$ 48 mil" precisa saber se é o vendido, o orçado ou um palpite.
@@ -66,15 +65,6 @@ function EdicaoDoNegocio({ rascunho, definir }: ProspectDealCardProps) {
         />
       </div>
       <div className="space-y-1">
-        <Label htmlFor="negocio-concorrente" className="text-xs text-muted-foreground">Concorrente</Label>
-        <Input
-          id="negocio-concorrente"
-          value={rascunho.competitor_name ?? ''}
-          maxLength={160}
-          onChange={(e) => definir('competitor_name')(e.target.value)}
-        />
-      </div>
-      <div className="space-y-1">
         <Label htmlFor="negocio-notas" className="text-xs text-muted-foreground">Observações</Label>
         <Textarea
           id="negocio-notas"
@@ -98,12 +88,6 @@ function LeituraDoNegocio({ prospect }: ProspectDealCardProps) {
         <p className="text-sm font-medium">{valor > 0 ? formatCurrency(valor) : '—'}</p>
         {valor > 0 && <p className="text-xs text-muted-foreground">{origemDoValor(prospect, orcamento)}</p>}
       </div>
-      {prospect.competitor_name && (
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Concorrente</p>
-          <p className="text-sm">{prospect.competitor_name}</p>
-        </div>
-      )}
       {prospect.notes && (
         <div>
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Observações</p>

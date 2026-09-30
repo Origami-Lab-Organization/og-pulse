@@ -39,8 +39,9 @@ ferramentas de Oportunidade saíram do `og-pulse-drive` em 29/09/2026.
 
 **Oportunidades absorvidas (29/09/2026).** O Pipeline de Oportunidades saiu do Pulse e cada
 oportunidade virou contato aqui (migration `20260929120000_prospeccao_absorve_oportunidades`).
-O contato ganhou `estimated_value`, `competitor_name` e observações (`observacoes` na tool,
-`notes` no banco); orçamento e projeto passam a apontar para ele.
+O contato ganhou `estimated_value` e observações (`observacoes` na tool, `notes` no banco);
+orçamento e projeto passam a apontar para ele. O concorrente (`competitor_name`) veio junto e
+saiu em 30/09/2026 (migration `20260930120000_prospect_remove_competitor_name`).
 
 **Desfecho.** O servidor declara `instructions` para o cliente MCP: todo pedido comercial é
 feito aqui, e cada contato termina em Ganho (`mark_contact_won`) ou Perda (`discard_contact`).

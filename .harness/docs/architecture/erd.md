@@ -46,6 +46,9 @@ sources:
 # 29/09/2026: 20260929140000 — retrato da Receita em prospect_companies e o quadro de sócios
 # 29/09/2026: 20260929150000 (site_scan) e 20260929160000 (fomento_publico + fomento),
 #  conferidos contra ProspectCompanyDB e ensaiados (ida/volta) sobre o dump atual.
+# 30/09/2026: 20260930120000 remove prospects.competitor_name (e esvazia a cópia em
+#  legado_oportunidades.leads, que fica com a coluna para o rollback de 20260929120000);
+#  conferido contra ProspectDB.
 # (reconferido após renumerar 130000→140000 e trocar só o comentário do cabeçalho;
 #  tabelas, colunas e relações iguais ao diagrama)
 # (prospect_company_partners), gravados pela RPC save_prospect_company_receita; conferido
@@ -155,7 +158,6 @@ erDiagram
         numeric won_value "valor vendido — NULL = Sem valor"
         numeric estimated_value "estimativa antes do orçamento (ADR-0017)"
         text notes "observações; recebeu título/serviços da oportunidade"
-        text competitor_name "concorrente na disputa"
     }
     prospect_activities {
         int sequence_no "preenchido pelo trigger; único por prospect"

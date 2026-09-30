@@ -997,7 +997,6 @@ function rascunhoInicial(prospect: ProspectWithCompany): Record<string, string> 
     owner_id: prospect.owner_id ?? '',
     lever: prospect.lever ?? '',
     estimated_value: prospect.estimated_value != null ? String(prospect.estimated_value) : '',
-    competitor_name: prospect.competitor_name ?? '',
     notes: prospect.notes ?? '',
   };
 }
@@ -1029,7 +1028,6 @@ function contatoDoRascunho(rascunho: Record<string, string>, prospect: ProspectW
     owner_id: rascunho.owner_id || prospect.owner_id,
     lever: rascunho.lever || null,
     estimated_value: Number(rascunho.estimated_value) > 0 ? Number(rascunho.estimated_value) : null,
-    competitor_name: rascunho.competitor_name.trim() || null,
     notes: rascunho.notes.trim() || null,
   };
 }

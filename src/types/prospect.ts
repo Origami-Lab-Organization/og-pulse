@@ -332,8 +332,6 @@ export interface ProspectDB {
   estimated_value: number | null;
   /** Observações livres. Recebeu, na migração, título, serviços e Stand By da oportunidade. */
   notes: string | null;
-  /** Concorrente na disputa, quando houver. */
-  competitor_name: string | null;
   closed_at: string | null;
   created_by: string | null;
   created_at: string;
