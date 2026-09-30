@@ -13,6 +13,10 @@ sources:
   - supabase/migrations/20260622130000_installment_nf_alert_cron.sql
   - supabase/migrations/20260929120000_prospeccao_absorve_oportunidades.sql
   - src/services/cnpjLookupService.ts
+  - supabase/functions/company-site-scan/index.ts
+  - supabase/functions/company-funding-check/index.ts
+  - supabase/functions/company-watch/index.ts
+  - scripts/import-fomento.mjs
   - supabase/migrations/20260831120000_realtime_publication_and_cron_via_vault.sql
   - apps/mcp-drive/src/index.ts
   - apps/mcp-activities/src/index.ts
@@ -48,6 +52,8 @@ flowchart LR
     EXT2[Anthropic<br/>análise de mercado]
     EXT3[Anthropic<br/>parse Cartão CNPJ]
     EXT4[BrasilAPI<br/>consulta pública de CNPJ]
+    EXT5[BNDES CKAN · FINEP · CGU Transparência<br/>fomento público]
+    EXT6[Site oficial da empresa<br/>leitura com proteção SSRF]
 
     SPA -->|"JWT anon (RLS)"| REST
     SPA -->|functions.invoke| EF
@@ -61,6 +67,9 @@ flowchart LR
     EF -->|API key| EXT2
     EF -->|API key| EXT3
     EF --> SMTP
+    EF -->|"company-funding-check (POST CKAN, chave CGU)"| EXT5
+    EF -->|"company-site-scan (http/https, DNS público)"| EXT6
+    CRON -->|"company-watch diário (Receita)"| EF
     SPA -->|"GET /api/cnpj/v1, sem chave<br/>cnpjLookupService.ts"| EXT4
     MCP["apps/mcp-drive · mcp-activities · mcp-prospeccao<br/>(sessão da pessoa, sob RLS)"] --> REST
     MCP -->|"lookup_cnpj"| EXT4
@@ -70,6 +79,8 @@ flowchart LR
 
 | Serviço | Consumidor | O quê | Credencial |
 |---|---|---|---|
+| BNDES (dados abertos) · FINEP · Portal da Transparência (CGU) | Edge Function `company-funding-check` e `scripts/import-fomento.mjs` | Fomento público por CNPJ: operações BNDES na hora, FINEP por importação semanal, Lei do Bem por carga manual, contratos federais. Contrato: `.harness/integrations/fomento-publico.md` | BNDES e FINEP sem chave; CGU com secret `TRANSPARENCIA_API_KEY` |
+| Site oficial da empresa | Edge Function `company-site-scan` | Redes, WhatsApp, telefones, e-mails genéricos e pistas de sistema publicados pela empresa. Contrato: `.harness/integrations/site-da-empresa.md` | Nenhuma |
 | BrasilAPI (CNPJ) | Browser (`src/services/cnpjLookupService.ts`) e `mcp-prospeccao` (`lookup_cnpj`) | Dados públicos da empresa pelo CNPJ para o cadastro da Prospecção: razão social, nome fantasia, CNAE, cidade. Só o CNPJ sai. Contrato: `.harness/integrations/brasilapi-cnpj.md` | Nenhuma (API pública) |
 | Microsoft Entra ID | Browser (`msalClient.ts:54`) | Login OAuth Auth Code + PKCE | client_id público, sem secret (`config.ts:1-16`) |
 | Google Identity (**planejado**, ADR-0029 / PUL-225) | Browser (Google Identity Services) → Edge Function `google-sso` | Login social: ID token OpenID Connect com escopos mínimos `openid email profile`. A função valida JWKS do Google, `iss`, `aud`, `exp` e `email_verified`, casa o e-mail com funcionário ativo (o tenant vem dele) e emite magiclink pela Admin API. Nada do Drive | `VITE_GOOGLE_CLIENT_ID` (público) no front; `GOOGLE_CLIENT_ID` como secret da função; sem client secret (só ID token) |

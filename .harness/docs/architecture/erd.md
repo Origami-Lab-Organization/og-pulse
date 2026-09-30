@@ -20,6 +20,8 @@ sources:
   - supabase/migrations/20260928200000_prospect_ganho_perda.sql
   - supabase/migrations/20260929120000_prospeccao_absorve_oportunidades.sql
   - supabase/migrations/20260929140000_prospect_company_receita.sql
+  - supabase/migrations/20260929150000_prospect_company_site_scan.sql
+  - supabase/migrations/20260929160000_fomento_publico.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
@@ -42,6 +44,8 @@ sources:
 # ganha budgets.prospect_id, projects.prospect_id, estimated_value/notes/competitor_name;
 # conferido contra ProspectDB e ensaiado sobre o dump de produção (ida/volta/ida).
 # 29/09/2026: 20260929140000 — retrato da Receita em prospect_companies e o quadro de sócios
+# 29/09/2026: 20260929150000 (site_scan) e 20260929160000 (fomento_publico + fomento),
+#  conferidos contra ProspectCompanyDB e ensaiados (ida/volta) sobre o dump atual.
 # (reconferido após renumerar 130000→140000 e trocar só o comentário do cabeçalho;
 #  tabelas, colunas e relações iguais ao diagrama)
 # (prospect_company_partners), gravados pela RPC save_prospect_company_receita; conferido
@@ -102,6 +106,7 @@ erDiagram
     prospect_companies ||--o{ prospects : "company_id"
     prospect_companies ||--o{ prospect_company_partners : "QSA da Receita (ADR-0041)"
     prospect_company_partners |o--o| prospects : "prospect_id (Virar contato)"
+    fomento_publico }o..o{ prospect_companies : "por CNPJ (sem FK: referência pública)"
     prospects ||--o{ prospect_activities : ""
     prospects ||--o{ prospect_tasks : ""
     prospects ||--o{ prospect_stage_changes : "trigger em INSERT e UPDATE OF stage"
@@ -121,6 +126,14 @@ erDiagram
         text porte "MICRO EMPRESA | EMPRESA DE PEQUENO PORTE | DEMAIS"
         text situacao_cadastral "alerta quando não ATIVA"
         jsonb receita "CNAEs, endereço, histórico de regime, Simples/MEI"
+        jsonb site_scan "redes, contatos e pistas de sistema do site (ADR-0042)"
+        jsonb fomento "Lei do Bem, FINEP/BNDES, governo (ADR-0042)"
+    }
+    fomento_publico {
+        text fonte "finep | lei_do_bem — referência de dados abertos, sem tenant"
+        text cnpj "14 dígitos; cruzado com prospect_companies.cnpj"
+        int ano ""
+        numeric valor ""
     }
     prospect_company_partners {
         text nome "chave da atualização: único por empresa (sem caixa)"
