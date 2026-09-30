@@ -160,6 +160,40 @@ const camposDeContato = {
   observacoes: z.string().max(10000).optional().describe('Observações do contato (título do negócio, serviços, contexto).'),
 };
 
+/** Consulta a Receita traduzindo a falha para a frase que a pessoa lê. */
+async function consultarReceita(cnpj: string) {
+  try {
+    return await lookupCnpj(cnpj);
+  } catch (e) {
+    if (e instanceof CnpjLookupError) throw new db.ProspeccaoError(e.message);
+    throw e;
+  }
+}
+
+/**
+ * Empresa nova com CNPJ já sai com os dados da Receita e a rede de sócios. Falhar a consulta
+ * não desfaz o cadastro: a empresa existe, e enrich_company_from_cnpj tenta de novo.
+ */
+async function enriquecerSePossivel(empresa: { id: string; cnpj: string | null }): Promise<string> {
+  if (!empresa.cnpj) return '';
+  try {
+    await db.gravarReceita(empresa.id, await lookupCnpj(empresa.cnpj));
+    return ' Dados da Receita e rede de sócios gravados (get_company mostra).';
+  } catch {
+    return ' ⚠️ Não foi possível consultar a Receita agora — tente enrich_company_from_cnpj.';
+  }
+}
+
+/** A Receita escreve em maiúsculas; o contato fica como gente escreve o nome. */
+function nomeProprio(nome: string): string {
+  const minusculas = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+  return nome
+    .toLowerCase()
+    .split(/\s+/)
+    .map((parte, i) => (i > 0 && minusculas.has(parte) ? parte : parte.charAt(0).toUpperCase() + parte.slice(1)))
+    .join(' ');
+}
+
 // ── Empresas ─────────────────────────────────────────────────────────────────
 
 server.tool(
@@ -180,7 +214,7 @@ server.tool(
 
 server.tool(
   'get_company',
-  'Detalhes de uma empresa da Prospecção e a lista dos contatos dela (inclusive encerrados).',
+  'Detalhes de uma empresa da Prospecção: cadastro, dados da Receita (regime tributário/Lei do Bem, porte, situação), a rede de sócios com LinkedIn/Instagram/telefone já descobertos e os contatos (inclusive encerrados).',
   { company_id: uuid('company_id') },
   executar(async ({ company_id }) => {
     const [empresa, contatos, pessoas] = await Promise.all([
@@ -189,7 +223,17 @@ server.tool(
       db.nomesDasPessoas(),
     ]);
     const lista = contatos.length ? contatos.map((p) => fmt.contatoResumo(p, pessoas)) : ['Nenhum contato ainda.'];
-    return [fmt.empresaCompleta(empresa), '', `**Contatos (${contatos.length}):**`, ...lista].join('\n');
+    const socios = await db.sociosDaEmpresa(company_id);
+    const receita = fmt.receitaDaEmpresa(empresa);
+    return [
+      fmt.empresaCompleta(empresa),
+      ...(receita ? ['', receita] : []),
+      '',
+      fmt.redeDaEmpresa(socios),
+      '',
+      `**Contatos (${contatos.length}):**`,
+      ...lista,
+    ].join('\n');
   }),
 );
 
@@ -201,10 +245,11 @@ server.tool(
     exigirCnpjValido(campos.cnpj);
     const homonimas = await db.empresasComMesmoNome(campos.name);
     const empresa = await db.criarEmpresa(campos);
+    const receita = await enriquecerSePossivel(empresa);
     const aviso = homonimas.length
       ? `\n\n⚠️ Já existia ${homonimas.length} empresa(s) com o mesmo nome — confira se não é duplicata:\n${homonimas.map((e) => fmt.empresaResumo(e)).join('\n')}`
       : '';
-    return `✅ Empresa cadastrada.\n\n${fmt.empresaCompleta(empresa)}${aviso}`;
+    return `✅ Empresa cadastrada.${receita}\n\n${fmt.empresaCompleta(empresa)}${aviso}`;
   }),
 );
 
@@ -237,16 +282,71 @@ server.tool(
 
 server.tool(
   'lookup_cnpj',
-  'Consulta um CNPJ na base pública da Receita (BrasilAPI) e devolve razão social, nome fantasia, segmento (CNAE) e cidade — para cadastrar a empresa sem digitar. Não cadastra nada: depois de conferir, use check_company_duplicates e create_company (ou create_contact_with_company) com esses dados.',
+  'Consulta um CNPJ na base pública da Receita (BrasilAPI): razão social, nome fantasia, regime tributário por ano (Lei do Bem só no Lucro Real), porte, situação, abertura, capital social, CNAE, contatos de cadastro e sócios/representantes. Não cadastra nada: depois de conferir, use check_company_duplicates e create_company (ou create_contact_with_company) com o CNPJ — o cadastro grava esses dados sozinho. Para empresa já cadastrada, use enrich_company_from_cnpj.',
   { cnpj: z.string().describe('CNPJ com ou sem máscara (14 dígitos).') },
   executar(async ({ cnpj }) => {
     exigirCnpjValido(cnpj);
-    try {
-      return fmt.dadosDoCnpj(await lookupCnpj(cnpj));
-    } catch (e) {
-      if (e instanceof CnpjLookupError) throw new db.ProspeccaoError(e.message);
-      throw e;
+    return fmt.dadosDoCnpj(await consultarReceita(cnpj));
+  }),
+);
+
+server.tool(
+  'enrich_company_from_cnpj',
+  'Consulta a Receita pelo CNPJ de uma empresa JÁ cadastrada e grava tudo nela: regime tributário, porte, situação, abertura, capital, CNAEs, endereço e a rede de sócios (reconsultar atualiza sem duplicar e sem apagar LinkedIn/telefone já colados). Sem CNPJ na empresa, envie `cnpj`.',
+  {
+    company_id: uuid('company_id'),
+    cnpj: textoOpcional('CNPJ, se a empresa ainda não tem um cadastrado.'),
+  },
+  executar(async ({ company_id, cnpj }) => {
+    exigirCnpjValido(cnpj);
+    const empresa = await db.buscarEmpresa(company_id);
+    const alvo = empresa.cnpj ?? cnpj;
+    if (!alvo) throw new db.ProspeccaoError('A empresa não tem CNPJ cadastrado — envie `cnpj`.');
+    await db.gravarReceita(company_id, await consultarReceita(alvo));
+    const [depois, socios] = await Promise.all([db.buscarEmpresa(company_id), db.sociosDaEmpresa(company_id)]);
+    return ['✅ Dados da Receita gravados.', '', fmt.receitaDaEmpresa(depois) ?? '', '', fmt.redeDaEmpresa(socios)].join('\n');
+  }),
+);
+
+server.tool(
+  'update_company_partner',
+  'Registra o que o time descobriu de um sócio da empresa: LinkedIn, Instagram e telefone. Não há busca automática de redes (sem fonte pública, e raspagem viola os termos do LinkedIn) — só grave o que a pessoa confirmou. String vazia apaga o campo.',
+  {
+    partner_id: uuid('partner_id'),
+    linkedin_url: textoOpcional('Perfil do sócio no LinkedIn.'),
+    instagram_url: textoOpcional('Instagram do sócio: @perfil ou link.'),
+    telefone: z.string().max(40).optional().describe('Telefone do sócio.'),
+  },
+  executar(async ({ partner_id, ...campos }) => {
+    const socio = await db.atualizarSocio(partner_id, campos);
+    return `✅ Sócio atualizado.\n\n${fmt.redeDaEmpresa([socio])}`;
+  }),
+);
+
+server.tool(
+  'promote_partner_to_contact',
+  'Transforma um sócio da rede da empresa em contato da Prospecção ("Virar contato" da tela): entra em "A abordar", com cargo, LinkedIn, Instagram e telefone do sócio. Use só quando a pessoa decidir abordar esse sócio.',
+  {
+    partner_id: uuid('partner_id'),
+    responsavel: z.string().optional().describe('"eu", nome (ou parte) ou UUID de quem conduz. Padrão: eu.'),
+  },
+  executar(async ({ partner_id, responsavel }) => {
+    const socio = (await db.sociosPorId(partner_id));
+    if (socio.prospect_id) {
+      return `ℹ️ ${socio.nome} já é contato — ID \`${socio.prospect_id}\`. Use get_contact.`;
     }
+    const ownerId = await resolverOpcional(responsavel);
+    const contato = await db.criarContato(socio.company_id, {
+      contact_name: nomeProprio(socio.nome),
+      contact_role: socio.qualificacao,
+      contact_phone: socio.telefone,
+      linkedin_url: socio.linkedin_url,
+      instagram_url: socio.instagram_url,
+      primary_channel: socio.linkedin_url ? 'linkedin' : 'email',
+      ...(ownerId ? { owner_id: ownerId } : {}),
+    });
+    await db.atualizarSocio(socio.id, { prospect_id: contato.id });
+    return `✅ ${contato.contact_name} entrou em "A abordar".\n\n${fmt.contatoCompleto(contato, await db.nomesDasPessoas())}`;
   }),
 );
 
@@ -463,8 +563,12 @@ server.tool(
     // Responsável antes da empresa: nome ambíguo não pode deixar empresa criada sem contato.
     const ownerId = await resolverOpcional(responsavel);
     const alvo = await dup.resolverEmpresa(company_id, empresa as (CompanyFields & { name: string }) | undefined);
+    const notaReceita = alvo.origem === 'criada' ? await enriquecerSePossivel(alvo.empresa) : '';
     const [{ status, contatos }, pessoas] = await Promise.all([dup.situacaoDe(alvo.empresa), db.nomesDasPessoas()]);
-    const cabecalho = [ORIGEM_DA_EMPRESA[alvo.origem](alvo), ...(contatos.length ? [fmt.situacao(status)] : [])];
+    const cabecalho = [
+      ORIGEM_DA_EMPRESA[alvo.origem](alvo) + notaReceita,
+      ...(contatos.length ? [fmt.situacao(status)] : []),
+    ];
 
     const repetido = dup.contatoRepetido(contatos, contato.contact_name, contato.contact_email);
     if (repetido) {

@@ -34,6 +34,9 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { Textarea } from '@/components/ui/textarea';
 import { CnpjLookupError, lookupCnpj } from '@/services/cnpjLookupService';
 import type { CompanyPrefill } from '@/types/cnpjLookup';
+import type { ReceitaSnapshot } from '@/types/receita';
+import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
+import { LEI_DO_BEM_LABEL, leiDoBemSignal, porteLabel } from '@/lib/prospecting/receita';
 import { ProspectCompanySelect } from './ProspectCompanySelect';
 import { PROSPECT_LEVERS, type ProspectCompanyDB } from '@/types/prospect';
 
@@ -74,6 +77,9 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
   const { data: diretorio = [] } = useEmployeeDirectory(open);
   const criarEmpresa = useCreateProspectCompany();
   const criarContato = useCreateProspect();
+  const gravarReceita = useSaveCompanyReceita();
+  // Retrato da Receita da empresa nova: gravado junto com ela (empresa + sócios, ADR-0041).
+  const [receita, setReceita] = useState<ReceitaSnapshot | null>(null);
 
   const [empresa, setEmpresa] = useState<ProspectCompanyDB | null>(null);
   const [cadastrandoEmpresa, setCadastrandoEmpresa] = useState(false);
@@ -90,6 +96,7 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
     setEmpresa(null);
     setCadastrandoEmpresa(false);
     setCnpjDisplay('');
+    setReceita(null);
   }, [open, employee?.id, form]);
 
   const iniciarCadastroDeEmpresa = (prefill: CompanyPrefill) => {
@@ -100,6 +107,7 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
     form.setValue('company_segment', prefill.segment ?? '');
     form.setValue('company_client_id', prefill.client_id ?? '');
     setCnpjDisplay(prefill.cnpj ? formatCNPJ(prefill.cnpj) : '');
+    setReceita(prefill.receita ?? null);
   };
 
   // Busca na Receita pelo CNPJ digitado no cadastro: preenche só o que está vazio.
@@ -108,6 +116,7 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
     setConsultandoCnpj(true);
     try {
       const dado = await lookupCnpj(form.getValues('company_cnpj') ?? '');
+      setReceita(dado);
       if (!form.getValues('company_name')?.trim()) form.setValue('company_name', dado.nomeFantasia ?? dado.razaoSocial);
       if (!form.getValues('company_segment')?.trim()) form.setValue('company_segment', dado.segmento ?? '');
       form.clearErrors('company_cnpj');
@@ -141,6 +150,10 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
         client_id: values.company_client_id || null,
       });
       companyId = nova.id;
+      // Falhar aqui não impede o contato: a empresa já existe, e a ficha tem "Atualizar".
+      if (receita && receita.cnpj === unformatCNPJ(values.company_cnpj ?? '')) {
+        await gravarReceita.mutateAsync({ companyId, receita }).catch(() => undefined);
+      }
     }
 
     await criarContato.mutateAsync({
@@ -161,7 +174,7 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
     onOpenChange(false);
   };
 
-  const salvando = criarEmpresa.isPending || criarContato.isPending;
+  const salvando = criarEmpresa.isPending || criarContato.isPending || gravarReceita.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -194,6 +207,7 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
               <>
                 <Separator />
                 <p className="text-sm font-medium">Dados da empresa nova</p>
+                {receita && <PreviaDaReceita receita={receita} />}
                 {form.watch('company_client_id') && (
                   <p className="text-xs text-muted-foreground">
                     Ligada ao cliente da carteira: os dados básicos vêm do cadastro de Clientes.
@@ -486,6 +500,27 @@ export function ProspectFormDialog({ open, onOpenChange }: ProspectFormDialogPro
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** O que a consulta achou, antes de salvar: o que vai junto com a empresa. */
+function PreviaDaReceita({ receita }: { receita: ReceitaSnapshot }) {
+  const sinal = leiDoBemSignal(receita.regimeTributario);
+  const socios = receita.socios.length;
+  return (
+    <div className="rounded-md border bg-muted/40 p-3 text-xs" role="status">
+      <p className="font-medium text-foreground">Dados da Receita encontrados — vão junto com a empresa</p>
+      <p className="mt-1 text-muted-foreground">
+        {[
+          LEI_DO_BEM_LABEL[sinal],
+          porteLabel(receita.porte),
+          receita.situacaoCadastral && `Situação: ${receita.situacaoCadastral}`,
+          socios > 0 ? `${socios} ${socios === 1 ? 'sócio' : 'sócios'} na rede da empresa` : 'sem sócios informados',
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+      </p>
+    </div>
   );
 }
 

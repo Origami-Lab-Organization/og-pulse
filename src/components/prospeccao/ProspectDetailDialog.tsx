@@ -73,6 +73,8 @@ import { ProspectActivityComposer } from './ProspectActivityComposer';
 import { ProspectTaskComposer } from './ProspectTaskComposer';
 import { ProspectTaskTimeline } from './ProspectTaskTimeline';
 import { ProspectDealCard } from './ProspectDealCard';
+import { CompanyReceitaCard } from './CompanyReceitaCard';
+import { useAuth } from '@/contexts/AuthContext';
 import { ProspectProjectDialog } from './ProspectProjectDialog';
 
 type Aba = 'registros' | 'tarefas';
@@ -109,6 +111,7 @@ export function ProspectDetailDialog({
   const reabrir = useReopenProspect();
   const moverEtapa = useUpdateProspectStage();
   const excluir = useDeleteProspect();
+  const { can } = useAuth();
 
   const [editando, setEditando] = useState(false);
   const [reuniaoAberta, setReuniaoAberta] = useState(false);
@@ -218,6 +221,8 @@ export function ProspectDetailDialog({
               podeEditar={!somenteLeitura}
               onEditar={abrirEdicao}
             />
+
+            {empresa && <CompanyReceitaCard empresa={empresa} podeEditar={can('prospeccao:editar')} />}
 
             <CartaoContato
               prospect={prospect}

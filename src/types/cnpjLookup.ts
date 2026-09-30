@@ -1,13 +1,4 @@
-/** Dados públicos de uma empresa pelo CNPJ, já no formato do cadastro da Prospecção. */
-export interface CnpjLookupResult {
-  cnpj: string;
-  razaoSocial: string;
-  nomeFantasia: string | null;
-  /** Atividade econômica principal (CNAE) — vira o Segmento da empresa. */
-  segmento: string | null;
-  cidade: string | null;
-  uf: string | null;
-}
+import type { ReceitaSnapshot } from '@/types/receita';
 
 /** O que o cadastro de empresa nova recebe pronto: da busca digitada, de um cliente ou da Receita. */
 export interface CompanyPrefill {
@@ -16,6 +7,8 @@ export interface CompanyPrefill {
   segment?: string | null;
   /** Empresa que já é cliente: `prospect_companies.client_id`. */
   client_id?: string | null;
+  /** Retrato da Receita, quando a empresa veio de consulta de CNPJ — é gravado junto. */
+  receita?: ReceitaSnapshot | null;
 }
 
 /** Cliente da carteira oferecido no seletor de empresa. */

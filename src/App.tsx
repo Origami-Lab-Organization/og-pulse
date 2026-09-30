@@ -44,6 +44,7 @@ import BudgetDetail from "./pages/BudgetDetail";
 import Suppliers from "./pages/Suppliers";
 import Prospeccao from "./pages/Prospeccao";
 import ProspeccaoEmpresas from "./pages/ProspeccaoEmpresas";
+import ProspeccaoMetricas from "./pages/ProspeccaoMetricas";
 import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
 import MinhaEquipeAlocacaoPage from "./pages/MinhaEquipeAlocacaoPage";
@@ -382,7 +383,7 @@ const App = () => (
               {/* As métricas comerciais passaram a ser a aba Métricas da Prospecção (29/09/2026). */}
               <Route
                 path="/analises/comercial"
-                element={<Navigate to="/comercial/prospeccao?aba=metricas" replace />}
+                element={<Navigate to="/comercial/metricas" replace />}
               />
               <Route
                 path="/analises/folha-pagamento"
@@ -417,6 +418,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireCapability="prospeccao:ler">
                     <ProspeccaoEmpresas />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/comercial/metricas"
+                element={
+                  <RoleProtectedRoute requireCapability="prospeccao:ler">
+                    <ProspeccaoMetricas />
                   </RoleProtectedRoute>
                 }
               />

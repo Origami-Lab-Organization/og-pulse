@@ -25,6 +25,8 @@ import { cn } from '@/lib/utils';
 import type { ProspectWithCompany } from '@/types/prospect';
 import { AbordagemBadge, SituacaoDot, TierBadge } from './CompanyBadges';
 import { CompanyContactList } from './CompanyContactList';
+import { CompanyReceitaCard } from './CompanyReceitaCard';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CompanyDetailDialogProps {
   row: CompanyRow | null;
@@ -117,6 +119,7 @@ function Visualizacao({
   onOpenContact: (prospect: ProspectWithCompany) => void;
 }) {
   const { company } = row;
+  const { can } = useAuth();
   return (
     <>
       <div className="min-h-0 flex-1 space-y-[18px] overflow-y-auto px-6 pb-5 pt-1.5">
@@ -132,6 +135,8 @@ function Visualizacao({
             {company.instagram_url && <LinkExterno href={urlDoInstagram(company.instagram_url)} icone={Instagram} />}
           </Item>
         </Secao>
+
+        <CompanyReceitaCard empresa={company} podeEditar={can('prospeccao:editar')} />
 
         <Secao titulo="Segmentação">
           <Item rotulo="Segmento">{row.setor && [row.setor, row.subsetor].filter(Boolean).join(' / ')}</Item>
