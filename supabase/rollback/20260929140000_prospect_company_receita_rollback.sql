@@ -1,4 +1,4 @@
--- Reversão de 20260929130000_prospect_company_receita.sql.
+-- Reversão de 20260929140000_prospect_company_receita.sql.
 --
 -- COM PERDA DE DADO — exporte antes `prospect_company_partners` (LinkedIn colado à mão e o
 -- vínculo sócio → contato) e as colunas da Receita de `prospect_companies`. Os contatos

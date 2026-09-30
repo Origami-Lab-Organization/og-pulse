@@ -67,11 +67,11 @@ Fontes avaliadas em 29/09/2026:
     revisitar este ADR.
   - Faturamento estimado continua fora; se virar necessidade, é contrato com provedor pago,
     com chave numa Edge Function.
-- **Como reverter:** `supabase/rollback/20260929130000_prospect_company_receita_rollback.sql`.
+- **Como reverter:** `supabase/rollback/20260929140000_prospect_company_receita_rollback.sql`.
 
 ## Evidências
 
-- Migration: `supabase/migrations/20260929130000_prospect_company_receita.sql`.
+- Migration: `supabase/migrations/20260929140000_prospect_company_receita.sql`.
 - Ensaio em 29/09/2026 sobre o dump do schema de produção:
   - Retrato real do CNPJ 00.000.000/0001-91: Lucro Real 2024, porte "Demais", 41 sócios.
   - Na reconsulta com um sócio a menos, ele ficou inativo, o LinkedIn colado foi mantido e o

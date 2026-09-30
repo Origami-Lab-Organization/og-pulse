@@ -22,7 +22,7 @@
 -- Acesso: `prospeccao:ler` / `prospeccao:editar`, como o resto do módulo — sem capacidade
 -- nova (capability-matrix §4).
 --
--- Rollback: supabase/rollback/20260929130000_prospect_company_receita_rollback.sql
+-- Rollback: supabase/rollback/20260929140000_prospect_company_receita_rollback.sql
 
 -- ---------------------------------------------------------------------------
 -- 1. Retrato da Receita na empresa

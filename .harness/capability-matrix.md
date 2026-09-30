@@ -115,8 +115,8 @@ Tres coisas que a tornam diferente de todas as outras:
 | `catalogo:ler` — servicos, linhas de servico | sim | sim | sim | sim | SELECT tenant-wide **de proposito** (ADR-0023) |
 | `catalogo:editar` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
 | `cliente:ler` / `cliente:editar` | sim | sim | — | — | rota `requireManager` |
-| `prospeccao:ler` — quadro comercial (inclui Ganho com valor vendido e Perda), valor estimado e orçamento vinculado do contato, empresas (tela `/comercial/empresas`), atividades, tarefas, histórico de etapa e métricas (inclusive as métricas comerciais que eram `/analises/comercial`); também a aba Oportunidades da ficha do cliente e a origem comercial do projeto | sim | sim | — | — | `has_capability` (migration 20260915100000) |
-| `prospeccao:editar` — cadastro, atividade, tarefa, registrar ganho (com valor) e perda | sim | sim | — | — | `has_capability` (migration 20260915100000) |
+| `prospeccao:ler` — quadro comercial (inclui Ganho com valor vendido e Perda), valor estimado e orçamento vinculado do contato, empresas (tela `/comercial/empresas`), atividades, tarefas, histórico de etapa e métricas (tela `/comercial/metricas`, item do menu desde 29/09/2026, que absorveu `/analises/comercial`); dados da Receita da empresa e a rede de sócios (`prospect_company_partners`, ADR-0041); também a aba Oportunidades da ficha do cliente e a origem comercial do projeto | sim | sim | — | — | `has_capability` (migration 20260915100000) |
+| `prospeccao:editar` — cadastro, atividade, tarefa, registrar ganho (com valor) e perda, consultar/atualizar a Receita, editar redes e telefone de sócio e "Virar contato" | sim | sim | — | — | `has_capability` (migration 20260915100000) |
 
 **29/09/2026 — Prospecção absorveu Oportunidades** (migration 20260929120000). A tabela
 `leads` e as `lead_*` saíram, e com elas `/pipeline`, `/analises/comercial` e as capacidades
