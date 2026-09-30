@@ -2,6 +2,7 @@
 // em prospect_companies.fomento. Fontes e limites: .harness/integrations/fomento-publico.md
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { montarSinais, operacoesBndes, type LinhaDeReferencia, type OperacaoDeFomento } from "../_shared/fomento.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,22 +12,11 @@ const corsHeaders = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TEMPO_MS = 10000;
-const BNDES_API = "https://dadosabertos.bndes.gov.br/api/3/action/datastore_search";
-const BNDES_NAO_AUTOMATICAS = "6f56b78c-510f-44b6-8274-78a5b7e931f4";
 const TRANSPARENCIA_API = "https://api.portaldatransparencia.gov.br/api-de-dados";
 const FONTE_LEI_DO_BEM = "lei_do_bem";
-const FONTE_FINEP = "finep";
 
 // deno-lint-ignore no-explicit-any -- cliente sem tipos gerados, como nas outras funções
 type Supabase = ReturnType<typeof createClient<any>>;
-
-interface Operacao {
-  fonte: "FINEP" | "BNDES";
-  ano: number | null;
-  valor: number | null;
-  instrumento: string | null;
-  descricao: string | null;
-}
 
 class Recusa extends Error {
   constructor(message: string, readonly status = 422) {
@@ -37,59 +27,15 @@ class Recusa extends Error {
 const json = (body: unknown, status: number) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-const mascarado = (cnpj: string) =>
-  cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-
-const anoDe = (data: unknown) => {
-  const ano = Number(String(data ?? "").slice(0, 4));
-  return Number.isFinite(ano) && ano > 1990 ? ano : null;
-};
-
-const numero = (valor: unknown) => {
-  if (typeof valor === "number") return valor;
-  const texto = String(valor ?? "").replace(/\./g, "").replace(",", ".");
-  const n = Number(texto);
-  return Number.isFinite(n) ? n : null;
-};
-
 // ── Fontes ────────────────────────────────────────────────────────────────────
 
-// BNDES: operações diretas e indiretas não automáticas, por CNPJ exato. POST — o GET com
-// filtro é barrado pelo WAF deles.
-async function bndes(cnpj: string): Promise<Operacao[]> {
-  const resposta = await fetch(BNDES_API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resource_id: BNDES_NAO_AUTOMATICAS, filters: { cnpj: mascarado(cnpj) }, limit: 50 }),
-    signal: AbortSignal.timeout(TEMPO_MS),
-  });
-  if (!resposta.ok) throw new Error(`bndes ${resposta.status}`);
-  const corpo = await resposta.json();
-  const registros: Record<string, unknown>[] = corpo?.result?.records ?? [];
-  return registros.map((r) => ({
-    fonte: "BNDES" as const,
-    ano: anoDe(r.data_da_contratacao),
-    valor: numero(r.valor_contratado_reais),
-    instrumento: [r.produto, r.inovacao === "SIM" ? "inovação" : null].filter(Boolean).join(" · ") || null,
-    descricao: String(r.descricao_do_projeto ?? "").replace(/\s+/g, " ").trim().slice(0, 300) || null,
-  }));
-}
-
-interface Referencia {
-  fonte: string;
-  ano: number | null;
-  valor: number | null;
-  instrumento: string | null;
-  descricao: string | null;
-}
-
-async function referencia(supabase: Supabase, cnpj: string): Promise<{ linhas: Referencia[]; temLeiDoBem: boolean }> {
+async function referencia(supabase: Supabase, cnpj: string): Promise<{ linhas: LinhaDeReferencia[]; temLeiDoBem: boolean }> {
   const [{ data, error }, carga] = await Promise.all([
     supabase.from("fomento_publico").select("fonte, ano, valor, instrumento, descricao").eq("cnpj", cnpj).limit(200),
     supabase.from("fomento_publico").select("id", { count: "exact", head: true }).eq("fonte", FONTE_LEI_DO_BEM),
   ]);
   if (error) throw new Error("fomento_publico");
-  return { linhas: (data ?? []) as Referencia[], temLeiDoBem: (carga.count ?? 0) > 0 };
+  return { linhas: (data ?? []) as LinhaDeReferencia[], temLeiDoBem: (carga.count ?? 0) > 0 };
 }
 
 // Portal da Transparência: contratos do governo federal com a empresa. Sem a chave (secret
@@ -109,23 +55,6 @@ async function governo(cnpj: string): Promise<{ contratos: number; valorTotal: n
     if (lista.length < 15) break;
   }
   return { contratos, valorTotal: contratos > 0 ? valorTotal : null };
-}
-
-// ── Montagem ──────────────────────────────────────────────────────────────────
-
-function sinais(ref: { linhas: Referencia[]; temLeiDoBem: boolean }, doBndes: Operacao[], doGoverno: Awaited<ReturnType<typeof governo>>) {
-  const leiDoBem = ref.linhas.filter((l) => l.fonte === FONTE_LEI_DO_BEM);
-  const finep: Operacao[] = ref.linhas
-    .filter((l) => l.fonte === FONTE_FINEP)
-    .map((l) => ({ fonte: "FINEP", ano: l.ano, valor: l.valor, instrumento: l.instrumento, descricao: l.descricao }));
-  const fomentos = [...finep, ...doBndes].sort((a, b) => (b.ano ?? 0) - (a.ano ?? 0));
-  return {
-    leiDoBem: leiDoBem.length > 0 ? "ja_usa" : ref.temLeiDoBem ? "nunca_usou" : "desconhecido",
-    leiDoBemAno: leiDoBem.reduce<number | null>((m, l) => (l.ano && (!m || l.ano > m) ? l.ano : m), null),
-    captouFomento: fomentos.length > 0,
-    fomentos: fomentos.slice(0, 30),
-    governo: doGoverno,
-  };
 }
 
 async function clienteDoUsuario(req: Request): Promise<Supabase> {
@@ -150,15 +79,17 @@ async function cnpjDaEmpresa(supabase: Supabase, id: string): Promise<string> {
 // Uma fonte fora do ar não derruba as outras: o que respondeu é gravado, e o que falhou volta
 // em `indisponiveis` para a tela avisar.
 async function consultar(supabase: Supabase, cnpj: string) {
-  const [ref, doBndes, doGoverno] = await Promise.allSettled([referencia(supabase, cnpj), bndes(cnpj), governo(cnpj)]);
+  const [ref, doBndes, doGoverno] = await Promise.allSettled([referencia(supabase, cnpj), operacoesBndes(cnpj), governo(cnpj)]);
   const indisponiveis = [
     ref.status === "rejected" ? "FINEP/Lei do Bem" : null,
     doBndes.status === "rejected" ? "BNDES" : null,
     doGoverno.status === "rejected" ? "Portal da Transparência" : null,
   ].filter(Boolean);
-  const resultado = sinais(
-    ref.status === "fulfilled" ? ref.value : { linhas: [], temLeiDoBem: false },
-    doBndes.status === "fulfilled" ? doBndes.value : [],
+  const referenciaLida = ref.status === "fulfilled" ? ref.value : { linhas: [], temLeiDoBem: false };
+  const resultado = montarSinais(
+    referenciaLida.linhas,
+    referenciaLida.temLeiDoBem,
+    doBndes.status === "fulfilled" ? doBndes.value : ([] as OperacaoDeFomento[]),
     doGoverno.status === "fulfilled" ? doGoverno.value : null,
   );
   return { resultado, indisponiveis };

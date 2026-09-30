@@ -40,3 +40,6 @@ public/mcp/manifest.json
 
 # saída intermediária de scripts/prerender-landing.mjs
 .prerender
+
+# Listas geradas por scripts/montar-lista-alvos.mjs (dado de terceiros, não versionar)
+listas-alvo/
