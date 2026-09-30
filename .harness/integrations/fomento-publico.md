@@ -42,3 +42,26 @@ ficou sem resposta.
   `import_fomento_publico`, executável só pelo `service_role`, e reimportar não duplica.
 - A Edge Function roda com o JWT de quem chama e grava na empresa sob a RLS
   (`prospeccao:editar`).
+
+## Listas-alvo (base para prospectar)
+
+`node scripts/montar-lista-alvos.mjs [--ufs MG,SP,RJ,ES] [--saida listas-alvo]` só **lê** dado
+aberto e grava arquivos locais (`listas-alvo/`, fora do git). Nada vai para o banco: a
+importação é feita pela tela, em Empresas › Importar CNPJs, que consulta a Receita,
+classifica e traz a rede de sócios.
+
+- **BNDES** (operações não automáticas): CNAE das seções B/C, porte MÉDIA ou GRANDE,
+  natureza PRIVADA e UF no recorte.
+- **FINEP** (projetos contratados): fora a aba de ICTs, a de condições e a da ANCINE, e fora
+  nomes de instituto, fundação, universidade ou órgão público.
+- **Prioridade:**
+  1. MG primeiro (Rede Origami);
+  2. inovação declarada;
+  3. presença nas duas fontes;
+  4. operação mais recente e maior valor.
+- **Saída:**
+  - `alvos-completo.csv`: todas, com prioridade, fontes, ano e valor;
+  - `lote-mg-NN.txt` e `lote-sudeste-NN.txt`: 500 CNPJs cada, prontos para colar.
+
+Rodada de 29/09/2026: 1.899 empresas no Sudeste. Em MG são 335: 249 da FINEP, 70 do BNDES e
+16 nas duas fontes; 274 com inovação.
