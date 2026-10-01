@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { usePayrollHistory } from '@/hooks/usePayrollHistory';
 import { PayrollEvolutionChart } from '@/components/payroll/PayrollEvolutionChart';
 import { CostPerHourTable } from '@/components/payroll/CostPerHourTable';
+import { CostCenterAllocationCard } from '@/components/payroll/CostCenterAllocationCard';
+import { useRateioCentroCusto } from '@/hooks/useRateioCentroCusto';
 import { PayrollStatsCards } from '@/components/payroll/PayrollStatsCards';
 import { formatCurrency } from '@/lib/formatters';
 import { exportPayrollHistoryToExcel } from '@/lib/payrollHistoryExport';
@@ -20,6 +22,7 @@ export default function CostPerHourAnalysis() {
   const currentMonthKey = history.find((h) => h.isCurrent)?.key;
   const activeMonth = selectedMonth ?? currentMonthKey;
   const selectedPoint = history.find((h) => h.key === activeMonth);
+  const rateio = useRateioCentroCusto(activeMonth, selectedPoint?.rows ?? []);
 
   async function handleExportExcel() {
     setIsExporting(true);
@@ -112,6 +115,17 @@ export default function CostPerHourAnalysis() {
               monthLabel={selectedPoint?.label ?? ''}
               estimated={selectedPoint?.estimated}
               projected={selectedPoint?.projected}
+              allocations={rateio.allocations}
+              allocationsLoading={rateio.isLoading}
+            />
+
+            <CostCenterAllocationCard
+              allocations={rateio.allocations}
+              isLoading={rateio.isLoading}
+              error={rateio.error}
+              monthKey={activeMonth}
+              monthLabel={selectedPoint?.label ?? ''}
+              onRetry={() => rateio.refetch()}
             />
           </>
         )}
