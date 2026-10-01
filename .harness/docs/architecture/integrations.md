@@ -26,6 +26,8 @@ sources:
   - supabase/functions/_shared/cifra.ts
   - src/services/contaAzulService.ts
   - supabase/migrations/20261001120000_conta_azul_conexao.sql
+  - supabase/migrations/20261001130000_conta_azul_sincronizacao.sql
+  - supabase/functions/_shared/contaAzulSync.ts
 ---
 
 # Mapa de Integrações
@@ -43,7 +45,7 @@ flowchart LR
 
     subgraph Supabase
         REST[(Postgres + RLS)]
-        EF[Edge Functions x32]
+        EF[Edge Functions x33]
         CRON[pg_cron + pg_net]
         SMTP[Auth SMTP<br/>convites/recovery]
     end
@@ -144,6 +146,9 @@ empresa conectada e guarda o token cifrado; `conta-azul-disconnect` revoga no Co
 apaga a conexão. As três validam a sessão dentro (`verify_jwt=false`), exigem
 `integracoes:gerir` e escrevem com service role, porque token e state não têm policy. A
 renovação passa pela trava `conta_azul_claim_refresh`: o refresh token rotaciona.
+`conta-azul-sync` (parte 2) mantém o espelho de parcelas e centros de custo: cron a cada 15 min
+(Bearer service role) ou "Sincronizar agora" (sessão + `integracoes:gerir`), em segundo plano
+via `EdgeRuntime.waitUntil`, com trava `conta_azul_claim_sync`.
 
 **Análise de mercado** — `market-analysis-start` / `-refine` / `-status`
 (jobs em `market_analysis_jobs`).

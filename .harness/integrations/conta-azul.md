@@ -1,7 +1,7 @@
 # Integração: Conta Azul (API v2)
 
-- Status: **parte 1 de 4 (conexão)** — conectar, ver a empresa ligada, desconectar. Sem
-  sincronização ainda.
+- Status: **parte 2 de 4 (sincronização)** — conexão, espelho de parcelas e centros de custo,
+  ligação de centros. Conciliação (partes 3 e 4) ainda não.
 - Decisão de arquitetura: [ADR-0044](../adr/0044-integracao-conta-azul-conexao-por-empresa-e-conciliacao.md).
 - Direção: **só leitura** nesta fase (conciliação). Escrita é fase 2.
 - Documentação oficial: https://developers.contaazul.com — consultada em 01/10/2026. Os specs
@@ -41,6 +41,39 @@ conexão e o token cifrado. `conta-azul-disconnect` revoga no Conta Azul e apaga
 
 Sem esses secrets as funções respondem 503 com "A integração com o Conta Azul ainda não está
 configurada no Pulse", e o resto do app segue normal.
+
+## Sincronização (parte 2)
+
+`conta-azul-sync` roda pelo cron a cada 15 min (todas as conexões ativas, Bearer da service
+role) e pelo "Sincronizar agora" (só a da empresa). Responde 202 e trabalha em segundo plano,
+até ~110 s por execução; a próxima continua de onde parou. Trava por conexão
+(`conta_azul_claim_sync`) impede cron e botão juntos.
+
+| Ritmo | Como | Cursor |
+|---|---|---|
+| Carga inicial | `buscar` por mês de vencimento, desde 1º/jan do ano anterior à conexão (Origami: 01/01/2025) até 12 meses à frente | `backfill_cursor` (próximo mês); `backfill_done_at` ao terminar |
+| Incremental | `buscar` com `data_alteracao_de/ate` desde o cursor − 10 min, uma janela de vencimento por ano | `incremental_cursor` (gravado no começo da carga inicial) |
+| Varredura diária | relista a janela inteira, refaz o que faltou e marca `removed_at` no que sumiu — só se a janela inteira coube na execução | `last_full_scan_at` |
+
+Por item listado, só relê o detalhe (`/parcelas/{id}`) se `data_alteracao` é mais nova que a
+gravada. O CNPJ da pessoa vem de `/v1/pessoas/{id}`, uma vez por pessoa, guardado em
+`conta_azul_people` (só CNPJ; sem policy). Ritmo: 8 req/s, 4 filas.
+
+| Espelho `conta_azul_installments` | Conta Azul |
+|---|---|
+| `kind` | qual busca listou: `contas-a-receber` → `receita`, `contas-a-pagar` → `despesa` |
+| `status` | normalizado dos dois enums; valor fora do mapa vira `desconhecido` (CHECK) |
+| `gross_amount` / `net_amount` | `valor_composicao.valor_bruto` / `valor_liquido` (cai para `total` / `valor_total_liquido`) |
+| `payment_date` | a maior `baixas[].data_pagamento` |
+| `person_*` | `cliente` ou `fornecedor` do item da busca (o detalhe não traz pessoa); documento só se CNPJ |
+| `invoice_number` / `invoice_type` | `fatura.numero` / `fatura.tipo_fatura` |
+| `cost_centers` | `evento.rateio[].rateio_centro_custo[]` achatado em `{id, name, amount, gross}` |
+| `ca_updated_at` | `data_alteracao`, convertida de São Paulo (−03:00) para UTC |
+
+Centros de custo: `/v1/centro-de-custo` (`filtro_rapido=TODOS`) a cada execução, em
+`conta_azul_cost_centers`. O upsert não manda `cost_center_id`, então a ligação feita pelo
+admin sobrevive. A tela muda só essa coluna (GRANT por coluna; WITH CHECK exige centro do mesmo
+tenant).
 
 ## Autenticação
 
