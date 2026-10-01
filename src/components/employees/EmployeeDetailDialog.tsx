@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { CONTRACT_TYPE_LABELS, type ContractType, type EmployeeStatus } from '@/types/employee';
 import type { PayrollAnalysisRow } from '@/lib/payrollAnalysis';
 import { EmployeeStatusBadge } from '@/components/employees/EmployeeStatusBadge';
+import type { ReactNode } from 'react';
 import { User } from 'lucide-react';
 
 interface EmployeeDetailDialogProps {
@@ -20,6 +21,8 @@ interface EmployeeDetailDialogProps {
   monthLabel: string;
   /** Custo/Hora é um conceito de regime de competência — oculto para a Folha de Pagamento (regime de caixa), onde hoursWorked/hourlyCost são sempre 0. */
   showHourlyCost?: boolean;
+  /** Conteúdo extra no fim do detalhe — a Custo x Hora põe aqui o rateio por centro de custo. */
+  extra?: ReactNode;
 }
 
 function dayMonth(date: Date): string {
@@ -100,6 +103,7 @@ export function EmployeeDetailDialog({
   row,
   monthLabel,
   showHourlyCost = true,
+  extra,
 }: EmployeeDetailDialogProps) {
   if (!row) return null;
 
@@ -368,6 +372,7 @@ export function EmployeeDetailDialog({
             </CardContent>
           </Card>
         </div>
+        {extra && <div className="mt-4">{extra}</div>}
       </DialogContent>
     </Dialog>
   );
