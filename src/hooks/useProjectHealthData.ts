@@ -5,11 +5,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { AnalyticsFilters } from './useAnalyticsData';
 import { fetchSupplierRefs, fetchAllSupplierActuals, fetchMaterials } from '@/services/projectCostsService';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import type { Tables } from '@/integrations/supabase/types';
+import { todasAsPaginas } from '@/lib/paginacao';
 import {
   calculateProjectHealth,
   type ProjectHealthScore,
 } from '@/lib/projectHealthCalculator';
 import type { KeyResultConfidenceLevel } from '@/types/projectOkr';
+
+/** Hora lançada no projeto, só com o que entra no custo. */
+type TimesheetCostRow = Pick<Tables<'project_timesheets'>, 'project_id' | 'project_member_id' | 'work_date' | 'hours' | 'cost_per_hour'>;
 
 export interface ProjectHealthRow {
   projectId: string;
@@ -174,12 +179,16 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
           .neq('status', 'received')
           .lt('due_date', todayStr),
 
-        supabase
-          .from('project_timesheets')
-          .select('project_id, project_member_id, work_date, hours, cost_per_hour')
-          .in('project_id', projectIds)
-          .gte('work_date', startStr)
-          .lte('work_date', endStr),
+        todasAsPaginas<TimesheetCostRow>((de, ate) =>
+          supabase
+            .from('project_timesheets')
+            .select('project_id, project_member_id, work_date, hours, cost_per_hour')
+            .in('project_id', projectIds)
+            .gte('work_date', startStr)
+            .lte('work_date', endStr)
+            .order('id')
+            .range(de, ate),
+        ),
 
         supabase
           .from('project_members')
@@ -222,7 +231,7 @@ export function useProjectHealthData(filters: AnalyticsFilters, options?: { enab
       const managers         = managersRes.data || [];
       const revenueInstalls  = revenueRes.data || [];
       const overdueInstalls  = overdueRes.data || [];
-      const timesheets       = timesheetsRes.data || [];
+      const timesheets       = timesheetsRes;
       const members          = (membersRes.data || []) as any[];
       const projectSuppliers = projectSuppliersRes;
       const supplierActuals  = supplierActualsRes;

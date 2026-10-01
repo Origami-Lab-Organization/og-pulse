@@ -40,6 +40,12 @@ export interface CategoryCostsByMonth {
   actuals: CategoryCostActual[];
   /** Ainda não lançado — atrasado (mês já passou) ou futuro. Nunca inclui o que já virou actual. */
   planned: CategoryCostActual[];
+  /**
+   * Plano cheio: o planejado de cada mês, lançado ou não. É contra ele que o realizado se
+   * compara ("gastou X de Y previsto"). O saldo em aberto (`planned`) serve para projetar o
+   * que falta e, usado como previsto, esconderia o estouro.
+   */
+  plannedFull: CategoryCostActual[];
 }
 
 /**
@@ -58,7 +64,7 @@ export async function fetchProjectCostsRealizedByCategory(
   targetYear: number,
   categories?: ProjectCostCategory[],
 ): Promise<CategoryCostsByMonth> {
-  if (projectIds.length === 0) return { actuals: [], planned: [] };
+  if (projectIds.length === 0) return { actuals: [], planned: [], plannedFull: [] };
 
   let query = supabase
     .from('project_costs')
@@ -122,7 +128,28 @@ export async function fetchProjectCostsRealizedByCategory(
     if (idx != null) planned.push({ project_id: row.project_id, category: row.category, monthIndex: idx, value: Number(plannedVal) });
   }
 
-  return { actuals, planned };
+  const plannedFull = rows.flatMap((row) => plannedFullOf(row, targetYear));
+  return { actuals, planned, plannedFull };
+}
+
+/** O planejado de cada mês do custo (no mês relativo ao projeto), lançado ou não. */
+function plannedMonthsOf(row: ProjectCostCategoryRow): { monthNumber: number; value: number }[] {
+  if (row.is_recurring) {
+    return (row.months ?? [])
+      .filter((m) => m.planned_value != null)
+      .map((m) => ({ monthNumber: m.month_number, value: Number(m.planned_value) }));
+  }
+  const plannedVal = row.planned_amount_brl ?? row.planned_amount;
+  return plannedVal == null ? [] : [{ monthNumber: row.month_number ?? 1, value: Number(plannedVal) }];
+}
+
+/** Plano cheio de um custo no mês de calendário do ano pedido. Ver `CategoryCostsByMonth.plannedFull`. */
+function plannedFullOf(row: ProjectCostCategoryRow, targetYear: number): CategoryCostActual[] {
+  const project = Array.isArray(row.project) ? row.project[0] : row.project;
+  return plannedMonthsOf(row).flatMap(({ monthNumber, value }) => {
+    const idx = resolveCostMonthIndex({ projectStartDate: project?.start_date ?? '', monthNumber, targetYear });
+    return idx == null ? [] : [{ project_id: row.project_id, category: row.category, monthIndex: idx, value }];
+  });
 }
 
 /**
@@ -150,7 +177,10 @@ export interface SupplierWithActuals {
 }
 
 export interface SupplierWithActualsAndPlanned extends SupplierWithActuals {
+  /** Saldo em aberto: meses planejados ainda sem realizado. */
   plannedMonths: SupplierMonthValue[];
+  /** Plano cheio: o planejado de cada mês, realizado ou não. */
+  plannedMonthsFull: SupplierMonthValue[];
 }
 
 export interface SupplierForReport extends SupplierWithActuals {
@@ -228,6 +258,17 @@ function supplierPlanned(row: SupplierCostRow): SupplierMonthValue[] {
   return [{ month_number: dateToProjectMonth(row.project.start_date, row.cost_date), value: Number(row.planned_amount) }];
 }
 
+/** Plano cheio por mês de um custo de fornecedor: o planejado de cada mês, realizado ou não. */
+function supplierPlannedFull(row: SupplierCostRow): SupplierMonthValue[] {
+  if (row.is_recurring) {
+    return (row.months ?? [])
+      .filter((m) => m.planned_value != null)
+      .map((m) => ({ month_number: m.month_number, value: Number(m.planned_value) }));
+  }
+  if (row.planned_amount == null || !row.cost_date || !row.project?.start_date) return [];
+  return [{ month_number: dateToProjectMonth(row.project.start_date, row.cost_date), value: Number(row.planned_amount) }];
+}
+
 async function fetchSupplierCostRows(projectIds: string[]): Promise<SupplierCostRow[]> {
   if (projectIds.length === 0) return [];
   const { data } = await supabase
@@ -255,6 +296,7 @@ export async function fetchSuppliersWithActualsAndPlanned(
     project_id: r.project_id,
     actuals: supplierActuals(r),
     plannedMonths: supplierPlanned(r),
+    plannedMonthsFull: supplierPlannedFull(r),
   }));
 }
 
