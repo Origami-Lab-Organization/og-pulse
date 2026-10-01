@@ -42,6 +42,7 @@ import AdminLembretes from "./pages/AdminLembretes";
 import AdminIntegracoes from "./pages/AdminIntegracoes";
 import ContaAzulRetorno from "./pages/ContaAzulRetorno";
 import FinanceiroConciliacao from "./pages/FinanceiroConciliacao";
+import AnaliseHorasPorProjeto from "./pages/AnaliseHorasPorProjeto";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import Suppliers from "./pages/Suppliers";
@@ -338,6 +339,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireCapability="timesheet-terceiro:ler">
                     <AnaliseHorasNaoLancadas />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/analises/horas-por-projeto"
+                element={
+                  <RoleProtectedRoute requireCapability="timesheet-terceiro:ler">
+                    <AnaliseHorasPorProjeto />
                   </RoleProtectedRoute>
                 }
               />

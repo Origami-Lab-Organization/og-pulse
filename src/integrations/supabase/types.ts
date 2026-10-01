@@ -7979,6 +7979,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      project_hours_by_person: {
+        Args: { p_from: string; p_tenant_id: string; p_to: string }
+        Returns: {
+          client_name: string
+          employee_id: string
+          employee_name: string
+          logged_hours: number
+          planned_hours: number
+          project_id: string
+          project_name: string
+        }[]
+      }
       project_child_tenant_matches: {
         Args: { _project_id: string; _tenant_id: string }
         Returns: boolean
