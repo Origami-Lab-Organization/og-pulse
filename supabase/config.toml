@@ -67,3 +67,15 @@ verify_jwt = false
 # service role key; verify_jwt desligado como nos outros notify-* agendados.
 [functions.company-watch]
 verify_jwt = false
+
+# Integração Conta Azul (ADR-0044). As três validam a sessão dentro (auth.getUser) e exigem
+# `integracoes:gerir` no tenant. Escrevem com service role porque token e state não têm
+# policy — o navegador nunca vê token.
+[functions.conta-azul-connect]
+verify_jwt = false
+
+[functions.conta-azul-callback]
+verify_jwt = false
+
+[functions.conta-azul-disconnect]
+verify_jwt = false

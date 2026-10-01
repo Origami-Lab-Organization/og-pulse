@@ -39,6 +39,8 @@ import AdminFeriados from "./pages/AdminFeriados";
 import AdminCentrosCusto from "./pages/AdminCentrosCusto";
 import AdminAtividades from "./pages/AdminAtividades";
 import AdminLembretes from "./pages/AdminLembretes";
+import AdminIntegracoes from "./pages/AdminIntegracoes";
+import ContaAzulRetorno from "./pages/ContaAzulRetorno";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import Suppliers from "./pages/Suppliers";
@@ -555,6 +557,23 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireCapability="configuracao:editar">
                     <AdminLembretes />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/integracoes"
+                element={
+                  <RoleProtectedRoute requireCapability="integracoes:gerir">
+                    <AdminIntegracoes />
+                  </RoleProtectedRoute>
+                }
+              />
+              {/* URL de retorno cadastrada no app do Conta Azul (ADR-0044): não mudar sem atualizar lá. */}
+              <Route
+                path="/admin/integracoes/conta-azul/retorno"
+                element={
+                  <RoleProtectedRoute requireCapability="integracoes:gerir">
+                    <ContaAzulRetorno />
                   </RoleProtectedRoute>
                 }
               />

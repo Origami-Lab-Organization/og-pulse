@@ -202,6 +202,23 @@ reativacao sao decisao da Origami: as colunas so mudam por service role ou sessa
 
 ---
 
+## 10. Integracoes e conciliacao
+
+Criado em 01/10/2026 com a integracao Conta Azul (ADR-0044, migration
+`20261001120000_conta_azul_conexao`). Cada capacidade nasceu espelhando uma vizinha, entao o
+seed reproduz quem ja via aquele tipo de dado.
+
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `integracoes:gerir` — conectar, desconectar e sincronizar o Conta Azul; mapear centros de custo | sim | — | — | — | `has_capability` nas Edge Functions `conta-azul-*`; espelha `configuracao:editar` |
+| `conciliacao:receber` — parcelas de projeto x contas a receber do Conta Azul | sim | sim | — | — | espelha `financeiro:ler` (ADR-0022); RLS da linha de receita no espelho (parte 2) |
+| `conciliacao:pagar` — contas a pagar do Conta Azul, **inclusive pagamento de folha** | sim | — | — | — | espelha `folha:ler`; RLS da linha de despesa no espelho (parte 2) |
+
+A linha de `conta_azul_connections` (empresa ligada, status) se le com qualquer uma das tres.
+Token (`conta_azul_tokens`) e estado do OAuth (`conta_azul_oauth_states`) **nao tem policy**:
+nenhum perfil le, so service role. Receber e pagar sao separados por decisao do Italo
+(01/10/2026): o Gerente ja le parcela de projeto; contas a pagar traz salario.
+
 ## Cenario 1 — respostas diretas, sem abrir codigo
 
 - **"Gerente ve margem de projeto que nao e dele?"** → **Sim.** Decidido em ADR-0022:

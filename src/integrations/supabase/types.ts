@@ -1031,6 +1031,129 @@ export type Database = {
           },
         ]
       }
+      conta_azul_connections: {
+        Row: {
+          ca_company_id: string
+          ca_document: string | null
+          ca_legal_name: string | null
+          ca_trade_name: string | null
+          connected_at: string
+          connected_by: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          last_sync_at: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          ca_company_id: string
+          ca_document?: string | null
+          ca_legal_name?: string | null
+          ca_trade_name?: string | null
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          ca_company_id?: string
+          ca_document?: string | null
+          ca_legal_name?: string | null
+          ca_trade_name?: string | null
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conta_azul_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conta_azul_oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          state: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          state: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          state?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conta_azul_oauth_states_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conta_azul_tokens: {
+        Row: {
+          access_expires_at: string
+          access_token_cipher: string
+          connection_id: string
+          refresh_token_cipher: string
+          refreshing_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_expires_at: string
+          access_token_cipher: string
+          connection_id: string
+          refresh_token_cipher: string
+          refreshing_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_expires_at?: string
+          access_token_cipher?: string
+          connection_id?: string
+          refresh_token_cipher?: string
+          refreshing_until?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conta_azul_tokens_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: true
+            referencedRelation: "conta_azul_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cost_centers: {
         Row: {
           created_at: string
@@ -7086,6 +7209,10 @@ export type Database = {
       complete_password_change: { Args: never; Returns: undefined }
       complete_timesheet_onboarding: { Args: never; Returns: undefined }
       complete_tour: { Args: never; Returns: undefined }
+      conta_azul_claim_refresh: {
+        Args: { p_connection_id: string; p_seconds?: number }
+        Returns: boolean
+      }
       count_employee_cost_business_days: {
         Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
         Returns: number
