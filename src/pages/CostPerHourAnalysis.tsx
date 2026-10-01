@@ -112,6 +112,7 @@ export default function CostPerHourAnalysis() {
 
             <CostPerHourTable
               rows={selectedPoint?.rows ?? []}
+              monthKey={activeMonth}
               monthLabel={selectedPoint?.label ?? ''}
               estimated={selectedPoint?.estimated}
               projected={selectedPoint?.projected}
