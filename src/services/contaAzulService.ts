@@ -1,7 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { ContaAzulConnection } from '@/types/contaAzul';
+import type { ContaAzulConnection, ContaAzulCostCenter } from '@/types/contaAzul';
 
-const COLUMNS = 'id, ca_document, ca_legal_name, ca_trade_name, status, connected_at, last_sync_at, last_error';
+const COLUMNS =
+  'id, ca_document, ca_legal_name, ca_trade_name, status, connected_at, last_sync_at, last_error, backfill_cursor, backfill_done_at, syncing_until, receivable_count, payable_count';
+const COST_CENTER_COLUMNS = 'id, ca_cost_center_id, code, name, is_active, cost_center_id';
 
 /** Erro das funções do Conta Azul, com a mensagem que a função já escreveu para a pessoa. */
 export class ContaAzulError extends Error {}
@@ -52,5 +54,27 @@ export const contaAzulService = {
 
   async disconnect(tenantId: string): Promise<void> {
     await invoke('conta-azul-disconnect', { tenant_id: tenantId }, 'Não foi possível desconectar o Conta Azul.');
+  },
+
+  /** Pede uma sincronização. A função responde na hora e o trabalho segue em segundo plano. */
+  async syncNow(tenantId: string): Promise<void> {
+    await invoke('conta-azul-sync', { tenant_id: tenantId }, 'Não foi possível pedir a sincronização.');
+  },
+
+  async listCostCenters(tenantId: string): Promise<ContaAzulCostCenter[]> {
+    const { data, error } = await supabase
+      .from('conta_azul_cost_centers')
+      .select(COST_CENTER_COLUMNS)
+      .eq('tenant_id', tenantId)
+      .order('is_active', { ascending: false })
+      .order('name');
+    if (error) throw error;
+    return (data ?? []) as ContaAzulCostCenter[];
+  },
+
+  /** Só a ligação muda pela tela (GRANT por coluna); o resto é do Conta Azul. */
+  async linkCostCenter(id: string, costCenterId: string | null): Promise<void> {
+    const { error } = await supabase.from('conta_azul_cost_centers').update({ cost_center_id: costCenterId }).eq('id', id);
+    if (error) throw error;
   },
 };

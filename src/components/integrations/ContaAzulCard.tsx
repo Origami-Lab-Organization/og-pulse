@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, Link2, Loader2, Unplug } from 'lucide-react';
+import { AlertTriangle, Link2, Loader2, RefreshCw, Unplug } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -16,9 +16,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  isSyncing,
   useContaAzulConnection,
   useDisconnectContaAzul,
   useStartContaAzulConnection,
+  useSyncContaAzul,
 } from '@/hooks/useContaAzulConnection';
 import { formatDate } from '@/lib/formatters';
 import { formatCNPJ } from '@/lib/masks';
@@ -75,6 +77,65 @@ function DisconnectButton() {
   );
 }
 
+function SyncButton({ connection }: { connection: ContaAzulConnection }) {
+  const sync = useSyncContaAzul();
+  const running = sync.isPending || isSyncing(connection);
+  return (
+    <Button variant="outline" onClick={() => sync.mutate()} disabled={running}>
+      {running ? (
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+      ) : (
+        <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
+      )}
+      {running ? 'Sincronizando…' : 'Sincronizar agora'}
+    </Button>
+  );
+}
+
+const formatDateTime = (value: string) =>
+  new Date(value).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+/** O cursor aponta o PRÓXIMO mês a carregar: o último lido é o anterior a ele. */
+function lastLoadedMonth(cursor: string): string {
+  const [year, month] = cursor.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 2, 1)).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+
+function backfillLine(connection: ContaAzulConnection): string | null {
+  if (connection.backfill_done_at) return null;
+  if (!connection.backfill_cursor) return 'A primeira carga começa na próxima sincronização (em até 15 minutos).';
+  return `Primeira carga em andamento: histórico lido até ${lastLoadedMonth(connection.backfill_cursor)}.`;
+}
+
+function SyncStatus({ connection }: { connection: ContaAzulConnection }) {
+  const backfill = backfillLine(connection);
+  return (
+    <div className="space-y-1 text-sm" aria-live="polite">
+      <p className="text-foreground">
+        <span className="tabular-nums">{connection.receivable_count}</span> contas a receber ·{' '}
+        <span className="tabular-nums">{connection.payable_count}</span> contas a pagar
+      </p>
+      <p className="text-muted-foreground">
+        {connection.last_sync_at
+          ? `Última sincronização: ${formatDateTime(connection.last_sync_at)}.`
+          : 'Ainda não sincronizado.'}{' '}
+        {backfill}
+      </p>
+    </div>
+  );
+}
+
+function SyncError({ connection }: { connection: ContaAzulConnection }) {
+  if (!connection.last_error || connection.status === ContaAzulConnectionStatus.Reconnect) return null;
+  return (
+    <Alert variant="warning">
+      <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+      <AlertTitle>A última sincronização não terminou</AlertTitle>
+      <AlertDescription>{connection.last_error}</AlertDescription>
+    </Alert>
+  );
+}
+
 function NotConnected() {
   return (
     <div className="flex flex-col items-start gap-3">
@@ -125,8 +186,10 @@ function Connected({ connection }: { connection: ContaAzulConnection }) {
         </Alert>
       )}
       <CompanyDetails connection={connection} />
+      {!needsReconnect && <SyncError connection={connection} />}
+      {!needsReconnect && <SyncStatus connection={connection} />}
       <div className="flex flex-wrap gap-2">
-        {needsReconnect && <ConnectButton label="Conectar de novo" />}
+        {needsReconnect ? <ConnectButton label="Conectar de novo" /> : <SyncButton connection={connection} />}
         <DisconnectButton />
       </div>
     </div>

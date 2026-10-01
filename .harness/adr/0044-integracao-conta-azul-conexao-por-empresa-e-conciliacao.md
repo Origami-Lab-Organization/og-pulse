@@ -40,10 +40,14 @@ O **Conta Azul manda no realizado**: recebido, pago, data da baixa, valor líqui
 emitida. O **Pulse manda no contratado e no planejado**: parcela prevista, alocação, custo-hora
 estimado, centro de custo do trabalho.
 
-Nesta fase o Pulse **só lê**. Não escreve no Conta Azul e não altera dado do Pulse sozinho: a
-conciliação mostra a divergência e quem corrige é a pessoa, no sistema que manda naquele
-dado. Atualizar a parcela do Pulse a partir da baixa do Conta Azul é decisão posterior, depois
-de a conciliação provar que o casamento é confiável.
+Nesta fase o Pulse **não escreve no Conta Azul**. A conciliação mostra a divergência e quem
+corrige é a pessoa, no sistema que manda naquele dado — **com uma exceção, decidida pelo Italo
+em 01/10/2026:** quando a parcela do Pulse casa **forte** com uma parcela quitada do Conta Azul
+(número da NF e CNPJ iguais, item 6), o Pulse marca a parcela como recebida sozinho, com a data
+da baixa. É o realizado chegando de quem manda nele. O valor da parcela do Pulse não muda; se o
+bruto diverge, a conciliação aponta. Toda marcação automática fica registrada (quem: Conta
+Azul; quando; qual parcela de lá) e pode ser desfeita na conciliação. Casamento fraco nunca
+marca nada.
 
 ### 2. Uma conexão por empresa do Pulse
 
@@ -125,6 +129,13 @@ o financeiro de projeto (ADR-0022), e a parte de receber é parcela de projeto v
 lado. A de pagar fica só com Admin porque traz pagamento de folha (boundary de salário e dado
 pessoal). A RLS do espelho segue a mesma divisão: a linha de receita se lê com
 `conciliacao:receber`, a de despesa com `conciliacao:pagar`.
+
+### 7a. Onde aparece e desde quando
+
+Decisões do Italo (01/10/2026): a conciliação ganha **tela própria** (A receber / A pagar,
+item a item, onde se confirma e desfaz) **e** o Analytics Financeiro passa a mostrar o número
+do Pulse ao lado do número do Conta Azul. A primeira carga traz o histórico **desde
+01/01/2025**.
 
 ### 8. Entrega em quatro partes
 

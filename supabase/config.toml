@@ -79,3 +79,8 @@ verify_jwt = false
 
 [functions.conta-azul-disconnect]
 verify_jwt = false
+
+# Sincronização Conta Azul (ADR-0044, parte 2): chamada pelo cron (Bearer da service role,
+# conferido dentro) e pelo "Sincronizar agora" (sessão + `integracoes:gerir`, validados dentro).
+[functions.conta-azul-sync]
+verify_jwt = false
