@@ -6,6 +6,18 @@ import { endOfMonth, format, isWeekend, subDays } from 'date-fns';
 import { Holiday } from '@/types/holiday';
 import { isHoliday } from '@/hooks/useHolidays';
 
+/** Motivos da correção de horas. Também rotulam o aviso que a pessoa recebe e a auditoria. */
+export const CORRECTION_REASONS = [
+  { value: 'wrong_hours', label: 'Horas incorretas' },
+  { value: 'wrong_item', label: 'Item incorreto' },
+  { value: 'post_approval_fix', label: 'Correção pós-aprovação' },
+  { value: 'employee_request', label: 'Pedido do colaborador' },
+  { value: 'other', label: 'Outro' },
+] as const;
+
+export const correctionReasonLabel = (code: string | null | undefined) =>
+  CORRECTION_REASONS.find((r) => r.value === code)?.label ?? 'Correção';
+
 export interface ActualChangeEntry {
   type: 'project' | 'internal_activity';
   /** project_member_id for projects, activity_type_id for activities */
@@ -21,6 +33,69 @@ export interface ActualChangeEntry {
   monthLabel: string;
   /** Specific work date for the correction (yyyy-MM-dd) */
   workDate?: string;
+}
+
+const MAX_CHANGES_IN_MESSAGE = 5;
+
+const mondayOf = (isoDate: string) => {
+  const d = new Date(isoDate + 'T12:00:00');
+  const dow = d.getDay();
+  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+  return format(d, 'yyyy-MM-dd');
+};
+
+/** `type`, não `interface`: vai dentro do `metadata` (Json), que só aceita tipo literal. */
+type AppliedChange = {
+  item: string;
+  date: string;
+  old_hours: number;
+  new_hours: number;
+};
+
+/**
+ * Avisa a pessoa que as horas dela foram corrigidas (decisão do Italo, 01/10/2026): um aviso por
+ * correção, com o que mudou, o motivo e a justificativa. Mesmo tipo e formato do aviso da
+ * aprovação de timesheet (`useTimesheetSubmissions`), para a caixa de entrada mostrar igual.
+ * Falha no aviso não desfaz a correção: ela já está gravada e registrada.
+ */
+async function notifyCorrection(params: {
+  tenantId: string;
+  editorEmployeeId: string;
+  editorName: string;
+  recipientEmployeeId: string;
+  applied: AppliedChange[];
+  reasonCode: string;
+  justification: string;
+}): Promise<void> {
+  const { tenantId, editorEmployeeId, editorName, recipientEmployeeId, applied, reasonCode, justification } = params;
+  if (applied.length === 0 || recipientEmployeeId === editorEmployeeId) return;
+  const lines = applied
+    .slice(0, MAX_CHANGES_IN_MESSAGE)
+    .map((c) => `${c.item} (${format(new Date(c.date + 'T12:00:00'), 'dd/MM')}): ${c.old_hours}h → ${c.new_hours}h`);
+  const more = applied.length > MAX_CHANGES_IN_MESSAGE ? `\n… e mais ${applied.length - MAX_CHANGES_IN_MESSAGE}.` : '';
+  const first = applied[0];
+  const { error } = await supabase.from('notifications').insert([{
+    type: 'timesheet_modified',
+    category: 'timesheet',
+    priority: 'normal',
+    action_type: 'navigate',
+    action_url: `/my-timesheet?week=${mondayOf(first.date)}`,
+    recipient_id: recipientEmployeeId,
+    tenant_id: tenantId,
+    title: `Suas horas foram corrigidas por ${editorName}`,
+    message: `${lines.join('\n')}${more}\n\nMotivo: ${correctionReasonLabel(reasonCode)}. ${justification}`,
+    metadata: {
+      editor_name: editorName,
+      reason_code: reasonCode,
+      reason_label: correctionReasonLabel(reasonCode),
+      justification,
+      changes: applied,
+      ...(applied.length === 1 ? { old_hours: first.old_hours, new_hours: first.new_hours, date: first.date } : {}),
+    },
+    is_read: false,
+    is_resolved: false,
+  }]);
+  if (error) console.error('Falha ao avisar a correção de horas:', error.code);
 }
 
 function getLastWorkingDay(year: number, month: number, holidays: Holiday[]): string {
@@ -50,6 +125,7 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
       const authUserId = user.id;
 
       let persisted = 0;
+      const applied: AppliedChange[] = [];
 
       for (const change of changes) {
         const delta = change.toHours - change.fromHours;
@@ -103,6 +179,7 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
           }]);
           if (logError) throw logError;
           persisted++;
+          applied.push({ item: change.itemTitle, date: workDate, old_hours: change.fromHours, new_hours: change.toHours });
         } else {
           // internal_activity — upsert activity_timesheets adjustment on last working day
           const { data: existing } = await supabase
@@ -151,7 +228,21 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
           }]);
           if (logError) throw logError;
           persisted++;
+          applied.push({ item: change.itemTitle, date: workDate, old_hours: change.fromHours, new_hours: change.toHours });
         }
+      }
+
+      const recipient = changes[0]?.employeeId;
+      if (recipient) {
+        await notifyCorrection({
+          tenantId: employee.tenant_id,
+          editorEmployeeId: employee.id,
+          editorName: employee.nome,
+          recipientEmployeeId: recipient,
+          applied,
+          reasonCode,
+          justification,
+        });
       }
 
       return persisted;
@@ -161,6 +252,8 @@ export const useAllocationActualEdits = (holidays: Holiday[]) => {
       queryClient.invalidateQueries({ queryKey: ['project-timesheets'] });
       queryClient.invalidateQueries({ queryKey: ['activity-timesheets'] });
       queryClient.invalidateQueries({ queryKey: ['correction-week-data'] });
+      queryClient.invalidateQueries({ queryKey: ['rateio-centro-custo'] });
+      queryClient.invalidateQueries({ queryKey: ['auditoria-horas'] });
       toast({ title: 'Horas reais atualizadas', description: `${persisted} correção(ões) aplicada(s) com sucesso.` });
     },
     onError: (error: Error) => {

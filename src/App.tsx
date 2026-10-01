@@ -43,6 +43,7 @@ import AdminIntegracoes from "./pages/AdminIntegracoes";
 import ContaAzulRetorno from "./pages/ContaAzulRetorno";
 import FinanceiroConciliacao from "./pages/FinanceiroConciliacao";
 import AnaliseHorasPorProjeto from "./pages/AnaliseHorasPorProjeto";
+import AuditoriaHoras from "./pages/AuditoriaHoras";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import Suppliers from "./pages/Suppliers";
@@ -411,6 +412,16 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireCapability="custo-hora:ler-relatorio">
                     <CostPerHourAnalysis />
+                  </RoleProtectedRoute>
+                }
+              />
+              {/* Auditoria aberta pelo rateio da Custo x Hora: só horas, sem custo — mesma
+                  capacidade de Horas por projeto; corrigir pede timesheet-terceiro:editar. */}
+              <Route
+                path="/analises/custo-hora/auditoria/:employeeId"
+                element={
+                  <RoleProtectedRoute requireCapability="timesheet-terceiro:ler">
+                    <AuditoriaHoras />
                   </RoleProtectedRoute>
                 }
               />

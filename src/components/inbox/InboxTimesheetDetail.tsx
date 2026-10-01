@@ -26,12 +26,32 @@ export function InboxTimesheetDetail({ notification }: Props) {
               Projeto: <span className="font-medium text-foreground">{meta.project_name}</span>
             </p>
           )}
-          {(meta.old_hours !== undefined || meta.new_hours !== undefined) && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground line-through">{meta.old_hours}h</span>
-              <span className="text-muted-foreground">→</span>
-              <span className="font-medium text-foreground">{meta.new_hours}h</span>
-            </div>
+          {Array.isArray(meta.changes) && meta.changes.length > 1 ? (
+            <ul className="space-y-1 text-sm">
+              {(meta.changes as { item: string; date: string; old_hours: number; new_hours: number }[]).map((c) => (
+                <li key={`${c.item}-${c.date}`} className="flex flex-wrap items-center gap-2">
+                  <span className="text-foreground">{c.item}</span>
+                  <span className="text-muted-foreground">{c.date.split('-').reverse().slice(0, 2).join('/')}</span>
+                  <span className="text-muted-foreground line-through">{c.old_hours}h</span>
+                  <span className="text-muted-foreground">→</span>
+                  <span className="font-medium text-foreground">{c.new_hours}h</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            (meta.old_hours !== undefined || meta.new_hours !== undefined) && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground line-through">{meta.old_hours}h</span>
+                <span className="text-muted-foreground">→</span>
+                <span className="font-medium text-foreground">{meta.new_hours}h</span>
+              </div>
+            )
+          )}
+          {meta.reason_label && (
+            <p className="text-sm text-muted-foreground">
+              Motivo: <span className="font-medium text-foreground">{meta.reason_label}</span>
+              {meta.justification ? ` — ${meta.justification}` : ''}
+            </p>
           )}
         </div>
       )}
