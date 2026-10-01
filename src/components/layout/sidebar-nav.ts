@@ -152,6 +152,7 @@ export const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Centros de custo', url: '/admin/centros-de-custo', requiresCapability: 'configuracao:editar' },
       { title: 'Atividades', url: '/admin/atividades', requiresCapability: 'configuracao:editar' },
       { title: 'Lembretes', url: '/admin/lembretes', requiresCapability: 'configuracao:editar' },
+      { title: 'Integrações', url: '/admin/integracoes', requiresCapability: 'integracoes:gerir' },
     ],
   },
   // Ajuda não declara capacidade de propósito: é a única entrada que todo mundo precisa
