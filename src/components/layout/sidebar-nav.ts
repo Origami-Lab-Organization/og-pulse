@@ -1,8 +1,8 @@
 import {
   BarChart3,
-  CircleHelp,
   Building2,
   CalendarDays,
+  CircleHelp,
   Clock,
   FolderKanban,
   FolderOpen,
@@ -12,6 +12,7 @@ import {
   Settings,
   Timer,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import type { CapabilityRequirement } from '@/lib/access/capabilities';
@@ -100,6 +101,15 @@ export const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Horas não lançadas', url: '/analises/horas-nao-lancadas', requiresCapability: 'timesheet-terceiro:ler' },
       { title: 'Financeiro', url: '/analises/financeiro', requiresCapability: 'financeiro:ler' },
       { title: 'Custo x Hora', url: '/analises/custo-hora', requiresCapability: 'custo-hora:ler-relatorio' },
+    ],
+  },
+  {
+    kind: 'group',
+    title: 'Financeiro',
+    url: '/financeiro/conciliacao',
+    icon: Wallet,
+    children: [
+      { title: 'Conciliação', url: '/financeiro/conciliacao', requiresCapability: ['conciliacao:receber', 'conciliacao:pagar'] },
     ],
   },
   { kind: 'link', title: 'Clientes', url: '/clients', icon: Building2, requiresCapability: 'cliente:ler' },

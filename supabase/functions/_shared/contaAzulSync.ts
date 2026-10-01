@@ -310,7 +310,14 @@ async function executar(ctx: Contexto): Promise<void> {
   await varrerSeVencido(ctx);
 }
 
+/** Casa as parcelas de receita e aplica a baixa do casamento forte (ADR-0044, parte 3). */
+async function conciliarReceber(ctx: Contexto): Promise<void> {
+  const { error } = await ctx.admin.rpc("conta_azul_reconcile_receivables", { p_tenant_id: ctx.conexao.tenant_id });
+  if (error) throw falhaDoBanco("conciliar as contas a receber");
+}
+
 async function concluir(ctx: Contexto): Promise<void> {
+  await conciliarReceber(ctx);
   await atualizarConexao(ctx, {
     last_sync_at: new Date().toISOString(),
     last_error: null,

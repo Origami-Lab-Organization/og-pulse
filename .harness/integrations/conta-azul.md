@@ -1,7 +1,7 @@
 # Integração: Conta Azul (API v2)
 
-- Status: **parte 2 de 4 (sincronização)** — conexão, espelho de parcelas e centros de custo,
-  ligação de centros. Conciliação (partes 3 e 4) ainda não.
+- Status: **parte 3 de 4 (conciliação de receber)** — conexão, espelho, ligação de centros e
+  Financeiro › Conciliação › A receber. Contas a pagar (parte 4) ainda não.
 - Decisão de arquitetura: [ADR-0044](../adr/0044-integracao-conta-azul-conexao-por-empresa-e-conciliacao.md).
 - Direção: **só leitura** nesta fase (conciliação). Escrita é fase 2.
 - Documentação oficial: https://developers.contaazul.com — consultada em 01/10/2026. Os specs
@@ -74,6 +74,23 @@ Centros de custo: `/v1/centro-de-custo` (`filtro_rapido=TODOS`) a cada execuçã
 `conta_azul_cost_centers`. O upsert não manda `cost_center_id`, então a ligação feita pelo
 admin sobrevive. A tela muda só essa coluna (GRANT por coluna; WITH CHECK exige centro do mesmo
 tenant).
+
+## Conciliação de receber (parte 3)
+
+`conta_azul_reconcile_receivables(tenant)` roda no fim de cada sincronização (service role):
+
+| Força | Regra | Efeito |
+|---|---|---|
+| forte | `conta_azul_nf_key(invoice_number)` igual dos dois lados (só dígitos, sem zero à esquerda) **e** CNPJ do cliente (`clients.cnpj` sem máscara) = `person_document` | casado e confirmado; se o Conta Azul está `quitado` com data de baixa, a parcela do Pulse vira `received` com `payment_date` = baixa |
+| fraco | mesmo CNPJ, `abs(bruto − value) ≤ 0,01`, vencimento a até 7 dias | sugestão — precisa de confirmação |
+
+Com vários candidatos (uma NF para várias parcelas), fica o par em que cada lado é o melhor do
+outro (vencimento, depois valor); o resto espera a próxima rodada. Desfazer
+(`conta_azul_undo_match`) devolve `status`/`payment_date` anteriores se a baixa veio do
+casamento e grava a recusa em `conta_azul_match_rejections` — o par não volta. "Levar baixa"
+(`conta_azul_apply_payment`) só em casamento confirmado com o Conta Azul quitado. As três ações
+são definer com `assert_tenant_access` + `conciliacao:receber` (ADR-0021). A tela lê por
+`conta_azul_receivables_reconciliation` (invoker).
 
 ## Autenticação
 

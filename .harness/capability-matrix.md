@@ -211,13 +211,14 @@ seed reproduz quem ja via aquele tipo de dado.
 | Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
 |---|---|---|---|---|---|
 | `integracoes:gerir` — conectar, desconectar e sincronizar o Conta Azul; mapear centros de custo | sim | — | — | — | `has_capability` nas Edge Functions `conta-azul-*`; espelha `configuracao:editar` |
-| `conciliacao:receber` — parcelas de projeto x contas a receber do Conta Azul | sim | sim | — | — | espelha `financeiro:ler` (ADR-0022); RLS da linha de receita no espelho (parte 2) |
+| `conciliacao:receber` — parcelas de projeto x contas a receber do Conta Azul; tela Financeiro › Conciliação | sim | — | — | — | nasceu espelhando `financeiro:ler` (parte 1) e saiu do Gerente em `20261001140000`: Gerente vê recebimento pelo projeto (Italo, 01/10). RLS da receita no espelho e de `conta_azul_matches`; RPCs de ação conferem com `assert_tenant_access` + `has_capability` |
 | `conciliacao:pagar` — contas a pagar do Conta Azul, **inclusive pagamento de folha** | sim | — | — | — | espelha `folha:ler`; RLS da linha de despesa no espelho (parte 2) |
 
 A linha de `conta_azul_connections` (empresa ligada, status) se le com qualquer uma das tres.
 Token (`conta_azul_tokens`) e estado do OAuth (`conta_azul_oauth_states`) **nao tem policy**:
 nenhum perfil le, so service role. Receber e pagar sao separados por decisao do Italo
-(01/10/2026): o Gerente ja le parcela de projeto; contas a pagar traz salario.
+(01/10/2026); contas a pagar traz salario. O menu **Financeiro** (`/financeiro/conciliacao`) aparece
+para quem tem qualquer uma das duas — hoje so Admin.
 
 ## Cenario 1 — respostas diretas, sem abrir codigo
 

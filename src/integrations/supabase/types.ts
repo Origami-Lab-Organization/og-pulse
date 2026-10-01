@@ -1274,6 +1274,119 @@ export type Database = {
           },
         ]
       }
+      conta_azul_match_rejections: {
+        Row: {
+          conta_azul_installment_id: string
+          installment_id: string
+          rejected_at: string
+          rejected_by: string | null
+          tenant_id: string
+        }
+        Insert: {
+          conta_azul_installment_id: string
+          installment_id: string
+          rejected_at?: string
+          rejected_by?: string | null
+          tenant_id: string
+        }
+        Update: {
+          conta_azul_installment_id?: string
+          installment_id?: string
+          rejected_at?: string
+          rejected_by?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conta_azul_match_rejections_conta_azul_installment_id_fkey"
+            columns: ["conta_azul_installment_id"]
+            isOneToOne: false
+            referencedRelation: "conta_azul_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conta_azul_match_rejections_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: false
+            referencedRelation: "project_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conta_azul_match_rejections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conta_azul_matches: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          conta_azul_installment_id: string
+          created_at: string
+          id: string
+          installment_id: string
+          previous_payment_date: string | null
+          previous_status: Database["public"]["Enums"]["installment_status"] | null
+          received_applied_at: string | null
+          received_applied_by: string | null
+          strength: string
+          tenant_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          conta_azul_installment_id: string
+          created_at?: string
+          id?: string
+          installment_id: string
+          previous_payment_date?: string | null
+          previous_status?: Database["public"]["Enums"]["installment_status"] | null
+          received_applied_at?: string | null
+          received_applied_by?: string | null
+          strength: string
+          tenant_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          conta_azul_installment_id?: string
+          created_at?: string
+          id?: string
+          installment_id?: string
+          previous_payment_date?: string | null
+          previous_status?: Database["public"]["Enums"]["installment_status"] | null
+          received_applied_at?: string | null
+          received_applied_by?: string | null
+          strength?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conta_azul_matches_conta_azul_installment_id_fkey"
+            columns: ["conta_azul_installment_id"]
+            isOneToOne: true
+            referencedRelation: "conta_azul_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conta_azul_matches_installment_id_fkey"
+            columns: ["installment_id"]
+            isOneToOne: true
+            referencedRelation: "project_installments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conta_azul_matches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conta_azul_oauth_states: {
         Row: {
           created_at: string
@@ -7436,6 +7549,41 @@ export type Database = {
         Args: { p_connection_id: string; p_seconds?: number }
         Returns: boolean
       }
+      conta_azul_apply_payment: { Args: { p_match_id: string }; Returns: undefined }
+      conta_azul_confirm_match: { Args: { p_match_id: string }; Returns: undefined }
+      conta_azul_nf_key: { Args: { p_value: string }; Returns: string }
+      conta_azul_receivables_reconciliation: {
+        Args: { p_from: string; p_tenant_id: string; p_to: string }
+        Returns: {
+          ca_description: string
+          ca_due_date: string
+          ca_gross: number
+          ca_id: string
+          ca_invoice_number: string
+          ca_net: number
+          ca_payment_date: string
+          ca_person_name: string
+          ca_removed: boolean
+          ca_status: string
+          client_name: string
+          confirmed_at: string
+          installment_id: string
+          installment_number: number
+          match_id: string
+          project_id: string
+          project_name: string
+          pulse_due_date: string
+          pulse_invoice_number: string
+          pulse_payment_date: string
+          pulse_status: string
+          pulse_value: number
+          received_applied_at: string
+          received_applied_auto: boolean
+          strength: string
+        }[]
+      }
+      conta_azul_reconcile_receivables: { Args: { p_tenant_id: string }; Returns: Json }
+      conta_azul_undo_match: { Args: { p_match_id: string }; Returns: undefined }
       count_employee_cost_business_days: {
         Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
         Returns: number

@@ -95,6 +95,7 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 | Análises | `/analises/meu-time`, `/analises/alocacoes*`, `/analises/financeiro`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 299, 331, 339, 347, 355, 395-397 |
 | Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/comercial/empresas` (Empresas da prospecção, situação por conta — `prospeccao:ler`, 24/09/2026) `/comercial/servicos*` (redirect para `/admin/servicos`), `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 411, 421, 429, 436-437, 451, 459, 467 |
 | Estratégia | `/estrategia` | Manager | 457 |
+| Financeiro | `/financeiro/conciliacao` (Conciliação com o Conta Azul — ADR-0044, parte 3); `/financeiro` redireciona | Capacidade (`conciliacao:receber` ou `conciliacao:pagar`; hoje só Admin) | — |
 | Admin | `/admin`, `/admin-dashboard`; `/admin/integracoes` e `/admin/integracoes/conta-azul/retorno` (URL de retorno do OAuth do Conta Azul — ADR-0044) | Admin; integrações por `integracoes:gerir` | 143, 427 |
 
 Redirects de compatibilidade: `/pipeline`, `/pipeline/archived`, `/crm`,
