@@ -121,12 +121,13 @@ vale depois de confirmado por uma pessoa; o confirmado fica gravado.
 | Capacidade | O que libera | Seed |
 |---|---|---|
 | `integracoes:gerir` | conectar, desconectar, sincronizar agora, mapear centros de custo | Admin |
-| `conciliacao:receber` | ver a conciliação de receber e confirmar ou desfazer casamentos | Admin, Gerente |
+| `conciliacao:receber` | ver a conciliação de receber e confirmar ou desfazer casamentos | Admin |
 | `conciliacao:pagar` | ver a conciliação de pagar e confirmar ou desfazer casamentos | Admin |
 
-Receber e pagar são capacidades separadas por decisão do Italo (01/10/2026): o Gerente já lê
-o financeiro de projeto (ADR-0022), e a parte de receber é parcela de projeto vista pelo outro
-lado. A de pagar fica só com Admin porque traz pagamento de folha (boundary de salário e dado
+Receber e pagar são capacidades separadas por decisão do Italo (01/10/2026). O seed da parte 1
+deu `conciliacao:receber` também ao Gerente; no mesmo dia o Italo decidiu que o menu
+**Financeiro fica só com Admin** e que **o Gerente vê o recebimento pelo projeto**, como já via
+— a parte 3 (`20261001140000`) tira a capacidade dele. Liberar de novo é toggle de perfil. A de pagar fica só com Admin porque traz pagamento de folha (boundary de salário e dado
 pessoal). A RLS do espelho segue a mesma divisão: a linha de receita se lê com
 `conciliacao:receber`, a de despesa com `conciliacao:pagar`.
 

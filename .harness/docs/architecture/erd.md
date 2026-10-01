@@ -24,6 +24,7 @@ sources:
   - supabase/migrations/20260929160000_fomento_publico.sql
   - supabase/migrations/20261001120000_conta_azul_conexao.sql
   - supabase/migrations/20261001130000_conta_azul_sincronizacao.sql
+  - supabase/migrations/20261001140000_conta_azul_conciliacao_receber.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
@@ -451,7 +452,10 @@ Integração Conta Azul (ADR-0044, `20261001120000`): `conta_azul_connections` (
 `(connection_id, ca_installment_id)`, RLS por `kind`: receita com `conciliacao:receber`, despesa
 com `conciliacao:pagar`), `conta_azul_people` (cache de CNPJ, sem policy) e
 `conta_azul_cost_centers` (`cost_center_id` → `cost_centers`, `ON DELETE SET NULL`, UPDATE só
-dessa coluna por `integracoes:gerir`).
+dessa coluna por `integracoes:gerir`). Parte 3 (`20261001140000`): `conta_azul_matches`
+(`installment_id` UNIQUE → `project_installments`, `conta_azul_installment_id` UNIQUE →
+`conta_azul_installments`, ambos `ON DELETE CASCADE`; guarda `previous_status`/
+`previous_payment_date` para desfazer a baixa) e `conta_azul_match_rejections` (PK do par).
 
 ## Divergências código × doc
 

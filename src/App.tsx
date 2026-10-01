@@ -41,6 +41,7 @@ import AdminAtividades from "./pages/AdminAtividades";
 import AdminLembretes from "./pages/AdminLembretes";
 import AdminIntegracoes from "./pages/AdminIntegracoes";
 import ContaAzulRetorno from "./pages/ContaAzulRetorno";
+import FinanceiroConciliacao from "./pages/FinanceiroConciliacao";
 import BudgetForm from "./pages/BudgetForm";
 import BudgetDetail from "./pages/BudgetDetail";
 import Suppliers from "./pages/Suppliers";
@@ -565,6 +566,15 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireCapability="integracoes:gerir">
                     <AdminIntegracoes />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route path="/financeiro" element={<Navigate to="/financeiro/conciliacao" replace />} />
+              <Route
+                path="/financeiro/conciliacao"
+                element={
+                  <RoleProtectedRoute requireCapability={['conciliacao:receber', 'conciliacao:pagar']}>
+                    <FinanceiroConciliacao />
                   </RoleProtectedRoute>
                 }
               />

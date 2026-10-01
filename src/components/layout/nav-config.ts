@@ -53,6 +53,13 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: 'Financeiro',
+    url: '/financeiro/conciliacao',
+    tabs: [
+      { title: 'Conciliação', url: '/financeiro/conciliacao', requiresCapability: ['conciliacao:receber', 'conciliacao:pagar'] },
+    ],
+  },
+  {
     label: 'Cadastros',
     url: '/employees',
     tabs: [

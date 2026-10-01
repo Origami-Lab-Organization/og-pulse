@@ -77,7 +77,7 @@ function DisconnectButton() {
   );
 }
 
-function SyncButton({ connection }: { connection: ContaAzulConnection }) {
+export function SyncButton({ connection }: { connection: ContaAzulConnection }) {
   const sync = useSyncContaAzul();
   const running = sync.isPending || isSyncing(connection);
   return (
