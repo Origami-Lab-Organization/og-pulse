@@ -1,6 +1,6 @@
 import { truncateToCents } from '@/lib/formatters';
 import { AllocationLineKind } from '@/types/rateio';
-import type { AllocationItem, AllocationLine, CenterHours, PersonAllocation, PersonHours, PersonLotacao } from '@/types/rateio';
+import type { AllocationItem, AllocationLine, CenterGroup, CenterHours, PersonAllocation, PersonHours, PersonLotacao } from '@/types/rateio';
 import type { CostInputs } from '@/services/costCenterCostService';
 
 /**
@@ -125,31 +125,6 @@ export function allocatePerson(
   return { ...base, lancado, logsHours: true, lines: sorted };
 }
 
-export interface CenterColumn {
-  key: string;
-  label: string;
-  kind: AllocationLineKind;
-}
-
-/** Colunas do consolidado: centros por valor, depois "sem centro" e "não lançado". */
-export function columnsOf(allocations: readonly PersonAllocation[]): CenterColumn[] {
-  const totals = new Map<string, { column: CenterColumn; value: number }>();
-  for (const a of allocations) {
-    for (const l of a.lines) {
-      const current = totals.get(l.key) ?? { column: { key: l.key, label: l.label, kind: l.kind }, value: 0 };
-      current.value += l.value;
-      totals.set(l.key, current);
-    }
-  }
-  return [...totals.values()]
-    .sort((a, b) => LINE_ORDER[a.column.kind] - LINE_ORDER[b.column.kind] || b.value - a.value)
-    .map((t) => t.column);
-}
-
-export function columnTotal(allocations: readonly PersonAllocation[], key: string): number {
-  return Math.round(allocations.reduce((s, a) => s + (a.lines.find((l) => l.key === key)?.value ?? 0), 0) * 100) / 100;
-}
-
 const brl = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const num = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
@@ -158,4 +133,31 @@ export const ALLOCATION_CSV_HEADERS = ['Pessoa', 'Centro de custo', 'Horas', 'Fa
 /** Uma linha por pessoa × centro: o formato que se lança no Conta Azul. */
 export function allocationCsvRows(allocations: readonly PersonAllocation[]): string[][] {
   return allocations.flatMap((a) => a.lines.map((l) => [a.nome, l.label, num(l.hours), num(Math.round(l.share * 1000) / 10), brl(l.value)]));
+}
+
+/** Visão por centro: o que o administrativo lança. Centros por valor; sem centro e não lançado no fim. */
+export function groupByCenter(allocations: readonly PersonAllocation[]): CenterGroup[] {
+  const groups = new Map<string, CenterGroup>();
+  for (const a of allocations) {
+    for (const l of a.lines) {
+      const group = groups.get(l.key) ?? { key: l.key, label: l.label, kind: l.kind, hours: 0, value: 0, people: [] };
+      group.hours += l.hours;
+      group.value = Math.round((group.value + l.value) * 100) / 100;
+      group.people.push({ employeeId: a.employeeId, nome: a.nome, hours: l.hours, value: l.value, shareOfPerson: l.share, byLotacao: !a.logsHours });
+      groups.set(l.key, group);
+    }
+  }
+  return [...groups.values()]
+    .map((g) => ({ ...g, people: g.people.sort((x, y) => y.value - x.value) }))
+    .sort((a, b) => LINE_ORDER[a.kind] - LINE_ORDER[b.kind] || b.value - a.value);
+}
+
+export function allocationTotals(allocations: readonly PersonAllocation[]): { total: number; notLogged: number } {
+  let total = 0;
+  let notLogged = 0;
+  for (const a of allocations) {
+    total += a.total;
+    notLogged += a.lines.find((l) => l.kind === AllocationLineKind.NotLogged)?.value ?? 0;
+  }
+  return { total: Math.round(total * 100) / 100, notLogged: Math.round(notLogged * 100) / 100 };
 }

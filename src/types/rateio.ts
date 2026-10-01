@@ -54,3 +54,24 @@ export interface PersonHours {
   /** Chave = id do centro, ou `NO_CENTER_KEY`. */
   byCenter: Map<string, CenterHours>;
 }
+
+/** Uma pessoa dentro de um centro, na visão por centro do consolidado. */
+export interface CenterPerson {
+  employeeId: string;
+  nome: string;
+  hours: number;
+  value: number;
+  /** Fatia do Total Mensal da pessoa que caiu neste centro, de 0 a 1. */
+  shareOfPerson: number;
+  /** Não lança hora: está aqui pela lotação, não por lançamento. */
+  byLotacao: boolean;
+}
+
+export interface CenterGroup {
+  key: string;
+  label: string;
+  kind: AllocationLineKind;
+  hours: number;
+  value: number;
+  people: CenterPerson[];
+}
