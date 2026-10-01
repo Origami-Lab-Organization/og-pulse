@@ -17,9 +17,9 @@ import {
 import { MotivoFalha, SituacaoDaSincronizacao, TipoParcela } from "./contaAzulTipos.ts";
 import type { ConexaoParaSincronizar, ItemDaBusca, LinhaDeParcela, ResumoDaSincronizacao } from "./contaAzulTipos.ts";
 
-/** Abaixo dos 10 req/s por conta conectada que o Conta Azul aceita. */
-const POR_SEGUNDO = 8;
-const LARGURA = 4;
+/** Bem abaixo dos 10 req/s documentados: a 8 req/s a primeira carga real tomou 429 (01/10/2026). */
+const POR_SEGUNDO = 5;
+const LARGURA = 3;
 const LOTE = 100;
 const FATIA_DO_IN = 200;
 const MARGEM_DO_INCREMENTAL_MS = 10 * 60_000;
@@ -310,6 +310,20 @@ async function executar(ctx: Contexto): Promise<void> {
   await varrerSeVencido(ctx);
 }
 
+/**
+ * Limite do Conta Azul que não passou nem esperando é pausa, não erro: o que já foi lido está
+ * gravado e os cursores avançaram mês a mês. A execução fecha (contagem e conciliação) e a próxima
+ * continua de onde parou.
+ */
+async function executarAteOLimite(ctx: Contexto): Promise<void> {
+  try {
+    await executar(ctx);
+  } catch (erro) {
+    if (!(erro instanceof FalhaContaAzul && erro.motivo === MotivoFalha.Limite)) throw erro;
+    await gravarPendentes(ctx);
+  }
+}
+
 /** Casa as parcelas de receita e aplica a baixa do casamento forte (ADR-0044, parte 3). */
 async function conciliarReceber(ctx: Contexto): Promise<void> {
   const { error } = await ctx.admin.rpc("conta_azul_reconcile_receivables", { p_tenant_id: ctx.conexao.tenant_id });
@@ -364,7 +378,7 @@ export async function sincronizarConexao(admin: SupabaseClient, conexao: Conexao
       documentos: new Map(),
       pendentes: [],
     });
-    await executar(ctx as Contexto);
+    await executarAteOLimite(ctx as Contexto);
     await concluir(ctx as Contexto);
     return { situacao: SituacaoDaSincronizacao.Concluida, atualizadas: ctx.atualizadas ?? 0, recusadas: ctx.recusadas ?? 0 };
   } catch (erro) {

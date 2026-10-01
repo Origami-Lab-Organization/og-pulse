@@ -212,6 +212,10 @@ Pulse `project_installments` ↔ parcela do Conta Azul com `evento.tipo = RECEIT
 ## Limites
 
 - **600 req/min e 10 req/s por conta conectada** (não por app, desde 19/11/2025). Excesso → 429.
+- **Na prática o limite é mais apertado (01/10/2026):** a 8 req/s com 4 filas, a primeira carga
+  real tomou 429 que não passou com esperas de 1 s e 3 s. Hoje: 5 req/s, 3 filas, espera de 3, 8 e
+  15 s em 429 (ou o `Retry-After`, se vier), e limite persistente vira pausa — a execução fecha
+  com contagem e conciliação e a próxima continua de onde parou.
 - Recuo exponencial em 429 e 5xx; não repetir 400, 401, 403, 404.
 - Os headers de limite que a documentação manda acompanhar **não estão nomeados** (a validar).
 

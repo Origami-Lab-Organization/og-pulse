@@ -10,6 +10,9 @@ const API_URL = "https://api-v2.contaazul.com";
 const ESCOPO = "openid profile aws.cognito.signin.user.admin";
 const TEMPO_MS = 15_000;
 const ESPERAS_MS = [1_000, 3_000];
+/** 429 pede mais calma que 5xx: na primeira carga real, duas esperas curtas não bastaram (01/10/2026). */
+const ESPERAS_DO_LIMITE_MS = [3_000, 8_000, 15_000];
+const ESPERA_MAXIMA_MS = 30_000;
 const PASSAM_COM_TEMPO = new Set([MotivoFalha.Limite, MotivoFalha.Indisponivel]);
 
 /** Mensagem já escrita para a pessoa — nunca carrega token, código ou corpo da resposta. */
@@ -103,6 +106,14 @@ export function renovar(refreshToken: string): Promise<Tokens> {
 
 const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Quanto esperar antes da próxima tentativa: o `Retry-After` do Conta Azul, se veio; senão, a tabela. */
+function esperaAntesDe(resposta: Response, tentativa: number, falha: FalhaContaAzul): number | null {
+  const tabela = falha.motivo === MotivoFalha.Limite ? ESPERAS_DO_LIMITE_MS : ESPERAS_MS;
+  if (tentativa >= tabela.length) return null;
+  const pedido = Number(resposta.headers.get("Retry-After"));
+  return Number.isFinite(pedido) && pedido > 0 ? Math.min(pedido * 1000, ESPERA_MAXIMA_MS) : tabela[tentativa];
+}
+
 /** Recua em 429 e 5xx; não repete 4xx, que a mesma chamada não corrige. */
 export async function ler<T>(accessToken: string, caminho: string, params?: Record<string, string>): Promise<T> {
   const url = `${API_URL}${caminho}${params ? `?${new URLSearchParams(params)}` : ""}`;
@@ -110,8 +121,9 @@ export async function ler<T>(accessToken: string, caminho: string, params?: Reco
     const resposta = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(TEMPO_MS) }); // harness-ok: retry com recuo em 429/5xx
     if (resposta.ok) return (await resposta.json()) as T;
     const falha = falhaHttp(resposta.status);
-    if (!PASSAM_COM_TEMPO.has(falha.motivo) || tentativa >= ESPERAS_MS.length) throw falha;
-    await esperar(ESPERAS_MS[tentativa]);
+    const espera = PASSAM_COM_TEMPO.has(falha.motivo) ? esperaAntesDe(resposta, tentativa, falha) : null;
+    if (espera == null) throw falha;
+    await esperar(espera);
   }
 }
 
