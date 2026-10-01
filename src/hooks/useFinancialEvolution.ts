@@ -6,9 +6,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { resolveCostMonthIndex } from '@/lib/costRecognition';
 import { versaoVigenteEm } from '@/lib/financialSettingsVigencia';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import { todasAsPaginas } from '@/lib/paginacao';
 import type { Holiday } from '@/lib/workingDays';
 import type { AnalyticsFilters } from './useAnalyticsData';
 import { fetchSuppliersWithActualsAndPlanned, fetchMaterials, fetchProjectCostsRealizedByCategory } from '@/services/projectCostsService';
+import type { CategoryCostActual, MaterialCostRecord } from '@/services/projectCostsService';
 
 export interface FinancialMonthlyPoint {
   monthIndex: number;
@@ -18,7 +20,13 @@ export interface FinancialMonthlyPoint {
   isCurrent: boolean;
   // Revenue
   revenueReal: number;
+  /** Saldo em aberto: parcelas ainda não recebidas que vencem no mês. Projeta o que falta. */
   revenuePlanned: number;
+  /**
+   * Plano cheio: tudo que vence no mês, recebido ou não. É o "previsto" dos comparativos
+   * previsto × realizado — o mesmo critério do Planejado anual e da Receita Prevista.
+   */
+  revenueExpected: number;
   faturado: number;
   // Realized costs
   totalCosts: number;
@@ -42,9 +50,16 @@ export interface FinancialMonthlyPoint {
   plannedEquipmentCost: number;
   plannedReimbursementCost: number;
   plannedTravelOtherCost: number;
+  /**
+   * Plano cheio do custo: mão de obra alocada inteira e o planejado de cada categoria,
+   * realizado ou não. Par de `revenueExpected` — é contra ele que o custo realizado se compara.
+   */
+  plannedTotalCostsFull: number;
   // Margin
   grossMarginPct: number | null;
   plannedGrossMarginPct: number | null;
+  /** Margem do plano cheio: (receita prevista − custo previsto) / receita prevista. */
+  expectedGrossMarginPct: number | null;
   /**
    * A meta de margem bruta que valia NESTE mês (PUL-260). É por mês, e não do ano inteiro,
    * porque a configuração financeira tem vigência: quem mudou a meta em outubro não mudou a
@@ -78,6 +93,12 @@ interface ProjectMemberCostRow {
   employee: EmployeeCostJoin | EmployeeCostJoin[] | null;
 }
 
+interface ActivityCostRow {
+  work_date: string;
+  hours: number | null;
+  employee: EmployeeCostJoin | EmployeeCostJoin[] | null;
+}
+
 interface PlannedRoleAllocationRow {
   month: number;
   planned_hours: number | null;
@@ -89,6 +110,52 @@ interface SupplierEvolutionRow {
   project_id: string;
   actuals?: { month_number: number; value: number | null; invoice_date?: string | null }[];
   plannedMonths?: { month_number: number; value: number | null }[];
+  plannedMonthsFull?: { month_number: number; value: number | null }[];
+}
+
+interface CommissionPlanRow {
+  planned_value: number | null;
+  installment: { due_date: string | null } | { due_date: string | null }[] | null;
+}
+
+interface PlanoCheioInput {
+  year: number;
+  projectStart: (projectId: string) => string | null | undefined;
+  suppliers: SupplierEvolutionRow[];
+  materials: MaterialCostRecord[];
+  commissions: CommissionPlanRow[];
+  otherPlannedFull: CategoryCostActual[];
+}
+
+/**
+ * Plano cheio do custo de projeto por mês (índice 0–11), fora a mão de obra: o planejado de
+ * fornecedor, material, comissão e demais categorias, realizado ou não. É o "previsto" dos
+ * comparativos previsto × realizado. Os campos plannedXxx do ponto mensal são outra coisa: o
+ * saldo em aberto, que projeta o que falta — usado como previsto, esconderia o estouro.
+ */
+function custoPlanoCheioPorMes(input: PlanoCheioInput): number[] {
+  const meses = new Array<number>(12).fill(0);
+  const somar = (idx: number | null, valor: number) => {
+    if (idx != null) meses[idx] += valor;
+  };
+  const noMesDoProjeto = (projectId: string, monthNumber: number | null) => {
+    const start = input.projectStart(projectId);
+    if (!start || !monthNumber) return null;
+    return resolveCostMonthIndex({ projectStartDate: start, monthNumber, targetYear: input.year });
+  };
+
+  for (const ps of input.suppliers) {
+    for (const pm of ps.plannedMonthsFull ?? []) somar(noMesDoProjeto(ps.project_id, pm.month_number), Number(pm.value));
+  }
+  for (const mat of input.materials) somar(noMesDoProjeto(mat.project_id, mat.month_number), Number(mat.value));
+  for (const c of input.commissions) {
+    const installment = Array.isArray(c.installment) ? c.installment[0] : c.installment;
+    if (!installment?.due_date) continue;
+    const d = parseISO(installment.due_date);
+    if (d.getFullYear() === input.year) somar(d.getMonth(), Number(c.planned_value) || 0);
+  }
+  for (const c of input.otherPlannedFull) somar(c.monthIndex, c.value);
+  return meses;
 }
 
 export function useFinancialEvolution(
@@ -153,14 +220,14 @@ export function useFinancialEvolution(
           isHighlighted: false,
           isPast: startOfMonth(new Date(year, i, 1)) <= new Date(),
           isCurrent: false,
-          revenueReal: 0, revenuePlanned: 0, faturado: 0,
+          revenueReal: 0, revenuePlanned: 0, revenueExpected: 0, faturado: 0,
           totalCosts: 0, laborCost: 0, supplierCost: 0, materialCost: 0,
           commissionCost: 0,
           internalLaborCost: 0, subscriptionCost: 0, equipmentCost: 0, reimbursementCost: 0, travelOtherCost: 0,
           plannedTotalCosts: 0, plannedLaborCost: 0, plannedSupplierCost: 0, plannedMaterialCost: 0,
           plannedCommissionCost: 0, plannedSubscriptionCost: 0, plannedEquipmentCost: 0,
-          plannedReimbursementCost: 0, plannedTravelOtherCost: 0,
-          grossMarginPct: null, plannedGrossMarginPct: null,
+          plannedReimbursementCost: 0, plannedTravelOtherCost: 0, plannedTotalCostsFull: 0,
+          grossMarginPct: null, plannedGrossMarginPct: null, expectedGrossMarginPct: null,
           grossMarginTargetPct: metaDoMes(i),
         }));
 
@@ -183,15 +250,19 @@ export function useFinancialEvolution(
       // só entra na visão-empresa (sem recorte por GP/projeto/cliente).
       const includeInternal = !filters.managerId && !filters.projectId && !filters.clientId;
       const activityPromise = includeInternal
-        ? supabase
-            .from('activity_timesheets')
-            .select('work_date, hours, employee:employees(total_monthly_cost_estimated, jornada_diaria)')
-            .eq('tenant_id', tenantId)
-            .gte('work_date', yearStart)
-            .lte('work_date', yearEnd)
-        : Promise.resolve({ data: [] as unknown[] });
+        ? todasAsPaginas<ActivityCostRow>((de, ate) =>
+            supabase
+              .from('activity_timesheets')
+              .select('work_date, hours, employee:employees(total_monthly_cost_estimated, jornada_diaria)')
+              .eq('tenant_id', tenantId)
+              .gte('work_date', yearStart)
+              .lte('work_date', yearEnd)
+              .order('id')
+              .range(de, ate),
+          )
+        : Promise.resolve([] as ActivityCostRow[]);
 
-      const [receivedRes, plannedRes, faturadoRes, timesheetsRes, membersRes, plannedAllocationsRes, suppliersRes, materialsRes, commissionsRes, otherCosts, activityRes, holidaysRes] = await Promise.all([
+      const [receivedRes, dueRes, faturadoRes, timesheetsRes, membersRes, plannedAllocationsRes, suppliersRes, materialsRes, commissionsRes, otherCosts, activityRes, holidaysRes] = await Promise.all([
         supabase
           .from('project_installments')
           .select('payment_date, value')
@@ -199,11 +270,11 @@ export function useFinancialEvolution(
           .eq('status', 'received')
           .gte('payment_date', yearStart)
           .lte('payment_date', yearEnd),
+        // Tudo que vence no ano, recebido ou não: dá o plano cheio e o saldo em aberto.
         supabase
           .from('project_installments')
-          .select('due_date, value')
+          .select('due_date, value, status')
           .in('project_id', projectIds)
-          .neq('status', 'received')
           .gte('due_date', yearStart)
           .lte('due_date', yearEnd),
         supabase
@@ -214,21 +285,29 @@ export function useFinancialEvolution(
           .not('invoice_date', 'is', null)
           .gte('invoice_date', yearStart)
           .lte('invoice_date', yearEnd),
-        supabase
-          .from('project_timesheets')
-          .select('project_id, project_member_id, work_date, hours, cost_per_hour')
-          .in('project_id', projectIds)
-          .gte('work_date', yearStart)
-          .lte('work_date', yearEnd),
+        todasAsPaginas<TimesheetCostRow>((de, ate) =>
+          supabase
+            .from('project_timesheets')
+            .select('project_id, project_member_id, work_date, hours, cost_per_hour')
+            .in('project_id', projectIds)
+            .gte('work_date', yearStart)
+            .lte('work_date', yearEnd)
+            .order('id')
+            .range(de, ate),
+        ),
         supabase
           .from('project_members')
           .select('id, project_id, employee:employees(total_monthly_cost_estimated, jornada_diaria)')
           .in('project_id', projectIds),
-        supabase
-          .from('project_role_allocations')
-          .select('project_id, employee_id, year, month, planned_hours, cost_per_hour, employee:employees(total_monthly_cost_estimated, jornada_diaria)')
-          .in('project_id', projectIds)
-          .eq('year', year),
+        todasAsPaginas<PlannedRoleAllocationRow>((de, ate) =>
+          supabase
+            .from('project_role_allocations')
+            .select('project_id, employee_id, year, month, planned_hours, cost_per_hour, employee:employees(total_monthly_cost_estimated, jornada_diaria)')
+            .in('project_id', projectIds)
+            .eq('year', year)
+            .order('id')
+            .range(de, ate),
+        ),
         fetchSuppliersWithActualsAndPlanned(projectIds),
         fetchMaterials(projectIds),
         supabase
@@ -246,19 +325,15 @@ export function useFinancialEvolution(
 
       const holidays = (holidaysRes.data || []) as Holiday[];
       const received = receivedRes.data || [];
-      const planned = plannedRes.data || [];
+      const dueInstallments = dueRes.data || [];
       const faturado = faturadoRes.data || [];
-      const timesheets = (timesheetsRes.data || []) as TimesheetCostRow[];
+      const timesheets = timesheetsRes;
       const members = (membersRes.data || []) as ProjectMemberCostRow[];
-      const plannedAllocations = (plannedAllocationsRes.data || []) as PlannedRoleAllocationRow[];
+      const plannedAllocations = plannedAllocationsRes;
       const projectSuppliersWithActuals = suppliersRes as SupplierEvolutionRow[];
       const materials = materialsRes;
       const commissions = commissionsRes.data || [];
-      const activityRows = ((activityRes as { data?: unknown[] }).data || []) as Array<{
-        work_date: string;
-        hours: number | null;
-        employee: EmployeeCostJoin | EmployeeCostJoin[] | null;
-      }>;
+      const activityRows = activityRes;
 
       const memberCostMap = new Map<string, { jornadaDiaria: number; monthlyCostEstimated: number }>();
       for (const m of members) {
@@ -278,10 +353,11 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].revenueReal += Number(r.value);
       }
 
-      for (const p of planned) {
+      for (const p of dueInstallments) {
         const d = parseISO(p.due_date);
         if (d.getFullYear() !== year) continue;
-        monthData[d.getMonth()].revenuePlanned += Number(p.value);
+        monthData[d.getMonth()].revenueExpected += Number(p.value);
+        if (p.status !== 'received') monthData[d.getMonth()].revenuePlanned += Number(p.value);
       }
 
       for (const f of faturado) {
@@ -421,6 +497,15 @@ export function useFinancialEvolution(
         monthData[d.getMonth()].internalLaborCost += Number(ts.hours || 0) * hourlyCost;
       }
 
+      const custoPlanoCheio = custoPlanoCheioPorMes({
+        year,
+        projectStart: (id) => projectMap.get(id)?.start_date,
+        suppliers: projectSuppliersWithActuals,
+        materials,
+        commissions,
+        otherPlannedFull: otherCosts.plannedFull,
+      });
+
       const today = new Date();
       for (const m of monthData) {
         m.isPast = startOfMonth(new Date(year, m.monthIndex, 1)) <= today;
@@ -434,6 +519,8 @@ export function useFinancialEvolution(
         // realizado de project_timesheets — tabelas e granularidades diferentes). Por
         // isso o saldo em aberto de mão de obra é o resíduo do MÊS: o que foi planejado
         // menos o que já foi de fato apontado.
+        // Plano cheio leva a mão de obra alocada inteira, antes de virar saldo em aberto.
+        m.plannedTotalCostsFull = m.plannedLaborCost + custoPlanoCheio[m.monthIndex];
         m.plannedLaborCost = Math.max(0, m.plannedLaborCost - m.laborCost);
 
         // plannedXxxCost (fornecedor/material/comissão/assinatura/equipamento/reembolso/
@@ -454,6 +541,10 @@ export function useFinancialEvolution(
         const custoTotalEsperado = m.totalCosts + m.plannedTotalCosts;
         m.plannedGrossMarginPct = receitaTotalEsperada > 0
           ? ((receitaTotalEsperada - custoTotalEsperado) / receitaTotalEsperada) * 100
+          : null;
+
+        m.expectedGrossMarginPct = m.revenueExpected > 0
+          ? ((m.revenueExpected - m.plannedTotalCostsFull) / m.revenueExpected) * 100
           : null;
       }
 

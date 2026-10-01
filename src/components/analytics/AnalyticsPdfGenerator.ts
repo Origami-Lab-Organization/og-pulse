@@ -257,8 +257,8 @@ export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
     const realMarginColor = m.grossMarginPct !== null
       ? (m.grossMarginPct >= (target ?? 30) ? COLOR_GREEN : COLOR_RED)
       : COLOR_GRAY;
-    const prevMarginColor = m.plannedGrossMarginPct !== null
-      ? (m.plannedGrossMarginPct >= (target ?? 30) ? COLOR_GREEN : COLOR_RED)
+    const prevMarginColor = m.expectedGrossMarginPct !== null
+      ? (m.expectedGrossMarginPct >= (target ?? 30) ? COLOR_GREEN : COLOR_RED)
       : COLOR_GRAY;
 
     // highlight current month row
@@ -273,9 +273,9 @@ export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
       { value: showReal ? fmtK(m.revenueReal)        : '—',                   w: mCols[2].w, align: 'right' },
       { value: showReal ? fmtK(m.totalCosts)         : '—',                   w: mCols[3].w, align: 'right' },
       { value: showReal ? fmtPct(m.grossMarginPct)   : '—',                   w: mCols[4].w, align: 'right', color: showReal ? realMarginColor : COLOR_GRAY },
-      { value: showPrev ? fmtK(m.revenuePlanned)     : '—',                   w: mCols[5].w, align: 'right', color: showPrev ? undefined : COLOR_GRAY },
-      { value: showPrev ? fmtK(m.plannedTotalCosts)  : '—',                   w: mCols[6].w, align: 'right', color: showPrev ? undefined : COLOR_GRAY },
-      { value: showPrev ? fmtPct(m.plannedGrossMarginPct) : '—',              w: mCols[7].w, align: 'right', color: showPrev ? prevMarginColor : COLOR_GRAY },
+      { value: showPrev ? fmtK(m.revenueExpected)    : '—',                   w: mCols[5].w, align: 'right', color: showPrev ? undefined : COLOR_GRAY },
+      { value: showPrev ? fmtK(m.plannedTotalCostsFull) : '—',                   w: mCols[6].w, align: 'right', color: showPrev ? undefined : COLOR_GRAY },
+      { value: showPrev ? fmtPct(m.expectedGrossMarginPct) : '—',              w: mCols[7].w, align: 'right', color: showPrev ? prevMarginColor : COLOR_GRAY },
       { value: showReal ? fmtK(m.laborCost)          : '—',                   w: mCols[8].w, align: 'right' },
       { value: showReal ? fmtK(m.supplierCost)       : '—',                   w: mCols[9].w, align: 'right' },
     ], i);
@@ -371,7 +371,8 @@ export function generateAnalyticsPdf(input: AnalyticsPdfInput): void {
   doc.addPage();
   drawPageHeader('Custos');
 
-  const plannedCosts = financialMonths.filter(m => m.isHighlighted).reduce((s, m) => s + m.plannedTotalCosts, 0);
+  // Plano cheio, não o saldo em aberto: a aderência compara o realizado com o planejado inteiro.
+  const plannedCosts = financialMonths.filter(m => m.isHighlighted).reduce((s, m) => s + m.plannedTotalCostsFull, 0);
 
   // Row 1: 4 cards
   const costKpiW = (contentW - 3 * 3) / 4;

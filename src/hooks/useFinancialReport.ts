@@ -92,11 +92,12 @@ export function useFinancialReport(filters: AnalyticsFilters) {
     const faturamento = sum((m) => m.faturado);
     const receita = sum((m) => m.revenueReal);
     const custos = sum((m) => m.totalCosts);
-    // Previsto: parcelas contratadas por vencimento no período (plano de receita/faturamento)
-    // e custos planejados (mão de obra + fornecedores + materiais planejados).
-    const receitaPrevista = sum((m) => m.revenuePlanned);
+    // Previsto: o plano cheio do período — parcelas por vencimento, recebidas ou não, e o custo
+    // planejado inteiro. `revenuePlanned`/`plannedTotalCosts` são só o saldo em aberto: com eles
+    // o card dizia "recebeu 800k de 200k previsto" quando o plano era 1M.
+    const receitaPrevista = sum((m) => m.revenueExpected);
     const faturamentoPrevisto = receitaPrevista;
-    const custosPrevisto = sum((m) => m.plannedTotalCosts);
+    const custosPrevisto = sum((m) => m.plannedTotalCostsFull);
     const resultado = receita - custos;
     const margemPct = receita > 0 ? (resultado / receita) * 100 : null;
     const metaPct = evolution.data.grossMarginTarget && evolution.data.grossMarginTarget > 0
