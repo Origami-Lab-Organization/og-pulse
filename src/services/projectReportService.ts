@@ -1,6 +1,20 @@
 import { supabase } from '@/integrations/supabase/client';
 import { addMonths, startOfMonth, parseISO, getYear } from 'date-fns';
 import { fetchSuppliersForReport, fetchMaterials } from '@/services/projectCostsService';
+import { todasAsPaginas } from '@/lib/paginacao';
+
+interface MemberMonthRow {
+  project_member_id: string;
+  month_number: number;
+  hours: number;
+}
+
+interface ReportTimesheetRow {
+  project_id: string;
+  project_member_id: string;
+  hours: number;
+  work_date: string;
+}
 
 const REPORT_YEAR = 2026;
 
@@ -83,35 +97,34 @@ export async function fetchProjectCosts2026(
   // Phase 2: parallel fetches for the rest
   const [memberMonthsRes, timesheetsRes, suppliersRes, materialsRes] = await Promise.all([
     memberIds.length > 0
-      ? supabase
-          .from('project_member_months')
-          .select('project_member_id, month_number, hours')
-          .in('project_member_id', memberIds)
-      : Promise.resolve({ data: [] }),
+      ? todasAsPaginas<MemberMonthRow>((de, ate) =>
+          supabase
+            .from('project_member_months')
+            .select('project_member_id, month_number, hours')
+            .in('project_member_id', memberIds)
+            .order('id')
+            .range(de, ate),
+        )
+      : Promise.resolve([] as MemberMonthRow[]),
 
-    supabase
-      .from('project_timesheets')
-      .select('project_id, project_member_id, hours, work_date')
-      .in('project_id', projectIds)
-      .gte('work_date', `${REPORT_YEAR}-01-01`)
-      .lte('work_date', `${REPORT_YEAR}-12-31`),
+    todasAsPaginas<ReportTimesheetRow>((de, ate) =>
+      supabase
+        .from('project_timesheets')
+        .select('project_id, project_member_id, hours, work_date')
+        .in('project_id', projectIds)
+        .gte('work_date', `${REPORT_YEAR}-01-01`)
+        .lte('work_date', `${REPORT_YEAR}-12-31`)
+        .order('id')
+        .range(de, ate),
+    ),
 
     fetchSuppliersForReport(projectIds),
 
     fetchMaterials(projectIds),
   ]);
 
-  const memberMonths = (memberMonthsRes.data || []) as {
-    project_member_id: string;
-    month_number: number;
-    hours: number;
-  }[];
-  const timesheets = (timesheetsRes.data || []) as {
-    project_id: string;
-    project_member_id: string;
-    hours: number;
-    work_date: string;
-  }[];
+  const memberMonths = memberMonthsRes;
+  const timesheets = timesheetsRes;
   const suppliers = suppliersRes;
   const materials = materialsRes;
 

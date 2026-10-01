@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { todasAsPaginas } from '@/lib/paginacao';
 
 export interface ProjectTimesheetDB {
   id: string;
@@ -35,15 +36,17 @@ export const useProjectTimesheets = (projectId: string | undefined) => {
     queryKey: ['project-timesheets', projectId],
     queryFn: async () => {
       if (!projectId) return [];
-      
-      const { data, error } = await supabase
-        .from('project_timesheets')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('work_date', { ascending: false });
 
-      if (error) throw error;
-      return data as ProjectTimesheetDB[];
+      // O projeto inteiro, desde o início: passa de 1000 linhas e o custo sairia menor.
+      return todasAsPaginas<ProjectTimesheetDB>((de, ate) =>
+        supabase
+          .from('project_timesheets')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('work_date', { ascending: false })
+          .order('id')
+          .range(de, ate),
+      );
     },
     enabled: !!projectId,
   });
@@ -54,15 +57,16 @@ export const useTimesheetsByMembers = (projectMemberIds: string[]) => {
     queryKey: ['timesheets-by-members', projectMemberIds],
     queryFn: async () => {
       if (projectMemberIds.length === 0) return [];
-      
-      const { data, error } = await supabase
-        .from('project_timesheets')
-        .select('*')
-        .in('project_member_id', projectMemberIds)
-        .order('work_date', { ascending: true });
 
-      if (error) throw error;
-      return data as ProjectTimesheetDB[];
+      return todasAsPaginas<ProjectTimesheetDB>((de, ate) =>
+        supabase
+          .from('project_timesheets')
+          .select('*')
+          .in('project_member_id', projectMemberIds)
+          .order('work_date', { ascending: true })
+          .order('id')
+          .range(de, ate),
+      );
     },
     enabled: projectMemberIds.length > 0,
   });

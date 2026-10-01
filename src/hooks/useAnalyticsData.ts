@@ -4,7 +4,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { addMonths, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 import { countWorkingDays } from '@/lib/workingDays';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import type { Tables } from '@/integrations/supabase/types';
+import { todasAsPaginas } from '@/lib/paginacao';
 import { fetchSuppliersWithActuals, fetchMaterials } from '@/services/projectCostsService';
+
+/** Hora lançada no projeto, só com o que entra no custo. */
+type TimesheetCostRow = Pick<Tables<'project_timesheets'>, 'project_id' | 'project_member_id' | 'hours' | 'work_date' | 'cost_per_hour'>;
 
 export interface AnalyticsFilters {
   startDate: Date;
@@ -130,12 +135,16 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
           .not('invoice_date', 'is', null)
           .gte('invoice_date', startStr)
           .lte('invoice_date', endStr),
-        supabase
-          .from('project_timesheets')
-          .select('project_id, project_member_id, hours, work_date, cost_per_hour')
-          .in('project_id', projectIds)
-          .gte('work_date', startStr)
-          .lte('work_date', endStr),
+        todasAsPaginas<TimesheetCostRow>((de, ate) =>
+          supabase
+            .from('project_timesheets')
+            .select('project_id, project_member_id, hours, work_date, cost_per_hour')
+            .in('project_id', projectIds)
+            .gte('work_date', startStr)
+            .lte('work_date', endStr)
+            .order('id')
+            .range(de, ate),
+        ),
         supabase
           .from('project_members')
           .select('id, project_id, employee_id, employee:employees(id, nome, cargo, total_monthly_cost_estimated, jornada_diaria, data_admissao, termination:employee_terminations(termination_date))')
@@ -168,7 +177,7 @@ export function useAnalyticsData(filters: AnalyticsFilters) {
       const projectedInstallments = projectedInstallmentsRes.data || [];
       const faturadoInstallments = (faturadoRes.data || []) as any[];
       const faturado = faturadoInstallments.reduce((sum: number, i: any) => sum + Number(i.value), 0);
-      const timesheets = timesheetsRes.data || [];
+      const timesheets = timesheetsRes;
       const members = (membersRes.data || []) as any[];
       const projectSuppliersWithActuals = suppliersRes as any[];
       const materials = materialsRes;
