@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, FileUp, Search, X } from 'lucide-react';
+import { FileUp, Search, X } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CompanyFilterButton } from '@/components/prospeccao/CompanyFilterButton';
 import { CompanyTable } from '@/components/prospeccao/CompanyTable';
 import { DiscardProspectDialog } from '@/components/prospeccao/DiscardProspectDialog';
+import { AbasDaLista, EstadoVazio, RodapeDaLista } from '@/components/prospeccao/ListaDeCadastro';
 import { ProspectDetailDialog } from '@/components/prospeccao/ProspectDetailDialog';
 import { ProspectWonDialog } from '@/components/prospeccao/ProspectWonDialog';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
@@ -34,7 +35,6 @@ import {
   type CompanyTab,
 } from '@/lib/prospecting/companyList';
 import { buildCompanyRows, type CompanyRow } from '@/lib/prospecting/companyStatus';
-import { cn } from '@/lib/utils';
 import type { ProspectWithCompany } from '@/types/prospect';
 
 const POR_PAGINA = 25;
@@ -120,7 +120,9 @@ export default function ProspeccaoEmpresas() {
       <BulkCompanyImportDialog open={importando} onOpenChange={setImportando} />
       <div className="space-y-3.5">
         <div className="flex flex-wrap items-center gap-3">
-          <AbasDeAbordagem
+          <AbasDaLista
+            rotulo="Filtrar por abordagem"
+            abas={ABAS}
             valor={consulta.tab}
             contagem={contagem}
             onChange={(tab) => setConsulta((c) => ({ ...c, tab }))}
@@ -215,40 +217,6 @@ export default function ProspeccaoEmpresas() {
   );
 }
 
-function AbasDeAbordagem({
-  valor,
-  contagem,
-  onChange,
-}: {
-  valor: CompanyTab;
-  contagem: Record<CompanyTab, number>;
-  onChange: (tab: CompanyTab) => void;
-}) {
-  return (
-    <div role="tablist" aria-label="Filtrar por abordagem" className="flex gap-0.5 rounded-[9px] bg-muted p-[3px]">
-      {ABAS.map((aba) => {
-        const ativa = aba.valor === valor;
-        return (
-          <button
-            key={aba.valor}
-            type="button"
-            role="tab"
-            aria-selected={ativa}
-            onClick={() => onChange(aba.valor)}
-            className={cn(
-              'flex items-center gap-1.5 rounded-[7px] px-3 py-1.5 text-[13.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              ativa ? 'bg-card text-foreground shadow-sm' : 'text-foreground/70 hover:text-foreground',
-            )}
-          >
-            {aba.rotulo}
-            <span className="font-medium text-muted-foreground">{contagem[aba.valor]}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function Conteudo({
   carregando,
   semEmpresas,
@@ -291,24 +259,7 @@ function Conteudo({
   return <CompanyTable rows={linhas} sort={sort} onSort={onSort} onOpen={onOpen} />;
 }
 
-function EstadoVazio({ titulo, texto, children }: { titulo: string; texto: string; children?: ReactNode }) {
-  return (
-    <div className="flex flex-col items-center gap-2.5 px-5 py-14 text-center">
-      <p className="text-[14.5px] font-medium">{titulo}</p>
-      <p className="text-[13px] text-muted-foreground">{texto}</p>
-      {children}
-    </div>
-  );
-}
-
-function Rodape({
-  exibidas,
-  total,
-  filtrado,
-  pagina,
-  totalDePaginas,
-  onPagina,
-}: {
+function Rodape(props: {
   exibidas: number;
   total: number;
   filtrado: boolean;
@@ -316,35 +267,9 @@ function Rodape({
   totalDePaginas: number;
   onPagina: (pagina: number) => void;
 }) {
+  const { exibidas, total, filtrado, ...paginacao } = props;
   const texto = `${exibidas} ${exibidas === 1 ? 'empresa' : 'empresas'}${filtrado ? ` de ${total}` : ''}`;
-  return (
-    <div className="flex items-center justify-between gap-3 border-t bg-muted/40 px-5 py-2.5 text-[12.5px] text-muted-foreground">
-      <span>{texto}</span>
-      <div className="flex items-center gap-1.5">
-        {totalDePaginas > 1 && <span className="mr-1">{pagina + 1} de {totalDePaginas}</span>}
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          aria-label="Página anterior"
-          disabled={pagina === 0}
-          onClick={() => onPagina(pagina - 1)}
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          aria-label="Próxima página"
-          disabled={pagina >= totalDePaginas - 1}
-          onClick={() => onPagina(pagina + 1)}
-        >
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
-        </Button>
-      </div>
-    </div>
-  );
+  return <RodapeDaLista texto={texto} {...paginacao} />;
 }
 
 /** O contato recém-invalidado, não a cópia do clique. */

@@ -300,10 +300,40 @@ export interface ProspectCompanyDB {
   updated_at: string;
 }
 
+/**
+ * Contato: a pessoa, separada do card do Pipeline (01/10/2026, ADR-0045). Uma pessoa pode
+ * ter vários cards ao longo do tempo; criada na tela Contatos, não entra no Pipeline sozinha.
+ * E-mail e LinkedIn são únicos por organização — é a deduplicação.
+ */
+export interface ProspectContactDB {
+  id: string;
+  tenant_id: string;
+  /** Empresa atual. Não propaga para os cards: cada um fica na conta em que foi aberto. */
+  company_id: string;
+  name: string;
+  role: string | null;
+  email: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
+  instagram_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProspectContactWithCompany extends ProspectContactDB {
+  company?: Pick<ProspectCompanyDB, 'id' | 'name'> | null;
+}
+
 export interface ProspectDB {
   id: string;
   tenant_id: string;
   company_id: string;
+  /**
+   * A pessoa deste card (ADR-0045). Os campos `contact_*`, `linkedin_url` e `instagram_url`
+   * abaixo são CÓPIA dela, mantida pelo banco: para editar, edite o contato.
+   */
+  contact_id: string;
   contact_name: string;
   contact_role: string | null;
   contact_email: string | null;

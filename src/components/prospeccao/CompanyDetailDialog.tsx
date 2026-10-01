@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowUpRight, Check, Copy, Globe, Instagram, Linkedin, Loader2, Pencil } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Copy, Globe, Instagram, Linkedin, Loader2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,12 +19,13 @@ import {
   segmentToInput,
 } from '@/lib/prospecting/companySegmentation';
 import { COMPANY_STATUS_META, type CompanyRow } from '@/lib/prospecting/companyStatus';
-import { comProtocolo, urlCurta, urlDoInstagram } from '@/lib/prospecting/links';
+import { comProtocolo, urlDoInstagram } from '@/lib/prospecting/links';
 import { formatCNPJ } from '@/lib/masks';
 import { cn } from '@/lib/utils';
 import type { ProspectWithCompany } from '@/types/prospect';
 import { AbordagemBadge, SituacaoDot, TierBadge } from './CompanyBadges';
 import { CompanyContactList } from './CompanyContactList';
+import { Item, LinkExterno, Rodape, Secao } from './FichaDeCadastro';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
 import { CnpjLookupField } from './CnpjLookupField';
 import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
@@ -318,47 +319,6 @@ function rascunhoInicial(row: CompanyRow): Rascunho {
   };
 }
 
-function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
-  return (
-    <section>
-      <h3 className="pb-1.5 pt-3.5 text-[11.5px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-        {titulo}
-      </h3>
-      <dl>{children}</dl>
-    </section>
-  );
-}
-
-/** Uma linha rótulo/valor. Valor vazio vira "Não informado", nunca um traço mudo. */
-function Item({ rotulo, children }: { rotulo: string; children: ReactNode }) {
-  const vazio = children === null || children === undefined || children === '' || children === false;
-  return (
-    <div className="grid min-h-10 grid-cols-[130px_minmax(0,1fr)] items-center gap-4 border-b border-border/60 text-[13.5px]">
-      <dt className="text-muted-foreground">{rotulo}</dt>
-      <dd className="flex min-w-0 items-center gap-2">
-        {vazio ? <span className="text-muted-foreground/80">Não informado</span> : children}
-      </dd>
-    </div>
-  );
-}
-
-function LinkExterno({ href, icone: Icone }: { href?: string | null; icone: typeof Globe }) {
-  if (!href) return null;
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex min-w-0 items-center gap-[7px] rounded-sm text-success-emphasis hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <Icone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span className="truncate">{urlCurta(href)}</span>
-      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden="true" />
-      <span className="sr-only">(abre em nova aba)</span>
-    </a>
-  );
-}
-
 function CnpjCopiavel({ cnpj }: { cnpj: string }) {
   const [copiado, setCopiado] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>();
@@ -383,10 +343,6 @@ function CnpjCopiavel({ cnpj }: { cnpj: string }) {
       </Button>
     </>
   );
-}
-
-function Rodape({ children }: { children: ReactNode }) {
-  return <div className="flex justify-end gap-2 border-t bg-muted/40 px-6 py-3.5">{children}</div>;
 }
 
 function minusculaInicial(texto: string): string {

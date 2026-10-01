@@ -39,10 +39,15 @@ export function useProspect(id: string | null) {
   });
 }
 
-/** Toda mutação do módulo mexe nas mesmas três listas; invalidar por prefixo pega o tenant. */
+/**
+ * Toda mutação do módulo mexe nas mesmas listas; invalidar por prefixo pega o tenant. Contatos
+ * entram porque card novo pode criar a pessoa no banco (ADR-0045) e a tela Contatos mostra a
+ * etapa de cada um.
+ */
 function invalidarProspeccao(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['prospects'] });
   qc.invalidateQueries({ queryKey: ['prospect'] });
+  qc.invalidateQueries({ queryKey: ['prospect-contacts'] });
 }
 
 export function useCreateProspect() {

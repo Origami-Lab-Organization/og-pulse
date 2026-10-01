@@ -37,6 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProspectActivities } from '@/hooks/useProspectActivities';
 import { useProspectTasks } from '@/hooks/useProspectTasks';
 import { useUpdateProspectCompany } from '@/hooks/useProspectCompanies';
+import { useUpdateProspectContact } from '@/hooks/useProspectContacts';
 import {
   useDeleteProspect,
   useProspects,
@@ -110,6 +111,7 @@ export function ProspectDetailDialog({
   const proximaTarefa = tarefasDoContato.find((t) => !t.done_at) ?? null;
   const { data: diretorio = [] } = useEmployeeDirectory(open);
   const atualizarContato = useUpdateProspect();
+  const atualizarPessoa = useUpdateProspectContact();
   const atualizarEmpresa = useUpdateProspectCompany();
   const reabrir = useReopenProspect();
   const moverEtapa = useUpdateProspectStage();
@@ -135,7 +137,8 @@ export function ProspectDetailDialog({
 
   const somenteLeitura = isProspectReadOnly(prospect);
   const empresa = prospect.company;
-  const salvando = atualizarContato.isPending || atualizarEmpresa.isPending || gravarReceita.isPending;
+  const salvando =
+    atualizarContato.isPending || atualizarPessoa.isPending || atualizarEmpresa.isPending || gravarReceita.isPending;
   const respostas = atividades.filter((a) => a.got_response).length;
   const ultima = atividades[0]?.activity_date ?? null;
   const responsavel = diretorio.find((p) => p.id === prospect.owner_id)?.nome ?? null;
@@ -148,7 +151,10 @@ export function ProspectDetailDialog({
         await gravarReceita.mutateAsync({ companyId: empresa.id, receita: receitaDaEdicao }).catch(() => undefined);
       }
     }
-    await atualizarContato.mutateAsync({ id: prospect.id, updates: contatoDoRascunho(rascunho, prospect) });
+    // A pessoa primeiro: e-mail ou LinkedIn repetido para aqui, antes de mexer no negócio.
+    const pessoa = pessoaDoRascunho(rascunho, prospect);
+    if (mudouAPessoa(pessoa, prospect)) await atualizarPessoa.mutateAsync({ id: prospect.contact_id, input: pessoa });
+    await atualizarContato.mutateAsync({ id: prospect.id, updates: negocioDoRascunho(rascunho, prospect) });
     setEditando(false);
   };
 
@@ -780,6 +786,10 @@ function CartaoContato({
 
       {editando ? (
         <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Nome, cargo, e-mail, telefone e redes são do contato: valem para todos os cards dele e
+            aparecem em Contatos.
+          </p>
           <Campo label="Nome" draft={rascunho.contact_name} onChange={definir('contact_name')} />
           <Campo label="Cargo" draft={rascunho.contact_role} onChange={definir('contact_role')} />
           <Campo label="E-mail" draft={rascunho.contact_email} onChange={definir('contact_email')} />
@@ -1016,14 +1026,27 @@ function empresaDoRascunho(rascunho: Record<string, string>, empresa: ProspectCo
   };
 }
 
-function contatoDoRascunho(rascunho: Record<string, string>, prospect: ProspectWithCompany) {
+/** A pessoa (ADR-0045): vale para todos os cards dela, e a empresa dela não muda daqui. */
+function pessoaDoRascunho(rascunho: Record<string, string>, prospect: ProspectWithCompany) {
   return {
-    contact_name: rascunho.contact_name || prospect.contact_name,
-    contact_role: rascunho.contact_role || null,
-    contact_email: rascunho.contact_email || null,
-    contact_phone: rascunho.contact_phone || null,
+    name: rascunho.contact_name || prospect.contact_name,
+    role: rascunho.contact_role || null,
+    email: rascunho.contact_email || null,
+    phone: rascunho.contact_phone || null,
     linkedin_url: rascunho.linkedin_url || null,
     instagram_url: rascunho.instagram_url || null,
+  };
+}
+
+function mudouAPessoa(pessoa: ReturnType<typeof pessoaDoRascunho>, prospect: ProspectWithCompany): boolean {
+  const atual = [prospect.contact_name, prospect.contact_role, prospect.contact_email, prospect.contact_phone, prospect.linkedin_url, prospect.instagram_url];
+  const nova = [pessoa.name, pessoa.role, pessoa.email, pessoa.phone, pessoa.linkedin_url, pessoa.instagram_url];
+  return nova.some((valor, i) => (valor?.trim() || null) !== (atual[i] || null));
+}
+
+/** O negócio: só deste card. */
+function negocioDoRascunho(rascunho: Record<string, string>, prospect: ProspectWithCompany) {
+  return {
     primary_channel: rascunho.primary_channel || prospect.primary_channel,
     owner_id: rascunho.owner_id || prospect.owner_id,
     lever: rascunho.lever || null,

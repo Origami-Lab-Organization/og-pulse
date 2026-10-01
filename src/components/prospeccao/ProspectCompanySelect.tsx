@@ -22,8 +22,11 @@ import type { ProspectCompanyDB } from '@/types/prospect';
 interface ProspectCompanySelectProps {
   value: ProspectCompanyDB | null;
   onChange: (company: ProspectCompanyDB | null) => void;
-  /** Abre o cadastro de empresa nova, já preenchido com o que se sabe dela. */
-  onCreateNew: (prefill: CompanyPrefill) => void;
+  /**
+   * Abre o cadastro de empresa nova, já preenchido com o que se sabe dela. Sem ele, o seletor
+   * só escolhe entre as empresas da Prospecção (a troca de empresa na ficha do contato).
+   */
+  onCreateNew?: (prefill: CompanyPrefill) => void;
   disabled?: boolean;
 }
 
@@ -46,10 +49,12 @@ export function ProspectCompanySelect(props: ProspectCompanySelectProps) {
     onChange(empresa);
     setOpen(false);
   };
-  const cadastrar = (prefill: CompanyPrefill) => {
-    onCreateNew(prefill);
-    setOpen(false);
-  };
+  const cadastrar = onCreateNew
+    ? (prefill: CompanyPrefill) => {
+        onCreateNew(prefill);
+        setOpen(false);
+      }
+    : undefined;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -64,7 +69,7 @@ export function ProspectCompanySelect(props: ProspectCompanySelectProps) {
         >
           <span className={cn('truncate text-sm flex items-center gap-2', !value && 'text-muted-foreground')}>
             <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            {value?.name ?? 'Buscar empresa, cliente ou CNPJ'}
+            {value?.name ?? (onCreateNew ? 'Buscar empresa, cliente ou CNPJ' : 'Buscar empresa')}
           </span>
           <div className="flex items-center gap-1 ml-2 shrink-0">
             {value && (
@@ -117,28 +122,32 @@ interface ResultadosProps {
   termo: string;
   selecionada: ProspectCompanyDB | null;
   onEscolher: (empresa: ProspectCompanyDB) => void;
-  onCadastrar: (prefill: CompanyPrefill) => void;
+  onCadastrar?: (prefill: CompanyPrefill) => void;
 }
 
 function Resultados(props: ResultadosProps) {
   const { termo, selecionada, onEscolher, onCadastrar } = props;
-  const { empresas, clientes, carregando, nada } = useResultados(termo);
+  const { empresas, clientes, carregando, nada } = useResultados(termo, !!onCadastrar);
 
   return (
     <>
       {carregando && <div className="px-3 py-4 text-sm text-muted-foreground">Buscando...</div>}
-      {nada && <CommandEmpty>Nenhuma empresa ou cliente encontrado.</CommandEmpty>}
+      {nada && <CommandEmpty>{onCadastrar ? 'Nenhuma empresa ou cliente encontrado.' : 'Nenhuma empresa encontrada.'}</CommandEmpty>}
       <GrupoEmpresas empresas={empresas} selecionada={selecionada} onEscolher={onEscolher} />
-      <GrupoClientes clientes={clientes} onEscolher={onEscolher} onCadastrar={onCadastrar} />
-      <BuscaNaReceita termo={termo} semResultado={nada} onCadastrar={onCadastrar} />
-      <CadastrarPeloNome termo={termo} empresas={empresas} onCadastrar={onCadastrar} />
+      {onCadastrar && (
+        <>
+          <GrupoClientes clientes={clientes} onEscolher={onEscolher} onCadastrar={onCadastrar} />
+          <BuscaNaReceita termo={termo} semResultado={nada} onCadastrar={onCadastrar} />
+          <CadastrarPeloNome termo={termo} empresas={empresas} onCadastrar={onCadastrar} />
+        </>
+      )}
     </>
   );
 }
 
-function useResultados(termo: string) {
+function useResultados(termo: string, comClientes: boolean) {
   const empresas = useSearchProspectCompanies(termo);
-  const clientes = useSearchClientsForProspect(termo);
+  const clientes = useSearchClientsForProspect(comClientes ? termo : '');
   const listaEmpresas = empresas.data ?? [];
   // Cliente que já tem empresa na Prospecção aparece como empresa, não duas vezes.
   const ligados = new Set(listaEmpresas.map((e) => e.client_id).filter(Boolean));

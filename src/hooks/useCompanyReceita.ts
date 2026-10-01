@@ -21,6 +21,8 @@ function invalidarEmpresa(qc: ReturnType<typeof useQueryClient>, companyId: stri
   qc.invalidateQueries({ queryKey: ['prospect-companies'] });
   qc.invalidateQueries({ queryKey: ['prospects'] });
   qc.invalidateQueries({ queryKey: ['prospect'] });
+  // "Virar contato" cria a pessoa no banco junto com o card (ADR-0045).
+  qc.invalidateQueries({ queryKey: ['prospect-contacts'] });
 }
 
 export function useCompanyPartners(companyId: string | null) {

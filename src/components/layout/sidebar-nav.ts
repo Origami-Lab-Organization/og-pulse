@@ -78,6 +78,7 @@ export const NAV_ITEMS: SidebarNavItem[] = [
     children: [
       { title: 'Prospecção', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
       { title: 'Empresas', url: '/comercial/empresas', requiresCapability: 'prospeccao:ler' },
+      { title: 'Contatos', url: '/comercial/contatos', requiresCapability: 'prospeccao:ler' },
       { title: 'Métricas', url: '/comercial/metricas', requiresCapability: 'prospeccao:ler' },
     ],
   },

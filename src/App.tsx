@@ -48,6 +48,7 @@ import BudgetDetail from "./pages/BudgetDetail";
 import Suppliers from "./pages/Suppliers";
 import Prospeccao from "./pages/Prospeccao";
 import ProspeccaoEmpresas from "./pages/ProspeccaoEmpresas";
+import ProspeccaoContatos from "./pages/ProspeccaoContatos";
 import ProspeccaoMetricas from "./pages/ProspeccaoMetricas";
 import Portfolio from "./pages/Portfolio";
 import AlocacaoPage from "./pages/AlocacaoPage";
@@ -430,6 +431,14 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireCapability="prospeccao:ler">
                     <ProspeccaoEmpresas />
+                  </RoleProtectedRoute>
+                }
+              />
+              <Route
+                path="/comercial/contatos"
+                element={
+                  <RoleProtectedRoute requireCapability="prospeccao:ler">
+                    <ProspeccaoContatos />
                   </RoleProtectedRoute>
                 }
               />

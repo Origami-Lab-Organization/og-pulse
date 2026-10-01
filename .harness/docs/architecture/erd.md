@@ -25,6 +25,7 @@ sources:
   - supabase/migrations/20261001120000_conta_azul_conexao.sql
   - supabase/migrations/20261001130000_conta_azul_sincronizacao.sql
   - supabase/migrations/20261001140000_conta_azul_conciliacao_receber.sql
+  - supabase/migrations/20261001190000_prospect_contacts.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
@@ -65,6 +66,10 @@ sources:
 #  conferidas contra o bloco novo do types.ts e ensaiadas (ida/volta/ida) num Postgres local.
 # 01/10/2026: 20261001130000 — espelho, cache de pessoas e centros do Conta Azul, ensaiados
 #  com RLS por perfil num Postgres local.
+# 01/10/2026: 20261001190000 — prospect_contacts (a pessoa, ADR-0045) e prospects.contact_id
+#  NOT NULL; prospects.contact_* vira cópia mantida por trigger. Conferido contra
+#  ProspectContactDB/ProspectDB e ensaiado (ida/volta/ida, RLS, união por e-mail/LinkedIn)
+#  num Postgres local (PGlite).
 verified: 2026-10-01
 ---
 
@@ -106,14 +111,19 @@ O Pipeline de Oportunidades (`leads`, `lead_services`, `lead_interactions`,
 
 Nasceu separada do Pipeline (15/09/2026) e virou o único quadro comercial: Ganho e
 Perda em 28/09/2026 e, em 29/09/2026, a absorção das Oportunidades (ADR-0040). O
-contato carrega valor estimado e vendido; o orçamento e o projeto apontam para ele.
+contato carrega valor estimado e vendido; o orçamento e o projeto apontam para ele. Desde
+01/10/2026 a pessoa é cadastro próprio (`prospect_contacts`, ADR-0045) e o card aponta para
+ela.
 
 ```mermaid
 erDiagram
     tenants ||--o{ prospect_companies : ""
     tenants ||--o{ prospects : ""
     clients |o--o{ prospect_companies : "client_id (quando já é cliente)"
-    prospect_companies ||--o{ prospects : "company_id"
+    prospect_companies ||--o{ prospects : "company_id (conta do negócio)"
+    tenants ||--o{ prospect_contacts : ""
+    prospect_companies ||--o{ prospect_contacts : "company_id (empresa atual — não propaga)"
+    prospect_contacts ||--o{ prospects : "contact_id (um card em andamento por vez)"
     prospect_companies ||--o{ prospect_company_partners : "QSA da Receita (ADR-0041)"
     prospect_company_partners |o--o| prospects : "prospect_id (Virar contato)"
     fomento_publico }o..o{ prospect_companies : "por CNPJ (sem FK: referência pública)"
@@ -153,7 +163,16 @@ erDiagram
         text linkedin_url "colado pela pessoa, nunca raspado"
         bool ativo "false = saiu do quadro na última consulta"
     }
+    prospect_contacts {
+        text name "nome não é único — homônimo é legítimo"
+        text email "único por tenant, sem caixa nem espaço (índice parcial)"
+        text linkedin_url "único por tenant, sem caixa nem espaço (índice parcial)"
+        text instagram_url "livre — fora da deduplicação"
+        text role ""
+        text phone ""
+    }
     prospects {
+        uuid contact_id "a pessoa (NOT NULL); contact_* e redes são cópia dela, por trigger"
         text stage "6 de trabalho + ganho + descartado (Perda); sem_resposta só em linhas antigas"
         text lever "Alavanca / origem da lista"
         text instagram_url "perfil pessoal do contato"
@@ -188,7 +207,16 @@ erDiagram
 ```
 
 Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000`, `20260917115000`,
-`20260917180000`, `20260917190000`, `20260923120000`, `20260924120000` e `20260928120000`.
+`20260917180000`, `20260917190000`, `20260923120000`, `20260924120000`, `20260928120000` e
+`20261001190000`.
+
+`prospect_contacts` (01/10/2026, ADR-0045) é a pessoa; o card (`prospects`) guarda o negócio.
+Os campos de contato do card são cópia da pessoa, mantida por três triggers SECURITY INVOKER:
+`prospects_link_contact` (card novo sem `contact_id` acha a pessoa pelo e-mail ou LinkedIn, ou
+a cria; com `contact_id`, copia os dados dela), `prospect_contacts_propagate` (pessoa editada
+desce para todos os cards) e `prospects_push_contact` (edição direta no card sobe para a
+pessoa). A migração uniu cards com o mesmo e-mail ou LinkedIn numa pessoa só; o valor anterior
+de cada card fica em `legado_contatos.prospects_antes_dos_contatos`, fora da API.
 
 `prospect_stage_changes` (28/09/2026) é o histórico de etapa, gravado só pelo trigger
 `prospect_stage_changes_record` (SECURITY DEFINER, tenant da própria linha) — sem policy de

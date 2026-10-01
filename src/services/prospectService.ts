@@ -22,7 +22,13 @@ const PROSPECT_SELECT = `*, company:prospect_companies!prospects_company_id_fkey
 export interface CreateProspectInput {
   tenant_id: string;
   company_id: string;
-  contact_name: string;
+  /**
+   * A pessoa do card (ADR-0045). Com ela, os campos de contato abaixo são ignorados: o banco
+   * copia os dados da pessoa. Sem ela, o banco acha a pessoa pelo e-mail ou LinkedIn, ou a cria
+   * a partir desses campos — é o caminho do "Virar contato".
+   */
+  contact_id?: string;
+  contact_name?: string;
   contact_role?: string | null;
   contact_email?: string | null;
   contact_phone?: string | null;
@@ -37,7 +43,13 @@ export interface CreateProspectInput {
   created_by?: string | null;
 }
 
-export type UpdateProspectInput = Partial<Omit<CreateProspectInput, 'tenant_id' | 'created_by'>>;
+/**
+ * Campos do NEGÓCIO. Os da pessoa (nome, cargo, e-mail, telefone, redes) se editam no contato
+ * (`prospectContactService.update`), que vale para todos os cards dela.
+ */
+export type UpdateProspectInput = Partial<
+  Pick<CreateProspectInput, 'company_id' | 'primary_channel' | 'owner_id' | 'lever' | 'estimated_value' | 'notes'>
+>;
 
 export async function fetchProspects(tenantId: string): Promise<ProspectWithCompany[]> {
   const { data, error } = await tabela('prospects')
