@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { countWorkingDays } from '@/lib/workingDays';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import { todasAsPaginas } from '@/lib/paginacao';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface MonthlyPoint {
@@ -134,22 +135,30 @@ export function useYearlyEvolution(
           .gte('due_date', yearStart)
           .lte('due_date', yearEnd),
 
-        supabase
-          .from('project_timesheets')
-          .select('project_member_id, work_date, hours, cost_per_hour')
-          .in('project_id', projectIds)
-          .gte('work_date', yearStart)
-          .lte('work_date', yearEnd),
+        todasAsPaginas<YearlyTimesheetRow>((de, ate) =>
+          supabase
+            .from('project_timesheets')
+            .select('project_member_id, work_date, hours, cost_per_hour')
+            .in('project_id', projectIds)
+            .gte('work_date', yearStart)
+            .lte('work_date', yearEnd)
+            .order('id')
+            .range(de, ate),
+        ),
 
         supabase
           .from('project_members')
           .select('id, project_id, employee_id, employee:employees(jornada_diaria, total_monthly_cost_estimated)')
           .in('project_id', projectIds),
-        supabase
-          .from('project_role_allocations')
-          .select('project_id, employee_id, year, month, planned_hours')
-          .in('project_id', projectIds)
-          .eq('year', year),
+        todasAsPaginas<YearlyPlannedAllocationRow>((de, ate) =>
+          supabase
+            .from('project_role_allocations')
+            .select('project_id, employee_id, year, month, planned_hours')
+            .in('project_id', projectIds)
+            .eq('year', year)
+            .order('id')
+            .range(de, ate),
+        ),
 
         // All active tenant employees for capacity calculation
         // No need for employee_terminations join — status='ativo' guarantees they are active
@@ -168,9 +177,9 @@ export function useYearlyEvolution(
 
       const received = receivedRes.data || [];
       const planned = plannedRes.data || [];
-      const timesheets = (timesheetsRes.data || []) as YearlyTimesheetRow[];
+      const timesheets = timesheetsRes;
       const members = (membersRes.data || []) as YearlyProjectMemberRow[];
-      const plannedAllocations = (plannedAllocationsRes.data || []) as YearlyPlannedAllocationRow[];
+      const plannedAllocations = plannedAllocationsRes;
       const allEmployees = (allEmployeesRes.data || []) as YearlyCapacityEmployeeRow[];
       const holidays = holidaysRes.data || [];
 

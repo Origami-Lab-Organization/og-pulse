@@ -6,7 +6,12 @@ import { SERVICE_LINE_LABELS } from '@/types/serviceLine';
 import type { AnalyticsFilters } from './useAnalyticsData';
 import { fetchSuppliersWithActuals, fetchMaterials } from '@/services/projectCostsService';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import type { Tables } from '@/integrations/supabase/types';
+import { todasAsPaginas } from '@/lib/paginacao';
 import type { Holiday } from '@/lib/workingDays';
+
+/** Hora lançada no projeto, só com o que entra no custo. */
+type TimesheetCostRow = Pick<Tables<'project_timesheets'>, 'project_id' | 'project_member_id' | 'work_date' | 'hours' | 'cost_per_hour'>;
 
 export interface ProjectFinancialRow {
   projectId: string;
@@ -127,12 +132,16 @@ export function useProjectFinancials(
           .gte('payment_date', startStr)
           .lte('payment_date', endStr),
 
-        supabase
-          .from('project_timesheets')
-          .select('project_id, project_member_id, work_date, hours, cost_per_hour')
-          .in('project_id', projectIds)
-          .gte('work_date', startStr)
-          .lte('work_date', endStr),
+        todasAsPaginas<TimesheetCostRow>((de, ate) =>
+          supabase
+            .from('project_timesheets')
+            .select('project_id, project_member_id, work_date, hours, cost_per_hour')
+            .in('project_id', projectIds)
+            .gte('work_date', startStr)
+            .lte('work_date', endStr)
+            .order('id')
+            .range(de, ate),
+        ),
 
         supabase
           .from('project_members')
@@ -174,7 +183,7 @@ export function useProjectFinancials(
           monthlyCostEstimated: Number(m.employee.total_monthly_cost_estimated) || 0,
         });
       }
-      for (const ts of (timesheetsRes.data || []) as any[]) {
+      for (const ts of timesheetsRes) {
         let hourlyCost = 0;
         if (ts.cost_per_hour != null) {
           hourlyCost = Number(ts.cost_per_hour);

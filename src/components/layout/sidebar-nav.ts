@@ -1,8 +1,8 @@
 import {
   BarChart3,
-  CircleHelp,
   Building2,
   CalendarDays,
+  CircleHelp,
   Clock,
   FolderKanban,
   FolderOpen,
@@ -12,6 +12,7 @@ import {
   Settings,
   Timer,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import type { CapabilityRequirement } from '@/lib/access/capabilities';
@@ -98,8 +99,18 @@ export const NAV_ITEMS: SidebarNavItem[] = [
     children: [
       { title: 'Meu Time', url: '/analises/meu-time', requiresCapability: 'timesheet-terceiro:ler' },
       { title: 'Horas não lançadas', url: '/analises/horas-nao-lancadas', requiresCapability: 'timesheet-terceiro:ler' },
+      { title: 'Horas por projeto', url: '/analises/horas-por-projeto', requiresCapability: 'timesheet-terceiro:ler' },
       { title: 'Financeiro', url: '/analises/financeiro', requiresCapability: 'financeiro:ler' },
       { title: 'Custo x Hora', url: '/analises/custo-hora', requiresCapability: 'custo-hora:ler-relatorio' },
+    ],
+  },
+  {
+    kind: 'group',
+    title: 'Financeiro',
+    url: '/financeiro/conciliacao',
+    icon: Wallet,
+    children: [
+      { title: 'Conciliação', url: '/financeiro/conciliacao', requiresCapability: ['conciliacao:receber', 'conciliacao:pagar'] },
     ],
   },
   { kind: 'link', title: 'Clientes', url: '/clients', icon: Building2, requiresCapability: 'cliente:ler' },
@@ -152,6 +163,7 @@ export const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Centros de custo', url: '/admin/centros-de-custo', requiresCapability: 'configuracao:editar' },
       { title: 'Atividades', url: '/admin/atividades', requiresCapability: 'configuracao:editar' },
       { title: 'Lembretes', url: '/admin/lembretes', requiresCapability: 'configuracao:editar' },
+      { title: 'Integrações', url: '/admin/integracoes', requiresCapability: 'integracoes:gerir' },
     ],
   },
   // Ajuda não declara capacidade de propósito: é a única entrada que todo mundo precisa

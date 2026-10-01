@@ -21,11 +21,18 @@ sources:
   - apps/mcp-drive/src/index.ts
   - apps/mcp-activities/src/index.ts
   - apps/mcp-prospeccao/src/index.ts
+  - supabase/functions/_shared/contaAzul.ts
+  - supabase/functions/_shared/contaAzulConexao.ts
+  - supabase/functions/_shared/cifra.ts
+  - src/services/contaAzulService.ts
+  - supabase/migrations/20261001120000_conta_azul_conexao.sql
+  - supabase/migrations/20261001130000_conta_azul_sincronizacao.sql
+  - supabase/functions/_shared/contaAzulSync.ts
 ---
 
 # Mapa de Integrações
 
-> Derivado do código em 2026-08-31. Quem chama quem, com que credencial.
+> Derivado do código em 2026-08-31; Conta Azul incluído em 2026-10-01. Quem chama quem, com que credencial.
 
 ## Visão geral
 
@@ -38,7 +45,7 @@ flowchart LR
 
     subgraph Supabase
         REST[(Postgres + RLS)]
-        EF[Edge Functions x27]
+        EF[Edge Functions x33]
         CRON[pg_cron + pg_net]
         SMTP[Auth SMTP<br/>convites/recovery]
     end
@@ -54,6 +61,7 @@ flowchart LR
     EXT4[BrasilAPI<br/>consulta pública de CNPJ]
     EXT5[BNDES CKAN · FINEP · CGU Transparência<br/>fomento público]
     EXT6[Site oficial da empresa<br/>leitura com proteção SSRF]
+    EXT7[Conta Azul API v2<br/>OAuth2 por empresa · só leitura]
 
     SPA -->|"JWT anon (RLS)"| REST
     SPA -->|functions.invoke| EF
@@ -69,6 +77,8 @@ flowchart LR
     EF --> SMTP
     EF -->|"company-funding-check (POST CKAN, chave CGU)"| EXT5
     EF -->|"company-site-scan (http/https, DNS público)"| EXT6
+    SPA -->|"redireciona para autorizar<br/>login.contaazul.com (state de uso único)"| EXT7
+    EF -->|"conta-azul-* · Basic client_secret no token,<br/>Bearer do tenant (cifrado AES-GCM no banco)"| EXT7
     CRON -->|"company-watch diário (Receita)"| EF
     SPA -->|"GET /api/cnpj/v1, sem chave<br/>cnpjLookupService.ts"| EXT4
     MCP["apps/mcp-drive · mcp-activities · mcp-prospeccao<br/>(sessão da pessoa, sob RLS)"] --> REST
@@ -80,6 +90,7 @@ flowchart LR
 | Serviço | Consumidor | O quê | Credencial |
 |---|---|---|---|
 | BNDES (dados abertos) · FINEP · Portal da Transparência (CGU) | Edge Function `company-funding-check` e `scripts/import-fomento.mjs` | Fomento público por CNPJ: operações BNDES na hora, FINEP por importação semanal, Lei do Bem por carga manual, contratos federais. Contrato: `.harness/integrations/fomento-publico.md` | BNDES e FINEP sem chave; CGU com secret `TRANSPARENCIA_API_KEY` |
+| Conta Azul (API v2) | Edge Functions `conta-azul-connect`, `conta-azul-callback`, `conta-azul-disconnect` (`_shared/contaAzul.ts`) | Conexão por empresa (OAuth2 Authorization Code), empresa conectada, revogação. Escopo do Conta Azul é de administrador; o adaptador só lê. Contrato: `.harness/integrations/conta-azul.md`, ADR-0044 | `CONTA_AZUL_CLIENT_ID`/`_SECRET` do app do Pulse; token de cada empresa cifrado com `CONTA_AZUL_TOKEN_KEY` |
 | Site oficial da empresa | Edge Function `company-site-scan` | Redes, WhatsApp, telefones, e-mails genéricos e pistas de sistema publicados pela empresa. Contrato: `.harness/integrations/site-da-empresa.md` | Nenhuma |
 | BrasilAPI (CNPJ) | Browser (`src/services/cnpjLookupService.ts`) e `mcp-prospeccao` (`lookup_cnpj`) | Dados públicos da empresa pelo CNPJ para o cadastro da Prospecção: razão social, nome fantasia, CNAE, cidade. Só o CNPJ sai. Contrato: `.harness/integrations/brasilapi-cnpj.md` | Nenhuma (API pública) |
 | Microsoft Entra ID | Browser (`msalClient.ts:54`) | Login OAuth Auth Code + PKCE | client_id público, sem secret (`config.ts:1-16`) |
@@ -128,6 +139,20 @@ floats), `delete-face-profile`, `submit-time-adjustment`,
 Crons só-SQL (sem edge function): ativação de versões de employee `0 3 * * *`
 (`20260721150000_*.sql:85-88`); recálculo trimestral de ticket médio
 (`20260806130000_*.sql:193-197`, `20260806140000_*.sql:194-198`).
+
+**Integração Conta Azul** (ADR-0044) — `conta-azul-connect` grava `state` de uso único e
+devolve a URL de autorização; `conta-azul-callback` consome o `state`, troca o código, lê a
+empresa conectada e guarda o token cifrado; `conta-azul-disconnect` revoga no Conta Azul e
+apaga a conexão. As três validam a sessão dentro (`verify_jwt=false`), exigem
+`integracoes:gerir` e escrevem com service role, porque token e state não têm policy. A
+renovação passa pela trava `conta_azul_claim_refresh`: o refresh token rotaciona.
+`conta-azul-sync` (parte 2) mantém o espelho de parcelas e centros de custo: cron a cada 15 min
+(Bearer service role) ou "Sincronizar agora" (sessão + `integracoes:gerir`), em segundo plano
+via `EdgeRuntime.waitUntil`, com trava `conta_azul_claim_sync`.
+Função chamada pelo cron reconhece o cron por `_shared/chamadaDeServico.ts`
+(`public.caller_is_service_role()`): a chave do Vault (JWT legado) e a `SUPABASE_SERVICE_ROLE_KEY`
+do ambiente têm formatos diferentes, e comparar as strings deixou `company-watch` e
+`conta-azul-sync` respondendo 401 a todo cron até 01/10/2026.
 
 **Análise de mercado** — `market-analysis-start` / `-refine` / `-status`
 (jobs em `market_analysis_jobs`).
@@ -184,7 +209,8 @@ fallback hardcoded (`src/integrations/microsoft/config.ts:19-25`).
 Edge Functions: `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT_ID`,
 `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`,
-`SEED_*`. A `LOVABLE_API_KEY` deixou de existir com a migração para Supabase
+`SEED_*`, `CONTA_AZUL_CLIENT_ID`, `CONTA_AZUL_CLIENT_SECRET`, `CONTA_AZUL_REDIRECT_URI`,
+`CONTA_AZUL_TOKEN_KEY`. A `LOVABLE_API_KEY` deixou de existir com a migração para Supabase
 próprio — nenhuma function depende mais do gateway do Lovable.
 pg_cron lê os segredos do Vault via `public.cron_secret()`
 (`20260831120000_realtime_publication_and_cron_via_vault.sql`); o desenho

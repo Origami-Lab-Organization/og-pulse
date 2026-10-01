@@ -22,6 +22,9 @@ sources:
   - supabase/migrations/20260929140000_prospect_company_receita.sql
   - supabase/migrations/20260929150000_prospect_company_site_scan.sql
   - supabase/migrations/20260929160000_fomento_publico.sql
+  - supabase/migrations/20261001120000_conta_azul_conexao.sql
+  - supabase/migrations/20261001130000_conta_azul_sincronizacao.sql
+  - supabase/migrations/20261001140000_conta_azul_conciliacao_receber.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
@@ -58,7 +61,11 @@ sources:
 # 29/09/2026: src/types/prospectMetrics.ts ganhou só contratos de tela (CutSafraRow no
 # lugar de CutFlowRow, SafraCounts, StageRate, Reading, MetricsDrill); ProspectStageChangeDB
 # inalterado, sem migration — diagrama conferido, nada muda.
-verified: 2026-09-29
+# 01/10/2026: 20261001120000 — conta_azul_connections / _tokens / _oauth_states (ADR-0044),
+#  conferidas contra o bloco novo do types.ts e ensaiadas (ida/volta/ida) num Postgres local.
+# 01/10/2026: 20261001130000 — espelho, cache de pessoas e centros do Conta Azul, ensaiados
+#  com RLS por perfil num Postgres local.
+verified: 2026-10-01
 ---
 
 # ERD — Entidades e Relações
@@ -434,6 +441,21 @@ expand-contract — a obrigatoriedade está no cadastro), e a hora guarda o cent
 do lançamento** em `activity_timesheets.cost_center_id`, preenchido pelo trigger
 `activity_timesheets_set_cost_center` a partir do item quando quem insere não informa. Trocar
 o centro de um item não reescreve as horas já lançadas. Pessoa × centro chega em PUL-218. Gerar diagrama dedicado sob demanda.
+
+Integração Conta Azul (ADR-0044, `20261001120000`): `conta_azul_connections` (uma por tenant —
+`tenant_id` UNIQUE → `tenants`; `ca_company_id` UNIQUE no Pulse inteiro; lida sob RLS por
+`integracoes:gerir` ou `conciliacao:*`, escrita só por service role), `conta_azul_tokens`
+(1:1 com a conexão, `ON DELETE CASCADE`, token cifrado, **sem policy**) e
+`conta_azul_oauth_states` (`tenant_id` → `tenants`, uso único, **sem policy**). A RPC
+`conta_azul_claim_refresh` (só `service_role`) serializa a renovação do token. Parte 2
+(`20261001130000`): `conta_azul_installments` (espelho de parcelas, UNIQUE
+`(connection_id, ca_installment_id)`, RLS por `kind`: receita com `conciliacao:receber`, despesa
+com `conciliacao:pagar`), `conta_azul_people` (cache de CNPJ, sem policy) e
+`conta_azul_cost_centers` (`cost_center_id` → `cost_centers`, `ON DELETE SET NULL`, UPDATE só
+dessa coluna por `integracoes:gerir`). Parte 3 (`20261001140000`): `conta_azul_matches`
+(`installment_id` UNIQUE → `project_installments`, `conta_azul_installment_id` UNIQUE →
+`conta_azul_installments`, ambos `ON DELETE CASCADE`; guarda `previous_status`/
+`previous_payment_date` para desfazer a baixa) e `conta_azul_match_rejections` (PK do par).
 
 ## Divergências código × doc
 

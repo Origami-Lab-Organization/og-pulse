@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { Holiday } from '@/lib/workingDays';
+import { todasAsPaginas } from '@/lib/paginacao';
 
 /**
  * Busca crua para o custo por centro de custo (`useCostByCostCenter`, PUL-215).
@@ -37,6 +38,17 @@ function rowsOf<T>(label: string) {
     if (result.error) throw new Error(`Não foi possível ler ${label}: ${result.error.message}`);
     return (result.data ?? []) as T[];
   };
+}
+
+/**
+ * Como `rowsOf`, para as leituras que podem passar de 1000 linhas: horas de um período
+ * inteiro, de todos os projetos. Sem paginar, o PostgREST corta e o custo sai menor.
+ */
+function allRowsOf<T>(label: string, pagina: (de: number, ate: number) => PromiseLike<RawResult & { data: unknown[] | null }>): Promise<T[]> {
+  return todasAsPaginas<T>(pagina).catch((error: { message?: string }) => {
+    // harness-ok: front React sem HttpException; o erro sobe para o TanStack Query.
+    throw new Error(`Não foi possível ler ${label}: ${error.message}`);
+  });
 }
 
 export interface CostCenterRow {
@@ -127,28 +139,33 @@ export async function fetchCostInputs(tenantId: string, startDate: string, endDa
   // Sem `tenant_id`: `project_members` se isola pelo projeto (e pela RLS), como
   // `project_timesheets`. Só os membros citados pelas horas dos projetos deste tenant são
   // usados na agregação.
-  const membersP = db
-    .from('project_members')
-    .select('id, employee_id')
-    .then(rowsOf<ProjectMemberRow>('os membros dos projetos'));
+  const membersP = allRowsOf<ProjectMemberRow>('os membros dos projetos', (de, ate) =>
+    db.from('project_members').select('id, employee_id').order('id').range(de, ate),
+  );
   const activitiesP = db
     .from('activity_types')
     .select('id, name')
     .eq('tenant_id', tenantId)
     .then(rowsOf<ActivityTypeNameRow>('as atividades internas'));
-  const activityHoursP = db
-    .from('activity_timesheets')
-    .select('cost_center_id, activity_type_id, employee_id, hours, work_date')
-    .eq('tenant_id', tenantId)
-    .gte('work_date', startDate)
-    .lte('work_date', endDate)
-    .then(rowsOf<ActivityHourRow>('as horas de atividade interna'));
-  const projectHoursP = db
-    .from('project_timesheets')
-    .select('project_id, project_member_id, hours, cost_per_hour, work_date, cost_center_id')
-    .gte('work_date', startDate)
-    .lte('work_date', endDate)
-    .then(rowsOf<ProjectHourRow>('as horas de projeto'));
+  const activityHoursP = allRowsOf<ActivityHourRow>('as horas de atividade interna', (de, ate) =>
+    db
+      .from('activity_timesheets')
+      .select('cost_center_id, activity_type_id, employee_id, hours, work_date')
+      .eq('tenant_id', tenantId)
+      .gte('work_date', startDate)
+      .lte('work_date', endDate)
+      .order('id')
+      .range(de, ate),
+  );
+  const projectHoursP = allRowsOf<ProjectHourRow>('as horas de projeto', (de, ate) =>
+    db
+      .from('project_timesheets')
+      .select('project_id, project_member_id, hours, cost_per_hour, work_date, cost_center_id')
+      .gte('work_date', startDate)
+      .lte('work_date', endDate)
+      .order('id')
+      .range(de, ate),
+  );
 
   return {
     centers: await centersP,

@@ -8,12 +8,17 @@ import { cn } from '@/lib/utils';
 import { CONTRACT_TYPE_LABELS } from '@/types/employee';
 import type { PayrollAnalysisRow } from '@/lib/payrollAnalysis';
 import { EmployeeDetailDialog } from '@/components/employees/EmployeeDetailDialog';
+import { PersonAllocationSection } from '@/components/payroll/PersonAllocationSection';
+import type { PersonAllocation } from '@/types/rateio';
 
 interface CostPerHourTableProps {
   rows: PayrollAnalysisRow[];
   monthLabel: string;
   estimated?: boolean;
   projected?: boolean;
+  /** Rateio do mês por pessoa; ausente = o detalhe não mostra a seção. */
+  allocations?: PersonAllocation[];
+  allocationsLoading?: boolean;
 }
 
 type SortKey =
@@ -37,7 +42,7 @@ function getSortValue(row: PayrollAnalysisRow, key: SortKey): string | number {
   return row[key];
 }
 
-export function CostPerHourTable({ rows, monthLabel, estimated, projected }: CostPerHourTableProps) {
+export function CostPerHourTable({ rows, monthLabel, estimated, projected, allocations, allocationsLoading }: CostPerHourTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('hourlyCost');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedRow, setSelectedRow] = useState<PayrollAnalysisRow | null>(null);
@@ -232,6 +237,15 @@ export function CostPerHourTable({ rows, monthLabel, estimated, projected }: Cos
         onOpenChange={(open) => !open && setSelectedRow(null)}
         row={selectedRow}
         monthLabel={monthLabel}
+        extra={
+          allocations && selectedRow ? (
+            <PersonAllocationSection
+              allocation={allocations.find((a) => a.employeeId === selectedRow.employeeId)}
+              isLoading={Boolean(allocationsLoading)}
+              monthLabel={monthLabel}
+            />
+          ) : undefined
+        }
       />
     </Card>
   );

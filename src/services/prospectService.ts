@@ -1,4 +1,5 @@
 import { rpc, tabela } from '@/services/prospectingTables';
+import { todasAsPaginas } from '@/lib/paginacao';
 import type { ProspectAttachment } from '@/lib/prospectAttachments';
 import { discardUpdate, reopenUpdate } from '@/lib/prospecting/transitions';
 import {
@@ -180,25 +181,6 @@ export async function fetchProspectActivities(prospectId: string): Promise<Prosp
 // --------------------------------------------------------------------------
 // Métricas por período
 // --------------------------------------------------------------------------
-
-/** Limite padrão de linhas por resposta do PostgREST. */
-const PAGINA = 1000;
-
-type Pagina = PromiseLike<{ data: unknown[] | null; error: unknown }>;
-
-/**
- * Lê todas as páginas. As métricas somam meses de atividade, e uma leitura única pararia
- * em silêncio na milésima linha — o número sairia menor sem erro nenhum.
- */
-async function todasAsPaginas<T>(pagina: (de: number, ate: number) => Pagina): Promise<T[]> {
-  const linhas: T[] = [];
-  for (let de = 0; ; de += PAGINA) {
-    const { data, error } = await pagina(de, de + PAGINA - 1);
-    if (error) throw error;
-    linhas.push(...((data ?? []) as T[]));
-    if (!data || data.length < PAGINA) return linhas;
-  }
-}
 
 const ATIVIDADE_LEVE = 'prospect_id, activity_date, sequence_no, got_response';
 

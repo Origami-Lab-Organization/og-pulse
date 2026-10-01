@@ -147,7 +147,7 @@ tinha `pipeline:ler`/`pipeline:editar`.
 | Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
 |---|---|---|---|---|---|
 | `timesheet-proprio:apontar` | sim | sim | sim | sim | `/my-timesheet` sem guard |
-| `timesheet-terceiro:ler` — `/analises/meu-time` | sim | sim | — | — | rota `requireManager` |
+| `timesheet-terceiro:ler` — `/analises/meu-time`, `/analises/horas-por-projeto` (planejado × lançado por projeto e pessoa, só horas; cada projeto ainda passa por `can_read_project_hours`, ADR-0025) | sim | sim | — | — | rota `requireManager` |
 | `ponto:ler-proprio` — marcacao, resumo diario, banco de horas | sim | sim | sim | proprio | `e.auth_id = auth.uid()` |
 | `ponto:ler-terceiro` | sim | **—** | sim | — | `has_role('admin') OR has_role('rh')` — **gerente nao entra** |
 | `ponto:aprovar` | sim | — | — | — | rota `requireAdmin` |
@@ -201,6 +201,24 @@ reativacao sao decisao da Origami: as colunas so mudam por service role ou sessa
 **Centro de custo (PUL-216, ADR-0031).** O *cadastro* do centro (`cost_centers`) e escrito por `configuracao:editar` (cadastro-base do tenant, so Admin no seed) e lido por todo membro do tenant — quem lanca hora precisa ver a lista. O *campo de centro no item* (servico e atividade interna) **herda a capacidade do cadastro onde vive**, `catalogo:editar`: nao se cria capacidade para um campo. Divergencia aberta (P2 de PUL-216): em producao `catalogo:editar` esta habilitada para Admin **e** Gerente, mas `Services.tsx` restringe a acao a admin (`canManage = isAdmin`). Recomendacao do ADR-0031: alinhar a tela ao banco.
 
 ---
+
+## 10. Integracoes e conciliacao
+
+Criado em 01/10/2026 com a integracao Conta Azul (ADR-0044, migration
+`20261001120000_conta_azul_conexao`). Cada capacidade nasceu espelhando uma vizinha, entao o
+seed reproduz quem ja via aquele tipo de dado.
+
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `integracoes:gerir` — conectar, desconectar e sincronizar o Conta Azul; mapear centros de custo | sim | — | — | — | `has_capability` nas Edge Functions `conta-azul-*`; espelha `configuracao:editar` |
+| `conciliacao:receber` — parcelas de projeto x contas a receber do Conta Azul; tela Financeiro › Conciliação | sim | — | — | — | nasceu espelhando `financeiro:ler` (parte 1) e saiu do Gerente em `20261001140000`: Gerente vê recebimento pelo projeto (Italo, 01/10). RLS da receita no espelho e de `conta_azul_matches`; RPCs de ação conferem com `assert_tenant_access` + `has_capability` |
+| `conciliacao:pagar` — contas a pagar do Conta Azul, **inclusive pagamento de folha** | sim | — | — | — | espelha `folha:ler`; RLS da linha de despesa no espelho (parte 2) |
+
+A linha de `conta_azul_connections` (empresa ligada, status) se le com qualquer uma das tres.
+Token (`conta_azul_tokens`) e estado do OAuth (`conta_azul_oauth_states`) **nao tem policy**:
+nenhum perfil le, so service role. Receber e pagar sao separados por decisao do Italo
+(01/10/2026); contas a pagar traz salario. O menu **Financeiro** (`/financeiro/conciliacao`) aparece
+para quem tem qualquer uma das duas — hoje so Admin.
 
 ## Cenario 1 — respostas diretas, sem abrir codigo
 
