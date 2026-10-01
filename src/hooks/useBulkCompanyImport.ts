@@ -32,7 +32,7 @@ export function useBulkCompanyImport() {
   const atualizar = (cnpj: string, mudanca: Partial<BulkRow>) =>
     setLinhas((atual) => atual.map((l) => (l.cnpj === cnpj ? { ...l, ...mudanca } : l)));
 
-  const processar = async (cnpj: string, origem: string | null) => {
+  const processar = async (cnpj: string) => {
     atualizar(cnpj, { status: 'consultando' });
     try {
       const receita = await lookupCnpj(cnpj);
@@ -41,7 +41,6 @@ export function useBulkCompanyImport() {
           name: receita.nomeFantasia ?? receita.razaoSocial,
           cnpj,
           segment: receita.segmento,
-          notes: origem ? `Origem da lista: ${origem}` : null,
         },
         employee!.tenant_id,
         employee!.id,
@@ -57,7 +56,7 @@ export function useBulkCompanyImport() {
     }
   };
 
-  const iniciar = async (cnpjs: string[], origem: string | null) => {
+  const iniciar = async (cnpjs: string[]) => {
     if (!employee || cnpjs.length === 0) return;
     parar.current = false;
     setRodando(true);
@@ -71,7 +70,7 @@ export function useBulkCompanyImport() {
         }),
       );
       const fila = cnpjs.filter((c) => !porCnpj.has(c));
-      await Promise.all(Array.from({ length: SIMULTANEAS }, () => trabalhar(fila, origem)));
+      await Promise.all(Array.from({ length: SIMULTANEAS }, () => trabalhar(fila)));
     } finally {
       setRodando(false);
       qc.invalidateQueries({ queryKey: ['prospect-companies'] });
@@ -80,10 +79,10 @@ export function useBulkCompanyImport() {
   };
 
   // Cada trabalhador tira o próximo da fila compartilhada até ela acabar ou a pessoa parar.
-  const trabalhar = async (fila: string[], origem: string | null) => {
+  const trabalhar = async (fila: string[]) => {
     while (fila.length > 0 && !parar.current) {
       const cnpj = fila.shift()!;
-      await processar(cnpj, origem);
+      await processar(cnpj);
       await esperar(PAUSA_MS); // harness-ok: pausa proposital entre consultas (limite da BrasilAPI)
     }
   };

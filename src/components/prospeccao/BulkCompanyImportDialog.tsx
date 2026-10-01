@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,7 +42,6 @@ const STATUS: Record<BulkRowStatus, { rotulo: string; icone: typeof CheckCircle2
 export function BulkCompanyImportDialog({ open, onOpenChange }: BulkCompanyImportDialogProps) {
   const lote = useBulkCompanyImport();
   const [texto, setTexto] = useState('');
-  const [origem, setOrigem] = useState('');
   const [erroArquivo, setErroArquivo] = useState<string | null>(null);
   const arquivo = useRef<HTMLInputElement>(null);
   const extraidos = useMemo(() => extractCnpjs(texto), [texto]);
@@ -54,7 +52,6 @@ export function BulkCompanyImportDialog({ open, onOpenChange }: BulkCompanyImpor
     if (!aberto) {
       lote.reiniciar();
       setTexto('');
-      setOrigem('');
       setErroArquivo(null);
     }
     onOpenChange(aberto);
@@ -67,8 +64,7 @@ export function BulkCompanyImportDialog({ open, onOpenChange }: BulkCompanyImpor
     setTexto(await file.text());
   };
 
-  const importar = () =>
-    lote.iniciar(extraidos.validos.slice(0, MAX_CNPJS_POR_LOTE), origem.trim() || null);
+  const importar = () => lote.iniciar(extraidos.validos.slice(0, MAX_CNPJS_POR_LOTE));
 
   return (
     <Dialog open={open} onOpenChange={fechar}>
@@ -110,17 +106,6 @@ export function BulkCompanyImportDialog({ open, onOpenChange }: BulkCompanyImpor
                 />
               </div>
               {erroArquivo && <p role="alert" className="text-xs text-destructive">{erroArquivo}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lote-origem">Origem da lista (opcional)</Label>
-              <Input
-                id="lote-origem"
-                value={origem}
-                maxLength={120}
-                onChange={(e) => setOrigem(e.target.value)}
-                placeholder="Ex.: FIEMG 2026, Sindicato das Indústrias Metalúrgicas"
-              />
-              <p className="text-xs text-muted-foreground">Vai para as observações de cada empresa nova.</p>
             </div>
           </div>
         )}
