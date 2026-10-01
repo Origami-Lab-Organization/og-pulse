@@ -13,6 +13,8 @@ import type { PersonAllocation } from '@/types/rateio';
 
 interface CostPerHourTableProps {
   rows: PayrollAnalysisRow[];
+  /** 'yyyy-MM' do mês exibido; leva a auditoria de horas ao mesmo mês. */
+  monthKey?: string;
   monthLabel: string;
   estimated?: boolean;
   projected?: boolean;
@@ -42,7 +44,7 @@ function getSortValue(row: PayrollAnalysisRow, key: SortKey): string | number {
   return row[key];
 }
 
-export function CostPerHourTable({ rows, monthLabel, estimated, projected, allocations, allocationsLoading }: CostPerHourTableProps) {
+export function CostPerHourTable({ rows, monthKey, monthLabel, estimated, projected, allocations, allocationsLoading }: CostPerHourTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('hourlyCost');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedRow, setSelectedRow] = useState<PayrollAnalysisRow | null>(null);
@@ -242,6 +244,7 @@ export function CostPerHourTable({ rows, monthLabel, estimated, projected, alloc
             <PersonAllocationSection
               allocation={allocations.find((a) => a.employeeId === selectedRow.employeeId)}
               isLoading={Boolean(allocationsLoading)}
+              monthKey={monthKey}
               monthLabel={monthLabel}
             />
           ) : undefined

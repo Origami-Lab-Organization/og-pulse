@@ -148,6 +148,7 @@ tinha `pipeline:ler`/`pipeline:editar`.
 |---|---|---|---|---|---|
 | `timesheet-proprio:apontar` | sim | sim | sim | sim | `/my-timesheet` sem guard |
 | `timesheet-terceiro:ler` — `/analises/meu-time`, `/analises/horas-por-projeto` (planejado × lançado por projeto e pessoa, só horas; cada projeto ainda passa por `can_read_project_hours`, ADR-0025) | sim | sim | — | — | rota `requireManager` |
+| `timesheet-terceiro:ler` — `/analises/custo-hora/auditoria/:employeeId` (auditoria do mês de uma pessoa, aberta pelo rateio da Custo x Hora: dia a dia com alertas, hora sem alocação, correções e lançamento atrasado; só horas, sem custo). Corrigir semana pede `timesheet-terceiro:editar` e usa a correção existente, que registra o log e avisa a pessoa na caixa de entrada | sim | sim | — | — | rota `requireCapability` |
 | `ponto:ler-proprio` — marcacao, resumo diario, banco de horas | sim | sim | sim | proprio | `e.auth_id = auth.uid()` |
 | `ponto:ler-terceiro` | sim | **—** | sim | — | `has_role('admin') OR has_role('rh')` — **gerente nao entra** |
 | `ponto:aprovar` | sim | — | — | — | rota `requireAdmin` |

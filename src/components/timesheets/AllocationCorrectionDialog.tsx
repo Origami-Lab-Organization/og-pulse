@@ -37,19 +37,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { TimesheetWeekSelector } from './TimesheetWeekSelector';
 import { getWeekStart, getWeekEnd, getWeekDays, WeekDay } from '@/hooks/useTimesheetData';
 import { useHolidays, isHoliday } from '@/hooks/useHolidays';
-import { useAllocationActualEdits, ActualChangeEntry } from '@/hooks/useAllocationActualEdits';
+import { useAllocationActualEdits, ActualChangeEntry, CORRECTION_REASONS } from '@/hooks/useAllocationActualEdits';
 import { Holiday } from '@/types/holiday';
 import { cn } from '@/lib/utils';
 import { format, parseISO, isAfter, startOfDay, isWeekend } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-const REASON_OPTIONS = [
-  { value: 'wrong_hours', label: 'Horas incorretas' },
-  { value: 'wrong_item', label: 'Item incorreto' },
-  { value: 'post_approval_fix', label: 'Correção pós-aprovação' },
-  { value: 'employee_request', label: 'Pedido do colaborador' },
-  { value: 'other', label: 'Outro' },
-] as const;
+const REASON_OPTIONS = CORRECTION_REASONS;
 
 interface CorrectionItem {
   type: 'project' | 'internal_activity';
@@ -68,6 +62,8 @@ interface AllocationCorrectionDialogProps {
   tenantId: string;
   canEditAll: boolean;
   currentEmployeeId?: string;
+  /** Abre já nesta data (a auditoria de horas manda a semana escolhida). */
+  initialDate?: Date;
 }
 
 interface TimesheetRecord {
@@ -104,13 +100,21 @@ export function AllocationCorrectionDialog({
   tenantId,
   canEditAll,
   currentEmployeeId,
+  initialDate,
 }: AllocationCorrectionDialogProps) {
   const { data: holidaysData } = useHolidays();
   const holidays = useMemo(() => holidaysData ?? [], [holidaysData]);
   const actualEditsMutation = useAllocationActualEdits(holidays);
 
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [viewMonth, setViewMonth] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => initialDate ?? new Date());
+  const [viewMonth, setViewMonth] = useState(() => initialDate ?? new Date());
+
+  // Reabrir pela auditoria em outra semana: o diálogo segue a semana pedida.
+  useEffect(() => {
+    if (!open || !initialDate) return;
+    setSelectedDate(initialDate);
+    setViewMonth(initialDate);
+  }, [open, initialDate]);
   const [drafts, setDrafts] = useState<Record<string, number>>({});
   const [originals, setOriginals] = useState<Record<string, number>>({});
   const [reasonCode, setReasonCode] = useState('');
