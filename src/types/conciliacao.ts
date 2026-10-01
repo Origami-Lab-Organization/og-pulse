@@ -67,3 +67,54 @@ export enum ReconciliationDivergence {
 }
 
 export type ReconciliationSummary = Record<ReconciliationSituation, number>;
+
+/** Receita do Conta Azul sem parcela de projeto, por cliente (`conta_azul_revenue_outside_projects`). */
+export interface RevenueOutsideProjectsRow {
+  person_ca_id: string | null;
+  person_name: string | null;
+  person_document: string | null;
+  /** Cliente do Pulse com o mesmo CNPJ, se existir. */
+  client_id: string | null;
+  client_name: string | null;
+  installments: number;
+  gross_total: number;
+  paid_total: number;
+  last_due: string | null;
+  categories: string | null;
+}
+
+export interface PayablesByCostCenterRow {
+  ca_cost_center_id: string | null;
+  ca_cost_center_name: string | null;
+  /** Centro do Pulse ligado ao do Conta Azul; `null` = sem ligação ou sem centro. */
+  cost_center_id: string | null;
+  amount: number;
+  installments: number;
+}
+
+export interface PayablesByCategoryRow {
+  category: string;
+  amount: number;
+  installments: number;
+}
+
+export enum CostComparisonKind {
+  /** Centro do Pulse, com o que foi pago nos centros do Conta Azul ligados a ele. */
+  Linked = 'ligado',
+  /** Centro do Conta Azul ainda sem ligação: o pago dele não tem com o que comparar. */
+  Unlinked = 'sem_ligacao',
+  /** Pago sem centro de custo no Conta Azul. */
+  NoCenterContaAzul = 'sem_centro_conta_azul',
+  /** Custo de pessoas do Pulse sem centro (ADR-0031). */
+  NoCenterPulse = 'sem_centro_pulse',
+}
+
+export interface CostComparisonRow {
+  key: string;
+  kind: CostComparisonKind;
+  label: string;
+  /** Custo de pessoas no Pulse (horas × custo-hora); `null` quando não se aplica. */
+  pulseCost: number | null;
+  /** Pago no Conta Azul, distribuído pelo rateio; `null` quando não se aplica. */
+  paid: number | null;
+}

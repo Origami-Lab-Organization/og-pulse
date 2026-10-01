@@ -7552,6 +7552,20 @@ export type Database = {
       conta_azul_apply_payment: { Args: { p_match_id: string }; Returns: undefined }
       conta_azul_confirm_match: { Args: { p_match_id: string }; Returns: undefined }
       conta_azul_nf_key: { Args: { p_value: string }; Returns: string }
+      conta_azul_payables_by_category: {
+        Args: { p_from: string; p_tenant_id: string; p_to: string }
+        Returns: { amount: number; category: string; installments: number }[]
+      }
+      conta_azul_payables_by_cost_center: {
+        Args: { p_from: string; p_tenant_id: string; p_to: string }
+        Returns: {
+          amount: number
+          ca_cost_center_id: string
+          ca_cost_center_name: string
+          cost_center_id: string
+          installments: number
+        }[]
+      }
       conta_azul_receivables_reconciliation: {
         Args: { p_from: string; p_tenant_id: string; p_to: string }
         Returns: {
@@ -7583,6 +7597,21 @@ export type Database = {
         }[]
       }
       conta_azul_reconcile_receivables: { Args: { p_tenant_id: string }; Returns: Json }
+      conta_azul_revenue_outside_projects: {
+        Args: { p_from: string; p_tenant_id: string; p_to: string }
+        Returns: {
+          categories: string
+          client_id: string
+          client_name: string
+          gross_total: number
+          installments: number
+          last_due: string
+          paid_total: number
+          person_ca_id: string
+          person_document: string
+          person_name: string
+        }[]
+      }
       conta_azul_undo_match: { Args: { p_match_id: string }; Returns: undefined }
       count_employee_cost_business_days: {
         Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }

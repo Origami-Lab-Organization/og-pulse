@@ -13,6 +13,9 @@ import {
 } from '@/types/project';
 import { fetchEmployeeDirectoryMap, withDirectoryIdentity } from '@/services/employeeDirectoryService';
 
+/** Abaixo de um centavo não é parcela: é sobra de divisão ou projeto sem valor. */
+const MIN_INSTALLMENT_VALUE = 0.01;
+
 function generateInstallments(
   projectId: string,
   totalValue: number,
@@ -35,6 +38,10 @@ function generateInstallments(
     count = Math.max(1, monthsDiff);
     valuePerInstallment = totalValue; // Full monthly value per installment
   }
+
+  // Sem dinheiro, sem parcela: valor zero gerava parcelas de R$ 0 até a renovação, que depois
+  // eram marcadas como recebidas só para destravar a conclusão (28 em produção, 01/10/2026).
+  if (valuePerInstallment < MIN_INSTALLMENT_VALUE) return [];
 
   const currentDate = new Date(firstInvoiceDate);
 
@@ -440,30 +447,33 @@ export const projectService = {
             const remainingValue = projectTotalValue - existingValue;
             const valuePerNewInstallment = remainingValue / newInstallmentsCount;
 
+            // Valor já todo distribuído (ou passado do total): parcela nova sairia zerada ou negativa.
             const installments = [];
-            const currentDate = new Date(projectFirstInvoiceDate);
-            currentDate.setMonth(currentDate.getMonth() + remainingInstallments);
+            if (valuePerNewInstallment >= MIN_INSTALLMENT_VALUE) {
+              const currentDate = new Date(projectFirstInvoiceDate);
+              currentDate.setMonth(currentDate.getMonth() + remainingInstallments);
 
-            for (let i = 1; i <= newInstallmentsCount; i++) {
-              const year = currentDate.getFullYear();
-              const month = currentDate.getMonth();
-              const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
-              const adjustedDueDay = Math.min(projectDueDay, lastDayOfMonth);
-              const dueDate = new Date(year, month, adjustedDueDay);
+              for (let i = 1; i <= newInstallmentsCount; i++) {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+                const adjustedDueDay = Math.min(projectDueDay, lastDayOfMonth);
+                const dueDate = new Date(year, month, adjustedDueDay);
 
-              installments.push({
-                project_id: id,
-                installment_number: remainingInstallments + i,
-                value: Number(valuePerNewInstallment.toFixed(2)),
-                due_date: dueDate.toISOString().split('T')[0],
-                status: 'pending' as InstallmentStatus,
-                invoice_number: null,
-                invoice_date: null,
-                payment_date: null,
-                notes: null,
-              });
+                installments.push({
+                  project_id: id,
+                  installment_number: remainingInstallments + i,
+                  value: Number(valuePerNewInstallment.toFixed(2)),
+                  due_date: dueDate.toISOString().split('T')[0],
+                  status: 'pending' as InstallmentStatus,
+                  invoice_number: null,
+                  invoice_date: null,
+                  payment_date: null,
+                  notes: null,
+                });
 
-              currentDate.setMonth(currentDate.getMonth() + 1);
+                currentDate.setMonth(currentDate.getMonth() + 1);
+              }
             }
 
             if (installments.length > 0) {

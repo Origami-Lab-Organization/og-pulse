@@ -1,12 +1,19 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Info } from 'lucide-react';
+import { PayablesReconciliation } from '@/components/conciliacao/PayablesReconciliation';
+import { PeriodSelect } from '@/components/conciliacao/period';
+import { PeriodPreset, periodRange } from '@/lib/financeiroPeriodo';
 import { ReceivablesReconciliation } from '@/components/conciliacao/ReceivablesReconciliation';
+import { RevenueOutsideProjects } from '@/components/conciliacao/RevenueOutsideProjects';
 import { SyncButton } from '@/components/integrations/ContaAzulCard';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
 import { useContaAzulConnection } from '@/hooks/useContaAzulConnection';
 import { ContaAzulConnectionStatus } from '@/types/contaAzul';
 import type { ContaAzulConnection } from '@/types/contaAzul';
@@ -56,6 +63,48 @@ function ConnectionNotices({ connection }: { connection: ContaAzulConnection }) 
   );
 }
 
+enum Tab {
+  Receivables = 'receber',
+  OutsideProjects = 'fora',
+  Payables = 'pagar',
+}
+
+/** Uma aba por pergunta; o período vale para as três. A pagar traz folha: só com `conciliacao:pagar`. */
+function ReconciliationTabs() {
+  const { can } = useAuth();
+  const canReceive = can('conciliacao:receber');
+  const canPay = can('conciliacao:pagar');
+  const [preset, setPreset] = useState<PeriodPreset>(PeriodPreset.LastThree);
+  const range = useMemo(() => periodRange(preset, new Date()), [preset]);
+  return (
+    <Tabs defaultValue={canReceive ? Tab.Receivables : Tab.Payables} className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <TabsList>
+          {canReceive && <TabsTrigger value={Tab.Receivables}>A receber</TabsTrigger>}
+          {canReceive && <TabsTrigger value={Tab.OutsideProjects}>Fora dos projetos</TabsTrigger>}
+          {canPay && <TabsTrigger value={Tab.Payables}>A pagar</TabsTrigger>}
+        </TabsList>
+        <PeriodSelect value={preset} onChange={setPreset} />
+      </div>
+      {canReceive && (
+        <TabsContent value={Tab.Receivables}>
+          <ReceivablesReconciliation from={range.from} to={range.to} />
+        </TabsContent>
+      )}
+      {canReceive && (
+        <TabsContent value={Tab.OutsideProjects}>
+          <RevenueOutsideProjects from={range.from} to={range.to} />
+        </TabsContent>
+      )}
+      {canPay && (
+        <TabsContent value={Tab.Payables}>
+          <PayablesReconciliation range={range} />
+        </TabsContent>
+      )}
+    </Tabs>
+  );
+}
+
 function Content() {
   const { data: connection, isLoading } = useContaAzulConnection();
   if (isLoading) return <Skeleton className="h-64 w-full" />;
@@ -66,7 +115,7 @@ function Content() {
         <ConnectionNotices connection={connection} />
         {connection.status === ContaAzulConnectionStatus.Active && <SyncButton connection={connection} />}
       </div>
-      <ReceivablesReconciliation />
+      <ReconciliationTabs />
     </div>
   );
 }
@@ -76,7 +125,7 @@ export default function FinanceiroConciliacao() {
   return (
     <AppLayout
       title="Conciliação"
-      description="Parcelas do Pulse ao lado do que o Conta Azul registrou. Mesma NF e mesmo CNPJ casam sozinhos e dão baixa; o resto espera você confirmar."
+      description="O Pulse ao lado do que o Conta Azul registrou: parcelas a receber, receita que não passa por projeto e para onde foi o que se pagou."
       breadcrumbs={[{ label: 'Financeiro', href: '/financeiro/conciliacao' }, { label: 'Conciliação' }]}
     >
       <Content />

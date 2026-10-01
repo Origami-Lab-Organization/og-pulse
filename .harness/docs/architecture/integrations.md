@@ -149,6 +149,10 @@ renovação passa pela trava `conta_azul_claim_refresh`: o refresh token rotacio
 `conta-azul-sync` (parte 2) mantém o espelho de parcelas e centros de custo: cron a cada 15 min
 (Bearer service role) ou "Sincronizar agora" (sessão + `integracoes:gerir`), em segundo plano
 via `EdgeRuntime.waitUntil`, com trava `conta_azul_claim_sync`.
+Função chamada pelo cron reconhece o cron por `_shared/chamadaDeServico.ts`
+(`public.caller_is_service_role()`): a chave do Vault (JWT legado) e a `SUPABASE_SERVICE_ROLE_KEY`
+do ambiente têm formatos diferentes, e comparar as strings deixou `company-watch` e
+`conta-azul-sync` respondendo 401 a todo cron até 01/10/2026.
 
 **Análise de mercado** — `market-analysis-start` / `-refine` / `-status`
 (jobs em `market_analysis_jobs`).
