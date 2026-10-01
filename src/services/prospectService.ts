@@ -51,13 +51,16 @@ export type UpdateProspectInput = Partial<
   Pick<CreateProspectInput, 'company_id' | 'primary_channel' | 'owner_id' | 'lever' | 'estimated_value' | 'notes'>
 >;
 
+/** Página a página: o PostgREST corta em 1000 linhas sem erro, e o quadro perderia cards. */
 export async function fetchProspects(tenantId: string): Promise<ProspectWithCompany[]> {
-  const { data, error } = await tabela('prospects')
-    .select(PROSPECT_SELECT)
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data || []) as unknown as ProspectWithCompany[];
+  return todasAsPaginas<ProspectWithCompany>((de, ate) =>
+    tabela('prospects')
+      .select(PROSPECT_SELECT)
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(de, ate),
+  );
 }
 
 export async function fetchProspectById(id: string): Promise<ProspectWithCompany | null> {

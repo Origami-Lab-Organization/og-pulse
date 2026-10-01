@@ -1,3 +1,4 @@
+import { todasAsPaginas } from '@/lib/paginacao';
 import { tabela } from '@/services/prospectingTables';
 import type { ProspectContactDB, ProspectContactWithCompany } from '@/types/prospect';
 
@@ -48,13 +49,16 @@ function semCuringa(valor: string): string {
 }
 
 export const prospectContactService = {
+  /** Página a página: o PostgREST corta em 1000 linhas sem erro. */
   async getAll(tenantId: string): Promise<ProspectContactWithCompany[]> {
-    const { data, error } = await tabela('prospect_contacts')
-      .select(COM_EMPRESA)
-      .eq('tenant_id', tenantId)
-      .order('name');
-    if (error) throw error;
-    return (data || []) as unknown as ProspectContactWithCompany[];
+    return todasAsPaginas<ProspectContactWithCompany>((de, ate) =>
+      tabela('prospect_contacts')
+        .select(COM_EMPRESA)
+        .eq('tenant_id', tenantId)
+        .order('name')
+        .order('id')
+        .range(de, ate),
+    );
   },
 
   /** Nome, e-mail ou LinkedIn: o combobox de contato mostra quem já existe. */

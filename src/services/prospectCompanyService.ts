@@ -1,3 +1,4 @@
+import { todasAsPaginas } from '@/lib/paginacao';
 import { tabela } from '@/services/prospectingTables';
 import { supabase } from '@/integrations/supabase/client';
 import type { ClientOption } from '@/types/cnpjLookup';
@@ -96,13 +97,20 @@ export const prospectCompanyService = {
     return (data as unknown as ProspectCompanyDB) ?? null;
   },
 
+  /**
+   * Todas as empresas, página a página: o PostgREST corta em 1000 linhas sem erro, e a
+   * importação em lote passa disso fácil — a empresa existia, o CNPJ batia no índice único,
+   * e a tela Empresas não a mostrava (01/10/2026).
+   */
   async getAll(tenantId: string): Promise<ProspectCompanyDB[]> {
-    const { data, error } = await tabela('prospect_companies')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .order('name');
-    if (error) throw error;
-    return (data || []) as unknown as ProspectCompanyDB[];
+    return todasAsPaginas<ProspectCompanyDB>((de, ate) =>
+      tabela('prospect_companies')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('name')
+        .order('id')
+        .range(de, ate),
+    );
   },
 
   async getById(id: string): Promise<ProspectCompanyDB | null> {
@@ -118,7 +126,8 @@ export const prospectCompanyService = {
     const termo = termoSeguro(query);
     if (!termo) return [];
     const digitos = termo.replace(/\D/g, '');
-    const filtros = [`name.ilike.%${termo}%`];
+    // Razão social e nome fantasia: a empresa importada por CNPJ leva o fantasia como nome.
+    const filtros = [`name.ilike.%${termo}%`, `razao_social.ilike.%${termo}%`, `nome_fantasia.ilike.%${termo}%`];
     if (digitos) filtros.push(`cnpj.ilike.%${digitos}%`);
 
     const { data, error } = await tabela('prospect_companies')

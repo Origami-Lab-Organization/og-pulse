@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { mensagemParaUsuario } from '@/lib/errors/userMessage';
+import { validateCNPJ } from '@/lib/masks';
 import {
   prospectCompanyService,
   type ProspectCompanyInput,
@@ -27,6 +28,20 @@ export function useSearchProspectCompanies(query: string) {
   });
 }
 
+/**
+ * A empresa que já usa este CNPJ — o aviso aparece enquanto se digita, antes de o índice
+ * único recusar no salvar. Só consulta com o CNPJ completo e válido.
+ */
+export function useProspectCompanyByCnpj(cnpj: string) {
+  const { employee } = useAuth();
+  const digitos = cnpj.replace(/\D/g, '');
+  return useQuery<ProspectCompanyDB | null>({
+    queryKey: ['prospect-company-by-cnpj', employee?.tenant_id, digitos],
+    queryFn: async () => (await prospectCompanyService.findByCnpjs([digitos], employee!.tenant_id))[0] ?? null,
+    enabled: !!employee?.tenant_id && validateCNPJ(digitos),
+  });
+}
+
 /** Clientes da carteira que batem com a busca do seletor de empresa. */
 export function useSearchClientsForProspect(query: string) {
   const { employee } = useAuth();
@@ -47,6 +62,7 @@ export function useCreateProspectCompany() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['prospect-companies'] });
       qc.invalidateQueries({ queryKey: ['prospect-companies-search'] });
+      qc.invalidateQueries({ queryKey: ['prospect-company-by-cnpj'] });
     },
     onError: (err: Error) => {
       toast({ title: 'Erro ao salvar a empresa', description: mensagemDeEmpresa(err), variant: 'destructive' });

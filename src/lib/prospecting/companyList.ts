@@ -54,11 +54,17 @@ export function passaNosFiltros(row: CompanyRow, filtros: CompanyFilters, ignora
   });
 }
 
-/** Nome, CNPJ (por dígitos, a partir de 3), setor e subsetor. Sem acento e sem caixa. */
+/**
+ * Nome, razão social e nome fantasia da Receita, CNPJ (por dígitos, a partir de 3), setor e
+ * subsetor. Sem acento e sem caixa. A razão social entra porque a empresa importada por CNPJ
+ * leva o nome fantasia, e quem busca costuma digitar o nome do contrato.
+ */
 export function passaNaBusca(row: CompanyRow, busca: string): boolean {
   const termo = normalizar(busca);
   if (!termo) return true;
-  const texto = normalizar([row.company.name, row.setor, row.subsetor].filter(Boolean).join(' '));
+  const { company } = row;
+  const nomes = [company.name, company.razao_social, company.nome_fantasia, row.setor, row.subsetor];
+  const texto = normalizar(nomes.filter(Boolean).join(' '));
   if (texto.includes(termo)) return true;
   const digitos = busca.replace(/\D/g, '');
   return digitos.length >= 3 && (row.company.cnpj ?? '').replace(/\D/g, '').includes(digitos);

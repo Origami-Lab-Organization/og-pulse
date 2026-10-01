@@ -24,7 +24,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { useCreateProspectCompany } from '@/hooks/useProspectCompanies';
+import { useCreateProspectCompany, useProspectCompanyByCnpj } from '@/hooks/useProspectCompanies';
 import { useCreateProspectContact, useProspectContactDuplicate } from '@/hooks/useProspectContacts';
 import { useCreateProspect, useProspects } from '@/hooks/useProspects';
 import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
@@ -175,13 +175,12 @@ function useCadastroDeContato(props: ProspectFormDialogProps) {
   const [pessoa, setPessoa] = useState<ProspectContactWithCompany | null>(null);
   const [cadastrandoPessoa, setCadastrandoPessoa] = useState(false);
   const [erroDaPessoa, setErroDaPessoa] = useState<string | null>(null);
-  const empresaNova = useEmpresaNova();
-  const { reiniciar: reiniciarEmpresa } = empresaNova;
-
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { primary_channel: 'email', owner_id: '' },
   });
+  const empresaNova = useEmpresaNova(form);
+  const { reiniciar: reiniciarEmpresa } = empresaNova;
 
   useEffect(() => {
     if (!open) return;
@@ -353,9 +352,11 @@ function SecaoDaPessoaNova({ cadastro }: { cadastro: CadastroDeContato }) {
 // --------------------------------------------------------------------------
 
 /** Estado da empresa do contato novo: a escolhida no seletor ou a que está sendo cadastrada. */
-function useEmpresaNova() {
+function useEmpresaNova(form: Formulario) {
   const [empresa, setEmpresa] = useState<ProspectCompanyDB | null>(null);
   const [cadastrando, setCadastrando] = useState(false);
+  // O CNPJ é a chave da empresa: digitado o de uma que já existe, o cadastro novo não procede.
+  const existente = useProspectCompanyByCnpj(cadastrando ? form.watch('company_cnpj') ?? '' : '').data ?? null;
   const [cnpjDisplay, setCnpjDisplay] = useState('');
   // Retrato da Receita da empresa nova: gravado junto com ela (empresa + sócios, ADR-0041).
   const [receita, setReceita] = useState<ReceitaSnapshot | null>(null);
@@ -380,7 +381,26 @@ function useEmpresaNova() {
     return nova.id;
   };
 
-  return { empresa, setEmpresa, cadastrando, setCadastrando, cnpjDisplay, setCnpjDisplay, receita, setReceita, reiniciar, criar };
+  const usarExistente = (empresaExistente: ProspectCompanyDB) => {
+    setEmpresa(empresaExistente);
+    setCadastrando(false);
+    setReceita(null);
+  };
+
+  return {
+    empresa,
+    setEmpresa,
+    cadastrando,
+    setCadastrando,
+    existente,
+    usarExistente,
+    cnpjDisplay,
+    setCnpjDisplay,
+    receita,
+    setReceita,
+    reiniciar,
+    criar,
+  };
 }
 
 /** O service da empresa apara e troca vazio por nulo. */
@@ -463,6 +483,9 @@ function CamposDaEmpresaNova({ form, empresaNova }: { form: Formulario; empresaN
     <>
       <Separator />
       <p className="text-sm font-medium">Dados da empresa nova</p>
+      {empresaNova.existente && (
+        <AvisoDeEmpresaExistente empresa={empresaNova.existente} onUsar={() => empresaNova.usarExistente(empresaNova.existente!)} />
+      )}
       {empresaNova.receita && <PreviaDaReceita receita={empresaNova.receita} />}
       {form.watch('company_client_id') && (
         <p className="text-xs text-muted-foreground">
@@ -727,6 +750,23 @@ function AvisoDeCardAberto({ card, onAbrir }: { card: ProspectWithCompany; onAbr
   );
 }
 
+function AvisoDeEmpresaExistente({ empresa, onUsar }: { empresa: ProspectCompanyDB; onUsar: () => void }) {
+  return (
+    <div role="alert" className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning-subtle p-3 text-xs text-warning-emphasis">
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <div className="flex-1 space-y-2">
+        <p>
+          Este CNPJ já está cadastrado como <span className="font-medium">{empresa.name}</span>
+          {empresa.razao_social && empresa.razao_social !== empresa.name && <> ({empresa.razao_social})</>}.
+        </p>
+        <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={onUsar}>
+          Usar esta empresa
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function AvisoDeDuplicado({ contato, onUsar }: { contato: ProspectContactWithCompany; onUsar: () => void }) {
   return (
     <div role="alert" className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning-subtle p-3 text-xs text-warning-emphasis">
@@ -833,6 +873,9 @@ function validarEmpresa(values: FormData, empresaNova: EmpresaNova): ErroDeValid
   }
   if (values.company_cnpj && !validateCNPJ(values.company_cnpj)) {
     return { campo: 'company_cnpj', mensagem: 'CNPJ inválido.' };
+  }
+  if (empresaNova.existente) {
+    return { campo: 'company_cnpj', mensagem: `Já cadastrada como "${empresaNova.existente.name}". Use a existente.` };
   }
   return null;
 }
