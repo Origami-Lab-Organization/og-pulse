@@ -262,6 +262,20 @@ export const PROSPECT_DISCARD_REASON_LABELS: Record<string, string> = Object.fro
 // Tipos de dado
 // --------------------------------------------------------------------------
 
+/** De onde vem o faturamento anual da empresa (01/10/2026). */
+export type FaturamentoBase = 'estimado' | 'apurado';
+
+export const FATURAMENTO_BASES: ReadonlyArray<{ value: FaturamentoBase; label: string; hint: string }> = [
+  { value: 'estimado', label: 'Estimado', hint: 'Inferido pelo time: porte, conversa, mercado' },
+  { value: 'apurado', label: 'Apurado', hint: 'Veio de fonte confiável: a própria empresa, balanço publicado' },
+];
+
+export const FATURAMENTO_BASE_PADRAO: FaturamentoBase = 'estimado';
+
+export function getFaturamentoBaseLabel(base?: string | null): string | null {
+  return FATURAMENTO_BASES.find((b) => b.value === base)?.label ?? null;
+}
+
 export interface ProspectCompanyDB {
   id: string;
   tenant_id: string;
@@ -277,6 +291,10 @@ export interface ProspectCompanyDB {
   tier: string | null;
   client_id: string | null;
   notes: string | null;
+  /** Faturamento anual em reais, informado pelo time (01/10/2026). A Receita não informa. */
+  faturamento_anual?: number | null;
+  /** Obrigatória junto com o valor: palpite e dado não podem ser lidos do mesmo jeito. */
+  faturamento_anual_base?: FaturamentoBase | null;
   /** Retrato da Receita (29/09/2026, ADR-0041) — preenchido pela consulta de CNPJ. */
   razao_social?: string | null;
   nome_fantasia?: string | null;

@@ -26,6 +26,7 @@ sources:
   - supabase/migrations/20261001130000_conta_azul_sincronizacao.sql
   - supabase/migrations/20261001140000_conta_azul_conciliacao_receber.sql
   - supabase/migrations/20261001190000_prospect_contacts.sql
+  - supabase/migrations/20261001200000_prospect_company_faturamento.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
@@ -70,6 +71,8 @@ sources:
 #  NOT NULL; prospects.contact_* vira cópia mantida por trigger. Conferido contra
 #  ProspectContactDB/ProspectDB e ensaiado (ida/volta/ida, RLS, união por e-mail/LinkedIn)
 #  num Postgres local (PGlite).
+# 01/10/2026: 20261001200000 — prospect_companies.faturamento_anual e faturamento_anual_base
+#  (estimado|apurado, obrigatória junto), conferidos contra ProspectCompanyDB e ensaiados.
 verified: 2026-10-01
 ---
 
@@ -142,6 +145,8 @@ erDiagram
         text instagram_url "livre — fora da deduplicação"
         text ring "Anel — livre, editável no card"
         text tier "Tier — livre, editável no card"
+        numeric faturamento_anual "informado pelo time — NULL = não informado"
+        text faturamento_anual_base "estimado | apurado — obrigatória junto com o valor"
         text regime_tributario "ano mais recente — filtro da Lei do Bem"
         text porte "MICRO EMPRESA | EMPRESA DE PEQUENO PORTE | DEMAIS"
         text situacao_cadastral "alerta quando não ATIVA"
@@ -208,7 +213,7 @@ erDiagram
 
 Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000`, `20260917115000`,
 `20260917180000`, `20260917190000`, `20260923120000`, `20260924120000`, `20260928120000` e
-`20261001190000`.
+`20261001190000` e `20261001200000`.
 
 `prospect_contacts` (01/10/2026, ADR-0045) é a pessoa; o card (`prospects`) guarda o negócio.
 Os campos de contato do card são cópia da pessoa, mantida por três triggers SECURITY INVOKER:

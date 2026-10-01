@@ -1,7 +1,7 @@
 import { tabela } from '@/services/prospectingTables';
 import { supabase } from '@/integrations/supabase/client';
 import type { ClientOption } from '@/types/cnpjLookup';
-import type { ProspectCompanyDB } from '@/types/prospect';
+import { FATURAMENTO_BASE_PADRAO, type FaturamentoBase, type ProspectCompanyDB } from '@/types/prospect';
 
 export interface ProspectCompanyInput {
   name: string;
@@ -14,6 +14,9 @@ export interface ProspectCompanyInput {
   tier?: string | null;
   client_id?: string | null;
   notes?: string | null;
+  /** Ausente = não mexe: quem edita a empresa sem esse campo não apaga o que já existe. */
+  faturamento_anual?: number | null;
+  faturamento_anual_base?: FaturamentoBase | null;
 }
 
 function normalize(input: ProspectCompanyInput) {
@@ -28,6 +31,17 @@ function normalize(input: ProspectCompanyInput) {
     tier: input.tier?.trim() || null,
     client_id: input.client_id || null,
     notes: input.notes?.trim() || null,
+    ...faturamentoDe(input),
+  };
+}
+
+/** Valor e base andam juntos (o banco recusa um sem o outro); zero é "não informado". */
+function faturamentoDe(input: ProspectCompanyInput) {
+  if (input.faturamento_anual === undefined) return {};
+  const valor = input.faturamento_anual && input.faturamento_anual > 0 ? input.faturamento_anual : null;
+  return {
+    faturamento_anual: valor,
+    faturamento_anual_base: valor === null ? null : input.faturamento_anual_base ?? FATURAMENTO_BASE_PADRAO,
   };
 }
 

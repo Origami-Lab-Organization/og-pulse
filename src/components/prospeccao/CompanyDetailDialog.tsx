@@ -22,7 +22,14 @@ import { COMPANY_STATUS_META, type CompanyRow } from '@/lib/prospecting/companyS
 import { comProtocolo, urlDoInstagram } from '@/lib/prospecting/links';
 import { formatCNPJ } from '@/lib/masks';
 import { cn } from '@/lib/utils';
-import type { ProspectWithCompany } from '@/types/prospect';
+import {
+  FATURAMENTO_BASE_PADRAO,
+  type FaturamentoBase,
+  type ProspectCompanyDB,
+  type ProspectWithCompany,
+} from '@/types/prospect';
+import { descreverFaturamento } from '@/lib/prospecting/faturamento';
+import { FaturamentoAnualField } from './FaturamentoAnualField';
 import { AbordagemBadge, SituacaoDot, TierBadge } from './CompanyBadges';
 import { CompanyContactList } from './CompanyContactList';
 import { Item, LinkExterno, Rodape, Secao } from './FichaDeCadastro';
@@ -138,6 +145,7 @@ function Visualizacao({
           <Item rotulo="Instagram">
             {company.instagram_url && <LinkExterno href={urlDoInstagram(company.instagram_url)} icone={Instagram} />}
           </Item>
+          <Item rotulo="Faturamento anual">{descreverFaturamento(company)}</Item>
         </Secao>
 
         <CompanyReceitaCard empresa={company} podeEditar={can('prospeccao:editar')} />
@@ -211,6 +219,7 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
   const atualizar = useUpdateProspectCompany();
   const gravarReceita = useSaveCompanyReceita();
   const [rascunho, setRascunho] = useState<Rascunho>(() => rascunhoInicial(row));
+  const [faturamento, setFaturamento] = useState(() => faturamentoInicial(row.company));
   // Retrato achado pela busca de CNPJ: gravado junto ao salvar (empresa + sócios, ADR-0041).
   const [receita, setReceita] = useState<ReceitaSnapshot | null>(null);
   const pendente = atualizar.isPending || gravarReceita.isPending;
@@ -239,6 +248,8 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
         tier: formatRankInput(rascunho.tier),
         client_id: company.client_id,
         notes: company.notes,
+        faturamento_anual: faturamento.valor,
+        faturamento_anual_base: faturamento.base,
       },
     });
     if (receita && receita.cnpj === rascunho.cnpj.replace(/\D/g, '')) {
@@ -282,6 +293,20 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
             )}
           </div>
         ))}
+        <div className="col-span-2 space-y-1.5">
+          <Label htmlFor="empresa-faturamento" className="text-[12.5px] font-medium text-muted-foreground">
+            Faturamento anual
+          </Label>
+          <FaturamentoAnualField
+            id="empresa-faturamento"
+            valor={faturamento.valor}
+            base={faturamento.base}
+            onValorChange={(valor) => setFaturamento((atual) => ({ ...atual, valor }))}
+            onBaseChange={(base) => setFaturamento((atual) => ({ ...atual, base }))}
+            disabled={pendente}
+            className="h-[38px]"
+          />
+        </div>
         {receita && (
           <p className="col-span-2 text-xs text-muted-foreground" role="status">
             Dados da Receita encontrados ({receita.socios.length} sócios): gravados ao salvar.
@@ -303,6 +328,13 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
       </Rodape>
     </form>
   );
+}
+
+function faturamentoInicial(company: ProspectCompanyDB): { valor: number; base: FaturamentoBase } {
+  return {
+    valor: company.faturamento_anual ?? 0,
+    base: company.faturamento_anual_base ?? FATURAMENTO_BASE_PADRAO,
+  };
 }
 
 function rascunhoInicial(row: CompanyRow): Rascunho {

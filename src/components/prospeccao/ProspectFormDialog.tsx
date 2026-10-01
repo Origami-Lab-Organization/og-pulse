@@ -42,7 +42,9 @@ import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
 import { LEI_DO_BEM_LABEL, leiDoBemSignal, porteLabel } from '@/lib/prospecting/receita';
 import { ProspectCompanySelect } from './ProspectCompanySelect';
 import { ProspectContactSelect } from './ProspectContactSelect';
+import { FaturamentoAnualField } from './FaturamentoAnualField';
 import {
+  FATURAMENTO_BASE_PADRAO,
   getProspectStageLabel,
   PROSPECT_LEVERS,
   type ProspectCompanyDB,
@@ -72,6 +74,8 @@ const schema = z.object({
   company_segment: z.string().optional(),
   company_ring: z.string().optional(),
   company_tier: z.string().optional(),
+  company_faturamento: z.number().min(0).optional(),
+  company_faturamento_base: z.enum(['estimado', 'apurado']).optional(),
   // Empresa que já é cliente da carteira (escolhida no seletor).
   company_client_id: z.string().optional(),
 });
@@ -391,6 +395,8 @@ function empresaDoFormulario(values: FormData) {
     ring: values.company_ring,
     tier: values.company_tier,
     client_id: values.company_client_id,
+    faturamento_anual: values.company_faturamento ?? null,
+    faturamento_anual_base: values.company_faturamento_base,
   };
 }
 
@@ -513,6 +519,7 @@ function CamposDaEmpresaNova({ form, empresaNova }: { form: Formulario; empresaN
         <CampoDeTexto form={form} name="company_segment" label="Segmento" />
         <CampoDeTexto form={form} name="company_ring" label="Anel" />
         <CampoDeTexto form={form} name="company_tier" label="Tier" />
+        <CampoDeFaturamento form={form} />
       </div>
     </>
   );
@@ -635,7 +642,28 @@ function CamposDoCard({ form, aberto }: { form: Formulario; aberto: boolean }) {
   );
 }
 
-type CampoTextual = Exclude<keyof FormData, 'estimated_value'>;
+type CampoTextual = Exclude<keyof FormData, 'estimated_value' | 'company_faturamento' | 'company_faturamento_base'>;
+
+function CampoDeFaturamento({ form }: { form: Formulario }) {
+  return (
+    <FormField
+      control={form.control}
+      name="company_faturamento"
+      render={({ field }) => (
+        <FormItem className="sm:col-span-2">
+          <FormLabel>Faturamento anual</FormLabel>
+          <FaturamentoAnualField
+            id="empresa-nova-faturamento"
+            valor={field.value ?? 0}
+            base={form.watch('company_faturamento_base') ?? FATURAMENTO_BASE_PADRAO}
+            onValorChange={field.onChange}
+            onBaseChange={(base) => form.setValue('company_faturamento_base', base)}
+          />
+        </FormItem>
+      )}
+    />
+  );
+}
 
 function CampoDeTexto(props: {
   form: Formulario;

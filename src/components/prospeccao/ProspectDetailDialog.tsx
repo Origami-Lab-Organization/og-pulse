@@ -54,6 +54,8 @@ import { formatCNPJ } from '@/lib/masks';
 import { cn } from '@/lib/utils';
 import {
   canWin,
+  FATURAMENTO_BASE_PADRAO,
+  type FaturamentoBase,
   getDiscardReasonLabel,
   getProspectStageColor,
   getLeverLabel,
@@ -80,6 +82,8 @@ import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
 import type { ReceitaSnapshot } from '@/types/receita';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProspectProjectDialog } from './ProspectProjectDialog';
+import { FaturamentoAnualField } from './FaturamentoAnualField';
+import { descreverFaturamento } from '@/lib/prospecting/faturamento';
 
 type Aba = 'registros' | 'tarefas';
 
@@ -724,6 +728,16 @@ function CartaoEmpresa({
           <Campo label="Segmento" draft={rascunho.company_segment} onChange={definir('company_segment')} />
           <Campo label="Anel" draft={rascunho.company_ring} onChange={definir('company_ring')} />
           <Campo label="Tier" draft={rascunho.company_tier} onChange={definir('company_tier')} />
+          <div className="space-y-1">
+            <Label htmlFor="ficha-empresa-faturamento" className="text-xs text-muted-foreground">Faturamento anual</Label>
+            <FaturamentoAnualField
+              id="ficha-empresa-faturamento"
+              valor={Number(rascunho.company_faturamento) || 0}
+              base={rascunho.company_faturamento_base as FaturamentoBase}
+              onValorChange={(valor) => definir('company_faturamento')(String(valor))}
+              onBaseChange={definir('company_faturamento_base')}
+            />
+          </div>
           <p className="text-xs text-muted-foreground">
             Os campos da empresa valem para todos os contatos dela.
           </p>
@@ -752,6 +766,13 @@ function CartaoEmpresa({
             label="CNPJ"
             valor={empresa?.cnpj ? formatCNPJ(empresa.cnpj) : null}
             acao="Adicionar CNPJ"
+            podeEditar={podeEditar}
+            onEditar={onEditar}
+          />
+          <CampoOpcional
+            label="Faturamento anual"
+            valor={descreverFaturamento(empresa)}
+            acao="Adicionar faturamento"
             podeEditar={podeEditar}
             onEditar={onEditar}
           />
@@ -997,6 +1018,8 @@ function rascunhoInicial(prospect: ProspectWithCompany): Record<string, string> 
     company_segment: empresa?.segment ?? '',
     company_ring: empresa?.ring ?? '',
     company_tier: empresa?.tier ?? '',
+    company_faturamento: empresa?.faturamento_anual != null ? String(empresa.faturamento_anual) : '',
+    company_faturamento_base: empresa?.faturamento_anual_base ?? FATURAMENTO_BASE_PADRAO,
     contact_name: prospect.contact_name,
     contact_role: prospect.contact_role ?? '',
     contact_email: prospect.contact_email ?? '',
@@ -1023,6 +1046,8 @@ function empresaDoRascunho(rascunho: Record<string, string>, empresa: ProspectCo
     tier: rascunho.company_tier || null,
     client_id: empresa.client_id,
     notes: empresa.notes,
+    faturamento_anual: Number(rascunho.company_faturamento) || null,
+    faturamento_anual_base: rascunho.company_faturamento_base as FaturamentoBase,
   };
 }
 
