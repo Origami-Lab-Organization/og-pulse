@@ -1,7 +1,7 @@
 # Integração: Conta Azul (API v2)
 
-- Status: **parte 3 de 4 (conciliação de receber)** — conexão, espelho, ligação de centros e
-  Financeiro › Conciliação › A receber. Contas a pagar (parte 4) ainda não.
+- Status: **partes 1 a 4 no código** — conexão, espelho, ligação de centros e Financeiro ›
+  Conciliação (A receber, Fora dos projetos, A pagar por centro e por categoria).
 - Decisão de arquitetura: [ADR-0044](../adr/0044-integracao-conta-azul-conexao-por-empresa-e-conciliacao.md).
 - Direção: **só leitura** nesta fase (conciliação). Escrita é fase 2.
 - Documentação oficial: https://developers.contaazul.com — consultada em 01/10/2026. Os specs
@@ -74,6 +74,16 @@ Centros de custo: `/v1/centro-de-custo` (`filtro_rapido=TODOS`) a cada execuçã
 `conta_azul_cost_centers`. O upsert não manda `cost_center_id`, então a ligação feita pelo
 admin sobrevive. A tela muda só essa coluna (GRANT por coluna; WITH CHECK exige centro do mesmo
 tenant).
+
+## Armadilha do cron (01/10/2026)
+
+O cron manda `Bearer <app_service_role_key do Vault>` — JWT legado do projeto, emitido em
+31/08. A `SUPABASE_SERVICE_ROLE_KEY` das Edge Functions está em outro formato, então comparar as
+duas strings **nunca bate**: `conta-azul-sync` (e `company-watch`) respondiam 401 a todo cron, e
+só o "Sincronizar agora" sincronizava. Corrigido em `_shared/chamadaDeServico.ts`: a função
+pergunta ao banco, com a chave recebida, se o papel é `service_role`
+(`public.caller_is_service_role()`, migration `20261001160000`). Prova: `net._http_response`
+depois das execuções de `*/15`.
 
 ## Conciliação de receber (parte 3)
 

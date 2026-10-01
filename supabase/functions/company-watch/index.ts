@@ -9,6 +9,7 @@ import {
   type ReceitaSnapshot,
   type RespostaBrasilApi,
 } from "../_shared/receita.ts";
+import { ehChamadaDeServico } from "../_shared/chamadaDeServico.ts";
 
 const BRASILAPI = "https://brasilapi.com.br/api/cnpj/v1";
 const POR_EXECUCAO = 120;
@@ -142,14 +143,9 @@ async function processar(supabase: Supabase, empresa: Empresa): Promise<{ avisos
 
 // ── Entrada: só o cron (service role) ─────────────────────────────────────────
 
-function autorizado(req: Request): boolean {
-  const chave = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  return chave.length > 0 && req.headers.get("Authorization") === `Bearer ${chave}`;
-}
-
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Use POST.", { status: 405 });
-  if (!autorizado(req)) return new Response("Não autorizado.", { status: 401 });
+  if (!(await ehChamadaDeServico(req))) return new Response("Não autorizado.", { status: 401 });
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const inicio = Date.now();
   let consultadas = 0;

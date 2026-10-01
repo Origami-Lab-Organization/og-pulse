@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useReceivablesReconciliation } from '@/hooks/useConciliacao';
@@ -23,40 +22,6 @@ import { cn } from '@/lib/utils';
 import { ReconciliationSituation } from '@/types/conciliacao';
 import type { ReceivableReconciliationRow } from '@/types/conciliacao';
 import { ReconciliationRowActions } from './ReconciliationRowActions';
-
-enum PeriodPreset {
-  ThisMonth = 'este_mes',
-  LastMonth = 'mes_passado',
-  LastThree = 'ultimos_3',
-  ThisYear = 'este_ano',
-  LastYear = 'ano_passado',
-}
-
-const PERIOD_LABEL: Record<PeriodPreset, string> = {
-  [PeriodPreset.ThisMonth]: 'Este mês',
-  [PeriodPreset.LastMonth]: 'Mês passado',
-  [PeriodPreset.LastThree]: 'Últimos 3 meses',
-  [PeriodPreset.ThisYear]: 'Este ano',
-  [PeriodPreset.LastYear]: 'Ano passado',
-};
-
-const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const monthStart = (year: number, month: number) => new Date(year, month, 1);
-const monthEnd = (year: number, month: number) => new Date(year, month + 1, 0);
-
-function periodRange(preset: PeriodPreset, today: Date): { from: string; to: string } {
-  const y = today.getFullYear();
-  const m = today.getMonth();
-  const ranges: Record<PeriodPreset, [Date, Date]> = {
-    [PeriodPreset.ThisMonth]: [monthStart(y, m), monthEnd(y, m)],
-    [PeriodPreset.LastMonth]: [monthStart(y, m - 1), monthEnd(y, m - 1)],
-    [PeriodPreset.LastThree]: [monthStart(y, m - 2), monthEnd(y, m)],
-    [PeriodPreset.ThisYear]: [monthStart(y, 0), monthEnd(y, 11)],
-    [PeriodPreset.LastYear]: [monthStart(y - 1, 0), monthEnd(y - 1, 11)],
-  };
-  const [from, to] = ranges[preset];
-  return { from: iso(from), to: iso(to) };
-}
 
 const SITUATION_BADGE: Record<ReconciliationSituation, 'success' | 'warning' | 'info' | 'neutral'> = {
   [ReconciliationSituation.Matched]: 'success',
@@ -253,29 +218,7 @@ function Body(props: { from: string; to: string }) {
 }
 
 /** Conciliação de contas a receber: parcela do Pulse × parcela de receita do Conta Azul. */
-export function ReceivablesReconciliation() {
-  const [preset, setPreset] = useState<PeriodPreset>(PeriodPreset.LastThree);
-  const range = useMemo(() => periodRange(preset, new Date()), [preset]);
-  return (
-    <section className="space-y-4" aria-labelledby="conciliacao-receber">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="conciliacao-receber" className="text-lg font-semibold text-foreground">
-          A receber
-        </h2>
-        <Select value={preset} onValueChange={(value) => setPreset(value as PeriodPreset)}>
-          <SelectTrigger className="w-48" aria-label="Período por vencimento">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.values(PeriodPreset).map((p) => (
-              <SelectItem key={p} value={p}>
-                {PERIOD_LABEL[p]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <Body from={range.from} to={range.to} />
-    </section>
-  );
+export function ReceivablesReconciliation(props: { from: string; to: string }) {
+  const { from, to } = props;
+  return <Body from={from} to={to} />;
 }

@@ -16,6 +16,26 @@ export function useReceivablesReconciliation(from: string, to: string, enabled: 
   });
 }
 
+/** Uma leitura do Financeiro por período, com a chave e a função da RPC. */
+function usePeriodQuery<T>(key: string, fetcher: (tenantId: string, from: string, to: string) => Promise<T>, from: string, to: string) {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+  return useQuery({
+    queryKey: [key, tenantId, from, to],
+    queryFn: () => fetcher(tenantId as string, from, to),
+    enabled: Boolean(tenantId),
+  });
+}
+
+export const useRevenueOutsideProjects = (from: string, to: string) =>
+  usePeriodQuery('conciliacao-fora-projetos', conciliacaoService.getRevenueOutsideProjects, from, to);
+
+export const usePayablesByCostCenter = (from: string, to: string) =>
+  usePeriodQuery('conciliacao-pagar-centros', conciliacaoService.getPayablesByCostCenter, from, to);
+
+export const usePayablesByCategory = (from: string, to: string) =>
+  usePeriodQuery('conciliacao-pagar-categorias', conciliacaoService.getPayablesByCategory, from, to);
+
 export enum ReconciliationAction {
   Confirm = 'confirmar',
   Undo = 'desfazer',
@@ -41,7 +61,7 @@ export function useReconciliationAction() {
   return useMutation({
     mutationFn: ({ action, matchId }: { action: ReconciliationAction; matchId: string }) => RUN[action](matchId),
     onSuccess: (_data, { action }) => {
-      for (const key of [RECEIVABLES_KEY, 'project-installments', 'project', 'projects']) {
+      for (const key of [RECEIVABLES_KEY, 'conciliacao-fora-projetos', 'project-installments', 'project', 'projects']) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
       toast({ title: DONE[action] });

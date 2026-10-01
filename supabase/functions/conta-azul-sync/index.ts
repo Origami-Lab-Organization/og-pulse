@@ -13,6 +13,7 @@ import {
   tenantDe,
   usuarioDaSessao,
 } from "../_shared/contaAzulHttp.ts";
+import { ehChamadaDeServico } from "../_shared/chamadaDeServico.ts";
 import { sincronizarConexao } from "../_shared/contaAzulSync.ts";
 import { StatusConexao } from "../_shared/contaAzulTipos.ts";
 import type { ConexaoParaSincronizar } from "../_shared/contaAzulTipos.ts";
@@ -22,11 +23,6 @@ declare const EdgeRuntime: { waitUntil: (promise: Promise<unknown>) => void };
 /** Abaixo do limite de execução das Edge Functions, com folga para gravar o andamento. */
 const PRAZO_MS = 110_000;
 const COLUNAS = "id, tenant_id, connected_at, backfill_cursor, backfill_done_at, incremental_cursor, last_full_scan_at";
-
-function ehCron(req: Request): boolean {
-  const chave = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  return chave.length > 0 && req.headers.get("Authorization") === `Bearer ${chave}`;
-}
 
 async function conexoesDoCron(admin: SupabaseClient): Promise<ConexaoParaSincronizar[]> {
   const { data, error } = await admin
@@ -67,7 +63,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Use POST." }, 405);
   try {
     const admin = clienteAdmin();
-    const conexoes = ehCron(req) ? await conexoesDoCron(admin) : [await conexaoDoPedido(admin, req)];
+    const conexoes = (await ehChamadaDeServico(req)) ? await conexoesDoCron(admin) : [await conexaoDoPedido(admin, req)];
     EdgeRuntime.waitUntil(sincronizarTodas(admin, conexoes));
     return json({ iniciadas: conexoes.length }, 202);
   } catch (erro) {
