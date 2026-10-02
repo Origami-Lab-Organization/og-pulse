@@ -185,7 +185,7 @@ export function ProspectDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[88vh] max-w-5xl flex-col gap-0 overflow-hidden p-0">
+      <DialogContent className="flex h-[88vh] max-w-7xl flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="space-y-4 border-b p-4 pr-24 text-left sm:pr-24">
           <div className="flex items-start gap-3">
             <Avatar className="h-11 w-11 shrink-0">
@@ -238,31 +238,19 @@ export function ProspectDetailDialog({
           <ProspectStageStepper stage={prospect.stage} />
         </DialogHeader>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,370px)_1fr]">
+        {/* Três colunas (02/10/2026): quem é a pessoa à esquerda, o que aconteceu no centro e a
+            empresa à direita — antes empresa e contato dividiam a mesma coluna e se confundiam.
+            Abaixo de lg as três empilham na mesma ordem. */}
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,320px)] lg:overflow-hidden">
           <section
-            aria-label="Informação"
-            className="min-h-0 space-y-3 overflow-y-auto border-b bg-muted/20 p-4 md:border-b-0 md:border-r"
+            aria-label="Contato"
+            className="min-h-0 space-y-3 border-b bg-muted/20 p-4 lg:overflow-y-auto lg:border-b-0 lg:border-r"
           >
-            <AvisoEmpresaEmConversa prospect={prospect} diretorio={diretorio} />
-
             <Indicadores
               atividades={prospect.activity_count}
               respostas={respostas}
               proxima={proximaTarefa?.due_date ?? null}
             />
-
-            <CartaoEmpresa
-              empresa={empresa}
-              editando={editando}
-              rascunho={rascunho}
-              definir={definir}
-              onReceita={aplicarReceita}
-              receitaAchada={receitaDaEdicao}
-              podeEditar={!somenteLeitura}
-              onEditar={abrirEdicao}
-            />
-
-            {empresa && <CompanyReceitaCard empresa={empresa} podeEditar={can('prospeccao:editar')} />}
 
             <CartaoContato
               prospect={prospect}
@@ -284,17 +272,6 @@ export function ProspectDetailDialog({
               onEditar={abrirEdicao}
               onCriarProjeto={() => setProjetoAberto(true)}
             />
-
-            {editando && (
-              <div className="flex gap-2">
-                <Button size="sm" onClick={salvar} disabled={salvando}>
-                  {salvando ? 'Salvando...' : 'Salvar'}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setEditando(false)} disabled={salvando}>
-                  Cancelar
-                </Button>
-              </div>
-            )}
           </section>
 
           <PainelDeAtividade
@@ -306,7 +283,39 @@ export function ProspectDetailDialog({
             onPrompt={() => setReuniaoAberta(true)}
             onWin={() => onWin(prospect)}
           />
+
+          <section
+            aria-label="Empresa"
+            className="min-h-0 space-y-3 border-t bg-muted/20 p-4 lg:overflow-y-auto lg:border-l lg:border-t-0"
+          >
+            <AvisoEmpresaEmConversa prospect={prospect} diretorio={diretorio} />
+
+            <CartaoEmpresa
+              empresa={empresa}
+              editando={editando}
+              rascunho={rascunho}
+              definir={definir}
+              onReceita={aplicarReceita}
+              receitaAchada={receitaDaEdicao}
+              podeEditar={!somenteLeitura}
+              onEditar={abrirEdicao}
+            />
+
+            {empresa && <CompanyReceitaCard empresa={empresa} podeEditar={can('prospeccao:editar')} />}
+          </section>
         </div>
+
+        {/* A edição abre o contato e a empresa ao mesmo tempo: o salvar fica num lugar só. */}
+        {editando && (
+          <div className="flex justify-end gap-2 border-t bg-muted/40 px-4 py-3">
+            <Button size="sm" variant="outline" onClick={() => setEditando(false)} disabled={salvando}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={salvar} disabled={salvando}>
+              {salvando ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </div>
+        )}
 
         <RegisterMeetingDialog
           prospect={prospect}
@@ -321,7 +330,7 @@ export function ProspectDetailDialog({
 }
 
 /**
- * O lado direito do card: Registros (o que já aconteceu) e Tarefas (o que falta fazer).
+ * O centro do card: Registros (o que já aconteceu) e Tarefas (o que falta fazer).
  *
  * Registros não mostra contagem na aba (24/09/2026, Guilherme) — o total já está nos
  * indicadores. Tarefas mostra só as não concluídas, que é o que pede ação.
