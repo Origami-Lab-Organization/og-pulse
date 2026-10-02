@@ -128,7 +128,9 @@ export function ProspectDetailDialog({
   const excluir = useDeleteProspect();
   const { can } = useAuth();
 
-  const [editando, setEditando] = useState(false);
+  // Contato e empresa editam e salvam cada um por si (02/10/2026): cada coluna, seu botão.
+  const [editandoContato, setEditandoContato] = useState(false);
+  const [editandoEmpresa, setEditandoEmpresa] = useState(false);
   const [reuniaoAberta, setReuniaoAberta] = useState(false);
   const [projetoAberto, setProjetoAberto] = useState(false);
   const [rascunho, setRascunho] = useState<Record<string, string>>({});
@@ -136,36 +138,53 @@ export function ProspectDetailDialog({
   const [receitaDaEdicao, setReceitaDaEdicao] = useState<ReceitaSnapshot | null>(null);
   const gravarReceita = useSaveCompanyReceita();
 
+  // Reinicia só ao abrir a ficha ou trocar de card. Depender do objeto `prospect` apagaria a
+  // edição da empresa em andamento quando o salvar do contato recarrega os dados.
+  const prospectId = prospect?.id;
   useEffect(() => {
-    if (!open || !prospect) return;
-    setEditando(false);
-    setRascunho(rascunhoInicial(prospect));
+    if (!open || !prospectId) return;
+    setEditandoContato(false);
+    setEditandoEmpresa(false);
     setReceitaDaEdicao(null);
-  }, [open, prospect]);
+  }, [open, prospectId]);
 
   if (!prospect) return null;
 
   const somenteLeitura = isProspectReadOnly(prospect);
   const empresa = prospect.company;
-  const salvando =
-    atualizarContato.isPending || atualizarPessoa.isPending || atualizarEmpresa.isPending || gravarReceita.isPending;
+  const salvandoContato = atualizarContato.isPending || atualizarPessoa.isPending;
+  const salvandoEmpresa = atualizarEmpresa.isPending || gravarReceita.isPending;
   const respostas = atividades.filter((a) => a.got_response).length;
   const ultima = atividades[0]?.activity_date ?? null;
   const responsavel = diretorio.find((p) => p.id === prospect.owner_id)?.nome ?? null;
 
-  const salvar = async () => {
-    if (empresa) {
-      await atualizarEmpresa.mutateAsync({ id: empresa.id, input: empresaDoRascunho(rascunho, empresa) });
-      const cnpjDoRascunho = (rascunho.company_cnpj ?? '').replace(/\D/g, '');
-      if (receitaDaEdicao && receitaDaEdicao.cnpj === cnpjDoRascunho) {
-        await gravarReceita.mutateAsync({ companyId: empresa.id, receita: receitaDaEdicao }).catch(() => undefined);
-      }
+  const salvarEmpresa = async () => {
+    if (!empresa) return;
+    await atualizarEmpresa.mutateAsync({ id: empresa.id, input: empresaDoRascunho(rascunho, empresa) });
+    const cnpjDoRascunho = (rascunho.company_cnpj ?? '').replace(/\D/g, '');
+    if (receitaDaEdicao && receitaDaEdicao.cnpj === cnpjDoRascunho) {
+      await gravarReceita.mutateAsync({ companyId: empresa.id, receita: receitaDaEdicao }).catch(() => undefined);
     }
+    setEditandoEmpresa(false);
+  };
+
+  const salvarContato = async () => {
     // A pessoa primeiro: e-mail ou LinkedIn repetido para aqui, antes de mexer no negócio.
     const pessoa = pessoaDoRascunho(rascunho, prospect);
     if (mudouAPessoa(pessoa, prospect)) await atualizarPessoa.mutateAsync({ id: prospect.contact_id, input: pessoa });
     await atualizarContato.mutateAsync({ id: prospect.id, updates: negocioDoRascunho(rascunho, prospect) });
-    setEditando(false);
+    setEditandoContato(false);
+  };
+
+  // Cancelar um lado desfaz só o rascunho dele: o que está sendo editado do outro fica.
+  const cancelarEmpresa = () => {
+    setRascunho((atual) => ({ ...atual, ...parteDoRascunho(rascunhoInicial(prospect), true) }));
+    setReceitaDaEdicao(null);
+    setEditandoEmpresa(false);
+  };
+  const cancelarContato = () => {
+    setRascunho((atual) => ({ ...atual, ...parteDoRascunho(rascunhoInicial(prospect), false) }));
+    setEditandoContato(false);
   };
 
   const definir = (campo: string) => (valor: string) =>
@@ -181,7 +200,27 @@ export function ProspectDetailDialog({
     }));
   };
 
-  const abrirEdicao = () => setEditando(true);
+  // Abrir a edição de um lado parte dos dados atuais dele, não de um rascunho antigo.
+  const abrirContato = () => {
+    setRascunho((atual) => ({ ...atual, ...parteDoRascunho(rascunhoInicial(prospect), false) }));
+    setEditandoContato(true);
+  };
+  const abrirEmpresa = () => {
+    setRascunho((atual) => ({ ...atual, ...parteDoRascunho(rascunhoInicial(prospect), true) }));
+    setReceitaDaEdicao(null);
+    setEditandoEmpresa(true);
+  };
+
+  const editando = editandoContato || editandoEmpresa;
+  const alternarEdicao = () => {
+    if (editando) {
+      cancelarContato();
+      cancelarEmpresa();
+      return;
+    }
+    abrirContato();
+    abrirEmpresa();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -222,7 +261,7 @@ export function ProspectDetailDialog({
               prospect={prospect}
               somenteLeitura={somenteLeitura}
               editando={editando}
-              onEditar={() => setEditando((v) => !v)}
+              onEditar={alternarEdicao}
               onGanhar={() => onWin(prospect)}
               onDescartar={() => onDiscard(prospect)}
               onReabrir={() => reabrir.mutate({ id: prospect.id })}
@@ -256,22 +295,26 @@ export function ProspectDetailDialog({
               prospect={prospect}
               responsavel={responsavel}
               diretorio={diretorio}
-              editando={editando}
+              editando={editandoContato}
               rascunho={rascunho}
               definir={definir}
               podeEditar={!somenteLeitura}
-              onEditar={abrirEdicao}
+              onEditar={abrirContato}
             />
 
             <ProspectDealCard
               prospect={prospect}
-              editando={editando}
+              editando={editandoContato}
               rascunho={rascunho}
               definir={definir}
               podeEditar={!somenteLeitura}
-              onEditar={abrirEdicao}
+              onEditar={abrirContato}
               onCriarProjeto={() => setProjetoAberto(true)}
             />
+
+            {editandoContato && (
+              <BotoesDeSalvar rotulo="Salvar contato" salvando={salvandoContato} onSalvar={salvarContato} onCancelar={cancelarContato} />
+            )}
           </section>
 
           <PainelDeAtividade
@@ -292,30 +335,22 @@ export function ProspectDetailDialog({
 
             <CartaoEmpresa
               empresa={empresa}
-              editando={editando}
+              editando={editandoEmpresa}
               rascunho={rascunho}
               definir={definir}
               onReceita={aplicarReceita}
               receitaAchada={receitaDaEdicao}
               podeEditar={!somenteLeitura}
-              onEditar={abrirEdicao}
+              onEditar={abrirEmpresa}
             />
+
+            {editandoEmpresa && (
+              <BotoesDeSalvar rotulo="Salvar empresa" salvando={salvandoEmpresa} onSalvar={salvarEmpresa} onCancelar={cancelarEmpresa} />
+            )}
 
             {empresa && <CompanyReceitaCard empresa={empresa} podeEditar={can('prospeccao:editar')} />}
           </section>
         </div>
-
-        {/* A edição abre o contato e a empresa ao mesmo tempo: o salvar fica num lugar só. */}
-        {editando && (
-          <div className="flex justify-end gap-2 border-t bg-muted/40 px-4 py-3">
-            <Button size="sm" variant="outline" onClick={() => setEditando(false)} disabled={salvando}>
-              Cancelar
-            </Button>
-            <Button size="sm" onClick={salvar} disabled={salvando}>
-              {salvando ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </div>
-        )}
 
         <RegisterMeetingDialog
           prospect={prospect}
@@ -945,6 +980,33 @@ function CartaoContato({
       )}
     </section>
   );
+}
+
+interface BotoesDeSalvarProps {
+  rotulo: string;
+  salvando: boolean;
+  onSalvar: () => Promise<void>;
+  onCancelar: () => void;
+}
+
+/** Salvar e cancelar ao pé da coluna que está sendo editada — cada lado grava só o que é dele. */
+function BotoesDeSalvar(props: BotoesDeSalvarProps) {
+  const { rotulo, salvando, onSalvar, onCancelar } = props;
+  return (
+    <div className="flex gap-2">
+      <Button size="sm" onClick={() => onSalvar().catch(() => undefined)} disabled={salvando}>
+        {salvando ? 'Salvando...' : rotulo}
+      </Button>
+      <Button size="sm" variant="outline" onClick={onCancelar} disabled={salvando}>
+        Cancelar
+      </Button>
+    </div>
+  );
+}
+
+/** Só os campos da empresa (`company_*`), ou só os do contato e do negócio. */
+function parteDoRascunho(rascunho: Record<string, string>, daEmpresa: boolean): Record<string, string> {
+  return Object.fromEntries(Object.entries(rascunho).filter(([campo]) => campo.startsWith('company_') === daEmpresa));
 }
 
 function CabecalhoDoCartao({
