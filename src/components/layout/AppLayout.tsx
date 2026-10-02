@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 import { AppFooter } from './AppFooter';
@@ -77,11 +77,15 @@ export function AppLayout({
   // O provider mora aqui para a página não precisar refazer a fiação: qualquer tela pode
   // chamar `useMaskedCurrency()` e reagir ao olho, tenha ou não o botão no cabeçalho.
   const [hideValues] = useHideValuesPreference();
+  useDocumentoSemRolagem(fillViewport);
 
   return (
     <SidebarProvider defaultOpen={getSidebarDefaultOpen()}>
       <AppSidebar />
-      <SidebarInset className={cn('relative', fillViewport && 'h-svh')}>
+      {/* `min-w-0`: sem ele o container cresce até a largura mínima do conteúdo (as 8 colunas do
+          kanban, 1800px) e a página inteira fica mais larga que a janela — o cabeçalho sai da
+          tela e o documento rola solto. Medido no Chromium em 02/10/2026. */}
+      <SidebarInset className={cn('relative', fillViewport && 'h-svh min-w-0 overflow-hidden')}>
         <DesktopSidebarToggle />
 
         {/* Mobile-only top bar */}
@@ -133,4 +137,20 @@ export function AppLayout({
       </SidebarInset>
     </SidebarProvider>
   );
+}
+
+/**
+ * Página de altura fixa: o documento não rola, nem por algo fora do layout (banner, portal,
+ * elemento que sobre no fim do body). Quem rola é o conteúdo, por dentro. Restaura ao sair.
+ */
+function useDocumentoSemRolagem(ativo: boolean) {
+  useEffect(() => {
+    if (!ativo) return;
+    const raiz = document.documentElement;
+    const antes = raiz.style.overflow;
+    raiz.style.overflow = 'hidden';
+    return () => {
+      raiz.style.overflow = antes;
+    };
+  }, [ativo]);
 }
