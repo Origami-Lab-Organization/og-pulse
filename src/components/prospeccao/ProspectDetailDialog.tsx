@@ -11,6 +11,7 @@ import {
   Plus,
   RotateCcw,
   Trash2,
+  Undo2,
   XCircle,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -27,6 +28,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -63,7 +67,9 @@ import {
   isProspectReadOnly,
   isTaskOverdue,
   PROSPECT_LEVERS,
+  previousStagesOf,
   type ProspectActivityWithOwner,
+  type ProspectStage,
   type ProspectCompanyDB,
   type ProspectWithCompany,
   type ProspectTaskDB,
@@ -221,6 +227,7 @@ export function ProspectDetailDialog({
               onDescartar={() => onDiscard(prospect)}
               onReabrir={() => reabrir.mutate({ id: prospect.id })}
               onDesfazerGanho={() => moverEtapa.mutate({ id: prospect.id, stage: 'qualificado' })}
+              onVoltar={(stage) => moverEtapa.mutate({ id: prospect.id, stage })}
               onExcluir={() => {
                 excluir.mutate({ id: prospect.id });
                 onOpenChange(false);
@@ -439,6 +446,7 @@ function AcoesDoContato({
   onDescartar,
   onReabrir,
   onDesfazerGanho,
+  onVoltar,
   onExcluir,
 }: {
   className?: string;
@@ -450,6 +458,7 @@ function AcoesDoContato({
   onDescartar: () => void;
   onReabrir: () => void;
   onDesfazerGanho: () => void;
+  onVoltar: (stage: ProspectStage) => void;
   onExcluir: () => void;
 }) {
   return (
@@ -474,12 +483,37 @@ function AcoesDoContato({
           onReabrir={onReabrir}
           onDesfazerGanho={onDesfazerGanho}
         />
+        {!somenteLeitura && <ItensDeVolta stage={prospect.stage} onVoltar={onVoltar} />}
         <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onExcluir}>
           <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
           Excluir contato
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/**
+ * Voltar o card para qualquer etapa anterior (01/10/2026). Move direto: é correção, e a
+ * atividade registrada continua contando — só a etapa volta.
+ */
+function ItensDeVolta({ stage, onVoltar }: { stage: ProspectStage; onVoltar: (stage: ProspectStage) => void }) {
+  const anteriores = previousStagesOf(stage);
+  if (anteriores.length === 0) return null;
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <Undo2 className="mr-2 h-4 w-4" aria-hidden="true" />
+        Voltar para…
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent>
+        {anteriores.map((etapa) => (
+          <DropdownMenuItem key={etapa} onSelect={() => onVoltar(etapa)}>
+            {getProspectStageLabel(etapa)}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   );
 }
 

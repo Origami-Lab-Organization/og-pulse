@@ -134,6 +134,22 @@ export const PROSPECT_TERMINAL_STAGES: readonly ProspectStage[] = [
   'convertido',
 ];
 
+/**
+ * Para onde o card pode VOLTAR (01/10/2026): qualquer etapa de trabalho anterior à atual; de
+ * Ganho ou Perda, qualquer etapa de trabalho. Voltar é correção — o card avançou por engano,
+ * a reunião foi desmarcada —, então move direto, sem as regras de chegada de cada etapa: a
+ * atividade que já foi registrada continua contando, só a etapa volta.
+ */
+export function previousStagesOf(stage: ProspectStage): ProspectStage[] {
+  if (PROSPECT_OUTCOME_STAGES.includes(stage)) return [...PROSPECT_FUNNEL_STAGES];
+  const indice = PROSPECT_FUNNEL_STAGES.indexOf(stage);
+  return indice > 0 ? PROSPECT_FUNNEL_STAGES.slice(0, indice) : [];
+}
+
+export function isBackwardMove(from: ProspectStage, to: ProspectStage): boolean {
+  return previousStagesOf(from).includes(to);
+}
+
 /** De onde se chega a Ganho: venda sem reunião feita não existe. Regra também no banco. */
 export const PROSPECT_WIN_ORIGINS: readonly ProspectStage[] = ['reuniao_feita', 'qualificado'];
 

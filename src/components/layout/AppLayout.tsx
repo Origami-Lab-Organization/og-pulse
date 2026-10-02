@@ -58,8 +58,9 @@ interface AppLayoutProps {
    * A página ocupa exatamente a altura da janela: cabeçalho e rodapé ficam no lugar e o
    * conteúdo se estica no espaço que sobra. Para quadros kanban, que rolam só DENTRO das
    * colunas — com altura em `calc(100vh - Npx)`, qualquer banner ou descrição que quebre
-   * linha empurra a página e a janela inteira passa a rolar. Em janela baixa demais o
-   * conteúdo ainda rola, em vez de ser cortado.
+   * linha empurra a página e a janela inteira passa a rolar. A página NUNCA rola na vertical
+   * (02/10/2026): o conteúdo tem que encolher no espaço que sobra e rolar por dentro, como as
+   * colunas do kanban.
    */
   fillViewport?: boolean;
 }
@@ -115,7 +116,7 @@ export function AppLayout({
         )}
 
         {/* Main Content */}
-        <main className={cn('flex-1 overflow-auto min-w-0', fillViewport && 'flex min-h-0 flex-col')}>
+        <main className={cn('flex-1 min-w-0', fillViewport ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-auto')}>
           <div className={cn('py-4 px-4 sm:py-6 sm:px-6 max-w-full', fillViewport && 'flex min-h-0 flex-1 flex-col')}>
             <OnboardingBanner />
             {/* Sem `key` de remontagem: quem faz a tela reagir é o contexto, então alternar o

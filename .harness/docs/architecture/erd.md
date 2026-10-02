@@ -73,6 +73,8 @@ sources:
 #  num Postgres local (PGlite).
 # 01/10/2026: 20261001200000 — prospect_companies.faturamento_anual e faturamento_anual_base
 #  (estimado|apurado, obrigatória junto), conferidos contra ProspectCompanyDB e ensaiados.
+# 01/10/2026: src/types/prospect.ts ganhou só regra de tela (previousStagesOf/isBackwardMove,
+#  voltar o card de etapa); sem migration — diagrama conferido, nada muda.
 verified: 2026-10-01
 ---
 

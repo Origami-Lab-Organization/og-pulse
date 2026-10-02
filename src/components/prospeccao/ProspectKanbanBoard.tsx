@@ -15,6 +15,7 @@ import { useUpdateProspectStage } from '@/hooks/useProspects';
 import {
   advanceModeFor,
   canWin,
+  isBackwardMove,
   isOutcomeStage,
   outcomeDateOf,
   PROSPECT_BOARD_STAGES,
@@ -92,6 +93,12 @@ export function ProspectKanbanBoard({ prospects, emConversaPorEmpresa, onOpen, a
     const destino = resolverDestino(over.id, over.data.current);
     if (!prospect || !destino || destino === prospect.stage) return;
 
+    // Voltar é correção: move direto, sem as regras nem os registros de chegada da etapa.
+    if (isBackwardMove(prospect.stage, destino)) {
+      atualizarEtapa.mutate({ id: prospect.id, stage: destino });
+      return;
+    }
+
     const recusa = motivoDeRecusa(destino, prospect);
     if (recusa) {
       toast({ title: 'Movimento não permitido', description: recusa, variant: 'destructive' });
@@ -113,9 +120,10 @@ export function ProspectKanbanBoard({ prospects, emConversaPorEmpresa, onOpen, a
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       {/* Colunas derivadas das etapas: acrescentar uma etapa não pode exigir lembrar deste grid.
           A altura vem do espaço que sobra na página (AppLayout `fillViewport`), não de uma
-          conta com o viewport: o piso só impede colunas espremidas em janela baixa. */}
+          conta com o viewport. Sem piso de altura: em janela baixa as colunas encolhem e rolam
+          por dentro — um piso empurrava a página e ela voltava a rolar na vertical. */}
       <div
-        className="grid min-h-[20rem] flex-1 grid-rows-1 gap-3 overflow-x-auto"
+        className="grid min-h-0 flex-1 grid-rows-1 gap-3 overflow-x-auto overflow-y-hidden"
         style={{ gridTemplateColumns: `repeat(${PROSPECT_BOARD_STAGES.length}, minmax(210px, 1fr))` }}
       >
         {PROSPECT_BOARD_STAGES.map((stage) => {
