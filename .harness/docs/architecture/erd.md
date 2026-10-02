@@ -27,6 +27,7 @@ sources:
   - supabase/migrations/20261001140000_conta_azul_conciliacao_receber.sql
   - supabase/migrations/20261001190000_prospect_contacts.sql
   - supabase/migrations/20261001200000_prospect_company_faturamento.sql
+  - supabase/migrations/20261002120000_prospect_une_cards_duplicados.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
@@ -75,7 +76,10 @@ sources:
 #  (estimado|apurado, obrigatória junto), conferidos contra ProspectCompanyDB e ensaiados.
 # 01/10/2026: src/types/prospect.ts ganhou só regra de tela (previousStagesOf/isBackwardMove,
 #  voltar o card de etapa); sem migration — diagrama conferido, nada muda.
-verified: 2026-10-01
+# 02/10/2026: 20261002120000 — une cards duplicados por erro e cria trigger + índice único
+#  parcial (um card em andamento por contact_id); sem tabela nova em public, só o arquivo
+#  legado_contatos.uniao_*. Ensaiado (ida/volta) num Postgres local.
+verified: 2026-10-02
 ---
 
 # ERD — Entidades e Relações
@@ -128,7 +132,7 @@ erDiagram
     prospect_companies ||--o{ prospects : "company_id (conta do negócio)"
     tenants ||--o{ prospect_contacts : ""
     prospect_companies ||--o{ prospect_contacts : "company_id (empresa atual — não propaga)"
-    prospect_contacts ||--o{ prospects : "contact_id (um card em andamento por vez)"
+    prospect_contacts ||--o{ prospects : "contact_id (um card em andamento por vez — índice único parcial)"
     prospect_companies ||--o{ prospect_company_partners : "QSA da Receita (ADR-0041)"
     prospect_company_partners |o--o| prospects : "prospect_id (Virar contato)"
     fomento_publico }o..o{ prospect_companies : "por CNPJ (sem FK: referência pública)"

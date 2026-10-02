@@ -89,6 +89,17 @@ Alternativas consideradas:
   (exportar `public.prospect_contacts` antes). Apagar as colunas de contato do card só
   depois de todos os escritores gravarem na pessoa, em deploy separado.
 
+## Atualização — 02/10/2026
+
+Cards duplicados apareceram no quadro (mesma pessoa em Respondeu e em Reunião feita). Causa:
+a absorção das Oportunidades (`20260929120000`) só devolvia a oportunidade ao contato de origem
+com vínculo explícito; oportunidade cadastrada à mão para quem já estava na Prospecção virou
+card novo, e a união de contatos acima não os juntou porque só une por e-mail/LinkedIn. A
+migration `20261002120000_prospect_une_cards_duplicados` une esses cards (card da migração +
+card existente, mesma empresa e mesmo nome, pelo menos um em andamento; ou dois cards em
+andamento da mesma pessoa), guarda tudo em `legado_contatos.uniao_*` e passa a garantir no
+banco "um card em andamento por pessoa" — que até ali só a tela garantia.
+
 ## Evidências
 
 - Migration: `supabase/migrations/20261001190000_prospect_contacts.sql`
