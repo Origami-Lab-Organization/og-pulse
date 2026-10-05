@@ -45,6 +45,17 @@ interface PortfolioFilters {
   year?: number;
 }
 
+function filterPortfolioBySearch(projects: PortfolioProject[], searchQuery?: string) {
+  if (!searchQuery) return projects;
+  const q = searchQuery.toLowerCase();
+  return projects.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    (p.client?.company_name || '').toLowerCase().includes(q) ||
+    (p.client?.trading_name || '').toLowerCase().includes(q) ||
+    (p.manager?.nome || '').toLowerCase().includes(q)
+  );
+}
+
 export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFilters) => {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
@@ -52,10 +63,12 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
   const clientId = filters?.clientId;
   const serviceLineFilter = filters?.serviceLine;
   const managerIdFilter = filters?.managerId;
-  const yearFilter = filters?.year;
 
+  // A busca filtra no cliente, sobre o cache (`select`): na chave, cada tecla relia todos os
+  // projetos com todas as parcelas. O ano também não entra — a consulta não o usa.
   return useQuery({
-    queryKey: ['portfolio-projects', tenantId, searchQuery, clientId, serviceLineFilter, managerIdFilter, yearFilter],
+    queryKey: ['portfolio-projects', tenantId, clientId, serviceLineFilter, managerIdFilter],
+    select: (projects) => filterPortfolioBySearch(projects, searchQuery),
     queryFn: async () => {
       let query = supabase
         .from('projects')
@@ -93,21 +106,11 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
 
       // total_value vive em project_financials (PUL-164): reexposto na raiz para
       // não mudar o contrato dos consumidores do portfólio.
-      let projects = ((data || []) as unknown[]).map((row) => {
+      const projects = ((data || []) as unknown[]).map((row) => {
         const record = row as Record<string, unknown>;
         const financials = record.financials as { total_value?: number | null } | null | undefined;
         return { ...record, total_value: Number(financials?.total_value ?? 0) };
       }) as unknown as PortfolioProject[];
-
-      if (searchQuery && searchQuery.length > 0) {
-        const q = searchQuery.toLowerCase();
-        projects = projects.filter(p =>
-          p.name.toLowerCase().includes(q) ||
-          (p.client?.company_name || '').toLowerCase().includes(q) ||
-          (p.client?.trading_name || '').toLowerCase().includes(q) ||
-          (p.manager?.nome || '').toLowerCase().includes(q)
-        );
-      }
 
       // O array de parcelas NÃO é recortado por ano. Os cartões, a tabela e a barra
       // de KPI passaram a exibir o VALOR DO CONTRATO (não a soma das parcelas do

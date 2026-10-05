@@ -146,6 +146,14 @@ export function emptyAllocationCell(monthKey: string): AllocationCell {
   };
 }
 
+/**
+ * Se a pessoa ainda estava na casa no mês (`yyyy-MM`). Mesma régua da RPC de resumo
+ * (migration 20260908180000): quem saiu conta até o mês da saída e some dos seguintes.
+ */
+export function isEmployedInMonth(person: Pick<AllocationPerson, 'terminationDate'>, monthKey: string) {
+  return !person.terminationDate || person.terminationDate >= `${monthKey}-01`;
+}
+
 export function getLoggedHours(cell: AllocationCell) {
   return Number(cell.actualProjectHours || 0) + Number(cell.internalHours || 0);
 }

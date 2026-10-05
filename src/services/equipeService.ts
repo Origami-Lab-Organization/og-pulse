@@ -2,6 +2,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { ProjectAllocationWithEmployee, ProjectTeamRowDB } from '@/types/equipe.types';
 import { AllocationMarginImpact, SimulationMonth } from '@/types/equipe.types';
 import { fetchEmployeeDirectoryMap, withDirectoryIdentity } from '@/services/employeeDirectoryService';
+import { todasAsPaginas } from '@/lib/paginacao';
+
+interface RealizedHourRow {
+  hours: number | null;
+  work_date: string | null;
+  project_member: { employee_id: string | null } | null;
+}
 
 export const equipeService = {
   /**
@@ -259,19 +266,25 @@ export const equipeService = {
   },
 
   async getRealizedHoursByEmployeeMonth(projectId: string): Promise<{ employeeId: string; year: number; month: number; hours: number }[]> {
-    const { data, error } = await (supabase
-      .from('project_timesheets' as any)
-      .select('hours, work_date, project_member:project_members(employee_id)') as any)
-      .eq('project_id', projectId);
-    if (error) throw error;
+    // Paginado: projeto longo passa de 1000 lançamentos (Prumo Obras – Fase 2 tinha 1025) e
+    // o PostgREST cortava o resto sem erro, com as horas realizadas saindo menores.
+    const data = await todasAsPaginas<RealizedHourRow>((de, ate) =>
+      supabase
+        .from('project_timesheets')
+        .select('hours, work_date, project_member:project_members(employee_id)')
+        .eq('project_id', projectId)
+        .order('id')
+        .range(de, ate),
+    );
 
     const totals = new Map<string, { employeeId: string; year: number; month: number; hours: number }>();
-    (data || []).forEach((row: any) => {
+    data.forEach((row) => {
       const employeeId = row.project_member?.employee_id;
       if (!employeeId || !row.work_date) return;
-      const date = new Date(row.work_date);
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
+      // Ano e mês direto do texto `yyyy-MM-dd`: `new Date('2026-03-01')` é meia-noite UTC,
+      // que no Brasil ainda é 28/02 — a hora do dia 1º caía no mês anterior.
+      const year = Number(row.work_date.slice(0, 4));
+      const month = Number(row.work_date.slice(5, 7));
       const key = `${employeeId}-${year}-${month}`;
       const entry = totals.get(key) ?? { employeeId, year, month, hours: 0 };
       entry.hours += Number(row.hours || 0);

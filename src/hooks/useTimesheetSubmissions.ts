@@ -110,6 +110,15 @@ export const useSubmitWeek = () => {
 
 // ============= Per-Project Submission Hooks =============
 
+/** Nome de quem enviou, numa consulta só — e não uma por submissão, em fila. */
+async function fetchNamesByAuthId(authIds: (string | null)[]) {
+  const ids = [...new Set(authIds.filter((id): id is string => !!id))];
+  if (ids.length === 0) return new Map<string, { nome: string }>();
+
+  const { data } = await supabase.from('employees').select('auth_id, nome').in('auth_id', ids);
+  return new Map((data ?? []).map((row) => [row.auth_id as string, { nome: row.nome }]));
+}
+
 export const useProjectWeekSubmissions = (weekStart: string, projectIds: string[]) => {
   return useQuery({
     queryKey: ['project-timesheet-submissions', weekStart, projectIds],
@@ -123,28 +132,18 @@ export const useProjectWeekSubmissions = (weekStart: string, projectIds: string[
         .in('project_id', projectIds);
 
       if (error) throw error;
-      
+
+      const nameByAuthId = await fetchNamesByAuthId((data || []).map((submission) => submission.submitted_by));
       const submissionsMap = new Map<string, ProjectTimesheetSubmission>();
-      
+
       for (const submission of data || []) {
-        let submittedByEmployee = null;
-        
-        if (submission.submitted_by) {
-          const { data: employee } = await supabase
-            .from('employees')
-            .select('nome')
-            .eq('auth_id', submission.submitted_by)
-            .maybeSingle();
-          submittedByEmployee = employee;
-        }
-        
         submissionsMap.set(submission.project_id, {
           ...submission,
           status: submission.status as 'draft' | 'submitted',
-          submitted_by_employee: submittedByEmployee,
+          submitted_by_employee: nameByAuthId.get(submission.submitted_by ?? '') ?? null,
         });
       }
-      
+
       return submissionsMap;
     },
     enabled: projectIds.length > 0,

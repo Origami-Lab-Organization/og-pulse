@@ -84,6 +84,33 @@ export interface ProjectFilterOptions {
  * `project.total_value`; quem não pode ver o financeiro recebe 0, porque a RLS da
  * tabela-filha não devolve a linha.
  */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** `service_line` é texto livre: só consulta o catálogo quando o valor é um id. */
+async function fetchProjectService(serviceLine: string | null, tenantId: string) {
+  if (!serviceLine || !UUID_PATTERN.test(serviceLine)) return null;
+  const { data: svc } = await supabase
+    .from('services')
+    .select('name, billing_type')
+    .eq('tenant_id', tenantId)
+    .eq('id', serviceLine)
+    .single();
+  return svc ? { name: svc.name, billing_type: svc.billing_type ?? '' } : null;
+}
+
+/** Gerente pelo diretório quando o embed veio vazio por RLS (PUL-162). */
+function fillManagerFromDirectory(
+  projectRow: Record<string, unknown>,
+  directory: Awaited<ReturnType<typeof fetchEmployeeDirectoryMap>>,
+) {
+  const managerId = projectRow.manager_id;
+  if (projectRow.manager || typeof managerId !== 'string') return;
+  const managerEntry = directory.get(managerId);
+  if (managerEntry) {
+    projectRow.manager = { id: managerEntry.id, nome: managerEntry.nome, cargo: managerEntry.cargo };
+  }
+}
+
 function withTotalValue<T>(row: T): T {
   const record = row as Record<string, unknown>;
   const financials = record.financials as { total_value?: number | null } | null | undefined;
@@ -162,58 +189,34 @@ export const projectService = {
     }
     if (!data) return null;
 
-    // Fetch members separately with cost data
-    const { data: members } = await supabase
-      .from('project_members')
-      .select(`
-        *,
-        employee:employees(id, nome, cargo, foto_url, total_monthly_cost_estimated, jornada_diaria, data_admissao, termination:employee_terminations(termination_date))
-      `)
-      .eq('project_id', id);
+    // Depois do projeto, o resto depende só do id: tudo de uma vez, e não em fila.
+    const [{ data: members }, directory, { data: installments }, suppliers, materials, service] = await Promise.all([
+      supabase
+        .from('project_members')
+        .select(`
+          *,
+          employee:employees(id, nome, cargo, foto_url, total_monthly_cost_estimated, jornada_diaria, data_admissao, termination:employee_terminations(termination_date))
+        `)
+        .eq('project_id', id),
+      // Identidade dos membros e do gerente pelo diretório quando o embed vier
+      // vazio por RLS (PUL-162). Campos de custo seguem só para admin/gerente.
+      fetchEmployeeDirectoryMap(),
+      supabase
+        .from('project_installments')
+        .select('*')
+        .eq('project_id', id)
+        .order('installment_number', { ascending: true }),
+      // Porta única de custos (J9-02)
+      fetchProjectSuppliersRaw(id),
+      fetchProjectMaterialsRaw(id),
+      fetchProjectService(data.service_line, data.tenant_id),
+    ]);
 
-    // Identidade dos membros e do gerente pelo diretório quando o embed vier
-    // vazio por RLS (PUL-162). Campos de custo seguem só para admin/gerente.
-    const directory = await fetchEmployeeDirectoryMap();
     const membersWithIdentity = withDirectoryIdentity(members ?? [], directory, {
       idField: 'employee_id',
       embedField: 'employee',
     });
-    const projectRow = data as Record<string, unknown>;
-    const managerId = projectRow.manager_id;
-    if (!projectRow.manager && typeof managerId === 'string') {
-      const managerEntry = directory.get(managerId);
-      if (managerEntry) {
-        projectRow.manager = {
-          id: managerEntry.id,
-          nome: managerEntry.nome,
-          cargo: managerEntry.cargo,
-        };
-      }
-    }
-
-    // Fetch installments separately
-    const { data: installments } = await supabase
-      .from('project_installments')
-      .select('*')
-      .eq('project_id', id)
-      .order('installment_number', { ascending: true });
-
-    // Fetch suppliers + materials via porta única de custos (J9-02)
-    const suppliers = await fetchProjectSuppliersRaw(id);
-    const materials = await fetchProjectMaterialsRaw(id);
-
-    // Fetch service name (service_line is plain text — only query if it looks like a UUID)
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    let service: { name: string; billing_type: string } | null = null;
-    if (data.service_line && uuidPattern.test(data.service_line)) {
-      const { data: svc } = await supabase
-        .from('services')
-        .select('name, billing_type')
-        .eq('tenant_id', data.tenant_id)
-        .eq('id', data.service_line)
-        .single();
-      if (svc) service = { name: svc.name, billing_type: svc.billing_type ?? '' };
-    }
+    fillManagerFromDirectory(data as Record<string, unknown>, directory);
 
     return {
       ...withTotalValue(data),

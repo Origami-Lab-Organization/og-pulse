@@ -12,11 +12,11 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { PersonButton } from '@/components/allocation/AllocationGrid';
 import { CapacityBar, CapacityLegend } from '@/components/allocation/CapacityBar';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAllocationGrid } from '@/hooks/useAllocationGrid';
+import { useAllocationPlanningGrid } from '@/hooks/useAllocationGrid';
 import { useHolidays } from '@/hooks/useHolidays';
 import { monthLoadKey, useEmployeeMonthlyLoad } from '@/hooks/useEmployeeMonthlyLoad';
 import { buildManagerByProject, buildMonthBreakdown } from '@/lib/allocationBreakdown';
-import { buildAllocationMonthsRange, getAllocationStatusClasses } from '@/lib/allocationGrid';
+import { buildAllocationMonthsRange, getAllocationStatusClasses, isEmployedInMonth } from '@/lib/allocationGrid';
 import { cn } from '@/lib/utils';
 import type {
   AllocationMonth,
@@ -38,14 +38,6 @@ import type {
  */
 const ANOS_PARA_TRAS = 3;
 const ANOS_PARA_FRENTE = 3;
-
-const EMPTY_FILTERS = {
-  status: 'all',
-  role: 'all',
-  projectId: 'all',
-  search: '',
-  showTerminated: false,
-} as const;
 
 const BUCKET = { overloaded: 'overloaded', healthy: 'healthy', slack: 'slack' } as const;
 type HealthBucket = (typeof BUCKET)[keyof typeof BUCKET];
@@ -536,14 +528,7 @@ export default function MinhaEquipeAlocacaoPage() {
     [year, holidays, baseDate],
   );
 
-  const { data, isLoading, isError, refetch } = useAllocationGrid({
-    tenantId,
-    filters: { ...EMPTY_FILTERS },
-    offsetStart: 0,
-    periodLength: 12,
-    baseDate,
-    monthsOverride,
-  });
+  const { data, isLoading, isError, refetch } = useAllocationPlanningGrid({ tenantId, months: monthsOverride });
 
   const months = useMemo(() => data?.months ?? [], [data?.months]);
   const referenceMonth =
@@ -597,12 +582,15 @@ export default function MinhaEquipeAlocacaoPage() {
       .filter(({ project }) => projectFilter === ALL_OPTION || project.id === projectFilter)
       .forEach(({ people }) => people.forEach((person) => unique.set(person.id, person)));
 
+    // A grade tem célula em todo mês do ano; quem saiu em setembro não ocupa capacidade
+    // em outubro e não pode entrar na lista nem na contagem de "com folga".
     const term = normalizeText(search.trim());
     return Array.from(unique.values()).filter((person) => {
+      if (!isEmployedInMonth(person, activeMonthKey)) return false;
       if (term && !normalizeText(person.name).includes(term)) return false;
       return true;
     });
-  }, [projectTeams, projectFilter, search]);
+  }, [projectTeams, projectFilter, search, activeMonthKey]);
 
   const overallHealth = useMemo(
     () => countHealth(uniquePeople, activeMonthKey, myLensId, managerByProject),

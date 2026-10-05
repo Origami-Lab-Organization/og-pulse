@@ -11,12 +11,10 @@ import { formatHours } from '@/lib/formatters';
 import { alteracoesLabel } from '@/lib/pluralize';
 import { getUtilizationStatus, UTILIZATION_META } from '@/lib/utilization';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAllocationGrid } from '@/hooks/useAllocationGrid';
+import { useAllocationSummaryGrid } from '@/hooks/useAllocationGrid';
 import { useEmployeeAllocationPanel, useSaveEmployeeAllocationPanel, PlannedHoursChange } from '@/hooks/useEmployeeAllocationPanel';
 import { AllocationCorrectionDialog } from '@/components/timesheets/AllocationCorrectionDialog';
-import { AllocationFiltersState, AllocationPanelMonthData, AllocationPanelProjectRow } from '@/types/allocation';
-
-const ALL_FILTERS: AllocationFiltersState = { status: 'all', role: 'all', projectId: 'all', search: '', showTerminated: true };
+import { AllocationPanelMonthData, AllocationPanelProjectRow } from '@/types/allocation';
 
 function currentMonthKey() {
   const now = new Date();
@@ -44,7 +42,7 @@ export default function EmployeeAllocationDetailPage() {
   const baseDate = useMemo(() => new Date(), []);
   const nowKey = currentMonthKey();
 
-  const { data: grid, isLoading } = useAllocationGrid({ tenantId, filters: ALL_FILTERS, offsetStart, periodLength, baseDate });
+  const { data: grid, isLoading } = useAllocationSummaryGrid({ tenantId, offsetStart, periodLength, baseDate });
 
   const months = grid?.months ?? [];
   const person = useMemo(() => grid?.people.find((p) => p.id === employeeId) ?? null, [grid?.people, employeeId]);

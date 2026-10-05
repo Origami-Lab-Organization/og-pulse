@@ -255,6 +255,10 @@ Excecao unica: a divergencia **D6**, que e violacao de boundary e segue em trilh
   *hashed SubPlan* uma vez por projeto (39) e nao por linha. O custo dominante e o scan da
   tabela, nao a funcao. Nao ha risco de performance no volume atual; remedir quando alguma
   tabela virada passar de ~100 mil linhas.
+  **Emenda (2026-10-05, ADR-0046):** a conclusao vale so para policy que passa por
+  `projects`. Onde a policy usa o `tenant_id` da propria linha, `has_capability` (definer,
+  nao embutida) roda por linha: `prospect_company_partners` le em 658 ms com RLS e 0,8 ms
+  sem; reescrita como conjunto, 4 ms. Ver ADR-0046 e harness-core ADR-065.
 - A migracao e cirurgia em sistema em producao: exige paridade provada e rollback testado
   antes de qualquer virada.
 - Duas camadas para cada dado sensivel: capacidade e policy.

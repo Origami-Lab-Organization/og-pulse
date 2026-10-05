@@ -17,12 +17,22 @@ import {
 } from '@/components/ui/table';
 import { useHolidays, isHoliday } from '@/hooks/useHolidays';
 import { Holiday } from '@/types/holiday';
+import { todasAsPaginas } from '@/lib/paginacao';
 
 interface MonthlyTimesheetViewProps {
   employeeId: string;
 }
 
 const ALL_MONTHS = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+
+interface ActualRow {
+  work_date: string;
+  hours: number;
+  project_members: {
+    employee_id: string | null;
+    projects: { id: string; name: string; clients: { company_name: string | null } | null } | null;
+  };
+}
 
 function countWorkingDays(start: Date, end: Date, holidays: Holiday[]): number {
   const days = eachDayOfInterval({ start, end });
@@ -75,21 +85,24 @@ export function MonthlyTimesheetView({ employeeId }: MonthlyTimesheetViewProps) 
 
   const { data: actualData, isLoading: loadingActual } = useQuery({
     queryKey: ['monthly-actual', employeeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('project_timesheets')
-        .select(`
-          work_date,
-          hours,
-          project_members!inner (
-            employee_id,
-            projects (id, name, clients (company_name))
-          )
-        `)
-        .eq('project_members.employee_id', employeeId);
-      if (error) throw error;
-      return data ?? [];
-    },
+    // Paginado: o histórico de uma pessoa passa de 1000 lançamentos e o PostgREST corta o
+    // resto sem erro.
+    queryFn: () =>
+      todasAsPaginas<ActualRow>((de, ate) =>
+        supabase
+          .from('project_timesheets')
+          .select(`
+            work_date,
+            hours,
+            project_members!inner (
+              employee_id,
+              projects (id, name, clients (company_name))
+            )
+          `)
+          .eq('project_members.employee_id', employeeId)
+          .order('id')
+          .range(de, ate),
+      ),
     enabled: !!employeeId,
   });
 

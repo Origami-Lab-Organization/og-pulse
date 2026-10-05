@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
-import { AllocationGridData, AllocationMonth, AllocationPanelData, AllocationPanelProjectRow, AllocationPerson, AllocationProjectPill } from '@/types/allocation';
+import { AllocationCell, AllocationGridData, AllocationMonth, AllocationPanelData, AllocationPanelProjectRow, AllocationPerson, AllocationProjectPill } from '@/types/allocation';
 import { emptyAllocationCell, getAllocationStatus } from '@/lib/allocationGrid';
+import { todasAsPaginas } from '@/lib/paginacao';
 
 interface AllocationSummaryRpcRow {
   employee_id: string;
@@ -110,6 +111,134 @@ async function fetchSummaryForYear(tenantId: string, year: number, projectId: st
   return (data ?? []) as AllocationSummaryRpcRow[];
 }
 
+interface PlannedAllocationRow {
+  employee_id: string;
+  project_id: string;
+  month: number;
+  planned_hours: number | null;
+}
+
+/** O planejado do ano por pessoa × projeto × mês. Sem `cost_per_hour`: é dado financeiro e aqui não serve. */
+function fetchPlannedForYear(tenantId: string, year: number) {
+  return todasAsPaginas<PlannedAllocationRow>((de, ate) =>
+    supabase
+      .from('project_role_allocations')
+      .select('employee_id, project_id, month, planned_hours')
+      .eq('tenant_id', tenantId)
+      .eq('year', year)
+      .order('id')
+      .range(de, ate),
+  );
+}
+
+/** Nome de todo projeto visível ao usuário, de qualquer status — alocação de projeto concluído também conta. */
+async function fetchProjectNames(tenantId: string) {
+  const { data, error } = await supabase.from('projects').select('id, name').eq('tenant_id', tenantId);
+  if (error) throw error;
+  return new Map((data ?? []).map((project) => [project.id, project.name]));
+}
+
+function uniqueYears(months: AllocationMonth[]) {
+  return Array.from(new Set(months.map((month) => month.year)));
+}
+
+function rolesOf(people: AllocationPerson[]) {
+  return Array.from(new Set(people.map((person) => person.role))).sort((left, right) => left.localeCompare(right, 'pt-BR'));
+}
+
+function personFromSummary(row: AllocationSummaryRpcRow, months: AllocationMonth[]): AllocationPerson {
+  return {
+    id: row.employee_id,
+    name: row.employee_name,
+    role: row.cargo || 'Sem cargo',
+    status: row.status,
+    hireDate: row.hire_date,
+    terminationDate: row.termination_date,
+    dailyHours: Number(row.jornada_diaria ?? 0),
+    cells: Object.fromEntries(months.map((month) => [month.key, emptyAllocationCell(month.key)])),
+  };
+}
+
+function cellFromSummary(cell: AllocationCell, row: AllocationSummaryRpcRow, monthKey: string): AllocationCell {
+  const capacityHours = Number(row.capacity_hours ?? 0);
+  const plannedHours = Number(row.planned_hours ?? 0);
+  const actualProjectHours = Number(row.actual_hours ?? 0);
+  const totalHours = isFutureMonth(monthKey) ? plannedHours : actualProjectHours;
+  const utilization = capacityHours > 0 ? Math.round((totalHours / capacityHours) * 100) : null;
+
+  return {
+    ...cell,
+    plannedHours,
+    actualProjectHours,
+    totalHours,
+    capacityHours,
+    utilization,
+    status: getAllocationStatus(utilization),
+  };
+}
+
+/**
+ * Uma pessoa por funcionário do resumo, com célula em todo mês da janela. Mês que o resumo
+ * não trouxe (antes da admissão, depois do desligamento) fica com a célula vazia.
+ */
+function buildPeopleFromSummary(summaryGroups: AllocationSummaryRpcRow[][], years: number[], months: AllocationMonth[]) {
+  const monthKeys = new Set(months.map((month) => month.key));
+  const peopleMap = new Map<string, AllocationPerson>();
+
+  summaryGroups.forEach((rows, index) => {
+    rows.forEach((row) => {
+      const monthKey = yearMonthKey(years[index], row.month);
+      if (!monthKeys.has(monthKey)) return;
+
+      const person = peopleMap.get(row.employee_id) ?? personFromSummary(row, months);
+      person.cells[monthKey] = cellFromSummary(person.cells[monthKey], row, monthKey);
+      peopleMap.set(row.employee_id, person);
+    });
+  });
+
+  return Array.from(peopleMap.values());
+}
+
+/** Projeto que o usuário não enxerga fica de fora, como no JOIN com `project_scope` da RPC de detalhe. */
+function sumPlannedPills(rows: PlannedAllocationRow[], projectNames: Map<string, string>): AllocationProjectPill[] {
+  const byProject = new Map<string, number>();
+  rows.forEach((row) => {
+    byProject.set(row.project_id, (byProject.get(row.project_id) ?? 0) + Number(row.planned_hours || 0));
+  });
+
+  return Array.from(byProject, ([id, plannedHours]) => ({ id, name: projectNames.get(id), plannedHours }))
+    .filter((pill): pill is { id: string; name: string; plannedHours: number } => !!pill.name && pill.plannedHours > 0)
+    .sort((left, right) => right.plannedHours - left.plannedHours)
+    .map(({ id, name, plannedHours }) => ({
+      id,
+      code: projectCode(name),
+      name,
+      hours: 0,
+      plannedHours: Math.round(plannedHours),
+      actualHours: 0,
+    }));
+}
+
+function applyPlannedPills(
+  people: AllocationPerson[],
+  rows: PlannedAllocationRow[],
+  projectNames: Map<string, string>,
+  yearMonths: AllocationMonth[],
+) {
+  const rowsByEmployeeMonth = new Map<string, PlannedAllocationRow[]>();
+  rows.forEach((row) => {
+    const key = `${row.employee_id}:${row.month}`;
+    rowsByEmployeeMonth.set(key, [...(rowsByEmployeeMonth.get(key) ?? []), row]);
+  });
+
+  people.forEach((person) => {
+    yearMonths.forEach((month) => {
+      const monthRows = rowsByEmployeeMonth.get(`${person.id}:${month.month}`) ?? [];
+      person.cells[month.key] = { ...person.cells[month.key], projects: sumPlannedPills(monthRows, projectNames) };
+    });
+  });
+}
+
 async function fetchDetailForYear(tenantId: string, year: number, employeeId: string, projectId: string | null) {
   const { data, error } = await supabase.rpc('get_allocation_employee_detail', {
     p_tenant_id: tenantId,
@@ -156,58 +285,14 @@ export const allocationService = {
     projectId: string;
   }): Promise<AllocationGridData> {
     const normalizedProjectId = projectId !== 'all' ? projectId : null;
-    const years = Array.from(new Set(months.map((month) => month.year)));
-    const monthKeys = new Set(months.map((month) => month.key));
+    const years = uniqueYears(months);
 
     const [projectOptions, summaryGroups] = await Promise.all([
       this.getProjectOptions(tenantId),
       Promise.all(years.map((year) => fetchSummaryForYear(tenantId, year, normalizedProjectId))),
     ]);
 
-    const summaryRows = summaryGroups.flatMap((rows, index) =>
-      rows.map((row) => ({ ...row, year: years[index] })),
-    ).filter((row) => monthKeys.has(yearMonthKey(row.year, row.month)));
-    const peopleMap = new Map<string, AllocationPerson>();
-
-    summaryRows.forEach((row) => {
-      if (!peopleMap.has(row.employee_id)) {
-        const cells = Object.fromEntries(months.map((month) => [month.key, emptyAllocationCell(month.key)]));
-        peopleMap.set(row.employee_id, {
-          id: row.employee_id,
-          name: row.employee_name,
-          role: row.cargo || 'Sem cargo',
-          status: row.status,
-          hireDate: row.hire_date,
-          terminationDate: row.termination_date,
-          dailyHours: Number(row.jornada_diaria ?? 0),
-          cells,
-        });
-      }
-
-      const monthKey = yearMonthKey(row.year, row.month);
-      if (!monthKeys.has(monthKey)) return;
-
-      const person = peopleMap.get(row.employee_id);
-      if (!person) return;
-
-      const capacityHours = Number(row.capacity_hours ?? 0);
-      const plannedHours = Number(row.planned_hours ?? 0);
-      const actualProjectHours = Number(row.actual_hours ?? 0);
-      const totalHours = isFutureMonth(monthKey) ? plannedHours : actualProjectHours;
-      const utilization = capacityHours > 0 ? Math.round((totalHours / capacityHours) * 100) : null;
-
-      person.cells[monthKey] = {
-        ...person.cells[monthKey],
-        plannedHours,
-        actualProjectHours,
-        totalHours,
-        capacityHours,
-        utilization,
-        status: getAllocationStatus(utilization),
-      };
-    });
-
-    const people = Array.from(peopleMap.values());
+    const people = buildPeopleFromSummary(summaryGroups, years, months);
     const detailPairs = people.flatMap((person) => years.map((year) => ({ person, year })));
     const detailResults = await Promise.all(
       detailPairs.map(({ person, year }) => fetchDetailForYear(tenantId, year, person.id, normalizedProjectId)),
@@ -244,8 +329,51 @@ export const allocationService = {
       months,
       people,
       projects: projectOptions,
-      roles: Array.from(new Set(people.map((person) => person.role))).sort((left, right) => left.localeCompare(right, 'pt-BR')),
+      roles: rolesOf(people),
     };
+  },
+
+  /**
+   * A grade do planejamento de capacidade (Meu Time): capacidade e planejado por pessoa, e o
+   * planejado aberto por projeto. Não traz horas lançadas — a tela não as mostra.
+   *
+   * Não passa por `get_allocation_employee_detail`. Aquela RPC traz também os lançamentos, e
+   * a RLS de `project_timesheets` é avaliada linha a linha: ~250 ms por pessoa, uma chamada
+   * por pessoa, ~4 s de banco a cada abertura da tela. Aqui o planejado do ano vem numa
+   * leitura só de `project_role_allocations`, sob a mesma RLS que a RPC (SECURITY INVOKER)
+   * já aplicava — quem vê o quê não muda.
+   */
+  async getPlanningGrid({ tenantId, months }: { tenantId: string; months: AllocationMonth[] }): Promise<AllocationGridData> {
+    const years = uniqueYears(months);
+
+    const [grid, projectNames, plannedGroups] = await Promise.all([
+      this.getSummaryGrid({ tenantId, months }),
+      fetchProjectNames(tenantId),
+      Promise.all(years.map((year) => fetchPlannedForYear(tenantId, year))),
+    ]);
+
+    years.forEach((year, index) => {
+      applyPlannedPills(grid.people, plannedGroups[index], projectNames, months.filter((month) => month.year === year));
+    });
+
+    return grid;
+  },
+
+  /**
+   * Só o resumo (capacidade, planejado e lançado por pessoa e mês), sem o detalhe por
+   * projeto. Serve à tela de uma pessoa, que busca o detalhe dela à parte: a grade completa
+   * custava uma RPC de detalhe por pessoa do tenant para mostrar uma.
+   */
+  async getSummaryGrid({ tenantId, months }: { tenantId: string; months: AllocationMonth[] }): Promise<AllocationGridData> {
+    const years = uniqueYears(months);
+
+    const [projectOptions, summaryGroups] = await Promise.all([
+      this.getProjectOptions(tenantId),
+      Promise.all(years.map((year) => fetchSummaryForYear(tenantId, year, null))),
+    ]);
+
+    const people = buildPeopleFromSummary(summaryGroups, years, months);
+    return { months, people, projects: projectOptions, roles: rolesOf(people) };
   },
 
   async getEmployeePanel({
@@ -325,12 +453,13 @@ export const allocationService = {
           .filter((row) => row.monthKey === month.key)
           .sort((left, right) => right.plannedHours - left.plannedHours || left.projectName.localeCompare(right.projectName, 'pt-BR'));
 
+        // Interna do detalhe acima: a célula só a traz quando a pessoa veio da grade completa.
         return {
           month,
           projects,
           plannedHours: Math.round(Number(cell.plannedHours || 0)),
           actualHours: Math.round(Number(cell.actualProjectHours || 0) + Number(cell.internalHours || 0)),
-          internalHours: Math.round(Number(cell.internalHours || 0)),
+          internalHours: Math.round(sumInternalHours(detailGroups[years.indexOf(month.year)] ?? [], month.month)),
         };
       }),
     };
