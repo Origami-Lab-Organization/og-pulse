@@ -40,7 +40,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProspectActivities } from '@/hooks/useProspectActivities';
 import { useProspectTasks } from '@/hooks/useProspectTasks';
-import { useUpdateProspectCompany } from '@/hooks/useProspectCompanies';
+import { useProspectCompanyByCnpj, useSaveCardCompany } from '@/hooks/useProspectCompanies';
 import { useUpdateProspectContact } from '@/hooks/useProspectContacts';
 import {
   useDeleteProspect,
@@ -122,7 +122,7 @@ export function ProspectDetailDialog({
   const { data: diretorio = [] } = useEmployeeDirectory(open);
   const atualizarContato = useUpdateProspect();
   const atualizarPessoa = useUpdateProspectContact();
-  const atualizarEmpresa = useUpdateProspectCompany();
+  const salvarEmpresaDoCard = useSaveCardCompany();
   const reabrir = useReopenProspect();
   const moverEtapa = useUpdateProspectStage();
   const excluir = useDeleteProspect();
@@ -153,17 +153,18 @@ export function ProspectDetailDialog({
   const somenteLeitura = isProspectReadOnly(prospect);
   const empresa = prospect.company;
   const salvandoContato = atualizarContato.isPending || atualizarPessoa.isPending;
-  const salvandoEmpresa = atualizarEmpresa.isPending || gravarReceita.isPending;
+  const salvandoEmpresa = salvarEmpresaDoCard.isPending || gravarReceita.isPending;
   const respostas = atividades.filter((a) => a.got_response).length;
   const ultima = atividades[0]?.activity_date ?? null;
   const responsavel = diretorio.find((p) => p.id === prospect.owner_id)?.nome ?? null;
 
   const salvarEmpresa = async () => {
     if (!empresa) return;
-    await atualizarEmpresa.mutateAsync({ id: empresa.id, input: empresaDoRascunho(rascunho, empresa) });
+    // CNPJ de outra empresa já cadastrada: o card passa para ela, e a Receita vai junto.
+    const destino = await salvarEmpresaDoCard.mutateAsync({ card: prospect, input: empresaDoRascunho(rascunho, empresa) });
     const cnpjDoRascunho = (rascunho.company_cnpj ?? '').replace(/\D/g, '');
     if (receitaDaEdicao && receitaDaEdicao.cnpj === cnpjDoRascunho) {
-      await gravarReceita.mutateAsync({ companyId: empresa.id, receita: receitaDaEdicao }).catch(() => undefined);
+      await gravarReceita.mutateAsync({ companyId: destino.id, receita: receitaDaEdicao }).catch(() => undefined);
     }
     setEditandoEmpresa(false);
   };
@@ -799,6 +800,7 @@ function CartaoEmpresa({
                 Dados da Receita encontrados ({receitaAchada.socios.length} sócios): gravados ao salvar.
               </p>
             )}
+            <AvisoDeCnpjCadastrado cnpj={rascunho.company_cnpj ?? ''} empresaId={empresa?.id} />
           </div>
           <Campo label="LinkedIn" draft={rascunho.company_linkedin} onChange={definir('company_linkedin')} />
           <Campo label="Instagram" draft={rascunho.company_instagram} onChange={definir('company_instagram')} />
@@ -857,6 +859,18 @@ function CartaoEmpresa({
         </div>
       )}
     </section>
+  );
+}
+
+/** Avisa antes de salvar que o CNPJ é de outra empresa — e que o card vai passar para ela. */
+function AvisoDeCnpjCadastrado({ cnpj, empresaId }: { cnpj: string; empresaId?: string }) {
+  const { data: cadastrada } = useProspectCompanyByCnpj(cnpj);
+  if (!cadastrada || cadastrada.id === empresaId) return null;
+  return (
+    <p className="text-xs text-muted-foreground" role="status">
+      Este CNPJ já é de <span className="font-medium text-foreground">{cadastrada.name}</span>. Ao salvar, o
+      card passa para essa empresa.
+    </p>
   );
 }
 

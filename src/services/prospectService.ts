@@ -87,6 +87,24 @@ export async function updateProspect(id: string, updates: UpdateProspectInput): 
 }
 
 /**
+ * Passa o card para outra empresa: o CNPJ digitado na ficha já era de uma empresa cadastrada
+ * (07/10/2026). A pessoa acompanha só se a empresa atual dela era a do card — quem já está
+ * em outra conta não é movido (ADR-0045: a empresa da pessoa não propaga).
+ */
+export async function moveProspectToCompany(
+  card: Pick<ProspectWithCompany, 'id' | 'contact_id' | 'company_id'>,
+  companyId: string,
+): Promise<void> {
+  const { error } = await tabela('prospects').update({ company_id: companyId }).eq('id', card.id);
+  if (error) throw error;
+  const { error: erroDaPessoa } = await tabela('prospect_contacts')
+    .update({ company_id: companyId })
+    .eq('id', card.contact_id)
+    .eq('company_id', card.company_id);
+  if (erroDaPessoa) throw erroDaPessoa;
+}
+
+/**
  * Movimento manual de etapa. Com `occurredOn`, o histórico de etapa guarda o dia do fato em
  * vez do dia do clique — a reunião que aconteceu ontem e foi registrada hoje.
  *
