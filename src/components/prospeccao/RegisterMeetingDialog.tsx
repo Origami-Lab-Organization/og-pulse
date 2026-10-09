@@ -15,7 +15,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useRegisterActivity } from '@/hooks/useProspectActivities';
 import { useUpdateProspectStage } from '@/hooks/useProspects';
 import { INTERACTION_CHANNELS } from '@/lib/interactionChannels';
-import { toISODate, type ProspectWithCompany } from '@/types/prospect';
+import { opportunityName, toISODate, type ProspectWithCompany } from '@/types/prospect';
+import { ActivityContactSelect } from './ActivityContactSelect';
 
 interface RegisterMeetingDialogProps {
   prospect: ProspectWithCompany | null;
@@ -39,12 +40,14 @@ export function RegisterMeetingDialog({ prospect, open, onOpenChange }: Register
 
   const [data, setData] = useState(toISODate(new Date()));
   const [canal, setCanal] = useState('video_call');
+  const [comQuem, setComQuem] = useState<string | null>(null);
   const [relato, setRelato] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setData(toISODate(new Date()));
     setCanal('video_call');
+    setComQuem(null);
     setRelato('');
   }, [open]);
 
@@ -61,6 +64,7 @@ export function RegisterMeetingDialog({ prospect, open, onOpenChange }: Register
     registrar.mutate(
       {
         prospect_id: prospect.id,
+        contact_id: comQuem,
         channel: canal,
         got_response: true,
         activity_date: data,
@@ -77,10 +81,7 @@ export function RegisterMeetingDialog({ prospect, open, onOpenChange }: Register
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Reunião feita</DialogTitle>
-          <DialogDescription>
-            {prospect.contact_name}
-            {prospect.company?.name ? ` · ${prospect.company.name}` : ''}
-          </DialogDescription>
+          <DialogDescription>{opportunityName(prospect)}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -108,6 +109,19 @@ export function RegisterMeetingDialog({ prospect, open, onOpenChange }: Register
             </div>
           </div>
 
+          {(prospect.contacts ?? []).length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="reuniao-contato">Com quem</Label>
+              <ActivityContactSelect
+                id="reuniao-contato"
+                contatos={prospect.contacts ?? []}
+                value={comQuem}
+                onChange={setComQuem}
+                className="w-full"
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="reuniao-relato">Como foi a reunião</Label>
             <Textarea
@@ -119,7 +133,7 @@ export function RegisterMeetingDialog({ prospect, open, onOpenChange }: Register
               placeholder="Opcional: o que foi discutido, quem estava e qual o próximo passo"
             />
             <p className="text-xs text-muted-foreground">
-              Vira uma atividade na linha do tempo do contato.
+              Vira uma atividade na linha do tempo da oportunidade.
             </p>
           </div>
         </div>

@@ -36,6 +36,12 @@ function contem(alvo: string | null | undefined, termo: string): boolean {
   return normalizar(alvo ?? '').includes(normalizar(termo));
 }
 
+/** Qualquer pessoa da oportunidade serve: o card leva o nome da empresa (09/10/2026). */
+function algumContatoContem(p: ProspectWithCompany, termo: string): boolean {
+  if (!termo.trim()) return true;
+  return (p.contacts ?? []).some((c) => contem(c.contact?.name, termo));
+}
+
 function igual(alvo: string | null | undefined, escolhido: string): boolean {
   if (!escolhido) return true;
   return alvo === escolhido;
@@ -48,7 +54,7 @@ export function applyProspectFilter(
   return prospects.filter(
     (p) =>
       contem(p.company?.name, filtro.empresa) &&
-      contem(p.contact_name, filtro.contato) &&
+      algumContatoContem(p, filtro.contato) &&
       igual(p.owner_id, filtro.ownerId) &&
       igual(p.lever, filtro.lever) &&
       igual(p.primary_channel, filtro.channel),

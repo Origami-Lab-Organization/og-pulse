@@ -187,7 +187,7 @@ export default function BudgetForm() {
     if (!isEditing && !prospectId && !templateForServiceId) {
       toast({
         title: 'Aviso',
-        description: 'Orçamentos são criados a partir de um contato da Prospecção.',
+        description: 'Orçamentos são criados a partir de uma oportunidade.',
         variant: 'destructive',
       });
       navigate('/comercial/prospeccao');
@@ -198,7 +198,7 @@ export default function BudgetForm() {
   useEffect(() => {
     if (prospect && !isEditing) {
       const empresa = prospect.company?.name;
-      form.setValue('title', empresa ? `Proposta — ${empresa}` : `Proposta — ${prospect.contact_name}`);
+      form.setValue('title', empresa ? `Proposta — ${empresa}` : 'Proposta');
       if (prospect.company?.client_id) {
         form.setValue('clientId', prospect.company.client_id);
       }
@@ -485,7 +485,7 @@ export default function BudgetForm() {
     return (
       <AppLayout
         title="Carregando..."
-        breadcrumbs={[{ label: 'Prospecção', href: '/comercial/prospeccao' }, { label: 'Carregando...' }]}
+        breadcrumbs={[{ label: 'Oportunidades', href: '/comercial/prospeccao' }, { label: 'Carregando...' }]}
       >
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -1289,7 +1289,7 @@ export default function BudgetForm() {
       description={isTemplateMode ? 'Defina a composição de custos para calcular o preço fixo do serviço' : isEditing ? `Editando: ${budget?.title}` : 'Crie uma nova proposta comercial'}
       breadcrumbs={isTemplateMode
         ? [{ label: 'Serviços', href: '/services' }, { label: 'Composição de Custos' }]
-        : [{ label: 'Prospecção', href: '/comercial/prospeccao' }, { label: isEditing ? 'Editar' : 'Novo' }]
+        : [{ label: 'Oportunidades', href: '/comercial/prospeccao' }, { label: isEditing ? 'Editar' : 'Novo' }]
       }
     >
       <Form {...form}>

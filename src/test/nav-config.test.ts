@@ -48,7 +48,7 @@ describe('navegação superior por capacidade', () => {
     expect(getActiveTabs('/analises/financeiro', canFromCapabilities(['financeiro:ler']))?.map((t) => t.title)).toEqual(['Financeiro']);
     expect(getActiveTabs('/analises/financeiro')?.length).toBe(2);
     // Oportunidades foram absorvidas pela Prospecção (29/09/2026): Comercial é Prospecção, Empresas e Métricas (item próprio desde a mesma data).
-    expect(getActiveTabs('/comercial/prospeccao')?.map((t) => t.title)).toEqual(['Prospecção', 'Empresas', 'Contatos', 'Métricas']);
-    expect(getActiveTabs('/comercial/prospeccao', GERENTE)?.map((t) => t.title)).toEqual(['Prospecção', 'Empresas', 'Contatos', 'Métricas']);
+    expect(getActiveTabs('/comercial/prospeccao')?.map((t) => t.title)).toEqual(['Oportunidades', 'Empresas', 'Contatos', 'Métricas']);
+    expect(getActiveTabs('/comercial/prospeccao', GERENTE)?.map((t) => t.title)).toEqual(['Oportunidades', 'Empresas', 'Contatos', 'Métricas']);
   });
 });

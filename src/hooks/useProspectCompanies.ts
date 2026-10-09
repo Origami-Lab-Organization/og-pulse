@@ -90,7 +90,7 @@ export function useUpdateProspectCompany() {
   });
 }
 
-type CardDaEmpresa = Pick<ProspectWithCompany, 'id' | 'contact_id' | 'company_id'>;
+type CardDaEmpresa = Pick<ProspectWithCompany, 'id' | 'company_id' | 'contacts'>;
 
 /** A empresa do tenant que já usa este CNPJ, quando não é a própria empresa do card. */
 async function outraEmpresaComCnpj(cnpj: string | null | undefined, empresaDoCard: string, tenantId: string) {

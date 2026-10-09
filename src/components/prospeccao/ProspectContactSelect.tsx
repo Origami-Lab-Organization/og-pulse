@@ -25,10 +25,16 @@ interface ProspectContactSelectProps {
   onChange: (contact: ProspectContactWithCompany | null) => void;
   /** Ninguém serve: abre o cadastro da pessoa com o nome que foi digitado. */
   onCreateNew: (nome: string) => void;
-  /** Card em andamento de cada pessoa — a busca mostra quem já está no Pipeline. */
-  openCards: Map<string, ProspectWithCompany>;
+  /** Oportunidade em andamento de cada pessoa — a busca mostra quem já está no Pipeline. */
+  openCards?: Map<string, ProspectWithCompany>;
+  /** Pessoas que não podem ser escolhidas de novo — as que já estão na oportunidade. */
+  excluir?: ReadonlySet<string>;
+  /** Texto do botão quando nada foi escolhido. */
+  placeholder?: string;
   disabled?: boolean;
 }
+
+const SEM_CARDS = new Map<string, ProspectWithCompany>();
 
 /**
  * Escolhe a pessoa como se escolhe a empresa (01/10/2026, ADR-0045): digita algumas letras do
@@ -36,7 +42,7 @@ interface ProspectContactSelectProps {
  * A ordem é a da deduplicação: o que já existe vem antes do que se cria.
  */
 export function ProspectContactSelect(props: ProspectContactSelectProps) {
-  const { value, onChange, onCreateNew, openCards, disabled } = props;
+  const { value, onChange, onCreateNew, openCards = SEM_CARDS, excluir, placeholder, disabled } = props;
   const [open, setOpen] = useState(false);
   const [busca, setBusca] = useState('');
   const termo = busca.trim();
@@ -63,7 +69,7 @@ export function ProspectContactSelect(props: ProspectContactSelectProps) {
         >
           <span className={cn('flex items-center gap-2 truncate text-sm', !value && 'text-muted-foreground')}>
             <UserRound className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            {value?.name ?? 'Buscar contato por nome, e-mail ou LinkedIn'}
+            {value?.name ?? placeholder ?? 'Buscar contato por nome, e-mail ou LinkedIn'}
           </span>
           <div className="ml-2 flex shrink-0 items-center gap-1">
             {value && (
@@ -91,6 +97,7 @@ export function ProspectContactSelect(props: ProspectContactSelectProps) {
                 termo={termo}
                 selecionado={value}
                 openCards={openCards}
+                excluir={excluir}
                 onEscolher={escolher}
                 onCadastrar={cadastrar}
               />
@@ -106,11 +113,13 @@ function Resultados(props: {
   termo: string;
   selecionado: ProspectContactWithCompany | null;
   openCards: Map<string, ProspectWithCompany>;
+  excluir?: ReadonlySet<string>;
   onEscolher: (contato: ProspectContactWithCompany) => void;
   onCadastrar: () => void;
 }) {
-  const { termo, selecionado, openCards, onEscolher, onCadastrar } = props;
-  const { contatos, buscando } = useResultados(termo);
+  const { termo, selecionado, openCards, excluir, onEscolher, onCadastrar } = props;
+  const { contatos: encontrados, buscando } = useResultados(termo);
+  const contatos = excluir ? encontrados.filter((c) => !excluir.has(c.id)) : encontrados;
   const homonimo = contatos.some((c) => c.name.trim().toLowerCase() === termo.toLowerCase());
 
   return (

@@ -4,7 +4,7 @@ import { useProspectBudget } from '@/hooks/useProspectDeal';
 import type { CloseBusinessInstallment } from '@/lib/closeBusinessFinancials';
 import { resolveProspectValue } from '@/lib/prospecting/value';
 import type { BudgetWithDetails } from '@/types/budget';
-import type { ProspectWithCompany } from '@/types/prospect';
+import { opportunityName, type ProspectWithCompany } from '@/types/prospect';
 import {
   CloseBusinessDialog,
   type CloseBusinessFormValues,
@@ -45,7 +45,7 @@ export function ProspectProjectDialog(props: ProspectProjectDialogProps) {
 function origemDe(prospect: ProspectWithCompany): CloseBusinessOrigin {
   const empresa = prospect.company?.name ?? null;
   return {
-    title: `Projeto ${empresa ?? prospect.contact_name}`,
+    title: `Projeto ${opportunityName(prospect)}`,
     companyName: empresa,
     clientId: prospect.company?.client_id ?? null,
     responsibleId: prospect.owner_id,

@@ -87,7 +87,7 @@ function SocioItem(props: SocioItemProps) {
             <p className="text-xs text-muted-foreground">Representante: {socio.representante_nome}</p>
           )}
         </div>
-        {socio.prospect_id && (
+        {jaVirouContato(socio) && (
           <Badge variant="secondary" className="shrink-0 gap-1 font-normal">
             <Check className="h-3 w-3" aria-hidden="true" />
             Contato
@@ -123,7 +123,7 @@ function AcoesDoSocio(props: SocioItemProps) {
         </Button>
       )}
       {podeEditar && <EditarRedes socio={socio} />}
-      {podeEditar && !socio.prospect_id && (
+      {podeEditar && !jaVirouContato(socio) && (
         <Button size="sm" className="h-7 px-2 text-xs" onClick={() => promover.mutate(socio)} disabled={promover.isPending}>
           <UserPlus className="mr-1 h-3 w-3" aria-hidden="true" />
           Virar contato
@@ -224,4 +224,9 @@ function instagramUrl(valor: string | null): string | null {
   const texto = valor?.trim();
   if (!texto) return null;
   return /instagram\.com/i.test(texto) ? texto : `https://instagram.com/${texto.replace(/^@/, '')}`;
+}
+
+/** Virou pessoa (desde 09/10/2026) ou, antes disso, virou card. */
+function jaVirouContato(socio: ProspectCompanyPartnerDB): boolean {
+  return !!socio.contact_id || !!socio.prospect_id;
 }

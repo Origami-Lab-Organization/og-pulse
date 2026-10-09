@@ -98,7 +98,15 @@ export function contatoResumo(p: ProspectWithCompany, pessoas: Map<string, strin
     prefixado('próxima em', p.next_activity_on && data(p.next_activity_on)),
     pessoas.get(p.owner_id ?? ''),
   ]);
-  return `- **${p.contact_name}** — ${detalhes}\n  ID: \`${p.id}\``;
+  return `- **${nomeDoCard(p)}** — ${detalhes}\n  ID: \`${p.id}\``;
+}
+
+/**
+ * Desde 09/10/2026 o card é a oportunidade da empresa e pode não ter contato: o nome que
+ * aparece é o do contato principal, ou o da empresa quando ainda não há ninguém.
+ */
+function nomeDoCard(p: ProspectWithCompany): string {
+  return p.contact_name ?? p.company?.name ?? 'Oportunidade sem contato';
 }
 
 function motivoDaPerda(p: ProspectWithCompany): string | null {
@@ -116,7 +124,7 @@ function valorDoGanho(p: ProspectWithCompany): string | null {
 export function contatoCompleto(p: ProspectWithCompany, pessoas: Map<string, string>): string {
   return rotulado(
     [
-      ['', `## ${p.contact_name}`],
+      ['', `## ${nomeDoCard(p)}`],
       ['Empresa', p.company?.name],
       ['Cargo', p.contact_role],
       ['Etapa', getProspectStageLabel(p.stage)],

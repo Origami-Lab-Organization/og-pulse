@@ -76,7 +76,7 @@ export const NAV_ITEMS: SidebarNavItem[] = [
     url: '/comercial/prospeccao',
     icon: Kanban,
     children: [
-      { title: 'Prospecção', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
+      { title: 'Oportunidades', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
       { title: 'Empresas', url: '/comercial/empresas', requiresCapability: 'prospeccao:ler' },
       { title: 'Contatos', url: '/comercial/contatos', requiresCapability: 'prospeccao:ler' },
       { title: 'Métricas', url: '/comercial/metricas', requiresCapability: 'prospeccao:ler' },

@@ -11,7 +11,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useDiscardProspect } from '@/hooks/useProspects';
-import { PROSPECT_DISCARD_REASONS, type ProspectWithCompany } from '@/types/prospect';
+import { opportunityName, PROSPECT_DISCARD_REASONS, type ProspectWithCompany } from '@/types/prospect';
 
 interface DiscardProspectDialogProps {
   prospect: ProspectWithCompany | null;
@@ -49,8 +49,7 @@ export function DiscardProspectDialog({ prospect, open, onOpenChange }: DiscardP
         <DialogHeader>
           <DialogTitle>Registrar perda</DialogTitle>
           <DialogDescription>
-            {prospect.contact_name}
-            {prospect.company?.name ? ` · ${prospect.company.name}` : ''}. Por que perdemos? O motivo é
+            {opportunityName(prospect)}. Por que perdemos? O motivo é
             obrigatório e entra nas métricas.
           </DialogDescription>
         </DialogHeader>

@@ -214,7 +214,7 @@ const OpportunitiesTab = ({
           Não foi possível carregar as oportunidades deste cliente.
         </div>
       ) : contacts.length === 0 ? (
-        <SectionEmpty message="Nenhum contato da Prospecção vinculado a este cliente." />
+        <SectionEmpty message="Nenhuma oportunidade vinculada a este cliente." />
       ) : (
         contacts.map((contact) => {
           const value = commercialContactValue(contact);
@@ -225,9 +225,9 @@ const OpportunitiesTab = ({
               className="flex items-center justify-between gap-3 rounded-md border p-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{contact.contact_name}</p>
-                {contact.company?.name && (
-                  <p className="truncate text-xs text-muted-foreground">{contact.company.name}</p>
+                <p className="truncate text-sm font-medium text-foreground">{contact.company?.name ?? 'Oportunidade'}</p>
+                {contact.contact_name && (
+                  <p className="truncate text-xs text-muted-foreground">{contact.contact_name}</p>
                 )}
                 <Badge variant="secondary" className="mt-1">
                   {getProspectStageLabel(contact.stage)}

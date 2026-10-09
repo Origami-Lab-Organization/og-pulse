@@ -41,7 +41,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProspectActivities } from '@/hooks/useProspectActivities';
 import { useProspectTasks } from '@/hooks/useProspectTasks';
 import { useProspectCompanyByCnpj, useSaveCardCompany } from '@/hooks/useProspectCompanies';
-import { useUpdateProspectContact } from '@/hooks/useProspectContacts';
 import {
   useDeleteProspect,
   useProspects,
@@ -50,7 +49,7 @@ import {
   useUpdateProspectStage,
 } from '@/hooks/useProspects';
 import { formatCurrency } from '@/lib/formatters';
-import { isContactInConversation } from '@/lib/prospecting/companyStatus';
+import { opportunitiesInProgressByCompany, otherOpportunitiesInProgress } from '@/lib/prospecting/companyStatus';
 import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
 import { INTERACTION_CHANNELS, getChannelLabel } from '@/lib/interactionChannels';
 import { iniciaisDe } from '@/lib/prospecting/iniciais';
@@ -58,6 +57,7 @@ import { formatCNPJ } from '@/lib/masks';
 import { cn } from '@/lib/utils';
 import {
   canWin,
+  describeOpportunityContacts,
   FATURAMENTO_BASE_PADRAO,
   type FaturamentoBase,
   getDiscardReasonLabel,
@@ -66,6 +66,7 @@ import {
   getProspectStageLabel,
   isProspectReadOnly,
   isTaskOverdue,
+  opportunityName,
   PROSPECT_LEVERS,
   previousStagesOf,
   type ProspectActivityWithOwner,
@@ -82,6 +83,7 @@ import { ProspectActivityComposer } from './ProspectActivityComposer';
 import { ProspectTaskComposer } from './ProspectTaskComposer';
 import { ProspectTaskTimeline } from './ProspectTaskTimeline';
 import { ProspectDealCard } from './ProspectDealCard';
+import { OpportunityContactsCard } from './OpportunityContactsCard';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
 import { CnpjLookupField } from './CnpjLookupField';
 import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
@@ -103,11 +105,13 @@ interface ProspectDetailDialogProps {
 }
 
 /**
- * O card do contato: informação de um lado, atividade do outro.
+ * A ficha da oportunidade: informação de um lado, atividade do outro.
  *
  * A separação é o pedido central — quem abre precisa distinguir num relance o que é
- * cadastro do que é histórico. Os campos da empresa (anel, tier, CNPJ) valem para TODOS os
- * contatos dela: editá-los aqui edita a empresa, que é o que torna o cadastro reutilizável.
+ * cadastro do que é histórico. Desde 09/10/2026 a oportunidade é da empresa e leva o nome
+ * dela; as pessoas entram em "Contatos", cada uma com o papel na decisão. Os campos da
+ * empresa (anel, tier, CNPJ) valem para todas as oportunidades dela: editá-los aqui edita a
+ * empresa, que é o que torna o cadastro reutilizável.
  */
 export function ProspectDetailDialog({
   prospect,
@@ -120,16 +124,15 @@ export function ProspectDetailDialog({
   const { data: tarefasDoContato = [] } = useProspectTasks(prospect?.id ?? null);
   const proximaTarefa = tarefasDoContato.find((t) => !t.done_at) ?? null;
   const { data: diretorio = [] } = useEmployeeDirectory(open);
-  const atualizarContato = useUpdateProspect();
-  const atualizarPessoa = useUpdateProspectContact();
+  const atualizarOportunidade = useUpdateProspect();
   const salvarEmpresaDoCard = useSaveCardCompany();
   const reabrir = useReopenProspect();
   const moverEtapa = useUpdateProspectStage();
   const excluir = useDeleteProspect();
   const { can } = useAuth();
 
-  // Contato e empresa editam e salvam cada um por si (02/10/2026): cada coluna, seu botão.
-  const [editandoContato, setEditandoContato] = useState(false);
+  // Oportunidade e empresa editam e salvam cada uma por si (02/10/2026): cada coluna, seu botão.
+  const [editandoOportunidade, setEditandoOportunidade] = useState(false);
   const [editandoEmpresa, setEditandoEmpresa] = useState(false);
   const [reuniaoAberta, setReuniaoAberta] = useState(false);
   const [projetoAberto, setProjetoAberto] = useState(false);
@@ -139,11 +142,11 @@ export function ProspectDetailDialog({
   const gravarReceita = useSaveCompanyReceita();
 
   // Reinicia só ao abrir a ficha ou trocar de card. Depender do objeto `prospect` apagaria a
-  // edição da empresa em andamento quando o salvar do contato recarrega os dados.
+  // edição da empresa em andamento quando o salvar da oportunidade recarrega os dados.
   const prospectId = prospect?.id;
   useEffect(() => {
     if (!open || !prospectId) return;
-    setEditandoContato(false);
+    setEditandoOportunidade(false);
     setEditandoEmpresa(false);
     setReceitaDaEdicao(null);
   }, [open, prospectId]);
@@ -152,7 +155,7 @@ export function ProspectDetailDialog({
 
   const somenteLeitura = isProspectReadOnly(prospect);
   const empresa = prospect.company;
-  const salvandoContato = atualizarContato.isPending || atualizarPessoa.isPending;
+  const salvandoOportunidade = atualizarOportunidade.isPending;
   const salvandoEmpresa = salvarEmpresaDoCard.isPending || gravarReceita.isPending;
   const respostas = atividades.filter((a) => a.got_response).length;
   const ultima = atividades[0]?.activity_date ?? null;
@@ -169,12 +172,9 @@ export function ProspectDetailDialog({
     setEditandoEmpresa(false);
   };
 
-  const salvarContato = async () => {
-    // A pessoa primeiro: e-mail ou LinkedIn repetido para aqui, antes de mexer no negócio.
-    const pessoa = pessoaDoRascunho(rascunho, prospect);
-    if (mudouAPessoa(pessoa, prospect)) await atualizarPessoa.mutateAsync({ id: prospect.contact_id, input: pessoa });
-    await atualizarContato.mutateAsync({ id: prospect.id, updates: negocioDoRascunho(rascunho, prospect) });
-    setEditandoContato(false);
+  const salvarOportunidade = async () => {
+    await atualizarOportunidade.mutateAsync({ id: prospect.id, updates: negocioDoRascunho(rascunho, prospect) });
+    setEditandoOportunidade(false);
   };
 
   // Cancelar um lado desfaz só o rascunho dele: o que está sendo editado do outro fica.
@@ -183,9 +183,9 @@ export function ProspectDetailDialog({
     setReceitaDaEdicao(null);
     setEditandoEmpresa(false);
   };
-  const cancelarContato = () => {
+  const cancelarOportunidade = () => {
     setRascunho((atual) => ({ ...atual, ...parteDoRascunho(rascunhoInicial(prospect), false) }));
-    setEditandoContato(false);
+    setEditandoOportunidade(false);
   };
 
   const definir = (campo: string) => (valor: string) =>
@@ -202,9 +202,9 @@ export function ProspectDetailDialog({
   };
 
   // Abrir a edição de um lado parte dos dados atuais dele, não de um rascunho antigo.
-  const abrirContato = () => {
+  const abrirOportunidade = () => {
     setRascunho((atual) => ({ ...atual, ...parteDoRascunho(rascunhoInicial(prospect), false) }));
-    setEditandoContato(true);
+    setEditandoOportunidade(true);
   };
   const abrirEmpresa = () => {
     setRascunho((atual) => ({ ...atual, ...parteDoRascunho(rascunhoInicial(prospect), true) }));
@@ -212,16 +212,17 @@ export function ProspectDetailDialog({
     setEditandoEmpresa(true);
   };
 
-  const editando = editandoContato || editandoEmpresa;
+  const editando = editandoOportunidade || editandoEmpresa;
   const alternarEdicao = () => {
     if (editando) {
-      cancelarContato();
+      cancelarOportunidade();
       cancelarEmpresa();
       return;
     }
-    abrirContato();
+    abrirOportunidade();
     abrirEmpresa();
   };
+  const contatos = quantosContatos(prospect);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -230,13 +231,13 @@ export function ProspectDetailDialog({
           <div className="flex items-start gap-3">
             <Avatar className="h-11 w-11 shrink-0">
               <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
-                {iniciaisDe(prospect.contact_name)}
+                {iniciaisDe(opportunityName(prospect))}
               </AvatarFallback>
             </Avatar>
 
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <DialogTitle className="text-lg leading-tight">{prospect.contact_name}</DialogTitle>
+                <DialogTitle className="text-lg leading-tight">{opportunityName(prospect)}</DialogTitle>
                 <Badge variant="secondary" className={getProspectStageColor(prospect.stage)}>
                   {getProspectStageLabel(prospect.stage)}
                 </Badge>
@@ -245,8 +246,8 @@ export function ProspectDetailDialog({
 
               <DialogDescription className="text-xs">
                 {[
-                  empresa?.name ?? 'Empresa não informada',
-                  prospect.contact_role,
+                  'Oportunidade',
+                  `${contatos} ${contatos === 1 ? 'contato' : 'contatos'}`,
                   `${prospect.activity_count} ${prospect.activity_count === 1 ? 'atividade' : 'atividades'}`,
                   ultima ? `último em ${formatarData(ultima)}` : null,
                 ]
@@ -257,7 +258,7 @@ export function ProspectDetailDialog({
               <DesfechoDoContato prospect={prospect} onWin={() => onWin(prospect)} />
             </div>
 
-            <AcoesDoContato
+            <AcoesDaOportunidade
               className="absolute right-12 top-3"
               prospect={prospect}
               somenteLeitura={somenteLeitura}
@@ -278,12 +279,12 @@ export function ProspectDetailDialog({
           <ProspectStageStepper stage={prospect.stage} />
         </DialogHeader>
 
-        {/* Três colunas (02/10/2026): quem é a pessoa à esquerda, o que aconteceu no centro e a
-            empresa à direita — antes empresa e contato dividiam a mesma coluna e se confundiam.
-            Abaixo de lg as três empilham na mesma ordem. */}
+        {/* Três colunas (02/10/2026): a oportunidade e quem participa dela à esquerda, o que
+            aconteceu no centro e a empresa à direita. Abaixo de lg as três empilham na mesma
+            ordem. */}
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,320px)] lg:overflow-hidden">
           <section
-            aria-label="Contato"
+            aria-label="Oportunidade"
             className="min-h-0 space-y-3 border-b bg-muted/20 p-4 lg:overflow-y-auto lg:border-b-0 lg:border-r"
           >
             <Indicadores
@@ -292,29 +293,36 @@ export function ProspectDetailDialog({
               proxima={proximaTarefa?.due_date ?? null}
             />
 
-            <CartaoContato
+            <OpportunityContactsCard prospect={prospect} podeEditar={!somenteLeitura} />
+
+            <CartaoDeConducao
               prospect={prospect}
               responsavel={responsavel}
               diretorio={diretorio}
-              editando={editandoContato}
+              editando={editandoOportunidade}
               rascunho={rascunho}
               definir={definir}
               podeEditar={!somenteLeitura}
-              onEditar={abrirContato}
+              onEditar={abrirOportunidade}
             />
 
             <ProspectDealCard
               prospect={prospect}
-              editando={editandoContato}
+              editando={editandoOportunidade}
               rascunho={rascunho}
               definir={definir}
               podeEditar={!somenteLeitura}
-              onEditar={abrirContato}
+              onEditar={abrirOportunidade}
               onCriarProjeto={() => setProjetoAberto(true)}
             />
 
-            {editandoContato && (
-              <BotoesDeSalvar rotulo="Salvar contato" salvando={salvandoContato} onSalvar={salvarContato} onCancelar={cancelarContato} />
+            {editandoOportunidade && (
+              <BotoesDeSalvar
+                rotulo="Salvar oportunidade"
+                salvando={salvandoOportunidade}
+                onSalvar={salvarOportunidade}
+                onCancelar={cancelarOportunidade}
+              />
             )}
           </section>
 
@@ -332,7 +340,7 @@ export function ProspectDetailDialog({
             aria-label="Empresa"
             className="min-h-0 space-y-3 border-t bg-muted/20 p-4 lg:overflow-y-auto lg:border-l lg:border-t-0"
           >
-            <AvisoEmpresaEmConversa prospect={prospect} diretorio={diretorio} />
+            <AvisoOutrasOportunidades prospect={prospect} diretorio={diretorio} />
 
             <CartaoEmpresa
               empresa={empresa}
@@ -481,7 +489,7 @@ function PainelDeAtividade({
   );
 }
 
-function AcoesDoContato({
+function AcoesDaOportunidade({
   className,
   prospect,
   somenteLeitura,
@@ -509,7 +517,7 @@ function AcoesDoContato({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className={cn('shrink-0', className)} aria-label="Ações do contato">
+        <Button variant="ghost" size="icon" className={cn('shrink-0', className)} aria-label="Ações da oportunidade">
           <MoreVertical className="h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
@@ -531,7 +539,7 @@ function AcoesDoContato({
         {!somenteLeitura && <ItensDeVolta stage={prospect.stage} onVoltar={onVoltar} />}
         <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={onExcluir}>
           <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
-          Excluir contato
+          Excluir oportunidade
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -646,13 +654,13 @@ function DesfechoDoContato({ prospect, onWin }: { prospect: ProspectWithCompany;
 }
 
 /**
- * Outro contato da mesma empresa já passou da cadência — de "Respondeu" em diante.
+ * A empresa tem OUTRA oportunidade no funil, de "Em cadência" em diante (09/10/2026).
  *
- * É o mesmo sinal do ícone de balões no card do Kanban, aqui por extenso: quem abre o
- * contato precisa saber, antes de registrar mais um toque, que a conta já está em conversa
- * com outra pessoa do time.
+ * É o mesmo sinal do balão no card do quadro, aqui por extenso: quem abre a oportunidade
+ * precisa saber, antes de registrar mais um toque, que a conta já está sendo trabalhada em
+ * outra oportunidade — e com quem do time.
  */
-function AvisoEmpresaEmConversa({
+function AvisoOutrasOportunidades({
   prospect,
   diretorio,
 }: {
@@ -660,10 +668,8 @@ function AvisoEmpresaEmConversa({
   diretorio: Array<{ id: string; nome: string }>;
 }) {
   const { data: todos = [] } = useProspects();
-  const outros = todos.filter(
-    (c) => c.company_id === prospect.company_id && c.id !== prospect.id && isContactInConversation(c),
-  );
-  if (outros.length === 0) return null;
+  const outras = otherOpportunitiesInProgress(prospect, opportunitiesInProgressByCompany(todos));
+  if (outras.length === 0) return null;
 
   const nomeDe = (id: string | null) => diretorio.find((p) => p.id === id)?.nome;
 
@@ -671,17 +677,19 @@ function AvisoEmpresaEmConversa({
     <div role="note" className="flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning-subtle p-3">
       <MessagesSquare className="mt-0.5 h-4 w-4 shrink-0 text-warning-emphasis" aria-hidden="true" />
       <div className="min-w-0 space-y-1">
-        <p className="text-sm font-medium text-warning-emphasis">Empresa já em conversa avançada</p>
+        <p className="text-sm font-medium text-warning-emphasis">Empresa com outra oportunidade em andamento</p>
         <p className="text-xs text-foreground/80">
-          Outro contato desta empresa já passou da cadência. Alinhe com quem conduz antes de um novo toque.
+          Esta empresa já está sendo trabalhada em outra oportunidade. Alinhe com quem conduz antes de um novo toque.
         </p>
         <ul className="space-y-0.5 text-xs text-foreground/80">
-          {outros.map((c) => {
-            const dono = nomeDe(c.owner_id);
+          {outras.map((o) => {
+            const dono = nomeDe(o.owner_id);
+            const pessoas = describeOpportunityContacts(o);
             return (
-              <li key={c.id}>
-                <span className="font-medium">{c.contact_name}</span> · {getProspectStageLabel(c.stage)}
+              <li key={o.id}>
+                <span className="font-medium">{getProspectStageLabel(o.stage)}</span>
                 {dono ? ` · com ${dono}` : ''}
+                {pessoas ? ` · ${pessoas}` : ''}
               </li>
             );
           })}
@@ -819,7 +827,7 @@ function CartaoEmpresa({
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Os campos da empresa valem para todos os contatos dela.
+            Os campos da empresa valem para todas as oportunidades e contatos dela.
           </p>
         </div>
       ) : (
@@ -862,19 +870,23 @@ function CartaoEmpresa({
   );
 }
 
-/** Avisa antes de salvar que o CNPJ é de outra empresa — e que o card vai passar para ela. */
+/** Avisa antes de salvar que o CNPJ é de outra empresa — e que a oportunidade vai passar para ela. */
 function AvisoDeCnpjCadastrado({ cnpj, empresaId }: { cnpj: string; empresaId?: string }) {
   const { data: cadastrada } = useProspectCompanyByCnpj(cnpj);
   if (!cadastrada || cadastrada.id === empresaId) return null;
   return (
     <p className="text-xs text-muted-foreground" role="status">
-      Este CNPJ já é de <span className="font-medium text-foreground">{cadastrada.name}</span>. Ao salvar, o
-      card passa para essa empresa.
+      Este CNPJ já é de <span className="font-medium text-foreground">{cadastrada.name}</span>. Ao salvar, a
+      oportunidade passa para essa empresa.
     </p>
   );
 }
 
-function CartaoContato({
+/**
+ * Quem conduz e por onde (09/10/2026): responsável, alavanca e canal principal. Eram a metade
+ * de baixo do antigo cartão "Contato"; as pessoas foram para "Contatos", com papel.
+ */
+function CartaoDeConducao({
   prospect,
   responsavel,
   diretorio,
@@ -895,20 +907,21 @@ function CartaoContato({
 }) {
   return (
     <section className="rounded-lg border bg-card p-3">
-      <CabecalhoDoCartao titulo="Contato" podeEditar={podeEditar && !editando} onEditar={onEditar} />
+      <CabecalhoDoCartao titulo="Condução" podeEditar={podeEditar && !editando} onEditar={onEditar} />
 
       {editando ? (
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            Nome, cargo, e-mail, telefone e redes são do contato: valem para todos os cards dele e
-            aparecem em Contatos.
-          </p>
-          <Campo label="Nome" draft={rascunho.contact_name} onChange={definir('contact_name')} />
-          <Campo label="Cargo" draft={rascunho.contact_role} onChange={definir('contact_role')} />
-          <Campo label="E-mail" draft={rascunho.contact_email} onChange={definir('contact_email')} />
-          <Campo label="Telefone" draft={rascunho.contact_phone} onChange={definir('contact_phone')} />
-          <Campo label="LinkedIn" draft={rascunho.linkedin_url} onChange={definir('linkedin_url')} />
-          <Campo label="Instagram" draft={rascunho.instagram_url} onChange={definir('instagram_url')} />
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Responsável</Label>
+            <Select value={rascunho.owner_id} onValueChange={definir('owner_id')}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                {diretorio.map((pessoa) => (
+                  <SelectItem key={pessoa.id} value={pessoa.id}>{pessoa.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Alavanca / origem</Label>
@@ -933,56 +946,13 @@ function CartaoContato({
               </SelectContent>
             </Select>
           </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Responsável</Label>
-            <Select value={rascunho.owner_id} onValueChange={definir('owner_id')}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                {diretorio.map((pessoa) => (
-                  <SelectItem key={pessoa.id} value={pessoa.id}>{pessoa.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       ) : (
         <div className="space-y-3">
-          <div>
-            <p className="text-sm font-medium">{prospect.contact_name}</p>
-            {prospect.contact_role && (
-              <p className="text-xs text-muted-foreground">{prospect.contact_role}</p>
-            )}
-          </div>
-
-          {(prospect.linkedin_url || prospect.instagram_url) && (
-            <div className="flex flex-wrap gap-1.5">
-              <LinkExterno href={prospect.linkedin_url} icone={Linkedin} rotulo="Perfil no LinkedIn" />
-              <LinkExterno href={urlDoInstagram(prospect.instagram_url)} icone={Instagram} rotulo="Perfil no Instagram" />
-            </div>
-          )}
-
-          <CampoOpcional
-            label="E-mail"
-            valor={prospect.contact_email}
-            acao="Adicionar e-mail"
-            podeEditar={podeEditar}
-            onEditar={onEditar}
-          />
-          <CampoOpcional
-            label="Telefone"
-            valor={prospect.contact_phone}
-            acao="Adicionar telefone"
-            podeEditar={podeEditar}
-            onEditar={onEditar}
-          />
-
-          <Separator />
-
           <dl className="grid grid-cols-3 gap-2">
+            <Resumo termo="Responsável" valor={responsavel} />
             <Resumo termo="Alavanca" valor={getLeverLabel(prospect.lever)} />
             <Resumo termo="Canal principal" valor={getChannelLabel(prospect.primary_channel)} />
-            <Resumo termo="Responsável" valor={responsavel} />
           </dl>
 
           {prospect.first_touch_at && (
@@ -1018,7 +988,7 @@ function BotoesDeSalvar(props: BotoesDeSalvarProps) {
   );
 }
 
-/** Só os campos da empresa (`company_*`), ou só os do contato e do negócio. */
+/** Só os campos da empresa (`company_*`), ou só os da oportunidade. */
 function parteDoRascunho(rascunho: Record<string, string>, daEmpresa: boolean): Record<string, string> {
   return Object.fromEntries(Object.entries(rascunho).filter(([campo]) => campo.startsWith('company_') === daEmpresa));
 }
@@ -1139,12 +1109,6 @@ function rascunhoInicial(prospect: ProspectWithCompany): Record<string, string> 
     company_tier: empresa?.tier ?? '',
     company_faturamento: empresa?.faturamento_anual != null ? String(empresa.faturamento_anual) : '',
     company_faturamento_base: empresa?.faturamento_anual_base ?? FATURAMENTO_BASE_PADRAO,
-    contact_name: prospect.contact_name,
-    contact_role: prospect.contact_role ?? '',
-    contact_email: prospect.contact_email ?? '',
-    contact_phone: prospect.contact_phone ?? '',
-    linkedin_url: prospect.linkedin_url ?? '',
-    instagram_url: prospect.instagram_url ?? '',
     primary_channel: prospect.primary_channel,
     owner_id: prospect.owner_id ?? '',
     lever: prospect.lever ?? '',
@@ -1170,25 +1134,7 @@ function empresaDoRascunho(rascunho: Record<string, string>, empresa: ProspectCo
   };
 }
 
-/** A pessoa (ADR-0045): vale para todos os cards dela, e a empresa dela não muda daqui. */
-function pessoaDoRascunho(rascunho: Record<string, string>, prospect: ProspectWithCompany) {
-  return {
-    name: rascunho.contact_name || prospect.contact_name,
-    role: rascunho.contact_role || null,
-    email: rascunho.contact_email || null,
-    phone: rascunho.contact_phone || null,
-    linkedin_url: rascunho.linkedin_url || null,
-    instagram_url: rascunho.instagram_url || null,
-  };
-}
-
-function mudouAPessoa(pessoa: ReturnType<typeof pessoaDoRascunho>, prospect: ProspectWithCompany): boolean {
-  const atual = [prospect.contact_name, prospect.contact_role, prospect.contact_email, prospect.contact_phone, prospect.linkedin_url, prospect.instagram_url];
-  const nova = [pessoa.name, pessoa.role, pessoa.email, pessoa.phone, pessoa.linkedin_url, pessoa.instagram_url];
-  return nova.some((valor, i) => (valor?.trim() || null) !== (atual[i] || null));
-}
-
-/** O negócio: só deste card. */
+/** O negócio: só desta oportunidade. */
 function negocioDoRascunho(rascunho: Record<string, string>, prospect: ProspectWithCompany) {
   return {
     primary_channel: rascunho.primary_channel || prospect.primary_channel,
@@ -1217,6 +1163,10 @@ function urlDoInstagram(valor?: string | null): string | null {
 function textoDeSite(url?: string | null): string {
   if (!url) return 'Site';
   return url.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+}
+
+function quantosContatos(prospect: ProspectWithCompany): number {
+  return prospect.contacts?.length ?? 0;
 }
 
 function diasAte(iso: string): number {

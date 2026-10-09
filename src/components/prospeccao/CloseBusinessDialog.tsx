@@ -718,7 +718,7 @@ export function CloseBusinessDialog({
 									{suggestedManagerId &&
 										managerIdValue === suggestedManagerId && (
 											<p className="text-xs text-muted-foreground">
-												Sugerido com base no responsável do contato.
+												Sugerido com base no responsável da oportunidade.
 											</p>
 										)}
 									<FormMessage />

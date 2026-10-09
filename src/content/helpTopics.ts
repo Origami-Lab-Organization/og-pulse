@@ -117,18 +117,19 @@ export const HELP_GROUPS: HelpGroup[] = [
     topics: [
       {
         id: 'prospeccao',
-        title: 'Prospecção: do primeiro contato à venda',
+        title: 'Oportunidades: do primeiro contato à venda',
         route: '/comercial/prospeccao',
         requiresCapability: 'prospeccao:ler',
         what:
-          'O quadro comercial de ponta a ponta: do primeiro toque ao fechamento. Cada contato termina em Ganho (vendemos) ou Perda (com o motivo), e os dois viram métrica.',
+          'O quadro comercial de ponta a ponta: do primeiro toque ao fechamento. Cada card é uma oportunidade de negócio de uma empresa, com os contatos dela dentro, e termina em Ganho (vendemos) ou Perda (com o motivo).',
         how: [
-          'A aba Pipeline mostra o funil em colunas. O card avisa em vermelho quando uma tarefa do contato venceu — é o único aviso de prazo. A busca ao lado das abas filtra por empresa enquanto você digita, e o botão Filtros recorta por contato, responsável, alavanca e canal.',
-          'Para registrar uma atividade, escreva o que aconteceu na caixa do rodapé do card e clique em Registrar — o botão só habilita com texto. O anexo é opcional. O sistema conta o toque e agenda a próxima data pela cadência.',
-          'Esgotada a cadência (quatro toques sem resposta), o contato continua em Em cadência, sem próxima data: registrar a perda é decisão sua, com o motivo "Sem resposta / sem contato". O card só avança por evento verificável: "Respondeu" entra pelo registro, não pelo arraste.',
-          'A empresa é cadastrada uma vez e reaproveitada: a partir do segundo contato dela, os dados vêm preenchidos.',
+          'O quadro mostra o funil em colunas, e cada card leva o nome da empresa. O card avisa em vermelho quando uma tarefa da oportunidade venceu — é o único aviso de prazo. O botão Filtros recorta por empresa, contato, responsável, alavanca e canal.',
+          'Uma empresa pode ter mais de uma oportunidade. O balão amarelo no card avisa que a mesma empresa tem outra oportunidade em andamento, de Em cadência em diante: alinhe com quem conduz antes de um novo toque.',
+          'Na ficha da oportunidade, em Contatos, inclua as pessoas da empresa e marque o papel de cada uma: decisor, influenciador, usuário, bloqueador ou campeão. Os dados de cada pessoa se editam em Contatos.',
+          'Para registrar uma atividade, escreva o que aconteceu na caixa do rodapé da ficha e clique em Registrar — o botão só habilita com texto. Marcar com quem foi e anexar são opcionais. O sistema conta o toque e agenda a próxima data pela cadência.',
+          'Esgotada a cadência (quatro toques sem resposta), a oportunidade continua em Em cadência, sem próxima data: registrar a perda é decisão sua, com o motivo "Sem resposta / sem contato". O card só avança por evento verificável: "Respondeu" entra pelo registro, não pelo arraste.',
           'Fechou negócio? Arraste o card para Ganho (de Reunião feita em diante) e informe a data e o valor vendido. Dá para registrar sem valor — o card fica sinalizado até alguém preencher.',
-          'Perdeu? Arraste para Perda e escolha o motivo: sem resposta, proposta recusada por preço ou escopo, concorrente, entre outros. As colunas Ganho e Perda mostram os últimos 30 dias; "Ver todos" traz o resto. Arrastar de volta para o quadro reabre o contato.',
+          'Perdeu? Arraste para Perda e escolha o motivo: sem resposta, proposta recusada por preço ou escopo, concorrente, entre outros. As colunas Ganho e Perda mostram os últimos 30 dias; "Ver todos" traz o resto. Arrastar de volta para o quadro reabre a oportunidade.',
         ],
         mcp: {
           server: 'prospeccao',
@@ -178,7 +179,7 @@ export const HELP_GROUPS: HelpGroup[] = [
         mcp: {
           server: null,
           note:
-            'Não há ferramenta de MCP para orçamento. O que o orçamento decide (preço, margem, alçada) é compromisso comercial, e o modelo não tem como confirmar a intenção de quem negocia. Consulte pela Prospecção e monte na tela.',
+            'Não há ferramenta de MCP para orçamento. O que o orçamento decide (preço, margem, alçada) é compromisso comercial, e o modelo não tem como confirmar a intenção de quem negocia. Consulte pelas Oportunidades e monte na tela.',
         },
       },
       {

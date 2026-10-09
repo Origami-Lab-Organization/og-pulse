@@ -14,7 +14,7 @@ import type { MetricFilter, PeriodSelection } from '@/types/prospectMetrics';
  * Comercial — é a tela de acompanhamento, não de trabalho, e merece endereço próprio.
  * Com as Oportunidades absorvidas (ADR-0040), é também o que sobrou de /analises/comercial.
  *
- * Abrir um contato daqui leva à ficha no quadro da Prospecção (`?contato=`), que é onde
+ * Abrir uma oportunidade daqui leva à ficha no quadro (`?oportunidade=`), que é onde
  * ele é trabalhado.
  */
 export default function ProspeccaoMetricas() {
@@ -24,7 +24,7 @@ export default function ProspeccaoMetricas() {
   const [filtro, setFiltro] = useState<MetricFilter>({});
 
   const abrirContato = (prospect: ProspectWithCompany) =>
-    navigate(`/comercial/prospeccao?contato=${encodeURIComponent(prospect.id)}`);
+    navigate(`/comercial/prospeccao?oportunidade=${encodeURIComponent(prospect.id)}`);
 
   return (
     <AppLayout

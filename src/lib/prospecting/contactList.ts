@@ -5,10 +5,11 @@ import {
 } from '@/types/prospect';
 
 /**
- * A lista da tela Contatos (01/10/2026, ADR-0045): cada pessoa com os cards dela no Pipeline.
+ * A lista da tela Contatos (01/10/2026, ADR-0045): cada pessoa com as oportunidades em que
+ * está (desde 09/10/2026, pelos contatos de cada oportunidade).
  *
- * "No Pipeline" é ter um card ainda em andamento. Quem só tem cards encerrados (Ganho, Perda,
- * Sem resposta) ou nenhum card está fora — e é dali que sai a próxima abordagem.
+ * "No Pipeline" é estar em alguma oportunidade ainda em andamento. Quem só está em encerradas
+ * (Ganho, Perda, Sem resposta) ou em nenhuma está fora — e é dali que sai a próxima abordagem.
  */
 
 export type ContactTab = 'todos' | 'no_pipeline' | 'fora';
@@ -20,11 +21,11 @@ export interface ContactSort {
 
 export interface ContactRow {
   contact: ProspectContactWithCompany;
-  /** Do mais recente para o mais antigo. */
+  /** As oportunidades da pessoa, da mais recente para a mais antiga. */
   cards: ProspectWithCompany[];
-  /** O card em andamento, se houver — no máximo um é o esperado. */
+  /** A oportunidade em andamento mais recente, se houver — pode haver mais de uma. */
   aberto: ProspectWithCompany | null;
-  /** O card mais recente, aberto ou encerrado: o último desfecho de quem está fora. */
+  /** A oportunidade mais recente, aberta ou encerrada: o último desfecho de quem está fora. */
   ultimo: ProspectWithCompany | null;
 }
 
@@ -36,19 +37,19 @@ export interface ContactQuery {
 const NO_PIPELINE: ContactTab = 'no_pipeline';
 const FORA: ContactTab = 'fora';
 
-/** Cards agrupados pela pessoa, do mais recente para o mais antigo. */
+/** Oportunidades agrupadas por pessoa, da mais recente para a mais antiga. */
 export function cardsByContact(cards: ProspectWithCompany[]): Map<string, ProspectWithCompany[]> {
   const mapa = new Map<string, ProspectWithCompany[]>();
   for (const card of cards) {
-    const lista = mapa.get(card.contact_id) ?? [];
-    lista.push(card);
-    mapa.set(card.contact_id, lista);
+    for (const { contact_id } of card.contacts ?? []) {
+      mapa.set(contact_id, [...(mapa.get(contact_id) ?? []), card]);
+    }
   }
   for (const lista of mapa.values()) lista.sort((a, b) => b.created_at.localeCompare(a.created_at));
   return mapa;
 }
 
-/** O card em andamento da pessoa — o que impede abrir um segundo para ela. */
+/** A oportunidade em andamento mais recente da pessoa. */
 export function openCardOf(cards: ProspectWithCompany[] | undefined): ProspectWithCompany | null {
   return cards?.find((c) => !isProspectClosed(c.stage)) ?? null;
 }

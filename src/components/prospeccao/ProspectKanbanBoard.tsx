@@ -52,13 +52,12 @@ const DIALOGO_DO_MODO: Partial<Record<ProspectAdvanceMode, Dialogo>> = {
 
 interface ProspectKanbanBoardProps {
   prospects: ProspectWithCompany[];
-  /** Empresa → contatos dela em conversa ou além (ver `contactsInConversationByCompany`). */
-  emConversaPorEmpresa: Map<string, ProspectWithCompany[]>;
+  /** Empresa → oportunidades dela em andamento (`opportunitiesInProgressByCompany`). */
+  emAndamentoPorEmpresa: Map<string, ProspectWithCompany[]>;
   onOpen: (prospect: ProspectWithCompany) => void;
-  agruparPorEmpresa?: boolean;
 }
 
-export function ProspectKanbanBoard({ prospects, emConversaPorEmpresa, onOpen, agruparPorEmpresa }: ProspectKanbanBoardProps) {
+export function ProspectKanbanBoard({ prospects, emAndamentoPorEmpresa, onOpen }: ProspectKanbanBoardProps) {
   const atualizarEtapa = useUpdateProspectStage();
   const { porContato: proximaTarefa } = usePendingProspectTasks();
   const [arrastando, setArrastando] = useState<ProspectWithCompany | null>(null);
@@ -139,10 +138,9 @@ export function ProspectKanbanBoard({ prospects, emConversaPorEmpresa, onOpen, a
               label={PROSPECT_STAGE_META[stage].label}
               prospects={visiveis}
               recorte={recorte}
-              emConversaPorEmpresa={emConversaPorEmpresa}
-              proximaTarefaPorContato={proximaTarefa}
+              emAndamentoPorEmpresa={emAndamentoPorEmpresa}
+              proximaTarefaPorOportunidade={proximaTarefa}
               onOpen={onOpen}
-              agruparPorEmpresa={agruparPorEmpresa}
             />
           );
         })}
@@ -157,7 +155,7 @@ export function ProspectKanbanBoard({ prospects, emConversaPorEmpresa, onOpen, a
           <ProspectKanbanCard
             prospect={arrastando}
             currentStage={arrastando.stage}
-            emConversa={emConversaPorEmpresa.get(arrastando.company_id)}
+            emAndamentoPorEmpresa={emAndamentoPorEmpresa}
             onOpen={() => undefined}
             isOverlay
           />

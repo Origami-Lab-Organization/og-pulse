@@ -16,6 +16,7 @@ import {
   type ProspectAttachment,
 } from '@/lib/prospectAttachments';
 import type { ProspectWithCompany } from '@/types/prospect';
+import { ActivityContactSelect } from './ActivityContactSelect';
 
 interface ProspectActivityComposerProps {
   prospect: ProspectWithCompany;
@@ -28,8 +29,9 @@ interface ProspectActivityComposerProps {
  * toque sem relato enchia a linha do tempo de atividades que não diziam nada. Anexo
  * continua opcional, mas sozinho não basta — o texto é o que explica o anexo.
  *
- * O canal fica à esquerda do envio porque é decisão da atividade, não do contato: o canal
- * principal só define o valor inicial.
+ * O canal fica à esquerda do envio porque é decisão da atividade, não da oportunidade: o
+ * canal principal só define o valor inicial. "Com quem" (09/10/2026) é opcional e começa
+ * vazio — marcar a pessoa ajuda quem lê depois, mas não pode custar o registro.
  */
 export function ProspectActivityComposer({ prospect }: ProspectActivityComposerProps) {
   const { employee } = useAuth();
@@ -38,6 +40,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
 
   const [texto, setTexto] = useState('');
   const [canal, setCanal] = useState(prospect.primary_channel);
+  const [comQuem, setComQuem] = useState<string | null>(null);
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [enviando, setEnviando] = useState(false);
 
@@ -62,6 +65,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
       const anexos = await subirAnexos(arquivos, employee!.tenant_id, prospect.id);
       const atividade = await registrar.mutateAsync({
         prospect_id: prospect.id,
+        contact_id: comQuem,
         channel: canal,
         got_response: false,
         notes: texto.trim() || null,
@@ -70,6 +74,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
       setTexto('');
       setArquivos([]);
       setCanal(prospect.primary_channel);
+      setComQuem(null);
       toast({
         title: `Atividade nº ${atividade.sequence_no} registrada`,
         description: 'A próxima data foi agendada pela cadência.',
@@ -162,6 +167,13 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
             ))}
           </SelectContent>
         </Select>
+
+        <ActivityContactSelect
+          contatos={prospect.contacts ?? []}
+          value={comQuem}
+          onChange={setComQuem}
+          disabled={ocupado}
+        />
 
         <Button
           type="button"

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Building2, ExternalLink, History } from 'lucide-react';
+import { ExternalLink, History, UserRound } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   commercialContactHref,
@@ -15,9 +15,9 @@ interface ProspectOriginLinkProps {
 }
 
 /**
- * Origem comercial do projeto: o contato da Prospecção que virou este projeto
- * (`projects.prospect_id`). Substituiu o histórico da oportunidade em 29/09/2026 — o
- * histórico completo agora é o do contato, no quadro da Prospecção.
+ * Origem comercial do projeto: a oportunidade que virou este projeto (`projects.prospect_id`).
+ * Substituiu o histórico da oportunidade antiga em 29/09/2026; desde 09/10/2026 a
+ * oportunidade é da empresa e leva o nome dela, com o contato principal ao lado.
  */
 export function ProspectOriginLink({ prospectId }: ProspectOriginLinkProps) {
   const { can } = useAuth();
@@ -32,13 +32,13 @@ export function ProspectOriginLink({ prospectId }: ProspectOriginLinkProps) {
 
   if (!prospectId) {
     return (
-      <p className="text-xs text-muted-foreground">Projeto criado sem contato de origem na Prospecção.</p>
+      <p className="text-xs text-muted-foreground">Projeto criado sem oportunidade de origem.</p>
     );
   }
 
   if (!canRead) {
     return (
-      <p className="text-xs text-muted-foreground">Origem comercial registrada na Prospecção.</p>
+      <p className="text-xs text-muted-foreground">Origem comercial registrada numa oportunidade.</p>
     );
   }
 
@@ -65,18 +65,18 @@ export function ProspectOriginLink({ prospectId }: ProspectOriginLinkProps) {
         <History className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium leading-tight">
-            {contact ? contact.contact_name : 'Carregando…'}
+            {contact ? nomeDaOportunidade(contact) : 'Carregando…'}
           </p>
           {contact && (
             <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-              {contact.company?.name && (
+              {contact.contact_name && (
                 <>
-                  <Building2 className="h-3 w-3 shrink-0" aria-hidden="true" />
-                  <span>{contact.company.name}</span>
+                  <UserRound className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  <span>{contact.contact_name}</span>
                   <span>·</span>
                 </>
               )}
-              <span>Cadastrado em {format(new Date(contact.created_at), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              <span>Cadastrada em {format(new Date(contact.created_at), 'dd/MM/yyyy', { locale: ptBR })}</span>
               <span>·</span>
               <span className="font-medium text-primary">{getProspectStageLabel(contact.stage)}</span>
             </div>
@@ -86,4 +86,9 @@ export function ProspectOriginLink({ prospectId }: ProspectOriginLinkProps) {
       <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
     </Link>
   );
+}
+
+/** A oportunidade leva o nome da empresa (09/10/2026). */
+function nomeDaOportunidade(contact: { company: { name: string } | null }): string {
+  return contact.company?.name ?? 'Oportunidade';
 }

@@ -24,7 +24,7 @@ export async function fetchCompanyPartners(companyId: string): Promise<ProspectC
 }
 
 export type PartnerContactFields = Partial<
-  Pick<ProspectCompanyPartnerDB, 'linkedin_url' | 'instagram_url' | 'telefone' | 'prospect_id'>
+  Pick<ProspectCompanyPartnerDB, 'linkedin_url' | 'instagram_url' | 'telefone' | 'prospect_id' | 'contact_id'>
 >;
 
 export async function updatePartner(id: string, campos: PartnerContactFields): Promise<void> {

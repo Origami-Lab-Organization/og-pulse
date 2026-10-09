@@ -3,17 +3,15 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DiscardProspectDialog } from '@/components/prospeccao/DiscardProspectDialog';
 import { ProspectDetailDialog } from '@/components/prospeccao/ProspectDetailDialog';
 import { ProspectFilterButton } from '@/components/prospeccao/ProspectFilterButton';
-import { ProspectFormDialog } from '@/components/prospeccao/ProspectFormDialog';
+import { OpportunityFormDialog } from '@/components/prospeccao/OpportunityFormDialog';
 import { ProspectKanbanBoard } from '@/components/prospeccao/ProspectKanbanBoard';
 import { ProspectWonDialog } from '@/components/prospeccao/ProspectWonDialog';
 import { useProspects } from '@/hooks/useProspects';
-import { contactsInConversationByCompany } from '@/lib/prospecting/companyStatus';
+import { opportunitiesInProgressByCompany } from '@/lib/prospecting/companyStatus';
 import {
   applyProspectFilter,
   countActiveFilters,
@@ -23,13 +21,13 @@ import {
 import { PROSPECT_BOARD_STAGES, type ProspectWithCompany } from '@/types/prospect';
 
 /**
- * Prospecção — o quadro comercial de ponta a ponta (28/09/2026): do primeiro toque ao
- * fechamento. O contato sai do trabalho de dois jeitos só, Ganho ou Perda, e os dois são
- * colunas do quadro — a aba de encerrados deixou de existir. As Métricas, que eram a outra
- * aba, viraram item do menu Comercial em 29/09/2026 (`/comercial/metricas`).
+ * Oportunidades — o quadro comercial de ponta a ponta (28/09/2026): do primeiro toque ao
+ * fechamento. Até 09/10/2026 o menu se chamava Prospecção e cada card era um contato; agora
+ * cada card é uma oportunidade da EMPRESA, com o nome dela e os contatos dentro. A rota
+ * continua `/comercial/prospeccao`, para não quebrar link salvo.
  *
- * O quadro abre primeiro: com a lista diária removida (17/09/2026), é por ele que a pessoa
- * encontra o que precisa de ação — a data de vencimento fica no card.
+ * A oportunidade sai do trabalho de dois jeitos só, Ganho ou Perda, e os dois são colunas do
+ * quadro. As Métricas viraram item do menu Comercial em 29/09/2026 (`/comercial/metricas`).
  */
 export default function Prospeccao() {
   const { data: todos = [], isLoading } = useProspects();
@@ -39,30 +37,31 @@ export default function Prospeccao() {
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
   const [filtro, setFiltro] = useState<ProspectFilter>(FILTRO_VAZIO);
-  const [agrupar, setAgrupar] = useState(lerPreferenciaDeAgrupar);
-  // `?contato=<id>`: o link que vem de Clientes, Projetos e das Métricas (29/09/2026).
+  // `?oportunidade=<id>`: o link que vem de Clientes, Projetos e das Métricas. `?contato=` é o
+  // nome de antes de 09/10/2026 e continua valendo para link salvo — o id é o mesmo.
   const [params, setParams] = useSearchParams();
-  const contatoDoLink = params.get('contato');
+  const idDoLink = params.get('oportunidade') ?? params.get('contato');
   // O quadro inteiro: o trabalho em aberto e os dois desfechos, Ganho e Perda (28/09/2026).
   const noFunil = useMemo(
     () => todos.filter((p) => PROSPECT_BOARD_STAGES.includes(p.stage)),
     [todos],
   );
-  // Sobre TODOS os contatos, inclusive os encerrados: quem já está em conversa ocupa a empresa.
-  const emConversaPorEmpresa = useMemo(() => contactsInConversationByCompany(todos), [todos]);
+  // Sobre todas as oportunidades: o balão avisa a outra da mesma empresa em andamento.
+  const emAndamentoPorEmpresa = useMemo(() => opportunitiesInProgressByCompany(todos), [todos]);
   const noFunilFiltrado = useMemo(() => applyProspectFilter(noFunil, filtro), [noFunil, filtro]);
   const filtrando = countActiveFilters(filtro) > 0;
 
   useEffect(() => {
-    if (!contatoDoLink || isLoading) return;
-    const alvo = todos.find((p) => p.id === contatoDoLink);
+    if (!idDoLink || isLoading) return;
+    const alvo = todos.find((p) => p.id === idDoLink);
     if (alvo) setSelecionado(alvo);
     // O parâmetro sai depois de usado: fechar a ficha não pode reabri-la.
     setParams((atual) => {
+      atual.delete('oportunidade');
       atual.delete('contato');
       return atual;
     }, { replace: true });
-  }, [contatoDoLink, isLoading, todos, setParams]);
+  }, [idDoLink, isLoading, todos, setParams]);
 
   // O detalhe precisa refletir a linha recém-invalidada, não a cópia do clique.
   const selecionadoAtual = useMemo(
@@ -77,13 +76,13 @@ export default function Prospeccao() {
     // A página é só o quadro: ele prende a altura na janela e rola só dentro das colunas.
     <AppLayout
       fillViewport
-      title="Prospecção"
-      description="Do primeiro contato ao fechamento: cada contato termina em Ganho ou Perda"
-      breadcrumbs={[{ label: 'Comercial' }, { label: 'Prospecção' }]}
+      title="Oportunidades"
+      description="Do primeiro contato ao fechamento: cada oportunidade termina em Ganho ou Perda"
+      breadcrumbs={[{ label: 'Comercial' }, { label: 'Oportunidades' }]}
       actions={
         <Button onClick={() => setNovoAberto(true)}>
           <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-          Novo contato
+          Nova oportunidade
         </Button>
       }
     >
@@ -92,20 +91,9 @@ export default function Prospeccao() {
           {filtrando && (
             <p className="text-sm text-muted-foreground">
               {noFunilFiltrado.length} de {noFunil.length}{' '}
-              {noFunil.length === 1 ? 'contato' : 'contatos'}
+              {noFunil.length === 1 ? 'oportunidade' : 'oportunidades'}
             </p>
           )}
-          <div className="flex items-center gap-2">
-            <Switch
-              id="agrupar-empresa"
-              checked={agrupar}
-              onCheckedChange={(v) => {
-                setAgrupar(v);
-                guardarPreferenciaDeAgrupar(v);
-              }}
-            />
-            <Label htmlFor="agrupar-empresa" className="text-sm font-normal">Agrupar por empresa</Label>
-          </div>
           <ProspectFilterButton filtro={filtro} onChange={setFiltro} />
         </div>
 
@@ -114,14 +102,18 @@ export default function Prospeccao() {
         ) : (
           <ProspectKanbanBoard
             prospects={noFunilFiltrado}
-            emConversaPorEmpresa={emConversaPorEmpresa}
+            emAndamentoPorEmpresa={emAndamentoPorEmpresa}
             onOpen={setSelecionado}
-            agruparPorEmpresa={agrupar}
           />
         )}
       </div>
 
-      <ProspectFormDialog open={novoAberto} onOpenChange={setNovoAberto} />
+      {/* Criada a oportunidade, a ficha abre: é lá que entram os contatos e o primeiro toque. */}
+      <OpportunityFormDialog
+        open={novoAberto}
+        onOpenChange={setNovoAberto}
+        onOpenOpportunity={setSelecionado}
+      />
 
       <ProspectDetailDialog
         prospect={selecionadoAtual}
@@ -144,23 +136,4 @@ export default function Prospeccao() {
       />
     </AppLayout>
   );
-}
-
-/** Preferência de quem está vendo, neste navegador: conveniência, não dado do sistema. */
-const CHAVE_AGRUPAR = 'pulse.prospeccao.agruparPorEmpresa';
-
-function lerPreferenciaDeAgrupar(): boolean {
-  try {
-    return localStorage.getItem(CHAVE_AGRUPAR) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function guardarPreferenciaDeAgrupar(valor: boolean): void {
-  try {
-    localStorage.setItem(CHAVE_AGRUPAR, valor ? '1' : '0');
-  } catch {
-    // navegação privada ou storage bloqueado: a chave só não é lembrada
-  }
 }

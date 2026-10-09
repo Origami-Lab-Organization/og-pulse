@@ -28,6 +28,7 @@ sources:
   - supabase/migrations/20261001190000_prospect_contacts.sql
   - supabase/migrations/20261001200000_prospect_company_faturamento.sql
   - supabase/migrations/20261002120000_prospect_une_cards_duplicados.sql
+  - supabase/migrations/20261009120000_oportunidade_por_empresa.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
@@ -79,7 +80,13 @@ sources:
 # 02/10/2026: 20261002120000 — une cards duplicados por erro e cria trigger + índice único
 #  parcial (um card em andamento por contact_id); sem tabela nova em public, só o arquivo
 #  legado_contatos.uniao_*. Ensaiado (ida/volta) num Postgres local.
-verified: 2026-10-02
+# 09/10/2026: 20261009120000 — o card vira a oportunidade da EMPRESA: prospect_opportunity_contacts
+#  (N contatos por oportunidade, com papel), prospects.contact_id/contact_name opcionais (contato
+#  principal mantido por trigger), prospect_activities.contact_id e prospect_company_partners.
+#  contact_id; sai o "um card em andamento por pessoa". Cards em andamento e perdidos unidos por
+#  empresa (Ganho separado). Conferido contra ProspectDB/ProspectOpportunityContact/
+#  ProspectActivityDB/ProspectCompanyPartnerDB e ensaiado em PGlite (ida/volta/ida, 105 checagens).
+verified: 2026-10-09
 ---
 
 # ERD — Entidades e Relações
@@ -119,10 +126,11 @@ O Pipeline de Oportunidades (`leads`, `lead_services`, `lead_interactions`,
 ## Cluster 1b — Prospecção (quadro comercial de ponta a ponta)
 
 Nasceu separada do Pipeline (15/09/2026) e virou o único quadro comercial: Ganho e
-Perda em 28/09/2026 e, em 29/09/2026, a absorção das Oportunidades (ADR-0040). O
-contato carrega valor estimado e vendido; o orçamento e o projeto apontam para ele. Desde
-01/10/2026 a pessoa é cadastro próprio (`prospect_contacts`, ADR-0045) e o card aponta para
-ela.
+Perda em 28/09/2026 e, em 29/09/2026, a absorção das Oportunidades (ADR-0040). Desde
+01/10/2026 a pessoa é cadastro próprio (`prospect_contacts`, ADR-0045). Desde 09/10/2026
+(menu "Oportunidades") o card é a oportunidade da EMPRESA: carrega valor estimado e vendido,
+o orçamento e o projeto apontam para ele, e as pessoas entram por
+`prospect_opportunity_contacts`, cada uma com papel.
 
 ```mermaid
 erDiagram
@@ -132,16 +140,20 @@ erDiagram
     prospect_companies ||--o{ prospects : "company_id (conta do negócio)"
     tenants ||--o{ prospect_contacts : ""
     prospect_companies ||--o{ prospect_contacts : "company_id (empresa atual — não propaga)"
-    prospect_contacts ||--o{ prospects : "contact_id (um card em andamento por vez — índice único parcial)"
+    prospects ||--o{ prospect_opportunity_contacts : "contatos da oportunidade (cascade)"
+    prospect_contacts ||--o{ prospect_opportunity_contacts : "contact_id (sem cascade: quem está em oportunidade não sai)"
+    prospect_contacts |o--o{ prospects : "contact_id = contato PRINCIPAL, mantido por trigger (NULL = sem contato)"
+    prospect_contacts |o--o{ prospect_activities : "contact_id = com quem foi (opcional)"
     prospect_companies ||--o{ prospect_company_partners : "QSA da Receita (ADR-0041)"
-    prospect_company_partners |o--o| prospects : "prospect_id (Virar contato)"
+    prospect_company_partners |o--o| prospect_contacts : "contact_id (Virar contato, desde 09/10/2026)"
+    prospect_company_partners |o--o| prospects : "prospect_id (Virar contato até 09/10/2026 — histórico)"
     fomento_publico }o..o{ prospect_companies : "por CNPJ (sem FK: referência pública)"
     prospects ||--o{ prospect_activities : ""
     prospects ||--o{ prospect_tasks : ""
     prospects ||--o{ prospect_stage_changes : "trigger em INSERT e UPDATE OF stage"
     employees ||--o{ prospect_tasks : "owner_id (herdado do contato)"
     employees ||--o{ prospects : "owner_id"
-    prospects |o--o| budgets : "budgets.prospect_id (um por contato)"
+    prospects |o--o| budgets : "budgets.prospect_id (um por oportunidade)"
     prospects |o--o{ projects : "projects.prospect_id (projeto do Ganho)"
 
     prospect_companies {
@@ -182,8 +194,14 @@ erDiagram
         text role ""
         text phone ""
     }
+    prospect_opportunity_contacts {
+        uuid prospect_id "PK com contact_id"
+        uuid contact_id ""
+        uuid tenant_id "herdado da oportunidade (trigger guard)"
+        text role "decisor|influenciador|usuario|bloqueador|campeao — NULL = sem papel"
+    }
     prospects {
-        uuid contact_id "a pessoa (NOT NULL); contact_* e redes são cópia dela, por trigger"
+        uuid contact_id "contato principal (opcional); contact_* e redes são cópia dele, por trigger"
         text stage "6 de trabalho + ganho + descartado (Perda); sem_resposta só em linhas antigas"
         text lever "Alavanca / origem da lista"
         text instagram_url "perfil pessoal do contato"
@@ -198,6 +216,7 @@ erDiagram
     }
     prospect_activities {
         int sequence_no "preenchido pelo trigger; único por prospect"
+        uuid contact_id "com quem foi — opcional, mesmo tenant (trigger)"
         text channel "phone|whatsapp|email|in_person|video_call|linkedin|other"
         bool got_response "base de toda métrica"
         jsonb attachments "[{path,name,size,type,bucket?}] — bucket lead-attachments nos migrados"
@@ -218,8 +237,18 @@ erDiagram
 ```
 
 Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000`, `20260917115000`,
-`20260917180000`, `20260917190000`, `20260923120000`, `20260924120000`, `20260928120000` e
-`20261001190000` e `20261001200000`.
+`20260917180000`, `20260917190000`, `20260923120000`, `20260924120000`, `20260928120000`,
+`20261001190000`, `20261001200000` e `20261009120000`.
+
+`prospect_opportunity_contacts` (09/10/2026) liga a oportunidade às pessoas. Três triggers
+mantêm o contato principal (`prospects.contact_id`): o primeiro vínculo vira principal
+(`prospect_opportunity_contacts_set_principal`); o principal que sai é substituído pelo
+decisor, depois pelo mais antigo, ou fica NULL (`..._replace_principal`); e card gravado com
+`contact_id` pelo caminho antigo (MCP, seed) ganha o vínculo sozinho
+(`prospects_link_opportunity_contact`). Trocar a pessoa de um vínculo é recusado: só o papel
+muda. A migração uniu, por empresa, os cards em andamento e perdidos (Ganho separado; empresa
+com 2+ orçamentos não unida) e marcou cada atividade com a pessoa do card de origem; o estado
+anterior fica em `legado_contatos.oportunidade_*`, fora da API.
 
 `prospect_contacts` (01/10/2026, ADR-0045) é a pessoa; o card (`prospects`) guarda o negócio.
 Os campos de contato do card são cópia da pessoa, mantida por três triggers SECURITY INVOKER:

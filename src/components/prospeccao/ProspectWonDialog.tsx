@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMarkProspectWon } from '@/hooks/useProspects';
 import { ProspectProjectDialog } from './ProspectProjectDialog';
-import { toISODate, type ProspectStage, type ProspectWithCompany } from '@/types/prospect';
+import { opportunityName, toISODate, type ProspectStage, type ProspectWithCompany } from '@/types/prospect';
 
 const ETAPA_GANHO: ProspectStage = 'ganho';
 
@@ -132,8 +132,7 @@ export function ProspectWonDialog(props: ProspectWonDialogProps) {
 }
 
 function descricaoDe(prospect: ProspectWithCompany): string {
-  const empresa = prospect.company?.name ? ` · ${prospect.company.name}` : '';
-  return `${prospect.contact_name}${empresa}. O cliente aceitou a proposta.`;
+  return `${opportunityName(prospect)}. O cliente aceitou a proposta.`;
 }
 
 interface RodapeProps {

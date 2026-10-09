@@ -1,16 +1,22 @@
-import type { PendingTaskLite, ProspectCompanyDB, ProspectStage, ProspectWithCompany } from '@/types/prospect';
+import type {
+  PendingTaskLite,
+  ProspectCompanyDB,
+  ProspectContactDB,
+  ProspectStage,
+  ProspectWithCompany,
+} from '@/types/prospect';
 import { parseRank, parseSegment } from './companySegmentation';
 
 /**
- * Situação da EMPRESA na prospecção, derivada dos contatos dela (24/09/2026).
+ * Situação da EMPRESA na prospecção, derivada das oportunidades dela (24/09/2026; desde
+ * 09/10/2026 cada card é uma oportunidade da empresa, não um contato).
  *
- * Responde uma pergunta só: "posso abordar esta empresa agora?". A regra de CRM por trás é
- * não atravessar uma conversa que já existe, nem voltar a quem pediu para parar. Por isso a
- * situação é da empresa, não do contato: basta UM contato de "Respondeu" em diante para a
- * conta inteira ficar em "Não abordar".
+ * Responde uma pergunta só: "posso abordar esta empresa agora?". A regra comercial por trás é
+ * não atravessar uma conversa que já existe, nem voltar a quem pediu para parar: basta UMA
+ * oportunidade de "Respondeu" em diante para a conta inteira ficar em "Não abordar".
  *
- * Cadência NÃO bloqueia (24/09/2026, Guilherme): é tentativa sem resposta, e abordar outro
- * contato da mesma empresa enquanto ela corre é legítimo.
+ * Cadência NÃO bloqueia (24/09/2026, Guilherme): é tentativa sem resposta. O quadro sinaliza a
+ * segunda oportunidade em cadência com o balão (`ETAPAS_EM_ANDAMENTO`), mas não a proíbe.
  *
  * A ordem da lista é a prioridade — a primeira que se aplica vence.
  */
@@ -61,13 +67,13 @@ export const COMPANY_STATUS_META: Record<CompanyProspectStatus, CompanyStatusMet
   },
   na_fila: {
     label: 'Na fila',
-    hint: 'Contato cadastrado, ainda sem toque',
+    hint: 'Oportunidade criada, ainda sem toque',
     action: 'abordar',
     dot: 'bg-muted-foreground/50',
   },
   sem_contato: {
-    label: 'Sem contato',
-    hint: 'Cadastre um contato para começar',
+    label: 'Sem oportunidade',
+    hint: 'Crie uma oportunidade para começar',
     action: 'abordar',
     dot: 'bg-border',
   },
@@ -98,68 +104,90 @@ export const ETAPAS_EM_CONVERSA: readonly ProspectStage[] = [
 /** Vendemos (Ganho) — ou, nas linhas antigas, passou ao Pipeline (Convertido). */
 const ETAPAS_DE_CLIENTE: readonly ProspectStage[] = ['ganho', 'convertido'];
 
-/** Conversa aberta ou já fechada: o contato que ocupa a empresa. */
-export function isContactInConversation(contato: Pick<ProspectWithCompany, 'stage'>): boolean {
-  return ETAPAS_EM_CONVERSA.includes(contato.stage) || ETAPAS_DE_CLIENTE.includes(contato.stage);
+/**
+ * O balão de atenção do quadro (09/10/2026, Guilherme): a empresa tem OUTRA oportunidade no
+ * funil, de "Em cadência" em diante. Antes o balão começava em "Respondeu", porque olhava
+ * contatos da mesma conta; com a oportunidade sendo da empresa, uma segunda oportunidade em
+ * cadência já é o time abordando a mesma conta duas vezes. "A abordar" não conta (ninguém
+ * tocou ainda), e Ganho e Perda também não: saíram do funil.
+ */
+export const ETAPAS_EM_ANDAMENTO: readonly ProspectStage[] = [
+  'em_cadencia',
+  ...ETAPAS_EM_CONVERSA,
+];
+
+export function isOpportunityInProgress(oportunidade: Pick<ProspectWithCompany, 'stage'>): boolean {
+  return ETAPAS_EM_ANDAMENTO.includes(oportunidade.stage);
 }
 
 /**
- * Para o Kanban da Prospecção: empresa → contatos dela que estão em conversa ou além.
- * O card de cada contato consulta aqui se OUTRO contato da mesma empresa já conversa.
+ * Empresa → oportunidades dela em andamento. O card consulta aqui se OUTRA oportunidade da
+ * mesma empresa está no funil (`otherOpportunitiesInProgress`).
  */
-export function contactsInConversationByCompany(
+export function opportunitiesInProgressByCompany(
   prospects: ProspectWithCompany[],
 ): Map<string, ProspectWithCompany[]> {
   const mapa = new Map<string, ProspectWithCompany[]>();
-  for (const p of prospects.filter(isContactInConversation)) {
+  for (const p of prospects.filter(isOpportunityInProgress)) {
     mapa.set(p.company_id, [...(mapa.get(p.company_id) ?? []), p]);
   }
   return mapa;
 }
 
-type ContatoParaSituacao = Pick<ProspectWithCompany, 'stage' | 'discard_reason'>;
+/** As outras oportunidades em andamento da mesma empresa — a lista do balão e do aviso. */
+export function otherOpportunitiesInProgress(
+  oportunidade: Pick<ProspectWithCompany, 'id' | 'company_id'>,
+  porEmpresa: Map<string, ProspectWithCompany[]>,
+): ProspectWithCompany[] {
+  return (porEmpresa.get(oportunidade.company_id) ?? []).filter((o) => o.id !== oportunidade.id);
+}
+
+type OportunidadeParaSituacao = Pick<ProspectWithCompany, 'stage' | 'discard_reason'>;
 
 interface Contexto {
   temCliente: boolean;
   etapas: ProspectStage[];
-  contatos: ContatoParaSituacao[];
+  oportunidades: OportunidadeParaSituacao[];
 }
 
 /** Em ordem de prioridade: a primeira regra que se aplica decide a situação. */
 const REGRAS: ReadonlyArray<[CompanyProspectStatus, (c: Contexto) => boolean]> = [
   ['cliente', (c) => c.temCliente || c.etapas.some((e) => ETAPAS_DE_CLIENTE.includes(e))],
   ['em_conversa', (c) => c.etapas.some((e) => ETAPAS_EM_CONVERSA.includes(e))],
-  ['pediu_para_parar', (c) => c.contatos.some(pediuParaParar)],
+  ['pediu_para_parar', (c) => c.oportunidades.some(pediuParaParar)],
   ['em_cadencia', (c) => c.etapas.includes('em_cadencia')],
   ['na_fila', (c) => c.etapas.includes('a_abordar')],
-  ['sem_contato', (c) => c.contatos.length === 0],
+  ['sem_contato', (c) => c.oportunidades.length === 0],
 ];
 
 export function companyProspectStatus(
   company: Pick<ProspectCompanyDB, 'client_id'>,
-  contatos: ContatoParaSituacao[],
+  oportunidades: OportunidadeParaSituacao[],
 ): CompanyProspectStatus {
   const contexto: Contexto = {
     temCliente: !!company.client_id,
-    etapas: contatos.map((c) => c.stage),
-    contatos,
+    etapas: oportunidades.map((c) => c.stage),
+    oportunidades,
   };
   return REGRAS.find(([, aplica]) => aplica(contexto))?.[0] ?? 'sem_retorno';
 }
 
-function pediuParaParar(contato: ContatoParaSituacao): boolean {
-  return contato.stage === 'descartado' && contato.discard_reason === 'pediu_para_parar';
+function pediuParaParar(oportunidade: OportunidadeParaSituacao): boolean {
+  return oportunidade.stage === 'descartado' && oportunidade.discard_reason === 'pediu_para_parar';
 }
 
-/** Linha da tabela de empresas: a empresa, os contatos dela e o que se deriva deles. */
+/** Linha da tabela de empresas: a empresa, as oportunidades e os contatos dela. */
 export interface CompanyRow {
   company: ProspectCompanyDB;
-  contacts: ProspectWithCompany[];
+  /** Os cards do Pipeline da empresa — desde 09/10/2026, as oportunidades dela. */
+  opportunities: ProspectWithCompany[];
+  /** As pessoas cadastradas na empresa (`prospect_contacts`), em oportunidade ou não. */
+  contacts: ProspectContactDB[];
   status: CompanyProspectStatus;
-  /** Donos distintos dos contatos, na ordem em que aparecem. */
+  /** Donos distintos das oportunidades, na ordem em que aparecem. */
   ownerIds: string[];
   /**
-   * O prazo da tarefa pendente mais urgente entre os contatos (28/09/2026). Era a data da
+   * O prazo da tarefa pendente mais urgente entre as oportunidades (28/09/2026). Era a data da
    * cadência; passou a ser a tarefa, o único prazo que alguém do time assumiu.
    */
   nextTaskOn: string | null;
@@ -174,16 +202,13 @@ export function buildCompanyRows(
   companies: ProspectCompanyDB[],
   prospects: ProspectWithCompany[],
   proximaTarefa: Map<string, PendingTaskLite> = new Map(),
+  pessoas: ProspectContactDB[] = [],
 ): CompanyRow[] {
-  const porEmpresa = new Map<string, ProspectWithCompany[]>();
-  for (const p of prospects) {
-    const lista = porEmpresa.get(p.company_id) ?? [];
-    lista.push(p);
-    porEmpresa.set(p.company_id, lista);
-  }
+  const porEmpresa = agruparPorEmpresa(prospects);
+  const pessoasPorEmpresa = agruparPorEmpresa(pessoas);
 
   return companies.map((company) => {
-    const contacts = porEmpresa.get(company.id) ?? [];
+    const opportunities = porEmpresa.get(company.id) ?? [];
     const { setor, subsetor } = parseSegment(company.segment);
     return {
       company,
@@ -191,12 +216,19 @@ export function buildCompanyRows(
       subsetor,
       anel: parseRank(company.ring),
       tier: parseRank(company.tier),
-      contacts,
-      status: companyProspectStatus(company, contacts),
-      ownerIds: distintos(contacts.map((c) => c.owner_id)),
-      nextTaskOn: menorData(contacts.map((c) => proximaTarefa.get(c.id)?.due_date ?? null)),
+      opportunities,
+      contacts: pessoasPorEmpresa.get(company.id) ?? [],
+      status: companyProspectStatus(company, opportunities),
+      ownerIds: distintos(opportunities.map((c) => c.owner_id)),
+      nextTaskOn: menorData(opportunities.map((c) => proximaTarefa.get(c.id)?.due_date ?? null)),
     };
   });
+}
+
+function agruparPorEmpresa<T extends { company_id: string }>(itens: T[]): Map<string, T[]> {
+  const mapa = new Map<string, T[]>();
+  for (const item of itens) mapa.set(item.company_id, [...(mapa.get(item.company_id) ?? []), item]);
+  return mapa;
 }
 
 function distintos(ids: Array<string | null>): string[] {

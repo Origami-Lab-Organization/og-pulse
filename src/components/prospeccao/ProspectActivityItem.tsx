@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Download, Loader2, Paperclip, Pencil, X } from 'lucide-react';
+import { Download, Loader2, Paperclip, Pencil, UserRound, X } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,11 +21,14 @@ import {
   type ProspectAttachment,
 } from '@/lib/prospectAttachments';
 import { cn } from '@/lib/utils';
-import type { ProspectActivityWithOwner } from '@/types/prospect';
+import type { ProspectActivityWithOwner, ProspectOpportunityContact } from '@/types/prospect';
+import { ActivityContactSelect } from './ActivityContactSelect';
 
 interface ProspectActivityItemProps {
   activity: ProspectActivityWithOwner;
   prospectId: string;
+  /** Os contatos da oportunidade: as opções de "com quem" na edição. */
+  contatos: ProspectOpportunityContact[];
   autorNome?: string;
   podeEditar: boolean;
 }
@@ -33,6 +36,7 @@ interface ProspectActivityItemProps {
 export function ProspectActivityItem({
   activity,
   prospectId,
+  contatos,
   autorNome,
   podeEditar,
 }: ProspectActivityItemProps) {
@@ -43,6 +47,7 @@ export function ProspectActivityItem({
       <EditorDeAtividade
         activity={activity}
         prospectId={prospectId}
+        contatos={contatos}
         onFechar={() => setEditando(false)}
       />
     );
@@ -66,6 +71,7 @@ export function ProspectActivityItem({
         >
           {activity.got_response ? 'Teve resposta' : 'Sem resposta'}
         </Badge>
+        <ComQuem contato={activity.contact} />
         <div className="ml-auto flex items-center gap-1">
           <time className="text-xs text-muted-foreground" dateTime={activity.activity_date}>
             {formatarData(activity.activity_date)}
@@ -107,8 +113,20 @@ export function ProspectActivityItem({
   );
 }
 
+/** Com quem foi a atividade (09/10/2026), quando alguém marcou. */
+function ComQuem({ contato }: { contato?: { name: string } | null }) {
+  if (!contato) return null;
+  return (
+    <Badge variant="outline" className="gap-1 font-normal">
+      <UserRound className="h-3 w-3" aria-hidden="true" />
+      <span className="sr-only">Com </span>
+      {contato.name}
+    </Badge>
+  );
+}
+
 /**
- * Edição do conteúdo da atividade: canal, relato e anexos.
+ * Edição do conteúdo da atividade: canal, com quem, relato e anexos.
  *
  * O número, a data e "teve resposta" ficam de fora e seguem visíveis como cabeçalho: os
  * três já produziram efeito quando a atividade foi criada — contaram o toque, agendaram a
@@ -118,10 +136,12 @@ export function ProspectActivityItem({
 function EditorDeAtividade({
   activity,
   prospectId,
+  contatos,
   onFechar,
 }: {
   activity: ProspectActivityWithOwner;
   prospectId: string;
+  contatos: ProspectOpportunityContact[];
   onFechar: () => void;
 }) {
   const { employee } = useAuth();
@@ -130,6 +150,7 @@ function EditorDeAtividade({
 
   const originais = activity.attachments ?? [];
   const [canal, setCanal] = useState(activity.channel);
+  const [comQuem, setComQuem] = useState<string | null>(activity.contact_id);
   const [texto, setTexto] = useState(activity.notes ?? '');
   const [mantidos, setMantidos] = useState<ProspectAttachment[]>(originais);
   const [novos, setNovos] = useState<File[]>([]);
@@ -162,6 +183,7 @@ function EditorDeAtividade({
         input: {
           id: activity.id,
           channel: canal,
+          contact_id: comQuem,
           notes: texto.trim() || null,
           attachments: [...mantidos, ...enviados],
         },
@@ -266,6 +288,14 @@ function EditorDeAtividade({
             ))}
           </SelectContent>
         </Select>
+
+        <ActivityContactSelect
+          contatos={contatos}
+          value={comQuem}
+          onChange={setComQuem}
+          atual={activity.contact}
+          disabled={ocupado}
+        />
 
         <div className="ml-auto flex gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onFechar} disabled={ocupado}>

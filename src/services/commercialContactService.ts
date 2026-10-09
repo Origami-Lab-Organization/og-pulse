@@ -25,9 +25,9 @@ export function commercialContactValue(
   return valor > 0 ? valor : null;
 }
 
-/** Endereço do contato no quadro da Prospecção. */
+/** Endereço da oportunidade no quadro (`?contato=` continua aceito para link antigo). */
 export function commercialContactHref(prospectId: string): string {
-  return `/comercial/prospeccao?contato=${encodeURIComponent(prospectId)}`;
+  return `/comercial/prospeccao?oportunidade=${encodeURIComponent(prospectId)}`;
 }
 
 export async function fetchCommercialContactsByClient(

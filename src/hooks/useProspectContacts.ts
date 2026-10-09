@@ -54,7 +54,7 @@ export function useProspectContactDuplicate(email: string, linkedin: string, ign
   });
 }
 
-/** O contato aparece no card (cópia no banco): mexer nele invalida também a Prospecção. */
+/** O contato aparece nas oportunidades: mexer nele invalida também o quadro. */
 export function invalidarContatos(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['prospect-contacts'] });
   qc.invalidateQueries({ queryKey: ['prospect-contacts-search'] });
@@ -117,8 +117,8 @@ export function mensagemDeContato(err: Error): string {
   if (texto.includes('prospect_contacts_tenant_linkedin_key')) {
     return 'Já existe um contato com este LinkedIn. Selecione-o na busca em vez de cadastrar de novo.';
   }
-  if (texto.includes('prospects_contact_id_fkey')) {
-    return 'Este contato tem cards no Pipeline e não pode ser excluído.';
+  if (texto.includes('prospects_contact_id_fkey') || texto.includes('prospect_opportunity_contacts_contact_id_fkey')) {
+    return 'Este contato está em oportunidades e não pode ser excluído.';
   }
   return mensagemParaUsuario(err);
 }

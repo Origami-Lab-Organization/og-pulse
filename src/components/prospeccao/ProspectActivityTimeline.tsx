@@ -46,6 +46,7 @@ export function ProspectActivityTimeline({
           <ProspectActivityItem
             activity={atividade}
             prospectId={prospect.id}
+            contatos={prospect.contacts ?? []}
             autorNome={atividade.owner_id ? byId.get(atividade.owner_id)?.nome : undefined}
             podeEditar={podeEditar}
           />

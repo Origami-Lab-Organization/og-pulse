@@ -56,9 +56,9 @@ function Linha(props: LinhaProps) {
     <>
       <span className="w-20 shrink-0 tabular-nums text-muted-foreground">{formatDay(item.date).slice(0, 5)}</span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{item.prospect?.contact_name ?? item.company?.name}</span>
-        {item.prospect && (
-          <span className="block truncate text-xs text-muted-foreground">{item.prospect.company?.name ?? '—'}</span>
+        <span className="block truncate font-medium">{item.prospect?.company?.name ?? item.company?.name ?? '—'}</span>
+        {item.prospect?.contact_name && (
+          <span className="block truncate text-xs text-muted-foreground">{item.prospect.contact_name}</span>
         )}
       </span>
       {item.prospect && (

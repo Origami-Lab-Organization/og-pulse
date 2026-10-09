@@ -8,8 +8,9 @@ import { ContactDetailDialog } from '@/components/prospeccao/ContactDetailDialog
 import { ContactTable } from '@/components/prospeccao/ContactTable';
 import { DiscardProspectDialog } from '@/components/prospeccao/DiscardProspectDialog';
 import { AbasDaLista, EstadoVazio, RodapeDaLista } from '@/components/prospeccao/ListaDeCadastro';
+import { ContactFormDialog } from '@/components/prospeccao/ContactFormDialog';
+import { OpportunityFormDialog } from '@/components/prospeccao/OpportunityFormDialog';
 import { ProspectDetailDialog } from '@/components/prospeccao/ProspectDetailDialog';
-import { ProspectFormDialog } from '@/components/prospeccao/ProspectFormDialog';
 import { ProspectWonDialog } from '@/components/prospeccao/ProspectWonDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProspectContacts } from '@/hooks/useProspectContacts';
@@ -38,9 +39,9 @@ const ABAS: ReadonlyArray<{ valor: ContactTab; rotulo: string }> = [
 ];
 
 /**
- * Contatos da prospecção (01/10/2026, ADR-0045) — a visão por PESSOA, como Empresas é a visão
- * por conta. Todo contato criado na Prospecção aparece aqui; o criado aqui fica fora do
- * Pipeline até alguém levar para a Prospecção.
+ * Contatos (01/10/2026, ADR-0045) — a visão por PESSOA, como Empresas é a visão por conta.
+ * Todo contato incluído numa oportunidade aparece aqui; o criado aqui fica fora do Pipeline até
+ * alguém incluí-lo numa oportunidade da empresa dele (09/10/2026).
  */
 export default function ProspeccaoContatos() {
   const { can } = useAuth();
@@ -50,7 +51,7 @@ export default function ProspeccaoContatos() {
   return (
     <AppLayout
       title="Contatos"
-      description="As pessoas da prospecção: quem já está no Pipeline e quem pode ser abordado"
+      description="As pessoas das empresas: em que oportunidades estão e quem pode ser abordado"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Contatos' }]}
       actions={
         can('prospeccao:editar') && (
@@ -141,7 +142,7 @@ type ListaDeContatos = ReturnType<typeof useListaDeContatos>;
 
 /**
  * Os popups leem a versão atual, não a cópia do clique: editar o contato atualiza a ficha, e
- * o card aberto a partir dela é o mesmo que a Prospecção mostra.
+ * a oportunidade aberta a partir dela é a mesma que o quadro mostra.
  */
 function useDialogosDeContato(linhas: ContactRow[], cards: ProspectWithCompany[]) {
   const [criando, setCriando] = useState(false);
@@ -174,18 +175,17 @@ function Dialogos({ dialogos }: { dialogos: DialogosDeContato }) {
   const abrirCard = (card: ProspectWithCompany) => d.setCardAberto(card.id);
   return (
     <>
-      <ProspectFormDialog
+      <ContactFormDialog
         open={d.criando}
         onOpenChange={d.setCriando}
-        modo="contato"
         onExistingContact={(contato) => d.setContatoAberto(contato.id)}
       />
 
-      <ProspectFormDialog
+      <OpportunityFormDialog
         open={!!d.levando}
         onOpenChange={(aberto) => !aberto && d.setLevando(null)}
         contatoInicial={d.levando}
-        onOpenCard={abrirCard}
+        onOpenOpportunity={abrirCard}
       />
 
       <ContactDetailDialog
@@ -234,7 +234,7 @@ function Conteudo({ lista, onOpen }: { lista: ListaDeContatos; onOpen: (row: Con
     return (
       <EstadoVazio
         titulo="Nenhum contato cadastrado ainda"
-        texto="Os contatos entram ao cadastrar alguém aqui ou na Prospecção."
+        texto="Os contatos entram ao cadastrar alguém aqui ou numa oportunidade."
       />
     );
   }

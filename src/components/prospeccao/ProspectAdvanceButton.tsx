@@ -53,8 +53,8 @@ export function ProspectAdvanceButton(props: ProspectAdvanceButtonProps & { size
               ? 'Resposta registrada'
               : `Atividade nº ${atividade.sequence_no} registrada`,
             description: comResposta
-              ? 'O contato foi para "Respondeu" e saiu da cadência automática.'
-              : 'O contato entrou em cadência e já tem a próxima data agendada.',
+              ? 'A oportunidade foi para "Respondeu" e saiu da cadência automática.'
+              : 'A oportunidade entrou em cadência e já tem a próxima data agendada.',
           }),
       },
     );

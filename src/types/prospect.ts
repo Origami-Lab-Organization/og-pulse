@@ -335,14 +335,14 @@ export interface ProspectCompanyDB {
 }
 
 /**
- * Contato: a pessoa, separada do card do Pipeline (01/10/2026, ADR-0045). Uma pessoa pode
- * ter vários cards ao longo do tempo; criada na tela Contatos, não entra no Pipeline sozinha.
- * E-mail e LinkedIn são únicos por organização — é a deduplicação.
+ * Contato: a pessoa, separada do card do Pipeline (01/10/2026, ADR-0045). Desde 09/10/2026 uma
+ * pessoa pode estar em várias oportunidades, ao mesmo tempo inclusive; criada na tela Contatos,
+ * não entra no Pipeline sozinha. E-mail e LinkedIn são únicos por organização — é a deduplicação.
  */
 export interface ProspectContactDB {
   id: string;
   tenant_id: string;
-  /** Empresa atual. Não propaga para os cards: cada um fica na conta em que foi aberto. */
+  /** Empresa atual. Não propaga para as oportunidades: cada uma fica na conta em que foi aberta. */
   company_id: string;
   name: string;
   role: string | null;
@@ -359,16 +359,52 @@ export interface ProspectContactWithCompany extends ProspectContactDB {
   company?: Pick<ProspectCompanyDB, 'id' | 'name'> | null;
 }
 
+/**
+ * Papel do contato na decisão (09/10/2026) — lista FECHADA, guardada em slug, como a alavanca.
+ * Papel vazio é "não classificado": a migração vinculou todo mundo sem papel, e classificar é
+ * trabalho de quem conduz, não condição para registrar.
+ */
+export const PROSPECT_CONTACT_ROLES = [
+  { value: 'decisor', label: 'Decisor' },
+  { value: 'influenciador', label: 'Influenciador' },
+  { value: 'usuario', label: 'Usuário' },
+  { value: 'bloqueador', label: 'Bloqueador' },
+  { value: 'campeao', label: 'Campeão' },
+] as const;
+
+export type ProspectContactRole = (typeof PROSPECT_CONTACT_ROLES)[number]['value'];
+
+export function getContactRoleLabel(role: string | null | undefined): string | null {
+  if (!role) return null;
+  return PROSPECT_CONTACT_ROLES.find((r) => r.value === role)?.label ?? role;
+}
+
+/** Uma pessoa dentro da oportunidade, com o papel dela (`prospect_opportunity_contacts`). */
+export interface ProspectOpportunityContact {
+  contact_id: string;
+  role: ProspectContactRole | null;
+  created_at: string;
+  contact: Pick<
+    ProspectContactDB,
+    'id' | 'company_id' | 'name' | 'role' | 'email' | 'phone' | 'linkedin_url' | 'instagram_url'
+  > | null;
+}
+
+/**
+ * A oportunidade (09/10/2026): o card do Pipeline é da EMPRESA e leva o nome dela. A tabela
+ * continua `prospects` — orçamento, projeto, atividades e métricas apontam para ela.
+ */
 export interface ProspectDB {
   id: string;
   tenant_id: string;
   company_id: string;
   /**
-   * A pessoa deste card (ADR-0045). Os campos `contact_*`, `linkedin_url` e `instagram_url`
-   * abaixo são CÓPIA dela, mantida pelo banco: para editar, edite o contato.
+   * O CONTATO PRINCIPAL (09/10/2026), mantido pelo banco a partir dos contatos da oportunidade;
+   * `null` = ainda sem contato. Os campos `contact_*`, `linkedin_url` e `instagram_url` abaixo
+   * são CÓPIA dele, para o MCP e o seed (ADR-0045). A tela lê `contacts`.
    */
-  contact_id: string;
-  contact_name: string;
+  contact_id: string | null;
+  contact_name: string | null;
   contact_role: string | null;
   contact_email: string | null;
   contact_phone: string | null;
@@ -405,6 +441,35 @@ export interface ProspectDB {
 export interface ProspectWithCompany extends ProspectDB {
   company?: ProspectCompanyDB | null;
   owner?: { id: string; nome: string } | null;
+  /** Os contatos da oportunidade, com papel. Decisor primeiro (`sortOpportunityContacts`). */
+  contacts?: ProspectOpportunityContact[];
+}
+
+/** O nome da oportunidade é o da empresa (09/10/2026). */
+export function opportunityName(prospect: Pick<ProspectWithCompany, 'company'>): string {
+  return prospect.company?.name ?? 'Empresa não informada';
+}
+
+/** Ordem de leitura dos contatos: pela lista de papéis, sem papel no fim; depois por nome. */
+export function sortOpportunityContacts<T extends Pick<ProspectOpportunityContact, 'role' | 'contact'>>(
+  contatos: T[],
+): T[] {
+  const ordem = (role: string | null) => {
+    const indice = PROSPECT_CONTACT_ROLES.findIndex((r) => r.value === role);
+    return indice < 0 ? PROSPECT_CONTACT_ROLES.length : indice;
+  };
+  return [...contatos].sort(
+    (a, b) => ordem(a.role) - ordem(b.role) || (a.contact?.name ?? '').localeCompare(b.contact?.name ?? '', 'pt-BR'),
+  );
+}
+
+/** "Fernanda Castro +2": o resumo de quem está na oportunidade, para o card do quadro. */
+export function describeOpportunityContacts(prospect: Pick<ProspectWithCompany, 'contacts'>): string | null {
+  const nomes = sortOpportunityContacts(prospect.contacts ?? [])
+    .map((c) => c.contact?.name)
+    .filter((nome): nome is string => !!nome);
+  if (nomes.length === 0) return null;
+  return nomes.length === 1 ? nomes[0] : `${nomes[0]} +${nomes.length - 1}`;
 }
 
 import type { ProspectAttachment } from '@/lib/prospectAttachments';
@@ -413,6 +478,8 @@ export interface ProspectActivityDB {
   id: string;
   tenant_id: string;
   prospect_id: string;
+  /** Com quem foi a atividade (09/10/2026). Opcional: o registro de um clique não pergunta. */
+  contact_id: string | null;
   activity_date: string;
   channel: string;
   owner_id: string | null;
@@ -426,6 +493,8 @@ export interface ProspectActivityDB {
 
 export interface ProspectActivityWithOwner extends ProspectActivityDB {
   owner?: { id: string; nome: string } | null;
+  /** A pessoa da atividade — lida junto, porque pode ter saído da oportunidade depois. */
+  contact?: Pick<ProspectContactDB, 'id' | 'name'> | null;
 }
 
 /**

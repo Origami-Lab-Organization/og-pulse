@@ -1,7 +1,4 @@
-import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { Building2, ChevronDown } from 'lucide-react';
-import { groupByCompany } from '@/lib/prospecting/groupByCompany';
 import { cn } from '@/lib/utils';
 import type { PendingTaskLite, ProspectColumnCut, ProspectStage, ProspectWithCompany } from '@/types/prospect';
 import { ProspectKanbanCard } from './ProspectKanbanCard';
@@ -11,15 +8,14 @@ interface ProspectKanbanColumnProps {
   label: string;
   prospects: ProspectWithCompany[];
   recorte?: ProspectColumnCut;
-  emConversaPorEmpresa: Map<string, ProspectWithCompany[]>;
-  proximaTarefaPorContato: Map<string, PendingTaskLite>;
+  /** Empresa → oportunidades dela em andamento (`opportunitiesInProgressByCompany`). */
+  emAndamentoPorEmpresa: Map<string, ProspectWithCompany[]>;
+  proximaTarefaPorOportunidade: Map<string, PendingTaskLite>;
   onOpen: (prospect: ProspectWithCompany) => void;
-  /** Agrupa os cards pela empresa, com cabeçalho recolhível (29/09/2026). */
-  agruparPorEmpresa?: boolean;
 }
 
 export function ProspectKanbanColumn(props: ProspectKanbanColumnProps) {
-  const { stage, label, prospects, recorte, agruparPorEmpresa } = props;
+  const { stage, label, prospects, recorte } = props;
   const { setNodeRef, isOver } = useDroppable({ id: stage, data: { stage } });
 
   return (
@@ -35,7 +31,7 @@ export function ProspectKanbanColumn(props: ProspectKanbanColumnProps) {
           isOver && 'bg-accent/50',
         )}
       >
-        {agruparPorEmpresa ? <CardsPorEmpresa {...props} /> : <Cards {...props} lista={prospects} />}
+        <Cards {...props} />
         {prospects.length === 0 && (
           <p className="px-1 py-6 text-center text-xs text-muted-foreground">
             {recorte && recorte.total > 0 ? `Nada nos últimos ${recorte.dias} dias` : 'Vazio'}
@@ -68,56 +64,20 @@ function RodapeDoRecorte({ recorte, mostrando }: { recorte: ProspectColumnCut; m
   );
 }
 
-function Cards(props: ProspectKanbanColumnProps & { lista: ProspectWithCompany[] }) {
-  const { lista, stage, emConversaPorEmpresa, proximaTarefaPorContato, onOpen } = props;
+function Cards(props: ProspectKanbanColumnProps) {
+  const { prospects, stage, emAndamentoPorEmpresa, proximaTarefaPorOportunidade, onOpen } = props;
   return (
     <>
-      {lista.map((prospect) => (
+      {prospects.map((prospect) => (
         <ProspectKanbanCard
           key={prospect.id}
           prospect={prospect}
           currentStage={stage}
-          emConversa={emConversaPorEmpresa.get(prospect.company_id)}
-          proximaTarefa={proximaTarefaPorContato.get(prospect.id)}
+          emAndamentoPorEmpresa={emAndamentoPorEmpresa}
+          proximaTarefa={proximaTarefaPorOportunidade.get(prospect.id)}
           onOpen={onOpen}
         />
       ))}
-    </>
-  );
-}
-
-/** Um grupo por empresa: o cabeçalho diz quantos contatos dela estão nesta etapa. */
-function CardsPorEmpresa(props: ProspectKanbanColumnProps) {
-  const [recolhidas, setRecolhidas] = useState<Set<string>>(new Set());
-  const alternar = (id: string) =>
-    setRecolhidas((atual) => {
-      const nova = new Set(atual);
-      if (nova.has(id)) nova.delete(id);
-      else nova.add(id);
-      return nova;
-    });
-
-  return (
-    <>
-      {groupByCompany(props.prospects).map((grupo) => {
-        const recolhida = recolhidas.has(grupo.companyId);
-        return (
-          <section key={grupo.companyId} aria-label={grupo.nome} className="space-y-1.5">
-            <button
-              type="button"
-              onClick={() => alternar(grupo.companyId)}
-              aria-expanded={!recolhida}
-              className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', recolhida && '-rotate-90')} aria-hidden="true" />
-              <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span className="truncate">{grupo.nome}</span>
-              <span className="ml-auto shrink-0">{grupo.contatos.length}</span>
-            </button>
-            {!recolhida && <Cards {...props} lista={grupo.contatos} />}
-          </section>
-        );
-      })}
     </>
   );
 }

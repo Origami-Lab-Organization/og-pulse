@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { mensagemParaUsuario } from '@/lib/errors/userMessage';
+import { mensagemDeContato } from '@/hooks/useProspectContacts';
 import { CnpjLookupError, lookupCnpj } from '@/services/cnpjLookupService';
-import { createProspect } from '@/services/prospectService';
+import { prospectContactService } from '@/services/prospectContactService';
 import {
   fetchCompanyPartners,
   scanCompanySite,
@@ -21,7 +22,7 @@ function invalidarEmpresa(qc: ReturnType<typeof useQueryClient>, companyId: stri
   qc.invalidateQueries({ queryKey: ['prospect-companies'] });
   qc.invalidateQueries({ queryKey: ['prospects'] });
   qc.invalidateQueries({ queryKey: ['prospect'] });
-  // "Virar contato" cria a pessoa no banco junto com o card (ADR-0045).
+  // "Virar contato" cria a pessoa (ADR-0045; desde 09/10/2026, só a pessoa).
   qc.invalidateQueries({ queryKey: ['prospect-contacts'] });
 }
 
@@ -119,35 +120,39 @@ export function useUpdatePartner() {
 }
 
 /**
- * "Virar contato": o sócio entra na Prospecção em "A abordar", com cargo e redes que já
- * foram colados, e fica ligado ao contato (`prospect_id`) — a ficha mostra que já está.
+ * "Virar contato": o sócio vira uma pessoa em Contatos, com cargo e redes que já foram
+ * colados, e fica ligado a ela (`contact_id`) — a ficha mostra que já está. Desde 09/10/2026
+ * não abre card: a oportunidade é da empresa, e a pessoa entra nela pela ficha da oportunidade.
  */
 export function usePromotePartner() {
   const qc = useQueryClient();
   const { employee } = useAuth();
   return useMutation({
     mutationFn: async (partner: ProspectCompanyPartnerDB) => {
-      const contato = await createProspect({
-        tenant_id: employee!.tenant_id,
-        created_by: employee!.id,
-        owner_id: employee!.id,
-        company_id: partner.company_id,
-        contact_name: nomeProprio(partner.nome),
-        contact_role: partner.qualificacao,
-        contact_phone: partner.telefone,
-        linkedin_url: partner.linkedin_url,
-        instagram_url: partner.instagram_url,
-        primary_channel: partner.linkedin_url ? 'linkedin' : partner.telefone ? 'whatsapp' : 'email',
-      });
-      await updatePartner(partner.id, { prospect_id: contato.id });
+      const contato = await prospectContactService.create(
+        {
+          company_id: partner.company_id,
+          name: nomeProprio(partner.nome),
+          role: partner.qualificacao,
+          phone: partner.telefone,
+          linkedin_url: partner.linkedin_url,
+          instagram_url: partner.instagram_url,
+        },
+        employee!.tenant_id,
+        employee!.id,
+      );
+      await updatePartner(partner.id, { contact_id: contato.id });
       return contato;
     },
     onSuccess: (contato, partner) => {
       invalidarEmpresa(qc, partner.company_id);
-      toast({ title: 'Contato criado', description: `${contato.contact_name} entrou em "A abordar".` });
+      toast({
+        title: 'Contato criado',
+        description: `${contato.name} está em Contatos. Inclua numa oportunidade pela ficha dela.`,
+      });
     },
     onError: (err: unknown) => {
-      toast({ title: 'Erro ao criar o contato', description: mensagemParaUsuario(err), variant: 'destructive' });
+      toast({ title: 'Erro ao criar o contato', description: mensagemDeContato(err as Error), variant: 'destructive' });
     },
   });
 }

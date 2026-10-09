@@ -26,12 +26,13 @@ import {
   FATURAMENTO_BASE_PADRAO,
   type FaturamentoBase,
   type ProspectCompanyDB,
+  type ProspectContactDB,
   type ProspectWithCompany,
 } from '@/types/prospect';
 import { descreverFaturamento } from '@/lib/prospecting/faturamento';
 import { FaturamentoAnualField } from './FaturamentoAnualField';
 import { AbordagemBadge, SituacaoDot, TierBadge } from './CompanyBadges';
-import { CompanyContactList } from './CompanyContactList';
+import { CompanyOpportunityList } from './CompanyOpportunityList';
 import { Item, LinkExterno, Rodape, Secao } from './FichaDeCadastro';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
 import { CnpjLookupField } from './CnpjLookupField';
@@ -43,17 +44,17 @@ interface CompanyDetailDialogProps {
   row: CompanyRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onOpenContact: (prospect: ProspectWithCompany) => void;
+  onOpenOpportunity: (prospect: ProspectWithCompany) => void;
 }
 
 /**
- * A empresa inteira num lugar só: cadastro, segmentação, situação e contatos.
+ * A empresa inteira num lugar só: cadastro, segmentação, situação, oportunidades e contatos.
  *
  * Os dados cadastrais (CNPJ, links) ficam SÓ aqui — a tabela mostra o que serve para
  * decidir de longe, o modal o que serve para agir. Editar aqui edita a empresa, e isso
- * vale para todos os contatos dela.
+ * vale para todas as oportunidades e contatos dela.
  */
-export function CompanyDetailDialog({ row, open, onOpenChange, onOpenContact }: CompanyDetailDialogProps) {
+export function CompanyDetailDialog({ row, open, onOpenChange, onOpenOpportunity }: CompanyDetailDialogProps) {
   const [editando, setEditando] = useState(false);
 
   useEffect(() => {
@@ -81,7 +82,7 @@ export function CompanyDetailDialog({ row, open, onOpenChange, onOpenContact }: 
             row={row}
             onEditar={() => setEditando(true)}
             onFechar={() => onOpenChange(false)}
-            onOpenContact={onOpenContact}
+            onOpenOpportunity={onOpenOpportunity}
           />
         )}
       </DialogContent>
@@ -122,12 +123,12 @@ function Visualizacao({
   row,
   onEditar,
   onFechar,
-  onOpenContact,
+  onOpenOpportunity,
 }: {
   row: CompanyRow;
   onEditar: () => void;
   onFechar: () => void;
-  onOpenContact: (prospect: ProspectWithCompany) => void;
+  onOpenOpportunity: (prospect: ProspectWithCompany) => void;
 }) {
   const { company } = row;
   const { can } = useAuth();
@@ -158,9 +159,15 @@ function Visualizacao({
 
         <SecaoProspeccao row={row} />
 
+        <Secao titulo={`Oportunidades · ${row.opportunities.length}`}>
+          <div className="pt-1">
+            <CompanyOpportunityList opportunities={row.opportunities} onOpenOpportunity={onOpenOpportunity} />
+          </div>
+        </Secao>
+
         <Secao titulo={`Contatos · ${row.contacts.length}`}>
           <div className="pt-1">
-            <CompanyContactList contacts={row.contacts} onOpenContact={onOpenContact} />
+            <PessoasDaEmpresa pessoas={row.contacts} />
           </div>
         </Secao>
       </div>
@@ -176,6 +183,29 @@ function Visualizacao({
   );
 }
 
+/** As pessoas cadastradas na empresa — quem pode entrar nas oportunidades dela. */
+function PessoasDaEmpresa({ pessoas }: { pessoas: ProspectContactDB[] }) {
+  if (pessoas.length === 0) {
+    return <p className="py-3 text-[13.5px] text-muted-foreground">Nenhum contato cadastrado nesta empresa.</p>;
+  }
+  return (
+    <ul className="divide-y overflow-hidden rounded-lg border">
+      {pessoas.map((p) => (
+        <li key={p.id} className="space-y-0.5 p-3">
+          <p className="text-sm font-medium">{p.name}</p>
+          {(p.role || p.email) && (
+            <p className="truncate text-xs text-muted-foreground">{[p.role, p.email].filter(Boolean).join(' · ')}</p>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function quantas(n: number, singular: string, plural: string): string | null {
+  return n > 0 ? `${n} ${n === 1 ? singular : plural}` : null;
+}
+
 function SecaoProspeccao({ row }: { row: CompanyRow }) {
   const { byId } = useEmployeeDirectoryMap();
   const situacao = COMPANY_STATUS_META[row.status];
@@ -183,12 +213,10 @@ function SecaoProspeccao({ row }: { row: CompanyRow }) {
   const proxima = row.nextTaskOn ? descreverProximaAtividade(row.nextTaskOn) : null;
 
   return (
-    <Secao titulo="Prospecção">
+    <Secao titulo="Pipeline">
       <Item rotulo="Situação">{`${situacao.label} — ${minusculaInicial(situacao.hint)}`}</Item>
       <Item rotulo="Responsável">{responsaveis}</Item>
-      <Item rotulo="Contatos">
-        {row.contacts.length > 0 && `${row.contacts.length} ${row.contacts.length === 1 ? 'contato' : 'contatos'}`}
-      </Item>
+      <Item rotulo="Oportunidades">{quantas(row.opportunities.length, 'oportunidade', 'oportunidades')}</Item>
       <Item rotulo="Próx. tarefa">
         {proxima && (
           <span className={cn(proxima.tom === 'atrasada' && 'font-medium text-destructive')}>

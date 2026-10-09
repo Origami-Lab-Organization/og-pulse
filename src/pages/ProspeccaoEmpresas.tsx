@@ -18,6 +18,7 @@ import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { useProspectCompanies } from '@/hooks/useProspectCompanies';
 import { usePendingProspectTasks } from '@/hooks/useProspectTasks';
 import { useProspects } from '@/hooks/useProspects';
+import { useProspectContacts } from '@/hooks/useProspectContacts';
 import {
   aplicarConsulta,
   temFiltroAtivo,
@@ -49,20 +50,21 @@ const ABAS: ReadonlyArray<{ valor: CompanyTab; rotulo: string }> = [
 /**
  * Empresas da prospecção (24/09/2026) — a visão por CONTA do pipeline frio.
  *
- * Existe para responder antes de abrir o LinkedIn: "posso abordar esta empresa?". Um
- * contato de "Respondeu" em diante ocupa a empresa inteira; quem pediu para parar bloqueia
+ * Existe para responder antes de abrir o LinkedIn: "posso abordar esta empresa?". Uma
+ * oportunidade de "Respondeu" em diante ocupa a empresa inteira; quem pediu para parar bloqueia
  * a conta. Cadência sozinha não bloqueia. A regra mora em `companyProspectStatus` — a tela só exibe.
  */
 export default function ProspeccaoEmpresas() {
   const { data: empresas = [], isLoading: carregandoEmpresas } = useProspectCompanies();
-  const { data: contatos = [], isLoading: carregandoContatos } = useProspects();
+  const { data: oportunidades = [], isLoading: carregandoOportunidades } = useProspects();
+  const { data: pessoas = [], isLoading: carregandoPessoas } = useProspectContacts();
   const { byId } = useEmployeeDirectoryMap();
 
   const [consulta, setConsulta] = useState<CompanyQuery>({ tab: 'todas', busca: '', filtros: FILTROS_VAZIOS });
   const [sort, setSort] = useState<CompanySort>({ key: 'name', dir: 1 });
   const [pagina, setPagina] = useState(0);
   const [empresaAberta, setEmpresaAberta] = useState<string | null>(null);
-  const [contatoAberto, setContatoAberto] = useState<ProspectWithCompany | null>(null);
+  const [oportunidadeAberta, setOportunidadeAberta] = useState<ProspectWithCompany | null>(null);
   const [importando, setImportando] = useState(false);
   // `?empresa=<id>`: o link das notificações de gatilho (company-watch) abre a ficha.
   const [params, setParams] = useSearchParams();
@@ -81,8 +83,8 @@ export default function ProspeccaoEmpresas() {
 
   const { porContato: proximaTarefa } = usePendingProspectTasks();
   const linhas = useMemo(
-    () => buildCompanyRows(empresas, contatos, proximaTarefa),
-    [empresas, contatos, proximaTarefa],
+    () => buildCompanyRows(empresas, oportunidades, proximaTarefa, pessoas),
+    [empresas, oportunidades, proximaTarefa, pessoas],
   );
   const visiveis = useMemo(() => ordenar(aplicarConsulta(linhas, consulta), sort), [linhas, consulta, sort]);
   const contagem = useMemo(() => contarAbas(linhas, consulta), [linhas, consulta]);
@@ -92,7 +94,7 @@ export default function ProspeccaoEmpresas() {
 
   // Os popups leem a linha atual, não a cópia do clique: editar a empresa atualiza o modal.
   const empresaAtual = linhas.find((l) => l.company.id === empresaAberta) ?? null;
-  const contatoAtual = versaoAtual(contatoAberto, contatos);
+  const oportunidadeAtual = versaoAtual(oportunidadeAberta, oportunidades);
 
   const filtrando = temFiltroAtivo(consulta);
   const limparTudo = () => setConsulta({ tab: 'todas', busca: '', filtros: FILTROS_VAZIOS });
@@ -167,7 +169,7 @@ export default function ProspeccaoEmpresas() {
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="overflow-x-auto">
             <Conteudo
-              carregando={carregandoEmpresas || carregandoContatos}
+              carregando={carregandoEmpresas || carregandoOportunidades || carregandoPessoas}
               semEmpresas={linhas.length === 0}
               linhas={paginar(visiveis, pagina, POR_PAGINA)}
               sort={sort}
@@ -191,13 +193,13 @@ export default function ProspeccaoEmpresas() {
         row={empresaAtual}
         open={!!empresaAtual}
         onOpenChange={(aberto) => !aberto && setEmpresaAberta(null)}
-        onOpenContact={setContatoAberto}
+        onOpenOpportunity={setOportunidadeAberta}
       />
 
       <ProspectDetailDialog
-        prospect={contatoAtual}
-        open={!!contatoAberto}
-        onOpenChange={(aberto) => !aberto && setContatoAberto(null)}
+        prospect={oportunidadeAtual}
+        open={!!oportunidadeAberta}
+        onOpenChange={(aberto) => !aberto && setOportunidadeAberta(null)}
         onDiscard={setDescartando}
         onWin={setGanhando}
       />
@@ -245,7 +247,7 @@ function Conteudo({
     return (
       <EstadoVazio
         titulo="Nenhuma empresa cadastrada ainda"
-        texto="As empresas entram ao cadastrar um contato na Prospecção."
+        texto="As empresas entram ao criar uma oportunidade, cadastrar um contato ou importar CNPJs."
       />
     );
   }
@@ -272,7 +274,7 @@ function Rodape(props: {
   return <RodapeDaLista texto={texto} {...paginacao} />;
 }
 
-/** O contato recém-invalidado, não a cópia do clique. */
+/** A oportunidade recém-invalidada, não a cópia do clique. */
 function versaoAtual(
   aberto: ProspectWithCompany | null,
   contatos: ProspectWithCompany[],

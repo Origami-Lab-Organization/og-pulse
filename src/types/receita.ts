@@ -35,7 +35,10 @@ export interface ProspectCompanyPartnerDB {
   linkedin_url: string | null;
   instagram_url: string | null;
   telefone: string | null;
+  /** Card criado pelo "Virar contato" antes de 09/10/2026 — histórico. */
   prospect_id: string | null;
+  /** A pessoa criada pelo "Virar contato" (desde 09/10/2026). */
+  contact_id?: string | null;
   ativo: boolean;
   fonte: string;
   created_at: string;

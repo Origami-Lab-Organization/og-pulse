@@ -27,8 +27,10 @@ import type { ContactRow } from '@/lib/prospecting/contactList';
 import { comProtocolo, urlDoInstagram } from '@/lib/prospecting/links';
 import { cn } from '@/lib/utils';
 import {
+  getContactRoleLabel,
   getProspectStageColor,
   getProspectStageLabel,
+  opportunityName,
   type ProspectCompanyDB,
   type ProspectContactWithCompany,
   type ProspectWithCompany,
@@ -41,13 +43,13 @@ interface ContactDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenCard: (card: ProspectWithCompany) => void;
-  /** "Levar para a Prospecção": abre o card novo já com esta pessoa. */
+  /** "Incluir em oportunidade": a nova, ou uma que a empresa já tem em andamento. */
   onStartProspecting: (contato: ProspectContactWithCompany) => void;
 }
 
 /**
- * O contato inteiro num lugar só (01/10/2026, ADR-0045): quem é e os cards que já teve no
- * Pipeline. Editar aqui edita a pessoa, e isso vale para todos os cards dela.
+ * O contato inteiro num lugar só (01/10/2026, ADR-0045): quem é e as oportunidades em que
+ * está ou esteve. Editar aqui edita a pessoa, e isso vale para todas as oportunidades dela.
  */
 export function ContactDetailDialog(props: ContactDetailDialogProps) {
   const { row, open, onOpenChange } = props;
@@ -131,9 +133,9 @@ function Visualizacao(props: VisualizacaoProps) {
           </Item>
         </Secao>
 
-        <Secao titulo={`No Pipeline · ${cards.length}`}>
+        <Secao titulo={`Oportunidades · ${cards.length}`}>
           <div className="pt-1">
-            <CardsDoContato cards={cards} onOpenCard={onOpenCard} />
+            <CardsDoContato contatoId={contact.id} cards={cards} onOpenCard={onOpenCard} />
           </div>
         </Secao>
       </div>
@@ -144,8 +146,8 @@ function Visualizacao(props: VisualizacaoProps) {
 }
 
 /**
- * Excluir só sem card (a FK recusa o resto) e levar para a Prospecção só sem card em
- * andamento — um por vez, ou a mesma conversa seria contada duas vezes.
+ * Excluir só quem não está em nenhuma oportunidade (a FK recusa o resto). Incluir em
+ * oportunidade vale sempre (09/10/2026): a mesma pessoa pode estar em duas oportunidades.
  */
 function AcoesDoContato(props: VisualizacaoProps) {
   const { row, onEditar, onOpenChange, onStartProspecting } = props;
@@ -158,12 +160,10 @@ function AcoesDoContato(props: VisualizacaoProps) {
     <Rodape>
       {row.cards.length === 0 && <BotaoExcluir contato={row.contact} onExcluido={fechar} />}
       <Button variant="outline" onClick={fechar}>Fechar</Button>
-      {!row.aberto && (
-        <Button variant="outline" onClick={() => onStartProspecting(row.contact)}>
-          <Kanban className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-          Levar para a Prospecção
-        </Button>
-      )}
+      <Button variant="outline" onClick={() => onStartProspecting(row.contact)}>
+        <Kanban className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+        Incluir em oportunidade
+      </Button>
       <Button onClick={onEditar}>
         <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
         Editar dados
@@ -172,17 +172,23 @@ function AcoesDoContato(props: VisualizacaoProps) {
   );
 }
 
-/** Os cards da pessoa, do mais recente ao mais antigo: em que etapa, por qual empresa, com quem. */
-function CardsDoContato({ cards, onOpenCard }: { cards: ProspectWithCompany[]; onOpenCard: (card: ProspectWithCompany) => void }) {
+/** As oportunidades da pessoa, da mais recente à mais antiga: etapa, empresa, papel dela e com quem do time. */
+function CardsDoContato(props: {
+  contatoId: string;
+  cards: ProspectWithCompany[];
+  onOpenCard: (card: ProspectWithCompany) => void;
+}) {
+  const { contatoId, cards, onOpenCard } = props;
   const { byId } = useEmployeeDirectoryMap();
   if (cards.length === 0) {
-    return <p className="py-3 text-[13.5px] text-muted-foreground">Ainda não foi abordado. Use "Levar para a Prospecção" para abrir o card.</p>;
+    return <p className="py-3 text-[13.5px] text-muted-foreground">Ainda não está em nenhuma oportunidade. Use "Incluir em oportunidade".</p>;
   }
   return (
     <ul className="divide-y overflow-hidden rounded-lg border">
       {cards.map((card) => {
         const responsavel = card.owner_id ? byId.get(card.owner_id)?.nome : undefined;
-        const detalhe = [card.company?.name, responsavel && `com ${responsavel}`, `aberto em ${formatarData(card.created_at)}`]
+        const papel = getContactRoleLabel(card.contacts?.find((c) => c.contact_id === contatoId)?.role);
+        const detalhe = [opportunityName(card), papel, responsavel && `com ${responsavel}`, `aberta em ${formatarData(card.created_at)}`]
           .filter(Boolean)
           .join(' · ');
         return (
@@ -221,7 +227,7 @@ function BotaoExcluir({ contato, onExcluido }: { contato: ProspectContactWithCom
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir {contato.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              O contato sai do cadastro. Ele não tem nenhum card no Pipeline, então nenhum histórico se perde.
+              O contato sai do cadastro. Ele não está em nenhuma oportunidade, então nenhum histórico se perde.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -298,7 +304,7 @@ function Edicao({ row, onFechar }: { row: ContactRow; onFechar: () => void }) {
         ))}
         {duplicado && <AvisoDeDuplicado contato={duplicado} />}
         <p className="col-span-2 text-xs text-muted-foreground">
-          Os dados do contato valem para todos os cards dele. Trocar a empresa não move os cards já abertos.
+          Os dados do contato valem para todas as oportunidades dele. Trocar a empresa não move as oportunidades já abertas.
         </p>
       </div>
 

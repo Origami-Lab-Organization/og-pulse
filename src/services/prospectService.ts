@@ -6,6 +6,7 @@ import {
   toISODate,
   type PendingTaskLite,
   type ProspectActivityWithOwner,
+  type ProspectContactRole,
   type ProspectStage,
   type ProspectTaskDB,
   type ProspectWithCompany,
@@ -17,15 +18,21 @@ import type { ActivityLite, ProspectStageChangeDB } from '@/types/prospectMetric
  * volta vazio para quem não é admin/gerente e o nome do responsável sumiria em silêncio.
  * A identidade vem do diretório (`useEmployeeDirectory`), como no resto do app.
  */
-const PROSPECT_SELECT = `*, company:prospect_companies!prospects_company_id_fkey(*)`;
+const PROSPECT_SELECT = [
+  '*',
+  'company:prospect_companies!prospects_company_id_fkey(*)',
+  // Os contatos da oportunidade (09/10/2026), com papel e os dados da pessoa.
+  'contacts:prospect_opportunity_contacts!prospect_opportunity_contacts_prospect_id_fkey(contact_id, role, created_at, ' +
+    'contact:prospect_contacts!prospect_opportunity_contacts_contact_id_fkey(id, company_id, name, role, email, phone, linkedin_url, instagram_url))',
+].join(', ');
 
 export interface CreateProspectInput {
   tenant_id: string;
   company_id: string;
   /**
-   * A pessoa do card (ADR-0045). Com ela, os campos de contato abaixo são ignorados: o banco
-   * copia os dados da pessoa. Sem ela, o banco acha a pessoa pelo e-mail ou LinkedIn, ou a cria
-   * a partir desses campos — é o caminho do "Virar contato".
+   * Caminho antigo (MCP, seed): a pessoa do card. Com ela, os campos de contato abaixo são
+   * ignorados. Sem ela e sem nenhum campo de contato, a oportunidade nasce sem contato
+   * (09/10/2026) — a tela vincula as pessoas depois, com `addOpportunityContact`.
    */
   contact_id?: string;
   contact_name?: string;
@@ -87,21 +94,68 @@ export async function updateProspect(id: string, updates: UpdateProspectInput): 
 }
 
 /**
- * Passa o card para outra empresa: o CNPJ digitado na ficha já era de uma empresa cadastrada
- * (07/10/2026). A pessoa acompanha só se a empresa atual dela era a do card — quem já está
- * em outra conta não é movido (ADR-0045: a empresa da pessoa não propaga).
+ * Passa a oportunidade para outra empresa: o CNPJ digitado na ficha já era de uma empresa
+ * cadastrada (07/10/2026). As pessoas da oportunidade acompanham só se a empresa atual delas
+ * era a do card — quem já está em outra conta não é movido (ADR-0045: a empresa da pessoa não
+ * propaga).
  */
 export async function moveProspectToCompany(
-  card: Pick<ProspectWithCompany, 'id' | 'contact_id' | 'company_id'>,
+  card: Pick<ProspectWithCompany, 'id' | 'company_id' | 'contacts'>,
   companyId: string,
 ): Promise<void> {
   const { error } = await tabela('prospects').update({ company_id: companyId }).eq('id', card.id);
   if (error) throw error;
-  const { error: erroDaPessoa } = await tabela('prospect_contacts')
+  const pessoas = (card.contacts ?? []).map((c) => c.contact_id);
+  if (pessoas.length === 0) return;
+  const { error: erroDasPessoas } = await tabela('prospect_contacts')
     .update({ company_id: companyId })
-    .eq('id', card.contact_id)
+    .in('id', pessoas)
     .eq('company_id', card.company_id);
-  if (erroDaPessoa) throw erroDaPessoa;
+  if (erroDasPessoas) throw erroDasPessoas;
+}
+
+// --------------------------------------------------------------------------
+// Contatos da oportunidade (09/10/2026)
+// --------------------------------------------------------------------------
+
+/**
+ * Vincula uma pessoa à oportunidade. O tenant vem da oportunidade (trigger
+ * `prospect_opportunity_contacts_guard`), e a primeira pessoa vira o contato principal.
+ */
+export async function addOpportunityContact(input: {
+  prospect_id: string;
+  contact_id: string;
+  role?: ProspectContactRole | null;
+  created_by?: string | null;
+}): Promise<void> {
+  const { error } = await tabela('prospect_opportunity_contacts').insert({
+    prospect_id: input.prospect_id,
+    contact_id: input.contact_id,
+    role: input.role ?? null,
+    created_by: input.created_by ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function updateOpportunityContactRole(
+  prospectId: string,
+  contactId: string,
+  role: ProspectContactRole | null,
+): Promise<void> {
+  const { error } = await tabela('prospect_opportunity_contacts')
+    .update({ role })
+    .eq('prospect_id', prospectId)
+    .eq('contact_id', contactId);
+  if (error) throw error;
+}
+
+/** Tira a pessoa da oportunidade; ela continua em Contatos, e as atividades dela ficam. */
+export async function removeOpportunityContact(prospectId: string, contactId: string): Promise<void> {
+  const { error } = await tabela('prospect_opportunity_contacts')
+    .delete()
+    .eq('prospect_id', prospectId)
+    .eq('contact_id', contactId);
+  if (error) throw error;
 }
 
 /**
@@ -142,6 +196,8 @@ export async function deleteProspect(id: string): Promise<void> {
 export interface RegisterActivityInput {
   tenant_id: string;
   prospect_id: string;
+  /** Com quem foi (09/10/2026). Opcional. */
+  contact_id?: string | null;
   channel: string;
   got_response?: boolean;
   activity_date?: string;
@@ -162,6 +218,8 @@ export async function registerActivity(input: RegisterActivityInput): Promise<Pr
     .insert({
       tenant_id: input.tenant_id,
       prospect_id: input.prospect_id,
+      // Ausente vira NULL no banco: "com quem" é opcional.
+      contact_id: input.contact_id,
       channel: input.channel,
       got_response: input.got_response ?? false,
       activity_date: input.activity_date ?? toISODate(new Date()),
@@ -179,12 +237,13 @@ export async function registerActivity(input: RegisterActivityInput): Promise<Pr
 export interface UpdateActivityInput {
   id: string;
   channel: string;
+  contact_id: string | null;
   notes: string | null;
   attachments: ProspectAttachment[];
 }
 
 /**
- * Edita o conteúdo de uma atividade: canal, relato e anexos.
+ * Edita o conteúdo de uma atividade: canal, com quem, relato e anexos.
  *
  * `got_response`, `sequence_no` e `activity_date` ficam de FORA de propósito. Os três já
  * produziram efeito quando a atividade foi criada — o trigger contou o toque, agendou a
@@ -196,6 +255,7 @@ export async function updateActivity(input: UpdateActivityInput): Promise<void> 
   const { error } = await tabela('prospect_activities')
     .update({
       channel: input.channel,
+      contact_id: input.contact_id,
       notes: input.notes,
       attachments: input.attachments,
     })
@@ -205,7 +265,7 @@ export async function updateActivity(input: UpdateActivityInput): Promise<void> 
 
 export async function fetchProspectActivities(prospectId: string): Promise<ProspectActivityWithOwner[]> {
   const { data, error } = await tabela('prospect_activities')
-    .select('*')
+    .select('*, contact:prospect_contacts!prospect_activities_contact_id_fkey(id, name)')
     .eq('prospect_id', prospectId)
     .order('sequence_no', { ascending: false });
   if (error) throw error;

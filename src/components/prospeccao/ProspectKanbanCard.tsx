@@ -1,15 +1,18 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { BadgeDollarSign, CircleAlert, MessagesSquare, Route, User, XCircle } from 'lucide-react';
+import { BadgeDollarSign, CircleAlert, MessagesSquare, Route, User, Users, XCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { formatCurrency } from '@/lib/formatters';
+import { otherOpportunitiesInProgress } from '@/lib/prospecting/companyStatus';
 import { cn } from '@/lib/utils';
 import {
+  describeOpportunityContacts,
   getDiscardReasonLabel,
   getLeverLabel,
   getProspectStageLabel,
   isTaskOverdue,
+  opportunityName,
   type PendingTaskLite,
   type ProspectStage,
   type ProspectWithCompany,
@@ -18,16 +21,18 @@ import {
 interface ProspectKanbanCardProps {
   prospect: ProspectWithCompany;
   currentStage: ProspectStage;
-  /** Contatos da MESMA empresa em conversa ou além — pode incluir este próprio card. */
-  emConversa?: ProspectWithCompany[];
-  /** A tarefa pendente mais urgente do contato — é ela, e só ela, que avisa vencimento. */
+  /** Empresa → oportunidades em andamento; o card procura aqui as OUTRAS da mesma empresa. */
+  emAndamentoPorEmpresa: Map<string, ProspectWithCompany[]>;
+  /** A tarefa pendente mais urgente da oportunidade — é ela, e só ela, que avisa vencimento. */
   proximaTarefa?: PendingTaskLite;
   onOpen: (prospect: ProspectWithCompany) => void;
   isOverlay?: boolean;
 }
 
 /**
- * O card mostra o que serve para ESCOLHER de longe: quem é, de onde veio e de quem é.
+ * O card mostra o que serve para ESCOLHER de longe: qual empresa, com quem, de onde veio e de
+ * quem é. Desde 09/10/2026 o card é a oportunidade da empresa e leva o nome dela; as pessoas
+ * aparecem resumidas ("Fernanda Castro +2"), decisor primeiro.
  *
  * Contagem de atividades e canal saíram — são detalhe de execução, e quem precisa deles já
  * está com o card aberto. Alavanca e responsável, ao contrário, são os dois cortes pelos
@@ -36,7 +41,7 @@ interface ProspectKanbanCardProps {
 export function ProspectKanbanCard({
   prospect,
   currentStage,
-  emConversa,
+  emAndamentoPorEmpresa,
   proximaTarefa,
   onOpen,
   isOverlay,
@@ -52,7 +57,8 @@ export function ProspectKanbanCard({
   const vencida = !!proximaTarefa && isTaskOverdue({ due_date: proximaTarefa.due_date, done_at: null });
   const alavanca = getLeverLabel(prospect.lever);
   const responsavel = prospect.owner_id ? byId.get(prospect.owner_id)?.nome : null;
-  const outrosEmConversa = (emConversa ?? []).filter((c) => c.id !== prospect.id);
+  const outrasEmAndamento = otherOpportunitiesInProgress(prospect, emAndamentoPorEmpresa);
+  const contatos = describeOpportunityContacts(prospect);
 
   return (
     <Card
@@ -73,13 +79,14 @@ export function ProspectKanbanCard({
           onClick={() => onOpen(prospect)}
         >
           <span className="flex items-center gap-1.5">
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">{prospect.contact_name}</span>
-            {outrosEmConversa.length > 0 && (
-              <EmpresaEmConversa contatos={outrosEmConversa} nomeDe={(id) => byId.get(id)?.nome} />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">{opportunityName(prospect)}</span>
+            {outrasEmAndamento.length > 0 && (
+              <OutrasOportunidades oportunidades={outrasEmAndamento} nomeDe={(id) => byId.get(id)?.nome} />
             )}
           </span>
-          <span className="block truncate text-xs text-muted-foreground">
-            {prospect.company?.name ?? 'Empresa não informada'}
+          <span className={cn('flex items-center gap-1 text-xs', contatos ? 'text-muted-foreground' : 'text-muted-foreground/70')}>
+            <Users className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span className="truncate">{contatos ?? 'Sem contato'}</span>
           </span>
 
           {alavanca && (
@@ -109,32 +116,32 @@ export function ProspectKanbanCard({
 }
 
 /**
- * Outro contato da mesma empresa já respondeu (ou foi além): a conta está em conversa.
- *
- * Sinaliza a partir de "Respondeu", não de "Em cadência" (24/09/2026, Guilherme) — cadência
- * é tentativa; conversa é quando abordar de novo por outro contato atrapalha.
+ * A empresa tem OUTRA oportunidade no funil, de "Em cadência" em diante (09/10/2026,
+ * Guilherme). Antes o balão olhava outros contatos e só a partir de "Respondeu"; com o card
+ * sendo da empresa, uma segunda oportunidade em cadência já é a conta sendo abordada duas vezes.
  */
-function EmpresaEmConversa({
-  contatos,
+function OutrasOportunidades({
+  oportunidades,
   nomeDe,
 }: {
-  contatos: ProspectWithCompany[];
+  oportunidades: ProspectWithCompany[];
   nomeDe: (id: string) => string | undefined;
 }) {
-  const detalhe = contatos
-    .map((c) => {
-      const dono = c.owner_id ? nomeDe(c.owner_id) : undefined;
-      return `${c.contact_name} (${getProspectStageLabel(c.stage)}${dono ? `, com ${dono}` : ''})`;
+  const detalhe = oportunidades
+    .map((o) => {
+      const dono = o.owner_id ? nomeDe(o.owner_id) : undefined;
+      return `${getProspectStageLabel(o.stage)}${dono ? `, com ${dono}` : ''}`;
     })
     .join('; ');
+  const texto = `${oportunidades.length === 1 ? 'Outra oportunidade' : `Outras ${oportunidades.length} oportunidades`} desta empresa em andamento: ${detalhe}`;
 
   return (
     <span
-      title={`Empresa em conversa: ${detalhe}`}
+      title={texto}
       className="inline-flex shrink-0 items-center rounded-md bg-warning-subtle p-1 text-warning-emphasis"
     >
       <MessagesSquare className="h-3 w-3" aria-hidden="true" />
-      <span className="sr-only">Empresa em conversa: {detalhe}</span>
+      <span className="sr-only">{texto}</span>
     </span>
   );
 }
