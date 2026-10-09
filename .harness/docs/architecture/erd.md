@@ -29,6 +29,7 @@ sources:
   - supabase/migrations/20261001200000_prospect_company_faturamento.sql
   - supabase/migrations/20261002120000_prospect_une_cards_duplicados.sql
   - supabase/migrations/20261009120000_oportunidade_por_empresa.sql
+  - supabase/migrations/20261009130000_prospect_files.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
@@ -86,6 +87,9 @@ sources:
 #  contact_id; sai o "um card em andamento por pessoa". Cards em andamento e perdidos unidos por
 #  empresa (Ganho separado). Conferido contra ProspectDB/ProspectOpportunityContact/
 #  ProspectActivityDB/ProspectCompanyPartnerDB e ensaiado em PGlite (ida/volta/ida, 105 checagens).
+# 09/10/2026: 20261009130000 — prospect_files (arquivo anexado direto na oportunidade, sem
+#  atividade), conferido contra ProspectFileDB e ensaiado em PGlite (guarda de pasta/tenant,
+#  CHECKs, cascade, ida/volta/ida).
 verified: 2026-10-09
 ---
 
@@ -150,6 +154,7 @@ erDiagram
     fomento_publico }o..o{ prospect_companies : "por CNPJ (sem FK: referência pública)"
     prospects ||--o{ prospect_activities : ""
     prospects ||--o{ prospect_tasks : ""
+    prospects ||--o{ prospect_files : "anexados direto na ficha (cascade)"
     prospects ||--o{ prospect_stage_changes : "trigger em INSERT e UPDATE OF stage"
     employees ||--o{ prospect_tasks : "owner_id (herdado do contato)"
     employees ||--o{ prospects : "owner_id"
@@ -228,6 +233,11 @@ erDiagram
         date occurred_on "dia em America/Sao_Paulo"
         text source "registrado | reconstruido | anterior"
     }
+    prospect_files {
+        text path "{tenant_id}/{prospect_id}/... no bucket prospect-attachments (trigger confere)"
+        text type "pdf | png | jpeg | webp (CHECK)"
+        bigint size "até 10 MB (CHECK)"
+    }
     prospect_tasks {
         text description "o que precisa ser feito"
         date due_date "prazo: vencida = pendente com due_date < hoje"
@@ -238,7 +248,12 @@ erDiagram
 
 Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000`, `20260917115000`,
 `20260917180000`, `20260917190000`, `20260923120000`, `20260924120000`, `20260928120000`,
-`20261001190000`, `20261001200000` e `20261009120000`.
+`20261001190000`, `20261001200000`, `20261009120000` e `20261009130000`.
+
+`prospect_files` (09/10/2026) guarda o arquivo anexado direto na oportunidade, sem registrar
+atividade — não conta toque nem mexe na cadência. A aba Arquivos da ficha lê esta tabela junto
+com `prospect_activities.attachments`. Mesmo bucket e mesmas capacidades dos anexos de
+atividade; sem UPDATE pela API (arquivo se exclui e se anexa de novo).
 
 `prospect_opportunity_contacts` (09/10/2026) liga a oportunidade às pessoas. Três triggers
 mantêm o contato principal (`prospects.contact_id`): o primeiro vínculo vira principal

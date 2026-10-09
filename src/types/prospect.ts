@@ -498,6 +498,32 @@ export interface ProspectActivityWithOwner extends ProspectActivityDB {
 }
 
 /**
+ * Arquivo anexado direto na oportunidade (09/10/2026), sem atividade: não conta toque nem
+ * mexe na cadência. Mesmo bucket e mesmo formato dos anexos de atividade.
+ */
+export interface ProspectFileDB extends ProspectAttachment {
+  id: string;
+  tenant_id: string;
+  prospect_id: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+/**
+ * Um arquivo da oportunidade, venha de onde vier: anexado direto na ficha (`arquivo`) ou numa
+ * atividade (`atividade`, o número do toque). Só o da ficha se exclui pela aba Arquivos — o de
+ * atividade se edita na própria atividade, que é quem o explica.
+ */
+export interface ArquivoDaOportunidade {
+  chave: string;
+  anexo: ProspectAttachment;
+  /** Data local (YYYY-MM-DD) de quando entrou. */
+  dia: string;
+  arquivo?: ProspectFileDB;
+  atividade?: number;
+}
+
+/**
  * Tarefa: o que ainda precisa ser feito com o contato (24/09/2026).
  *
  * Não é atividade: não conta toque, não agenda cadência e não move etapa.

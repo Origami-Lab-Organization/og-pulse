@@ -7,6 +7,7 @@ import {
   type PendingTaskLite,
   type ProspectActivityWithOwner,
   type ProspectContactRole,
+  type ProspectFileDB,
   type ProspectStage,
   type ProspectTaskDB,
   type ProspectWithCompany,
@@ -320,6 +321,43 @@ export async function fetchStageChanges(tenantId: string): Promise<ProspectStage
  */
 export async function deleteActivity(id: string): Promise<void> {
   const { error } = await tabela('prospect_activities').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// --------------------------------------------------------------------------
+// Arquivos da oportunidade (09/10/2026)
+// --------------------------------------------------------------------------
+
+/** Os anexados direto na ficha, do mais recente ao mais antigo. Os de atividade vêm com ela. */
+export async function fetchProspectFiles(prospectId: string): Promise<ProspectFileDB[]> {
+  const { data, error } = await tabela('prospect_files')
+    .select('*')
+    .eq('prospect_id', prospectId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as ProspectFileDB[];
+}
+
+/** O arquivo já subiu para o bucket: aqui só se registra. Tenant e pasta são conferidos no banco. */
+export async function createProspectFile(input: {
+  prospect_id: string;
+  anexo: ProspectAttachment;
+  created_by?: string | null;
+}): Promise<void> {
+  const { path, name, size, type } = input.anexo;
+  const { error } = await tabela('prospect_files').insert({
+    prospect_id: input.prospect_id,
+    path,
+    name,
+    size,
+    type,
+    created_by: input.created_by ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function deleteProspectFile(id: string): Promise<void> {
+  const { error } = await tabela('prospect_files').delete().eq('id', id);
   if (error) throw error;
 }
 

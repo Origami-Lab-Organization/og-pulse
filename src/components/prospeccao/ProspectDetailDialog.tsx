@@ -83,6 +83,9 @@ import { ProspectActivityComposer } from './ProspectActivityComposer';
 import { ProspectTaskComposer } from './ProspectTaskComposer';
 import { ProspectTaskTimeline } from './ProspectTaskTimeline';
 import { ProspectDealCard } from './ProspectDealCard';
+import { ProspectFilesList, ProspectFilesUploader } from './ProspectFilesPanel';
+import { useProspectFiles } from '@/hooks/useProspectFiles';
+import { juntarArquivos } from '@/lib/prospecting/arquivos';
 import { OpportunityContactsCard } from './OpportunityContactsCard';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
 import { CnpjLookupField } from './CnpjLookupField';
@@ -93,7 +96,7 @@ import { ProspectProjectDialog } from './ProspectProjectDialog';
 import { FaturamentoAnualField } from './FaturamentoAnualField';
 import { descreverFaturamento } from '@/lib/prospecting/faturamento';
 
-type Aba = 'registros' | 'tarefas';
+type Aba = 'registros' | 'tarefas' | 'arquivos';
 
 interface ProspectDetailDialogProps {
   prospect: ProspectWithCompany | null;
@@ -374,10 +377,11 @@ export function ProspectDetailDialog({
 }
 
 /**
- * O centro do card: Registros (o que já aconteceu) e Tarefas (o que falta fazer).
+ * O centro da ficha: Registros (o que já aconteceu), Tarefas (o que falta fazer) e Arquivos
+ * (09/10/2026: os anexos das atividades e os anexados direto na oportunidade).
  *
  * Registros não mostra contagem na aba (24/09/2026, Guilherme) — o total já está nos
- * indicadores. Tarefas mostra só as não concluídas, que é o que pede ação.
+ * indicadores. Tarefas mostra só as não concluídas, que é o que pede ação; Arquivos, o total.
  */
 function PainelDeAtividade({
   prospect,
@@ -397,6 +401,7 @@ function PainelDeAtividade({
   onWin: () => void;
 }) {
   const { data: tarefas = [], isLoading: carregandoTarefas } = useProspectTasks(prospect.id);
+  const arquivos = useArquivosDaOportunidade(prospect.id, atividades, carregandoAtividades);
   const [aba, setAba] = useState<Aba>('registros');
 
   // Só pelo id: o objeto do contato é recarregado a cada escrita e não pode tirar a
@@ -407,8 +412,6 @@ function PainelDeAtividade({
 
   // Já vem ordenada por prazo (fetchProspectTasks): a primeira pendente é a mais urgente.
   const pendentes = tarefas.filter((t) => !t.done_at);
-  const tarefasPendentes = pendentes.length;
-  const tarefasVencidas = pendentes.filter((t) => isTaskOverdue(t)).length;
 
   return (
     <Tabs
@@ -425,17 +428,13 @@ function PainelDeAtividade({
             <TabsTrigger value="registros">Registros</TabsTrigger>
             <TabsTrigger value="tarefas" className="gap-2">
               Tarefas
-              {tarefasPendentes > 0 && (
-                <Badge
-                  variant="secondary"
-                  className={cn(tarefasVencidas > 0 && 'bg-destructive/10 text-destructive')}
-                  aria-label={
-                    tarefasVencidas > 0
-                      ? `${tarefasPendentes} não concluídas, ${tarefasVencidas} vencidas`
-                      : `${tarefasPendentes} não concluídas`
-                  }
-                >
-                  {tarefasPendentes}
+              <ContagemDeTarefas pendentes={pendentes} />
+            </TabsTrigger>
+            <TabsTrigger value="arquivos" className="gap-2">
+              Arquivos
+              {arquivos.itens.length > 0 && (
+                <Badge variant="secondary" aria-label={`${arquivos.itens.length} arquivos`}>
+                  {arquivos.itens.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -485,7 +484,43 @@ function PainelDeAtividade({
           </div>
         )}
       </TabsContent>
+
+      <TabsContent value="arquivos" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          <ProspectFilesList itens={arquivos.itens} carregando={arquivos.carregando} podeEditar={!somenteLeitura} />
+        </div>
+
+        {!somenteLeitura && (
+          <div className="border-t p-4">
+            <ProspectFilesUploader prospectId={prospect.id} />
+          </div>
+        )}
+      </TabsContent>
     </Tabs>
+  );
+}
+
+/** Os arquivos da ficha e os das atividades, numa lista só (09/10/2026). */
+function useArquivosDaOportunidade(
+  prospectId: string,
+  atividades: ProspectActivityWithOwner[],
+  carregandoAtividades: boolean,
+) {
+  const { data: daFicha = [], isLoading } = useProspectFiles(prospectId);
+  return { itens: juntarArquivos(daFicha, atividades), carregando: isLoading || carregandoAtividades };
+}
+
+/** Quantas tarefas faltam, em vermelho quando alguma venceu. */
+function ContagemDeTarefas({ pendentes }: { pendentes: ProspectTaskDB[] }) {
+  if (pendentes.length === 0) return null;
+  const vencidas = pendentes.filter((t) => isTaskOverdue(t)).length;
+  const rotulo = vencidas > 0
+    ? `${pendentes.length} não concluídas, ${vencidas} vencidas`
+    : `${pendentes.length} não concluídas`;
+  return (
+    <Badge variant="secondary" className={cn(vencidas > 0 && 'bg-destructive/10 text-destructive')} aria-label={rotulo}>
+      {pendentes.length}
+    </Badge>
   );
 }
 

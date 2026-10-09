@@ -15,6 +15,7 @@ export type TabelaDeProspeccao =
   | 'prospect_companies'
   | 'prospect_contacts'
   | 'prospect_opportunity_contacts'
+  | 'prospect_files'
   | 'prospect_activities'
   | 'prospect_tasks'
   | 'prospect_stage_changes'
