@@ -1,5 +1,6 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { useRegisterActivity } from '@/hooks/useProspectActivities';
 import { useUpdateProspectStage } from '@/hooks/useProspects';
@@ -30,8 +31,10 @@ interface ProspectAdvanceButtonProps {
  * Cada destino tem sua regra, e elas não são intercambiáveis:
  * registrar resposta (o banco move), abrir o registro da reunião, ou mover direto.
  */
-export function ProspectAdvanceButton(props: ProspectAdvanceButtonProps & { size?: 'sm' | 'default' }) {
-  const { prospect, onPrompt, onWin, size = 'default' } = props;
+export function ProspectAdvanceButton(
+  props: ProspectAdvanceButtonProps & { size?: 'sm' | 'default'; variant?: 'default' | 'outline' },
+) {
+  const { prospect, onPrompt, onWin, size = 'default', variant = 'outline' } = props;
   const registrar = useRegisterActivity();
   const moverEtapa = useUpdateProspectStage();
   const proxima = PROSPECT_NEXT_STAGE[prospect.stage];
@@ -71,31 +74,41 @@ export function ProspectAdvanceButton(props: ProspectAdvanceButtonProps & { size
   return (
     <Botao
       size={size}
+      variant={variant}
       onClick={avancar}
-      label={getProspectStageLabel(proxima)}
+      label={proxima === ETAPA_GANHO ? 'Marcar ganho' : getProspectStageLabel(proxima)}
+      ganho={proxima === ETAPA_GANHO}
       disabled={registrar.isPending || moverEtapa.isPending}
     />
   );
 }
 
+const ETAPA_GANHO: ProspectStage = 'ganho';
+
+/**
+ * Desde 09/10/2026 o botão mora no cabeçalho da ficha, ao lado da régua de etapas e longe do
+ * "Registrar" do compositor — por isso pode ser o primário dali sem disputar com ele.
+ */
 function Botao({
   label,
   onClick,
   disabled,
   size,
+  variant,
+  ganho,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
   size: 'sm' | 'default';
+  variant: 'default' | 'outline';
+  ganho: boolean;
 }) {
-  // Secundário de propósito: o primário desta tela é "Registrar", no compositor. Dois botões
-  // preenchidos lado a lado disputariam o olho sem dizer qual é o caminho comum — e o comum
-  // é registrar a atividade, não mudar a etapa.
+  const Icone = ganho ? Check : ArrowRight;
   return (
-    <Button type="button" variant="outline" size={size} onClick={onClick} disabled={disabled}>
+    <Button type="button" variant={variant} size={size} onClick={onClick} disabled={disabled}>
       {label}
-      <ArrowRight className="ml-1.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      <Icone className={cn('ml-1.5 h-4 w-4', variant === 'outline' && 'text-muted-foreground')} aria-hidden="true" />
     </Button>
   );
 }
