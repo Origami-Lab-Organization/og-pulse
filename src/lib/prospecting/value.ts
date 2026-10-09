@@ -26,3 +26,13 @@ export function resolveProspectValue(prospect: ProspectForValue): number {
   }
   return prospect.estimated_value || 0;
 }
+
+/** De onde veio o valor exibido — quem lê "R$ 48 mil" precisa saber se é fato ou previsão. */
+export type ProspectValueSource = 'vendido' | 'orcamento' | 'estimado';
+
+/** A mesma ordem de `resolveProspectValue`, dita em vez de calculada. */
+export function prospectValueSource(prospect: ProspectForValue): ProspectValueSource {
+  if (prospect.stage === ETAPA_GANHO && prospect.won_value != null) return 'vendido';
+  if (prospect.budget?.final_total && prospect.budget.final_total > 0) return 'orcamento';
+  return 'estimado';
+}

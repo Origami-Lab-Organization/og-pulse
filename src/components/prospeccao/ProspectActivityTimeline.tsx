@@ -48,6 +48,7 @@ export function ProspectActivityTimeline({
             prospectId={prospect.id}
             contatos={prospect.contacts ?? []}
             autorNome={atividade.owner_id ? byId.get(atividade.owner_id)?.nome : undefined}
+            inicialmenteAberta={indice === 0}
             podeEditar={podeEditar}
           />
         </li>
@@ -72,10 +73,10 @@ function Marcador({ destacado = false, semFio = false }: { destacado?: boolean; 
   return (
     <span aria-hidden="true">
       {/* O último nó não puxa fio: linha que desce para o vazio sugere item que não veio. */}
-      {!semFio && <span className="absolute left-[7px] top-4 h-full w-px bg-border" />}
+      {!semFio && <span className="absolute left-[7px] top-5 h-full w-px bg-border" />}
       <span
         className={cn(
-          'absolute left-0 top-2 h-3.5 w-3.5 rounded-full border-2 bg-background',
+          'absolute left-0 top-3.5 h-3.5 w-3.5 rounded-full border-2 bg-background',
           destacado ? 'border-primary bg-primary' : 'border-border',
         )}
       />

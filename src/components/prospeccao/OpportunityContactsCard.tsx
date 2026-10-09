@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Instagram, Linkedin, Loader2, Mail, Phone, Plus, X } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import {
   useRemoveOpportunityContact,
   useUpdateOpportunityContactRole,
 } from '@/hooks/useProspects';
+import { iniciaisDe } from '@/lib/prospecting/iniciais';
 import { comProtocolo, urlDoInstagram } from '@/lib/prospecting/links';
 import {
   getContactRoleLabel,
@@ -26,6 +28,7 @@ import {
 } from '@/types/prospect';
 import { OpportunityContactRoleSelect } from './OpportunityContactRoleSelect';
 import { ProspectContactSelect } from './ProspectContactSelect';
+import { CartaoDaFicha } from './FichaDaOportunidade';
 
 interface OpportunityContactsCardProps {
   prospect: ProspectWithCompany;
@@ -46,24 +49,23 @@ export function OpportunityContactsCard({ prospect, podeEditar: editavel }: Oppo
   const [incluindo, setIncluindo] = useState(false);
   const contatos = sortOpportunityContacts(prospect.contacts ?? []);
 
-  return (
-    <section className="rounded-lg border bg-card p-3" aria-label="Contatos da oportunidade">
-      <header className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Contatos · {contatos.length}</h3>
-        {podeEditar && !incluindo && (
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setIncluindo(true)}>
-            <Plus className="mr-1 h-3 w-3" aria-hidden="true" />
-            Incluir
-          </Button>
-        )}
-      </header>
+  const acao = podeEditar && !incluindo && (
+    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => setIncluindo(true)}>
+      <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+      Incluir
+    </Button>
+  );
 
+  return (
+    <CartaoDaFicha
+      rotulo="Contatos da oportunidade"
+      titulo={<>Contatos <span className="font-normal text-muted-foreground">· {contatos.length}</span></>}
+      acao={acao}
+    >
       <ListaDeContatos prospectId={prospect.id} contatos={contatos} podeEditar={podeEditar} vazioVisivel={!incluindo} />
       {incluindo && <InclusaoDeContato prospect={prospect} onFechar={() => setIncluindo(false)} />}
       {podeEditar && <SugestoesDaEmpresa prospect={prospect} />}
-
-      <p className="mt-3 text-xs text-muted-foreground">Os dados de cada pessoa se editam em Contatos.</p>
-    </section>
+    </CartaoDaFicha>
   );
 }
 
@@ -81,94 +83,116 @@ function ListaDeContatos(props: {
     <ul className="space-y-2">
       {contatos.map((c) => (
         <li key={c.contact_id}>
-          <LinhaDoContato prospectId={prospectId} vinculo={c} podeEditar={podeEditar} />
+          <CartaoDoContato prospectId={prospectId} vinculo={c} podeEditar={podeEditar} />
         </li>
       ))}
     </ul>
   );
 }
 
-function LinhaDoContato(props: { prospectId: string; vinculo: ProspectOpportunityContact; podeEditar: boolean }) {
+/** Uma pessoa: quem é, como falar com ela e o papel dela na decisão. */
+function CartaoDoContato(props: { prospectId: string; vinculo: ProspectOpportunityContact; podeEditar: boolean }) {
   const { prospectId, vinculo, podeEditar } = props;
-  const mudarPapel = useUpdateOpportunityContactRole();
   const retirar = useRemoveOpportunityContact();
   const pessoa = vinculo.contact;
   const nome = pessoa?.name ?? 'Contato';
-  const papel = getContactRoleLabel(vinculo.role);
 
   return (
-    <div className="space-y-1.5 rounded-md border p-2.5">
-      <div className="flex items-start gap-2">
+    <div className="space-y-3 rounded-lg border p-3">
+      <div className="flex items-start gap-2.5">
+        <Avatar className="h-9 w-9 shrink-0">
+          <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">{iniciaisDe(nome)}</AvatarFallback>
+        </Avatar>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{nome}</p>
+          <p className="truncate text-sm font-semibold">{nome}</p>
           {pessoa?.role && <p className="truncate text-xs text-muted-foreground">{pessoa.role}</p>}
         </div>
-        {podeEditar ? (
-          <>
-            <OpportunityContactRoleSelect
-              value={vinculo.role}
-              nome={nome}
-              onChange={(role) => mudarPapel.mutate({ prospectId, contactId: vinculo.contact_id, role })}
-              disabled={mudarPapel.isPending}
-              className="w-32"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-              aria-label={`Retirar ${nome} da oportunidade`}
-              title="Retirar da oportunidade"
-              disabled={retirar.isPending}
-              onClick={() => retirar.mutate({ prospectId, contactId: vinculo.contact_id })}
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </>
-        ) : (
-          papel && <Badge variant="secondary" className="shrink-0 font-normal">{papel}</Badge>
+        {podeEditar && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="-mr-1 -mt-1 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+            aria-label={`Retirar ${nome} da oportunidade`}
+            title="Retirar da oportunidade"
+            disabled={retirar.isPending}
+            onClick={() => retirar.mutate({ prospectId, contactId: vinculo.contact_id })}
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </Button>
         )}
       </div>
       <MeiosDeContato pessoa={pessoa} />
+      <PapelNaDecisao prospectId={prospectId} vinculo={vinculo} nome={nome} podeEditar={podeEditar} />
+    </div>
+  );
+}
+
+function PapelNaDecisao(props: { prospectId: string; vinculo: ProspectOpportunityContact; nome: string; podeEditar: boolean }) {
+  const { prospectId, vinculo, nome, podeEditar } = props;
+  const mudarPapel = useUpdateOpportunityContactRole();
+  if (!podeEditar) {
+    const papel = getContactRoleLabel(vinculo.role);
+    return papel ? <Badge variant="secondary" className="font-normal">{papel}</Badge> : null;
+  }
+  return (
+    <div className="space-y-1.5 border-t pt-3">
+      <p className="text-xs text-muted-foreground">Papel na decisão</p>
+      <OpportunityContactRoleSelect
+        value={vinculo.role}
+        nome={nome}
+        onChange={(role) => mudarPapel.mutate({ prospectId, contactId: vinculo.contact_id, role })}
+        disabled={mudarPapel.isPending}
+        className="h-9 w-full text-sm"
+      />
     </div>
   );
 }
 
 type Pessoa = NonNullable<ProspectOpportunityContact['contact']>;
 
-/** Cada meio de contato preenchido vira um botão: e-mail e telefone abrem o app, redes abrem aba. */
-const MEIOS: ReadonlyArray<{
-  campo: 'email' | 'phone' | 'linkedin_url' | 'instagram_url';
-  icone: typeof Mail;
-  href: (valor: string) => string;
-  rotulo: (valor: string) => string;
-  externo: boolean;
-}> = [
-  { campo: 'email', icone: Mail, href: (v) => `mailto:${v}`, rotulo: (v) => v, externo: false },
-  { campo: 'phone', icone: Phone, href: (v) => `tel:${v.replace(/[^\d+]/g, '')}`, rotulo: (v) => v, externo: false },
-  { campo: 'linkedin_url', icone: Linkedin, href: comProtocolo, rotulo: () => 'LinkedIn', externo: true },
-  { campo: 'instagram_url', icone: Instagram, href: (v) => urlDoInstagram(v) ?? v, rotulo: () => 'Instagram', externo: true },
-];
-
+/** E-mail e telefone em linha, que é o que se copia; redes, só pelo ícone. */
 function MeiosDeContato({ pessoa }: { pessoa: ProspectOpportunityContact['contact'] }) {
-  const meios = pessoa ? MEIOS.filter((m) => !!pessoa[m.campo]) : [];
-  if (!pessoa || meios.length === 0) return null;
-
+  if (!pessoa) return null;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {meios.map((meio) => (
-        <LinkDeMeio key={meio.campo} meio={meio} valor={(pessoa as Pessoa)[meio.campo] as string} />
-      ))}
+    <div className="space-y-1.5 empty:hidden">
+      <LinhaDeMeio valor={pessoa.email} href={(v) => `mailto:${v}`} icone={Mail} />
+      <LinhaDeMeio valor={pessoa.phone} href={(v) => `tel:${v.replace(/[^\d+]/g, '')}`} icone={Phone} />
+      <RedesDaPessoa pessoa={pessoa} />
     </div>
   );
 }
 
-function LinkDeMeio({ meio, valor }: { meio: (typeof MEIOS)[number]; valor: string }) {
-  const { icone: Icone, externo } = meio;
+function LinhaDeMeio(props: { valor: string | null; href: (valor: string) => string; icone: typeof Mail }) {
+  const { valor, href, icone: Icone } = props;
+  if (!valor) return null;
   return (
-    <Button variant="outline" size="sm" className="h-7 max-w-full px-2 text-xs font-normal" asChild>
-      <a href={meio.href(valor)} {...(externo ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
-        <Icone className="mr-1 h-3 w-3 shrink-0" aria-hidden="true" />
-        <span className="truncate">{meio.rotulo(valor)}</span>
+    <a
+      href={href(valor)}
+      className="flex min-w-0 items-center gap-2 rounded text-sm text-foreground/90 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Icone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <span className="truncate">{valor}</span>
+    </a>
+  );
+}
+
+function RedesDaPessoa({ pessoa }: { pessoa: Pessoa }) {
+  const instagram = urlDoInstagram(pessoa.instagram_url);
+  if (!pessoa.linkedin_url && !instagram) return null;
+  return (
+    <div className="flex gap-1.5 pt-0.5">
+      {pessoa.linkedin_url && <IconeDeRede href={comProtocolo(pessoa.linkedin_url)} icone={Linkedin} rotulo={`LinkedIn de ${pessoa.name}`} />}
+      {instagram && <IconeDeRede href={instagram} icone={Instagram} rotulo={`Instagram de ${pessoa.name}`} />}
+    </div>
+  );
+}
+
+function IconeDeRede(props: { href: string; icone: typeof Mail; rotulo: string }) {
+  const { href, icone: Icone, rotulo } = props;
+  return (
+    <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+      <a href={href} target="_blank" rel="noopener noreferrer" aria-label={rotulo} title={rotulo}>
+        <Icone className="h-3.5 w-3.5" aria-hidden="true" />
       </a>
     </Button>
   );

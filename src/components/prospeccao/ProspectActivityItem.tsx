@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
-import { Download, Loader2, Paperclip, Pencil, UserRound, X } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Download, Loader2, Paperclip, Pencil, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { useUpdateProspectActivity } from '@/hooks/useProspectActivities';
 import { INTERACTION_CHANNELS, getChannelLabel } from '@/lib/interactionChannels';
-import { iniciaisDe } from '@/lib/prospecting/iniciais';
 import {
   ALLOWED_ATTACHMENT_LABEL,
   ALLOWED_ATTACHMENT_TYPES,
@@ -31,16 +29,19 @@ interface ProspectActivityItemProps {
   contatos: ProspectOpportunityContact[];
   autorNome?: string;
   podeEditar: boolean;
+  /** Aberta ao montar — a mais recente. As outras ficam recolhidas a uma linha (09/10/2026). */
+  inicialmenteAberta?: boolean;
 }
 
-export function ProspectActivityItem({
-  activity,
-  prospectId,
-  contatos,
-  autorNome,
-  podeEditar,
-}: ProspectActivityItemProps) {
+/**
+ * Uma atividade da linha do tempo. Recolhida, é uma linha (número, canal, resposta e data):
+ * a linha do tempo longa se lê de relance e abre o que interessa. Aberta, mostra quem
+ * registrou, com quem foi, o relato e os anexos.
+ */
+export function ProspectActivityItem(props: ProspectActivityItemProps) {
+  const { activity, prospectId, contatos, inicialmenteAberta = false } = props;
   const [editando, setEditando] = useState(false);
+  const [aberta, setAberta] = useState(inicialmenteAberta);
 
   if (editando) {
     return (
@@ -52,76 +53,106 @@ export function ProspectActivityItem({
       />
     );
   }
+  if (!aberta) return <AtividadeRecolhida activity={activity} onAbrir={() => setAberta(true)} />;
+  return <AtividadeAberta {...props} onRecolher={() => setAberta(false)} onEditar={() => setEditando(true)} />;
+}
 
-  const anexos = activity.attachments ?? [];
-
+function AtividadeRecolhida({ activity, onAbrir }: { activity: ProspectActivityWithOwner; onAbrir: () => void }) {
   return (
-    <article className="rounded-lg border bg-card p-3 shadow-sm">
-      <header className="flex flex-wrap items-center gap-2">
-        <h4 className="text-sm font-semibold">Atividade nº {activity.sequence_no}</h4>
-        <Badge variant="outline" className="font-normal">{getChannelLabel(activity.channel)}</Badge>
-        <Badge
-          variant="outline"
-          className={cn(
-            'font-normal',
-            activity.got_response
-              ? 'border-transparent bg-success-subtle text-success-emphasis'
-              : 'border-transparent bg-muted text-muted-foreground',
-          )}
+    <button
+      type="button"
+      onClick={onAbrir}
+      aria-expanded={false}
+      className="flex w-full flex-wrap items-center gap-2 rounded-lg border bg-card px-4 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className="text-sm font-semibold">Atividade nº {activity.sequence_no}</span>
+      <SelosDaAtividade activity={activity} />
+      <time className="ml-auto text-xs text-muted-foreground" dateTime={activity.activity_date}>
+        {formatarData(activity.activity_date)}
+      </time>
+    </button>
+  );
+}
+
+type AtividadeAbertaProps = ProspectActivityItemProps & { onRecolher: () => void; onEditar: () => void };
+
+function AtividadeAberta(props: AtividadeAbertaProps) {
+  const anexos = props.activity.attachments ?? [];
+  const temCorpo = !!props.activity.notes || anexos.length > 0;
+  return (
+    <article className="overflow-hidden rounded-lg border bg-card">
+      <CabecalhoDaAtividade {...props} comBorda={temCorpo} />
+      {temCorpo && <CorpoDaAtividade notas={props.activity.notes} anexos={anexos} />}
+    </article>
+  );
+}
+
+function CabecalhoDaAtividade(props: AtividadeAbertaProps & { comBorda: boolean }) {
+  const { activity, autorNome, podeEditar, onRecolher, onEditar, comBorda } = props;
+  return (
+    <header className={cn('space-y-1 bg-muted/40 px-4 py-2.5', comBorda && 'border-b')}>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onRecolher}
+          aria-expanded
+          className="rounded text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {activity.got_response ? 'Teve resposta' : 'Sem resposta'}
-        </Badge>
-        <ComQuem contato={activity.contact} />
-        <div className="ml-auto flex items-center gap-1">
-          <time className="text-xs text-muted-foreground" dateTime={activity.activity_date}>
-            {formatarData(activity.activity_date)}
-          </time>
-          {podeEditar && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              aria-label={`Editar atividade nº ${activity.sequence_no}`}
-              onClick={() => setEditando(true)}
-            >
-              <Pencil className="h-3 w-3" aria-hidden="true" />
-            </Button>
-          )}
-        </div>
-      </header>
+          Atividade nº {activity.sequence_no}
+        </button>
+        <SelosDaAtividade activity={activity} />
+        {activity.contact && <span className="text-xs text-muted-foreground">com {activity.contact.name}</span>}
+      </div>
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <time dateTime={activity.activity_date}>{formatarData(activity.activity_date)}</time>
+        {autorNome && <span>· {autorNome}</span>}
+        {podeEditar && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            aria-label={`Editar atividade nº ${activity.sequence_no}`}
+            onClick={onEditar}
+          >
+            <Pencil className="h-3 w-3" aria-hidden="true" />
+          </Button>
+        )}
+      </div>
+    </header>
+  );
+}
 
-      {activity.notes && <p className="mt-2 whitespace-pre-wrap text-sm">{activity.notes}</p>}
-
+function CorpoDaAtividade({ notas, anexos }: { notas: string | null; anexos: ProspectAttachment[] }) {
+  return (
+    <div className="space-y-3 px-4 py-3">
+      {notas && <p className="whitespace-pre-wrap break-words text-sm">{notas}</p>}
       {anexos.length > 0 && (
-        <ul className="mt-2 flex flex-wrap gap-1.5">
+        <ul className="flex flex-wrap gap-1.5">
           {anexos.map((anexo) => (
             <li key={anexo.path}><LinkDeAnexo anexo={anexo} /></li>
           ))}
         </ul>
       )}
-
-      {autorNome && (
-        <footer className="mt-3 flex items-center gap-2">
-          <Avatar className="h-5 w-5">
-            <AvatarFallback className="text-[10px]">{iniciaisDe(autorNome)}</AvatarFallback>
-          </Avatar>
-          <span className="text-xs text-muted-foreground">{autorNome}</span>
-        </footer>
-      )}
-    </article>
+    </div>
   );
 }
 
-/** Com quem foi a atividade (09/10/2026), quando alguém marcou. */
-function ComQuem({ contato }: { contato?: { name: string } | null }) {
-  if (!contato) return null;
+/** Canal e resposta: os dois selos que dizem, de relance, que toque foi esse. */
+function SelosDaAtividade({ activity }: { activity: ProspectActivityWithOwner }) {
   return (
-    <Badge variant="outline" className="gap-1 font-normal">
-      <UserRound className="h-3 w-3" aria-hidden="true" />
-      <span className="sr-only">Com </span>
-      {contato.name}
-    </Badge>
+    <>
+      <Badge variant="outline" className="rounded-full bg-background font-normal">{getChannelLabel(activity.channel)}</Badge>
+      <Badge
+        variant="outline"
+        className={cn(
+          'rounded-full border-transparent font-normal',
+          activity.got_response ? 'bg-success-subtle text-success-emphasis' : 'bg-muted text-muted-foreground',
+        )}
+      >
+        {activity.got_response ? 'Respondeu' : 'Sem resposta'}
+      </Badge>
+    </>
   );
 }
 

@@ -19,6 +19,11 @@ import { CompanyFundingSection } from './CompanyFundingSection';
 interface CompanyReceitaCardProps {
   empresa: ProspectCompanyDB;
   podeEditar: boolean;
+  /**
+   * Ficha da oportunidade (09/10/2026): os sinais viram lista com ponto de cor, e saem daqui o
+   * Fit (cartão próprio) e abertura/capital/razão social (já no cartão da Empresa).
+   */
+  compacto?: boolean;
 }
 
 const COR_LEI_DO_BEM: Record<LeiDoBemSignal, string> = {
@@ -32,41 +37,49 @@ const COR_LEI_DO_BEM: Record<LeiDoBemSignal, string> = {
  * Origami: regime tributário (Lei do Bem só no Lucro Real), porte, idade e situação — e a
  * rede de sócios, de onde sai com quem falar.
  */
-export function CompanyReceitaCard({ empresa, podeEditar }: CompanyReceitaCardProps) {
-  const atualizar = useRefreshCompanyReceita();
+export function CompanyReceitaCard(props: CompanyReceitaCardProps) {
+  const { empresa, podeEditar, compacto = false } = props;
   const consultada = !!empresa.receita_consultada_em;
+  const Retrato = compacto ? RetratoCompacto : RetratoCompleto;
 
   return (
-    <section className="rounded-lg border bg-card p-3" aria-label="Dados da Receita">
-      <header className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="flex items-center gap-1.5 text-sm font-semibold">
-          <Landmark className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          Dados da Receita
-        </h3>
-        {podeEditar && empresa.cnpj && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={() => atualizar.mutate(empresa)}
-            disabled={atualizar.isPending}
-          >
-            {atualizar.isPending ? (
-              <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden="true" />
-            ) : (
-              <RefreshCw className="mr-1 h-3 w-3" aria-hidden="true" />
-            )}
-            {consultada ? 'Atualizar' : 'Consultar'}
-          </Button>
-        )}
-      </header>
-
+    <section className={cn('rounded-lg border bg-card', compacto ? 'p-4' : 'p-3')} aria-label="Dados da Receita">
+      <CabecalhoDaReceita empresa={empresa} podeEditar={podeEditar} compacto={compacto} />
       {consultada ? <Retrato empresa={empresa} /> : <SemConsulta temCnpj={!!empresa.cnpj} />}
-
       <CompanySiteSection empresa={empresa} podeEditar={podeEditar} />
       <CompanyFundingSection empresa={empresa} podeEditar={podeEditar} />
       <CompanyPartnersList empresa={empresa} podeEditar={podeEditar} />
     </section>
+  );
+}
+
+function CabecalhoDaReceita(props: CompanyReceitaCardProps) {
+  const { empresa, podeEditar, compacto } = props;
+  return (
+    <header className="mb-3 flex items-center justify-between gap-2">
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+        {!compacto && <Landmark className="h-4 w-4 text-muted-foreground" aria-hidden="true" />}
+        Dados da Receita
+      </h3>
+      {podeEditar && empresa.cnpj && <BotaoAtualizar empresa={empresa} />}
+    </header>
+  );
+}
+
+function BotaoAtualizar({ empresa }: { empresa: ProspectCompanyDB }) {
+  const atualizar = useRefreshCompanyReceita();
+  const Icone = atualizar.isPending ? Loader2 : RefreshCw;
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-7 px-2 text-xs"
+      onClick={() => atualizar.mutate(empresa)}
+      disabled={atualizar.isPending}
+    >
+      <Icone className={cn('mr-1 h-3 w-3', atualizar.isPending && 'animate-spin')} aria-hidden="true" />
+      {empresa.receita_consultada_em ? 'Atualizar' : 'Consultar'}
+    </Button>
   );
 }
 
@@ -80,20 +93,12 @@ function SemConsulta({ temCnpj }: { temCnpj: boolean }) {
   );
 }
 
-function Retrato({ empresa }: { empresa: ProspectCompanyDB }) {
+function RetratoCompleto({ empresa }: { empresa: ProspectCompanyDB }) {
   const sinal = leiDoBemSignal(empresa.regime_tributario);
-  const ativa = isSituacaoAtiva(empresa.situacao_cadastral);
   const industria = industryLabel(industrySignal(empresa.receita));
   return (
     <div className="space-y-3">
-      {!ativa && (
-        <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-2">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
-          <p className="text-xs text-destructive">
-            Situação na Receita: {empresa.situacao_cadastral}. Confirme antes de abordar.
-          </p>
-        </div>
-      )}
+      <AlertaDeSituacao empresa={empresa} />
 
       <CompanyFitSection empresa={empresa} fomento={empresa.fomento ?? null} />
 
@@ -126,6 +131,98 @@ function Retrato({ empresa }: { empresa: ProspectCompanyDB }) {
       </p>
     </div>
   );
+}
+
+/**
+ * O que a Receita diz, em três linhas com ponto de cor (09/10/2026): o ramo, a Lei do Bem e o
+ * porte. Cada linha tem o sinal em destaque e, embaixo, de onde ele vem.
+ */
+function RetratoCompacto({ empresa }: { empresa: ProspectCompanyDB }) {
+  return (
+    <div className="space-y-3">
+      <AlertaDeSituacao empresa={empresa} />
+      <ul className="space-y-2.5">
+        {sinaisDa(empresa).map((sinal) => (
+          <li key={sinal.titulo} className="flex items-start gap-2.5">
+            <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', sinal.cor)} aria-hidden="true" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium leading-snug">{sinal.titulo}</span>
+              {sinal.detalhe && <span className="block text-xs text-muted-foreground">{sinal.detalhe}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {empresa.receita && <Detalhes detalhes={empresa.receita} cnpj={empresa.cnpj} />}
+      <p className="text-[11px] text-muted-foreground">
+        Consultado em {dataBr(empresa.receita_consultada_em!.slice(0, 10))} · base pública da Receita
+      </p>
+    </div>
+  );
+}
+
+function AlertaDeSituacao({ empresa }: { empresa: ProspectCompanyDB }) {
+  if (isSituacaoAtiva(empresa.situacao_cadastral)) return null;
+  return (
+    <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-2">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+      <p className="text-xs text-destructive">
+        Situação na Receita: {empresa.situacao_cadastral}. Confirme antes de abordar.
+      </p>
+    </div>
+  );
+}
+
+const PONTO_DA_LEI_DO_BEM: Record<LeiDoBemSignal, string> = {
+  elegivel: 'bg-success',
+  nao_elegivel: 'bg-warning',
+  sem_regime: 'bg-muted-foreground',
+};
+
+interface SinalDaReceita {
+  titulo: string;
+  detalhe: string | null;
+  cor: string;
+}
+
+function sinaisDa(empresa: ProspectCompanyDB): SinalDaReceita[] {
+  const lei = leiDoBemSignal(empresa.regime_tributario);
+  const [tituloDaLei, detalheDaLei] = partirRotulo(LEI_DO_BEM_LABEL[lei]);
+  const ano = empresa.regime_tributario_ano ? ` (${empresa.regime_tributario_ano})` : '';
+  const sinais: Array<SinalDaReceita | null> = [
+    sinalDaIndustria(empresa),
+    { titulo: tituloDaLei, detalhe: detalheDaLei ? `${detalheDaLei}${ano}` : null, cor: PONTO_DA_LEI_DO_BEM[lei] },
+    sinalDoPorte(empresa.porte),
+  ];
+  return sinais.filter((s): s is SinalDaReceita => !!s);
+}
+
+function sinalDaIndustria(empresa: ProspectCompanyDB): SinalDaReceita | null {
+  const rotulo = industryLabel(industrySignal(empresa.receita));
+  if (!rotulo) return null;
+  const [titulo, detalhe] = partirRotulo(rotulo);
+  return { titulo, detalhe: detalhe ?? 'CNAE principal', cor: 'bg-primary' };
+}
+
+function sinalDoPorte(porte?: string | null): SinalDaReceita | null {
+  const rotulo = porteLabel(porte);
+  if (!rotulo) return null;
+  const [titulo, faixa] = partirRotulo(rotulo);
+  return { titulo, detalhe: faixa ? `Porte declarado ${faixa.charAt(0).toLowerCase()}${faixa.slice(1)}` : null, cor: 'bg-muted-foreground' };
+}
+
+/**
+ * Os rótulos da Receita juntam sinal e explicação ("Fora do Lucro Real — Lei do Bem não se
+ * aplica", "Microempresa (até R$ 360 mil/ano)"); a lista mostra os dois em linhas separadas.
+ */
+function partirRotulo(rotulo: string): [string, string | null] {
+  const [antes, ...depois] = rotulo.split(' — ');
+  if (depois.length > 0) return [antes, maiusculaInicial(depois.join(' — '))];
+  const parenteses = /^(.*?) \((.*)\)$/.exec(rotulo);
+  return parenteses ? [parenteses[1], maiusculaInicial(parenteses[2])] : [rotulo, null];
+}
+
+function maiusculaInicial(texto: string): string {
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
 function Detalhes({ detalhes, cnpj }: { detalhes: ReceitaDetails; cnpj: string | null }) {
