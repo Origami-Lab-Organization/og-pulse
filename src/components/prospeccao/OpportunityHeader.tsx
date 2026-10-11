@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import {
   BadgeDollarSign,
+  Check,
   MoreVertical,
   Pencil,
   RotateCcw,
   Trash2,
   Undo2,
+  X,
   XCircle,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -20,7 +23,10 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
 import { useProspectBudget } from '@/hooks/useProspectDeal';
+import { useUpdateProspect } from '@/hooks/useProspects';
 import { formatCurrency } from '@/lib/formatters';
 import { iniciaisDe } from '@/lib/prospecting/iniciais';
 import { formatarData } from '@/lib/prospecting/prazos';
@@ -31,7 +37,9 @@ import {
   getDiscardReasonLabel,
   getProspectStageColor,
   getProspectStageLabel,
+  hasOwnOpportunityName,
   isProspectClosed,
+  OPPORTUNITY_TITLE_MAX,
   opportunityName,
   previousStagesOf,
   type ProspectActivityWithOwner,
@@ -66,19 +74,21 @@ interface OpportunityHeaderProps {
  */
 export function OpportunityHeader(props: OpportunityHeaderProps) {
   const { prospect, atividades } = props;
-  const nome = opportunityName(prospect);
+  const { can } = useAuth();
   const respostas = atividades.filter((a) => a.got_response).length;
 
   return (
     <DialogHeader className="space-y-4 border-b px-6 pb-4 pt-5 text-left">
       <div className="flex flex-wrap items-start gap-4 pr-10">
         <Avatar className="h-12 w-12 shrink-0">
-          <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">{iniciaisDe(nome)}</AvatarFallback>
+          <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+            {iniciaisDe(prospect.company?.name ?? opportunityName(prospect))}
+          </AvatarFallback>
         </Avatar>
 
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <DialogTitle className="text-xl font-semibold leading-tight">{nome}</DialogTitle>
+            <TituloDaOportunidade prospect={prospect} podeEditar={!props.somenteLeitura && can('prospeccao:editar')} />
             <Badge variant="secondary" className={cn('rounded-full font-medium', getProspectStageColor(prospect.stage))}>
               {getProspectStageLabel(prospect.stage)}
             </Badge>
@@ -100,10 +110,77 @@ export function OpportunityHeader(props: OpportunityHeaderProps) {
   );
 }
 
-/** "Calçados / Injetados · Último contato em 01/10/2026". */
+/**
+ * O nome da oportunidade, editável no lugar (09/10/2026). Vazio volta ao nome da empresa —
+ * é o padrão, e é o que a maioria das oportunidades usa.
+ */
+function TituloDaOportunidade({ prospect, podeEditar }: { prospect: ProspectWithCompany; podeEditar: boolean }) {
+  const [editando, setEditando] = useState(false);
+  if (editando) return <EdicaoDoTitulo prospect={prospect} onFechar={() => setEditando(false)} />;
+  return (
+    <>
+      <DialogTitle className="text-xl font-semibold leading-tight">{opportunityName(prospect)}</DialogTitle>
+      {podeEditar && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          aria-label="Editar nome da oportunidade"
+          title="Editar nome"
+          onClick={() => setEditando(true)}
+        >
+          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+        </Button>
+      )}
+    </>
+  );
+}
+
+function EdicaoDoTitulo({ prospect, onFechar }: { prospect: ProspectWithCompany; onFechar: () => void }) {
+  const atualizar = useUpdateProspect();
+  const [texto, setTexto] = useState(prospect.title ?? '');
+  const salvar = () =>
+    atualizar.mutate({ id: prospect.id, updates: { title: texto.trim() || null } }, { onSuccess: onFechar });
+
+  return (
+    <form
+      className="flex w-full max-w-md items-center gap-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        salvar();
+      }}
+    >
+      {/* O título continua existindo para o leitor de tela enquanto o campo está aberto. */}
+      <DialogTitle className="sr-only">{opportunityName(prospect)}</DialogTitle>
+      <Input
+        autoFocus
+        data-esc-local
+        value={texto}
+        maxLength={OPPORTUNITY_TITLE_MAX}
+        placeholder={prospect.company?.name ?? 'Nome da oportunidade'}
+        aria-label="Nome da oportunidade"
+        aria-describedby="titulo-oportunidade-dica"
+        onChange={(e) => setTexto(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && onFechar()}
+        disabled={atualizar.isPending}
+        className="h-9 text-base font-semibold"
+      />
+      <span id="titulo-oportunidade-dica" className="sr-only">Vazio, a oportunidade usa o nome da empresa.</span>
+      <Button type="submit" size="icon" className="h-9 w-9 shrink-0" aria-label="Salvar nome" disabled={atualizar.isPending}>
+        <Check className="h-4 w-4" aria-hidden="true" />
+      </Button>
+      <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label="Cancelar edição do nome" onClick={onFechar}>
+        <X className="h-4 w-4" aria-hidden="true" />
+      </Button>
+    </form>
+  );
+}
+
+/** "Injepol · Calçados / Injetados · Último contato em 01/10/2026" — a empresa só quando o nome é outro. */
 function subtitulo(prospect: ProspectWithCompany, atividades: ProspectActivityWithOwner[]): string {
   const ultima = atividades[0]?.activity_date;
   return [
+    hasOwnOpportunityName(prospect) ? prospect.company?.name : null,
     prospect.company?.segment,
     ultima ? `Último contato em ${formatarData(ultima)}` : 'Nenhum contato registrado ainda',
   ]

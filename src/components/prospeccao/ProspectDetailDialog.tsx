@@ -80,7 +80,13 @@ export function ProspectDetailDialog(props: ProspectDetailDialogProps) {
   if (!prospect) return null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[90vh] max-w-7xl flex-col gap-0 overflow-hidden p-0">
+      <DialogContent
+        className="flex h-[90vh] max-w-7xl flex-col gap-0 overflow-hidden p-0"
+        // Esc num campo de edição no lugar (o nome da oportunidade) cancela só a edição.
+        onEscapeKeyDown={(e) => {
+          if ((e.target as HTMLElement | null)?.closest?.('[data-esc-local]')) e.preventDefault();
+        }}
+      >
         <Ficha {...props} prospect={prospect} />
       </DialogContent>
     </Dialog>
@@ -468,6 +474,7 @@ function AvisoOutrasOportunidades({
             const pessoas = describeOpportunityContacts(o);
             return (
               <li key={o.id}>
+                {o.title && <span className="font-medium">{o.title} · </span>}
                 <span className="font-medium">{getProspectStageLabel(o.stage)}</span>
                 {dono ? ` · com ${dono}` : ''}
                 {pessoas ? ` · ${pessoas}` : ''}

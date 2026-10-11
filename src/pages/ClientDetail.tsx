@@ -43,7 +43,7 @@ import {
 } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/AuthContext';
 import { Client, ClientContact } from '@/types/client';
-import { getProspectStageLabel } from '@/types/prospect';
+import { getProspectStageLabel, opportunityName } from '@/types/prospect';
 import type { CommercialContactSummary } from '@/types/commercialContact';
 import { PROJECT_STATUS_LABELS, type ProjectWithRelations } from '@/types/project';
 import { formatCNPJ, formatPhone } from '@/lib/masks';
@@ -225,7 +225,7 @@ const OpportunitiesTab = ({
               className="flex items-center justify-between gap-3 rounded-md border p-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{contact.company?.name ?? 'Oportunidade'}</p>
+                <p className="truncate text-sm font-medium text-foreground">{opportunityName(contact)}</p>
                 {contact.contact_name && (
                   <p className="truncate text-xs text-muted-foreground">{contact.contact_name}</p>
                 )}

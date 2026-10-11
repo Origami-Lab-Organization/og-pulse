@@ -53,7 +53,7 @@ export function applyProspectFilter(
 ): ProspectWithCompany[] {
   return prospects.filter(
     (p) =>
-      contem(p.company?.name, filtro.empresa) &&
+      (contem(p.company?.name, filtro.empresa) || contem(p.title, filtro.empresa)) &&
       algumContatoContem(p, filtro.contato) &&
       igual(p.owner_id, filtro.ownerId) &&
       igual(p.lever, filtro.lever) &&

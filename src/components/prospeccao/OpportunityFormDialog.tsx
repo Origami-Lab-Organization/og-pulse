@@ -259,6 +259,7 @@ function participantes(escolhidos: Escolhidos, pessoasDaEmpresa: ProspectContact
 function negocioDoFormulario(values: FormData, companyId: string) {
   return {
     company_id: companyId,
+    title: values.title?.trim() || null,
     primary_channel: values.primary_channel,
     owner_id: values.owner_id,
     lever: values.lever || null,
@@ -267,16 +268,17 @@ function negocioDoFormulario(values: FormData, companyId: string) {
   };
 }
 
-/** A empresa já tem oportunidade no funil: mostra antes de abrir outra, sem proibir. */
-function OportunidadesEmAndamento(props: {
+interface OportunidadesEmAndamentoProps {
   oportunidades: ProspectWithCompany[];
   contatoInicial: ProspectContactWithCompany | null;
   onAbrir: (o: ProspectWithCompany) => void;
   onIncluir: (o: ProspectWithCompany) => void;
   ocupado: boolean;
-}) {
-  const { oportunidades, contatoInicial, onAbrir, onIncluir, ocupado } = props;
-  const { byId } = useEmployeeDirectoryMap();
+}
+
+/** A empresa já tem oportunidade no funil: mostra antes de abrir outra, sem proibir. */
+function OportunidadesEmAndamento(props: OportunidadesEmAndamentoProps) {
+  const { oportunidades } = props;
   if (oportunidades.length === 0) return null;
 
   return (
@@ -288,30 +290,37 @@ function OportunidadesEmAndamento(props: {
           : `Esta empresa já tem ${oportunidades.length} oportunidades em andamento. Se for o mesmo negócio, continue numa delas.`}
       </p>
       <ul className="space-y-1.5">
-        {oportunidades.map((o) => {
-          const dono = o.owner_id ? byId.get(o.owner_id)?.nome : null;
-          const jaEsta = !!contatoInicial && (o.contacts ?? []).some((c) => c.contact_id === contatoInicial.id);
-          return (
-            <li key={o.id} className="flex flex-wrap items-center gap-2 text-foreground">
-              <Badge variant="secondary" className={cn('font-normal', getProspectStageColor(o.stage))}>
-                {getProspectStageLabel(o.stage)}
-              </Badge>
-              <span className="text-muted-foreground">{dono ? `com ${dono}` : 'sem responsável'}</span>
-              <span className="ml-auto flex gap-1.5">
-                {contatoInicial && !jaEsta && (
-                  <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={ocupado} onClick={() => onIncluir(o)}>
-                    Incluir {contatoInicial.name} nela
-                  </Button>
-                )}
-                <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={ocupado} onClick={() => onAbrir(o)}>
-                  Abrir
-                </Button>
-              </span>
-            </li>
-          );
-        })}
+        {oportunidades.map((o) => (
+          <LinhaDeOportunidadeExistente key={o.id} {...props} oportunidade={o} />
+        ))}
       </ul>
     </div>
+  );
+}
+
+function LinhaDeOportunidadeExistente(props: OportunidadesEmAndamentoProps & { oportunidade: ProspectWithCompany }) {
+  const { oportunidade: o, contatoInicial, onAbrir, onIncluir, ocupado } = props;
+  const { byId } = useEmployeeDirectoryMap();
+  const dono = o.owner_id ? byId.get(o.owner_id)?.nome : null;
+  const podeIncluir = !!contatoInicial && !(o.contacts ?? []).some((c) => c.contact_id === contatoInicial.id);
+  return (
+    <li className="flex flex-wrap items-center gap-2 text-foreground">
+      {o.title && <span className="font-medium">{o.title}</span>}
+      <Badge variant="secondary" className={cn('font-normal', getProspectStageColor(o.stage))}>
+        {getProspectStageLabel(o.stage)}
+      </Badge>
+      <span className="text-muted-foreground">{dono ? `com ${dono}` : 'sem responsável'}</span>
+      <span className="ml-auto flex gap-1.5">
+        {podeIncluir && (
+          <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={ocupado} onClick={() => onIncluir(o)}>
+            Incluir {contatoInicial?.name} nela
+          </Button>
+        )}
+        <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={ocupado} onClick={() => onAbrir(o)}>
+          Abrir
+        </Button>
+      </span>
+    </li>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { BadgeDollarSign, CircleAlert, MessagesSquare, Route, User, Users, XCircle } from 'lucide-react';
+import { BadgeDollarSign, Building2, CircleAlert, MessagesSquare, Route, User, Users, XCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { formatCurrency } from '@/lib/formatters';
@@ -11,6 +11,7 @@ import {
   getDiscardReasonLabel,
   getLeverLabel,
   getProspectStageLabel,
+  hasOwnOpportunityName,
   isTaskOverdue,
   opportunityName,
   type PendingTaskLite,
@@ -84,6 +85,7 @@ export function ProspectKanbanCard({
               <OutrasOportunidades oportunidades={outrasEmAndamento} nomeDe={(id) => byId.get(id)?.nome} />
             )}
           </span>
+          <EmpresaDoCard prospect={prospect} />
           <span className={cn('flex items-center gap-1 text-xs', contatos ? 'text-muted-foreground' : 'text-muted-foreground/70')}>
             <Users className="h-3 w-3 shrink-0" aria-hidden="true" />
             <span className="truncate">{contatos ?? 'Sem contato'}</span>
@@ -112,6 +114,17 @@ export function ProspectKanbanCard({
         </button>
       </CardContent>
     </Card>
+  );
+}
+
+/** Com nome próprio, o card diz de que empresa é; sem, o nome já é o da empresa. */
+function EmpresaDoCard({ prospect }: { prospect: ProspectWithCompany }) {
+  if (!hasOwnOpportunityName(prospect)) return null;
+  return (
+    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+      <Building2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+      <span className="truncate">{prospect.company?.name}</span>
+    </span>
   );
 }
 

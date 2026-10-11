@@ -8,7 +8,7 @@ import {
   commercialContactHref,
   fetchCommercialContactSummary,
 } from '@/services/commercialContactService';
-import { getProspectStageLabel } from '@/types/prospect';
+import { getProspectStageLabel, opportunityName } from '@/types/prospect';
 
 interface ProspectOriginLinkProps {
   prospectId: string | null | undefined;
@@ -65,7 +65,7 @@ export function ProspectOriginLink({ prospectId }: ProspectOriginLinkProps) {
         <History className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium leading-tight">
-            {contact ? nomeDaOportunidade(contact) : 'Carregando…'}
+            {contact ? opportunityName(contact) : 'Carregando…'}
           </p>
           {contact && (
             <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -86,9 +86,4 @@ export function ProspectOriginLink({ prospectId }: ProspectOriginLinkProps) {
       <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
     </Link>
   );
-}
-
-/** A oportunidade leva o nome da empresa (09/10/2026). */
-function nomeDaOportunidade(contact: { company: { name: string } | null }): string {
-  return contact.company?.name ?? 'Oportunidade';
 }

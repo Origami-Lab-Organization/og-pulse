@@ -36,6 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useProspect } from '@/hooks/useProspects';
 import { linkBudgetToProspect } from '@/services/prospectDealService';
+import { opportunityName } from '@/types/prospect';
 import { useServices, useLinkServiceTemplate } from '@/hooks/useServices';
 import { serviceService } from '@/services/serviceService';
 import { supabase } from '@/integrations/supabase/client';
@@ -198,7 +199,7 @@ export default function BudgetForm() {
   useEffect(() => {
     if (prospect && !isEditing) {
       const empresa = prospect.company?.name;
-      form.setValue('title', empresa ? `Proposta — ${empresa}` : 'Proposta');
+      form.setValue('title', empresa ? `Proposta — ${opportunityName(prospect)}` : 'Proposta');
       if (prospect.company?.client_id) {
         form.setValue('clientId', prospect.company.client_id);
       }

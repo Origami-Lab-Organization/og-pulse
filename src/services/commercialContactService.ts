@@ -14,7 +14,7 @@ import type { CommercialContactSummary } from '@/types/commercialContact';
 
 const COMPANY_EMBED = 'company:prospect_companies!prospects_company_id_fkey!inner';
 
-const SUMMARY_SELECT = `id, contact_name, stage, won_value, estimated_value, created_at, ${COMPANY_EMBED}(id, name, client_id)`;
+const SUMMARY_SELECT = `id, title, contact_name, stage, won_value, estimated_value, created_at, ${COMPANY_EMBED}(id, name, client_id)`;
 
 /** Valor exibido do contato: o vendido quando ganho, senão o estimado. */
 export function commercialContactValue(

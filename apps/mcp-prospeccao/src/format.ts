@@ -103,10 +103,10 @@ export function contatoResumo(p: ProspectWithCompany, pessoas: Map<string, strin
 
 /**
  * Desde 09/10/2026 o card é a oportunidade da empresa e pode não ter contato: o nome que
- * aparece é o do contato principal, ou o da empresa quando ainda não há ninguém.
+ * aparece é o dado à oportunidade, ou o do contato principal, ou o da empresa.
  */
 function nomeDoCard(p: ProspectWithCompany): string {
-  return p.contact_name ?? p.company?.name ?? 'Oportunidade sem contato';
+  return p.title?.trim() || p.contact_name || p.company?.name || 'Oportunidade sem contato';
 }
 
 function motivoDaPerda(p: ProspectWithCompany): string | null {

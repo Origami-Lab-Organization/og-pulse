@@ -30,6 +30,7 @@ sources:
   - supabase/migrations/20261002120000_prospect_une_cards_duplicados.sql
   - supabase/migrations/20261009120000_oportunidade_por_empresa.sql
   - supabase/migrations/20261009130000_prospect_files.sql
+  - supabase/migrations/20261009140000_prospect_title.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
@@ -90,6 +91,8 @@ sources:
 # 09/10/2026: 20261009130000 — prospect_files (arquivo anexado direto na oportunidade, sem
 #  atividade), conferido contra ProspectFileDB e ensaiado em PGlite (guarda de pasta/tenant,
 #  CHECKs, cascade, ida/volta/ida).
+# 09/10/2026: 20261009140000 — prospects.title (nome da oportunidade, opcional; NULL = nome da
+#  empresa), conferido contra ProspectDB e ensaiado em PGlite (CHECK, ida/volta/ida).
 verified: 2026-10-09
 ---
 
@@ -206,6 +209,7 @@ erDiagram
         text role "decisor|influenciador|usuario|bloqueador|campeao — NULL = sem papel"
     }
     prospects {
+        text title "nome da oportunidade — NULL = nome da empresa (até 200)"
         uuid contact_id "contato principal (opcional); contact_* e redes são cópia dele, por trigger"
         text stage "6 de trabalho + ganho + descartado (Perda); sem_resposta só em linhas antigas"
         text lever "Alavanca / origem da lista"
@@ -248,7 +252,7 @@ erDiagram
 
 Fontes: migrations `20260915110000`, `20260915120000`, `20260915130000`, `20260917115000`,
 `20260917180000`, `20260917190000`, `20260923120000`, `20260924120000`, `20260928120000`,
-`20261001190000`, `20261001200000`, `20261009120000` e `20261009130000`.
+`20261001190000`, `20261001200000`, `20261009120000`, `20261009130000` e `20261009140000`.
 
 `prospect_files` (09/10/2026) guarda o arquivo anexado direto na oportunidade, sem registrar
 atividade — não conta toque nem mexe na cadência. A aba Arquivos da ficha lê esta tabela junto

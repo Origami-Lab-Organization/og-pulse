@@ -25,7 +25,12 @@ import { LEI_DO_BEM_LABEL, leiDoBemSignal, porteLabel } from '@/lib/prospecting/
 import { CnpjLookupError, lookupCnpj } from '@/services/cnpjLookupService';
 import type { CompanyPrefill } from '@/types/cnpjLookup';
 import type { ReceitaSnapshot } from '@/types/receita';
-import { FATURAMENTO_BASE_PADRAO, PROSPECT_LEVERS, type ProspectCompanyDB } from '@/types/prospect';
+import {
+  FATURAMENTO_BASE_PADRAO,
+  OPPORTUNITY_TITLE_MAX,
+  PROSPECT_LEVERS,
+  type ProspectCompanyDB,
+} from '@/types/prospect';
 import { FaturamentoAnualField } from './FaturamentoAnualField';
 import { ProspectCompanySelect } from './ProspectCompanySelect';
 
@@ -37,6 +42,8 @@ import { ProspectCompanySelect } from './ProspectCompanySelect';
  */
 
 export const schema = z.object({
+  // Nome da oportunidade (09/10/2026): vazio = nome da empresa.
+  title: z.string().max(OPPORTUNITY_TITLE_MAX, 'Nome longo demais').optional(),
   // Obrigatório só quando a pessoa está sendo cadastrada agora (validado no envio).
   contact_name: z.string().optional(),
   contact_role: z.string().optional(),
@@ -283,6 +290,14 @@ export function CamposDaOportunidade({ form, aberto }: { form: Formulario; abert
   const { data: diretorio = [] } = useEmployeeDirectory(aberto);
   return (
     <div className="grid gap-3 sm:grid-cols-2">
+      <CampoDeTexto
+        form={form}
+        name="title"
+        label="Nome da oportunidade"
+        placeholder="Vazio = nome da empresa"
+        descricao="Opcional. Ajuda a distinguir oportunidades da mesma empresa."
+        largo
+      />
       <FormField
         control={form.control}
         name="primary_channel"

@@ -7,6 +7,8 @@ import type { ProspectStage } from '@/types/prospect';
  */
 export interface CommercialContactSummary {
   id: string;
+  /** Nome da oportunidade; `null` = nome da empresa. */
+  title: string | null;
   contact_name: string | null;
   stage: ProspectStage;
   won_value: number | null;

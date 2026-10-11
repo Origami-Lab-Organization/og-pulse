@@ -7,6 +7,7 @@ import {
   describeOpportunityContacts,
   getProspectStageColor,
   getProspectStageLabel,
+  hasOwnOpportunityName,
   isTaskOverdue,
   type PendingTaskLite,
   type ProspectWithCompany,
@@ -63,6 +64,7 @@ function LinhaDeOportunidade(props: LinhaDeOportunidadeProps) {
     >
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
+          <NomeProprio oportunidade={oportunidade} />
           <Badge variant="secondary" className={cn('font-normal', getProspectStageColor(oportunidade.stage))}>
             {getProspectStageLabel(oportunidade.stage)}
           </Badge>
@@ -78,6 +80,12 @@ function LinhaDeOportunidade(props: LinhaDeOportunidadeProps) {
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
     </button>
   );
+}
+
+/** O nome que alguém deu à oportunidade — sem ele, a lista já está dentro da empresa. */
+function NomeProprio({ oportunidade }: { oportunidade: ProspectWithCompany }) {
+  if (!hasOwnOpportunityName(oportunidade)) return null;
+  return <span className="text-sm font-medium">{oportunidade.title}</span>;
 }
 
 /** Com quem da empresa e com quem do time. */

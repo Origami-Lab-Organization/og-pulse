@@ -398,6 +398,8 @@ export interface ProspectDB {
   id: string;
   tenant_id: string;
   company_id: string;
+  /** Nome da oportunidade (09/10/2026). `null` = usa o nome da empresa (`opportunityName`). */
+  title?: string | null;
   /**
    * O CONTATO PRINCIPAL (09/10/2026), mantido pelo banco a partir dos contatos da oportunidade;
    * `null` = ainda sem contato. Os campos `contact_*`, `linkedin_url` e `instagram_url` abaixo
@@ -445,9 +447,27 @@ export interface ProspectWithCompany extends ProspectDB {
   contacts?: ProspectOpportunityContact[];
 }
 
-/** O nome da oportunidade é o da empresa (09/10/2026). */
-export function opportunityName(prospect: Pick<ProspectWithCompany, 'company'>): string {
-  return prospect.company?.name ?? 'Empresa não informada';
+/** Limite do nome da oportunidade — o mesmo do CHECK `prospects_title_valid`. */
+export const OPPORTUNITY_TITLE_MAX = 200;
+
+/**
+ * O nome da oportunidade (09/10/2026): o que alguém deu a ela, ou o da empresa. Regra única —
+ * nenhuma tela decide sozinha entre os dois.
+ */
+/** O mínimo para nomear: serve ao card inteiro e aos resumos lidos fora do quadro. */
+interface Nomeavel {
+  title?: string | null;
+  company?: { name: string } | null;
+}
+
+export function opportunityName(prospect: Nomeavel): string {
+  return prospect.title?.trim() || prospect.company?.name || 'Empresa não informada';
+}
+
+/** Tem nome próprio, diferente do da empresa: aí a tela mostra a empresa ao lado. */
+export function hasOwnOpportunityName(prospect: Nomeavel): boolean {
+  const titulo = prospect.title?.trim();
+  return !!titulo && titulo !== prospect.company?.name;
 }
 
 /** Ordem de leitura dos contatos: pela lista de papéis, sem papel no fim; depois por nome. */

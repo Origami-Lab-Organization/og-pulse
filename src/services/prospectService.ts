@@ -30,6 +30,8 @@ const PROSPECT_SELECT = [
 export interface CreateProspectInput {
   tenant_id: string;
   company_id: string;
+  /** Nome da oportunidade; vazio = nome da empresa. */
+  title?: string | null;
   /**
    * Caminho antigo (MCP, seed): a pessoa do card. Com ela, os campos de contato abaixo são
    * ignorados. Sem ela e sem nenhum campo de contato, a oportunidade nasce sem contato
@@ -56,7 +58,7 @@ export interface CreateProspectInput {
  * (`prospectContactService.update`), que vale para todos os cards dela.
  */
 export type UpdateProspectInput = Partial<
-  Pick<CreateProspectInput, 'company_id' | 'primary_channel' | 'owner_id' | 'lever' | 'estimated_value' | 'notes'>
+  Pick<CreateProspectInput, 'company_id' | 'title' | 'primary_channel' | 'owner_id' | 'lever' | 'estimated_value' | 'notes'>
 >;
 
 /** Página a página: o PostgREST corta em 1000 linhas sem erro, e o quadro perderia cards. */
