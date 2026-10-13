@@ -13,7 +13,8 @@ const corsHeaders = {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TEMPO_MS = 10000;
 const TRANSPARENCIA_API = "https://api.portaldatransparencia.gov.br/api-de-dados";
-const FONTE_LEI_DO_BEM = "lei_do_bem";
+// A carga da Lei do Bem lê PDF: com lote novo, leva alguns segundos (lei-do-bem-sync).
+const SINCRONIA_MS = 25000;
 
 // deno-lint-ignore no-explicit-any -- cliente sem tipos gerados, como nas outras funções
 type Supabase = ReturnType<typeof createClient<any>>;
@@ -29,13 +30,30 @@ const json = (body: unknown, status: number) =>
 
 // ── Fontes ────────────────────────────────────────────────────────────────────
 
+// Lista com lote pendente não responde "fora da lista": a empresa pode estar no que falta.
 async function referencia(supabase: Supabase, cnpj: string): Promise<{ linhas: LinhaDeReferencia[]; temLeiDoBem: boolean }> {
-  const [{ data, error }, carga] = await Promise.all([
+  const [{ data, error }, completa] = await Promise.all([
     supabase.from("fomento_publico").select("fonte, ano, valor, instrumento, descricao").eq("cnpj", cnpj).limit(200),
-    supabase.from("fomento_publico").select("id", { count: "exact", head: true }).eq("fonte", FONTE_LEI_DO_BEM),
+    supabase.rpc("lei_do_bem_lista_completa"),
   ]);
   if (error) throw new Error("fomento_publico");
-  return { linhas: (data ?? []) as LinhaDeReferencia[], temLeiDoBem: (carga.count ?? 0) > 0 };
+  return { linhas: (data ?? []) as LinhaDeReferencia[], temLeiDoBem: completa.data === true };
+}
+
+// "Atualizar" também busca lote novo da Lei do Bem (13/10/2026). A carga roda em outra chamada,
+// com a própria cota de CPU; se falhar, a consulta segue com o que já está carregado.
+async function sincronizarLeiDoBem(): Promise<void> {
+  try {
+    const resposta = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/lei-do-bem-sync`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`, "Content-Type": "application/json" },
+      body: "{}",
+      signal: AbortSignal.timeout(SINCRONIA_MS),
+    });
+    await resposta.body?.cancel();
+  } catch (erro) {
+    console.warn("company-funding-check: lei-do-bem-sync sem resposta", (erro as Error)?.name);
+  }
 }
 
 // Portal da Transparência: contratos do governo federal com a empresa. Sem a chave (secret
@@ -109,6 +127,7 @@ Deno.serve(async (req) => {
     const supabase = await clienteDoUsuario(req);
     const id = await companyIdDe(req);
     const cnpj = await cnpjDaEmpresa(supabase, id);
+    await sincronizarLeiDoBem();
     const { resultado, indisponiveis } = await consultar(supabase, cnpj);
     const { error } = await supabase
       .from("prospect_companies")

@@ -17,6 +17,9 @@ sources:
   - supabase/functions/company-funding-check/index.ts
   - supabase/functions/company-watch/index.ts
   - scripts/import-fomento.mjs
+  - supabase/functions/lei-do-bem-sync/index.ts
+  - supabase/functions/_shared/leiDoBem.ts
+  - supabase/migrations/20261013120000_lei_do_bem_automatica.sql
   - supabase/migrations/20260831120000_realtime_publication_and_cron_via_vault.sql
   - apps/mcp-drive/src/index.ts
   - apps/mcp-activities/src/index.ts
@@ -62,6 +65,7 @@ flowchart LR
     EXT5[BNDES CKAN · FINEP · CGU Transparência<br/>fomento público]
     EXT6[Site oficial da empresa<br/>leitura com proteção SSRF]
     EXT7[Conta Azul API v2<br/>OAuth2 por empresa · só leitura]
+    EXT8[MCTI · Lei do Bem<br/>índice de lotes + PDFs]
 
     SPA -->|"JWT anon (RLS)"| REST
     SPA -->|functions.invoke| EF
@@ -80,6 +84,8 @@ flowchart LR
     SPA -->|"redireciona para autorizar<br/>login.contaazul.com (state de uso único)"| EXT7
     EF -->|"conta-azul-* · Basic client_secret no token,<br/>Bearer do tenant (cifrado AES-GCM no banco)"| EXT7
     CRON -->|"company-watch diário (Receita)"| EF
+    CRON -->|"lei-do-bem-sync de hora em hora"| EF
+    EF -->|"lei-do-bem-sync (índice a cada 6 h, PDFs ano-base 2024+, sem chave)<br/>também chamado pelo company-funding-check"| EXT8
     SPA -->|"GET /api/cnpj/v1, sem chave<br/>cnpjLookupService.ts"| EXT4
     MCP["apps/mcp-drive · mcp-activities · mcp-prospeccao<br/>(sessão da pessoa, sob RLS)"] --> REST
     MCP -->|"lookup_cnpj"| EXT4
@@ -89,7 +95,8 @@ flowchart LR
 
 | Serviço | Consumidor | O quê | Credencial |
 |---|---|---|---|
-| BNDES (dados abertos) · FINEP · Portal da Transparência (CGU) | Edge Function `company-funding-check` e `scripts/import-fomento.mjs` | Fomento público por CNPJ: operações BNDES na hora, FINEP por importação semanal, Lei do Bem por carga manual, contratos federais. Contrato: `.harness/integrations/fomento-publico.md` | BNDES e FINEP sem chave; CGU com secret `TRANSPARENCIA_API_KEY` |
+| BNDES (dados abertos) · FINEP · Portal da Transparência (CGU) | Edge Function `company-funding-check` e `scripts/import-fomento.mjs` | Fomento público por CNPJ: operações BNDES na hora, FINEP por importação semanal, contratos federais. Contrato: `.harness/integrations/fomento-publico.md` | BNDES e FINEP sem chave; CGU com secret `TRANSPARENCIA_API_KEY` (configurada em 13/10/2026) |
+| MCTI · Lei do Bem (índice de lotes e PDFs do parecer técnico) | Edge Function `lei-do-bem-sync` (`_shared/leiDoBem.ts`), pelo cron `lei-do-bem-sync-hourly` e a cada "Atualizar" do fomento | Empresas analisadas por ano-base, do 2024 em diante: lê o índice no máximo a cada 6 h, carrega até 4 PDFs por chamada em `fomento_publico` e recalcula a Lei do Bem das empresas já consultadas. Anos anteriores: `scripts/import-fomento.mjs`. Contrato: `.harness/integrations/fomento-publico.md` | Nenhuma (página pública) |
 | Conta Azul (API v2) | Edge Functions `conta-azul-connect`, `conta-azul-callback`, `conta-azul-disconnect` (`_shared/contaAzul.ts`) | Conexão por empresa (OAuth2 Authorization Code), empresa conectada, revogação. Escopo do Conta Azul é de administrador; o adaptador só lê. Contrato: `.harness/integrations/conta-azul.md`, ADR-0044 | `CONTA_AZUL_CLIENT_ID`/`_SECRET` do app do Pulse; token de cada empresa cifrado com `CONTA_AZUL_TOKEN_KEY` |
 | Site oficial da empresa | Edge Function `company-site-scan` | Redes, WhatsApp, telefones, e-mails genéricos e pistas de sistema publicados pela empresa. Contrato: `.harness/integrations/site-da-empresa.md` | Nenhuma |
 | BrasilAPI (CNPJ) | Browser (`src/services/cnpjLookupService.ts`) e `mcp-prospeccao` (`lookup_cnpj`) | Dados públicos da empresa pelo CNPJ para o cadastro da Prospecção: razão social, nome fantasia, CNAE, cidade. Só o CNPJ sai. Contrato: `.harness/integrations/brasilapi-cnpj.md` | Nenhuma (API pública) |

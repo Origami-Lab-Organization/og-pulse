@@ -68,6 +68,11 @@ verify_jwt = false
 [functions.company-watch]
 verify_jwt = false
 
+# Lei do Bem automática: chamada pelo cron de hora em hora e pelo company-funding-check, sempre
+# com a chave de serviço, conferida dentro (ehChamadaDeServico).
+[functions.lei-do-bem-sync]
+verify_jwt = false
+
 # Integração Conta Azul (ADR-0044). As três validam a sessão dentro (auth.getUser) e exigem
 # `integracoes:gerir` no tenant. Escrevem com service role porque token e state não têm
 # policy — o navegador nunca vê token.

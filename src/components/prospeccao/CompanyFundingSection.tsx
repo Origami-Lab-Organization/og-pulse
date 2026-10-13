@@ -14,8 +14,9 @@ interface CompanyFundingSectionProps {
 
 const LEI_DO_BEM: Record<FundingSignals['leiDoBem'], { texto: string; classe: string }> = {
   ja_usa: { texto: 'Já declara a Lei do Bem', classe: 'bg-muted text-foreground' },
-  nunca_usou: { texto: 'Nunca apareceu na lista da Lei do Bem', classe: 'bg-success-subtle text-success-emphasis' },
-  desconhecido: { texto: 'Lista da Lei do Bem ainda não importada', classe: 'bg-muted text-muted-foreground' },
+  // A lista automática começa no ano-base 2024 (13/10/2026): "nunca" diria mais do que ela sabe.
+  nunca_usou: { texto: 'Fora da Lei do Bem desde 2024', classe: 'bg-success-subtle text-success-emphasis' },
+  desconhecido: { texto: 'Lista da Lei do Bem em carga', classe: 'bg-muted text-muted-foreground' },
 };
 
 /**

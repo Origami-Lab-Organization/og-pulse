@@ -321,7 +321,7 @@ export function fitDaEmpresa(e: ProspectCompanyDB): string | null {
 export function fomentoDaEmpresa(e: ProspectCompanyDB): string | null {
   const f = e.fomento;
   if (!f) return null;
-  const lei = { ja_usa: 'já declara', nunca_usou: 'nunca apareceu na lista', desconhecido: 'lista ainda não importada' }[f.leiDoBem];
+  const lei = { ja_usa: 'já declara', nunca_usou: 'fora da lista desde 2024', desconhecido: 'lista em carga' }[f.leiDoBem];
   const ops = f.fomentos.slice(0, 5).map((o) => `- ${o.fonte}${o.ano ? ` ${o.ano}` : ''}${o.valor ? ` · ${reais(o.valor)}` : ''}${o.instrumento ? ` · ${o.instrumento}` : ''}`);
   const governo = f.governo ? `${f.governo.contratos} contrato(s) com o governo federal` : 'contratos com o governo: fonte não configurada';
   return [`**Fomento público:** Lei do Bem ${lei}${f.leiDoBemAno ? ` (ano-base ${f.leiDoBemAno})` : ''} · ${governo}`, ...ops].join('\n');

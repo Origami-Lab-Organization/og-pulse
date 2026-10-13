@@ -75,7 +75,7 @@ const REGIME_PESO: Record<LeiDoBemSignal, [number, string]> = {
 function fomentoPontos(fomento: FundingSignals | null, lucroReal: boolean): Pontos {
   if (!fomento) return [];
   return [
-    [lucroReal && fomento.leiDoBem === NUNCA_USOU ? 10 : 0, 'Lucro Real e nunca declarou a Lei do Bem — oportunidade aberta'],
+    [lucroReal && fomento.leiDoBem === NUNCA_USOU ? 10 : 0, 'Lucro Real e fora da Lei do Bem desde 2024 — oportunidade aberta'],
     [fomento.leiDoBem === JA_USA ? 5 : 0, 'Já declara a Lei do Bem — argumento é fazer melhor'],
     [fomento.captouFomento ? 10 : 0, 'Já captou fomento público (FINEP/BNDES) — conhece o caminho'],
   ];
