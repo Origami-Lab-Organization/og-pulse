@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { mensagemParaUsuario } from '@/lib/errors/userMessage';
-import { CnpjLookupError, lookupCnpj } from '@/services/cnpjLookupService';
+import { CnpjLookupError, CnpjLookupLimitError, lookupCnpj } from '@/services/cnpjLookupService';
 import { prospectCompanyService } from '@/services/prospectCompanyService';
 import { saveCompanyReceita } from '@/services/receitaService';
 import type { BulkRow } from '@/types/bulkImport';
@@ -11,6 +11,9 @@ import type { BulkRow } from '@/types/bulkImport';
 const SIMULTANEAS = 2;
 const PAUSA_MS = 350;
 const DUPLICADO = '23505';
+// A consulta reserva (CNPJá) libera algumas por minuto: no limite, a linha espera e tenta de novo.
+const ESPERA_DO_LIMITE_MS = 60000;
+const TENTATIVAS_NO_LIMITE = 5;
 
 const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -32,10 +35,23 @@ export function useBulkCompanyImport() {
   const atualizar = (cnpj: string, mudanca: Partial<BulkRow>) =>
     setLinhas((atual) => atual.map((l) => (l.cnpj === cnpj ? { ...l, ...mudanca } : l)));
 
+  const consultar = async (cnpj: string) => {
+    for (let tentativa = 1; ; tentativa++) {
+      try {
+        return await lookupCnpj(cnpj);
+      } catch (erro) {
+        const desiste = !(erro instanceof CnpjLookupLimitError) || tentativa >= TENTATIVAS_NO_LIMITE;
+        if (desiste || parar.current) throw erro;
+        atualizar(cnpj, { mensagem: 'limite de consultas por minuto — tentando de novo em 1 minuto' });
+        await esperar(ESPERA_DO_LIMITE_MS); // harness-ok: espera proposital pelo limite da consulta
+      }
+    }
+  };
+
   const processar = async (cnpj: string) => {
     atualizar(cnpj, { status: 'consultando' });
     try {
-      const receita = await lookupCnpj(cnpj);
+      const receita = await consultar(cnpj);
       const empresa = await prospectCompanyService.create(
         {
           name: receita.nomeFantasia ?? receita.razaoSocial,
@@ -47,7 +63,7 @@ export function useBulkCompanyImport() {
       );
       try {
         await saveCompanyReceita(empresa.id, receita);
-        atualizar(cnpj, { status: 'criada', empresa, socios: receita.socios.length });
+        atualizar(cnpj, { status: 'criada', empresa, socios: receita.socios.length, mensagem: undefined });
       } catch {
         atualizar(cnpj, { status: 'criada', empresa, mensagem: 'sem os dados da Receita — use "Atualizar" na ficha' });
       }

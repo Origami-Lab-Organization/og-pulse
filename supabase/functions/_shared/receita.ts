@@ -204,6 +204,121 @@ function enderecoDe(dado: RespostaBrasilApi): ReceitaDetails['endereco'] {
 }
 
 /**
+ * Resposta crua da CNPJá aberta (`open.cnpja.com/office/{cnpj}`) — só os campos que usamos.
+ * Reserva da BrasilAPI desde 13/10/2026 (contrato em .harness/integrations/brasilapi-cnpj.md).
+ */
+export interface RespostaCnpja {
+  taxId: string;
+  alias?: string | null;
+  founded?: string | null;
+  head?: boolean | null;
+  status?: { text?: string | null } | null;
+  company: {
+    name: string;
+    equity?: number | null;
+    nature?: { text?: string | null } | null;
+    size?: { acronym?: string | null } | null;
+    simples?: { optant?: boolean | null } | null;
+    simei?: { optant?: boolean | null } | null;
+    members?: Array<{
+      since?: string | null;
+      role?: { text?: string | null } | null;
+      person: { type?: string | null; name: string; taxId?: string | null };
+      agent?: { person?: { name?: string | null } | null; role?: { text?: string | null } | null } | null;
+    }> | null;
+  };
+  address?: {
+    street?: string | null;
+    number?: string | null;
+    details?: string | null;
+    district?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zip?: string | null;
+  } | null;
+  phones?: Array<{ area?: string | null; number?: string | null }> | null;
+  emails?: Array<{ address?: string | null }> | null;
+  mainActivity?: { id: number; text: string } | null;
+  sideActivities?: Array<{ id: number; text: string }> | null;
+}
+
+type SocioDaCnpja = NonNullable<RespostaCnpja['company']['members']>[number];
+
+/** Porte escrito como a BrasilAPI escreve: o gatilho "mudou de porte" compara o texto. */
+const PORTE_DA_CNPJA: Record<string, string> = { ME: 'MICRO EMPRESA', EPP: 'EMPRESA DE PEQUENO PORTE', DEMAIS: 'DEMAIS' };
+const TIPO_DA_CNPJA: Record<string, PartnerKind> = { NATURAL: 'pessoa', LEGAL: 'empresa', FOREIGN: 'estrangeiro' };
+const MATRIZ_OU_FILIAL: Record<string, string> = { true: 'MATRIZ', false: 'FILIAL' };
+
+/** A CNPJá não informa regime tributário: nulo aqui não apaga o que já estava gravado (20261013130000). */
+export function receitaFromCnpja(dado: RespostaCnpja): ReceitaSnapshot {
+  const empresa = dado.company;
+  return {
+    cnpj: dado.taxId.replace(/\D/g, ''),
+    razaoSocial: empresa.name.trim(),
+    nomeFantasia: texto(dado.alias),
+    porte: PORTE_DA_CNPJA[empresa.size?.acronym ?? ''] ?? null,
+    capitalSocial: typeof empresa.equity === 'number' ? empresa.equity : null,
+    dataAbertura: texto(dado.founded),
+    situacaoCadastral: texto(dado.status?.text)?.toUpperCase() ?? null,
+    regimeTributario: null,
+    regimeTributarioAno: null,
+    segmento: texto(dado.mainActivity?.text),
+    detalhes: detalhesDaCnpja(dado),
+    socios: (empresa.members ?? []).filter((m) => m.person?.name?.trim()).map(socioDaCnpja),
+  };
+}
+
+function detalhesDaCnpja(dado: RespostaCnpja): ReceitaDetails {
+  return {
+    naturezaJuridica: texto(dado.company.nature?.text),
+    matrizOuFilial: MATRIZ_OU_FILIAL[String(dado.head)] ?? null,
+    cnaePrincipal: cnae(dado.mainActivity?.id, dado.mainActivity?.text),
+    cnaesSecundarios: (dado.sideActivities ?? [])
+      .map((a) => cnae(a.id, a.text))
+      .filter((c): c is ReceitaCnae => !!c),
+    regimes: [],
+    simples: dado.company.simples?.optant ?? null,
+    mei: dado.company.simei?.optant ?? null,
+    endereco: enderecoDaCnpja(dado.address ?? {}),
+    telefones: telefonesDaCnpja(dado.phones ?? []),
+    email: texto(dado.emails?.[0]?.address)?.toLowerCase() ?? null,
+  };
+}
+
+function enderecoDaCnpja(endereco: NonNullable<RespostaCnpja['address']>): ReceitaDetails['endereco'] {
+  return {
+    logradouro: texto(endereco.street),
+    numero: texto(endereco.number),
+    complemento: texto(endereco.details),
+    bairro: texto(endereco.district),
+    municipio: texto(endereco.city),
+    uf: texto(endereco.state),
+    cep: texto(endereco.zip),
+  };
+}
+
+/** "19" + "21279600" vira "1921279600", o formato do ddd_telefone da BrasilAPI. */
+function telefonesDaCnpja(telefones: NonNullable<RespostaCnpja['phones']>): string[] {
+  return telefones.map((t) => texto(`${t.area ?? ''}${t.number ?? ''}`)).filter((t): t is string => !!t);
+}
+
+function socioDaCnpja(membro: SocioDaCnpja): ReceitaPartner {
+  const tipo = TIPO_DA_CNPJA[membro.person.type ?? ''] ?? 'pessoa';
+  // CPF nunca: chega mascarado e é dado pessoal. CNPJ de sócio-empresa é público. Idade também não entra.
+  const digitos = (membro.person.taxId ?? '').replace(/\D/g, '');
+  const representante = texto(membro.agent?.person?.name);
+  return {
+    nome: membro.person.name.trim(),
+    qualificacao: texto(membro.role?.text),
+    dataEntrada: texto(membro.since),
+    tipo,
+    cnpj: tipo === SOCIO_EMPRESA && digitos.length === 14 ? digitos : null,
+    representanteNome: representante,
+    representanteQualificacao: representante ? texto(membro.agent?.role?.text) : null,
+  };
+}
+
+/**
  * Lei do Bem (Lei 11.196/2005) só alcança empresa tributada pelo **Lucro Real**. É o
  * primeiro filtro do serviço — e a Receita informa a forma de tributação por ano.
  * Sem regime informado não é "não elegível": é "descobrir na conversa".

@@ -8,6 +8,7 @@ export type {
   IndustrySignal,
   LeiDoBemSignal,
   RespostaBrasilApi,
+  RespostaCnpja,
 } from '../../supabase/functions/_shared/receita';
 import type { PartnerKind, ReceitaDetails } from '../../supabase/functions/_shared/receita';
 

@@ -1,6 +1,7 @@
 // A regra mora em supabase/functions/_shared/receita.ts, que as Edge Functions também usam.
 export {
   receitaFromBrasilApi,
+  receitaFromCnpja,
   leiDoBemSignal,
   LEI_DO_BEM_LABEL,
   porteLabel,

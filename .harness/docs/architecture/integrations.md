@@ -13,6 +13,8 @@ sources:
   - supabase/migrations/20260622130000_installment_nf_alert_cron.sql
   - supabase/migrations/20260929120000_prospeccao_absorve_oportunidades.sql
   - src/services/cnpjLookupService.ts
+  - supabase/functions/_shared/receita.ts
+  - supabase/migrations/20261013130000_receita_preserva_regime.sql
   - supabase/functions/company-site-scan/index.ts
   - supabase/functions/company-funding-check/index.ts
   - supabase/functions/company-watch/index.ts
@@ -62,6 +64,7 @@ flowchart LR
     EXT2[Anthropic<br/>análise de mercado]
     EXT3[Anthropic<br/>parse Cartão CNPJ]
     EXT4[BrasilAPI<br/>consulta pública de CNPJ]
+    EXT9[CNPJá aberta<br/>reserva da consulta de CNPJ]
     EXT5[BNDES CKAN · FINEP · CGU Transparência<br/>fomento público]
     EXT6[Site oficial da empresa<br/>leitura com proteção SSRF]
     EXT7[Conta Azul API v2<br/>OAuth2 por empresa · só leitura]
@@ -87,6 +90,7 @@ flowchart LR
     CRON -->|"lei-do-bem-sync de hora em hora"| EF
     EF -->|"lei-do-bem-sync (índice a cada 6 h, PDFs ano-base 2024+, sem chave)<br/>também chamado pelo company-funding-check"| EXT8
     SPA -->|"GET /api/cnpj/v1, sem chave<br/>cnpjLookupService.ts"| EXT4
+    SPA -->|"GET /office/{cnpj} quando a BrasilAPI falha<br/>sem chave, poucas por minuto"| EXT9
     MCP["apps/mcp-drive · mcp-activities · mcp-prospeccao<br/>(sessão da pessoa, sob RLS)"] --> REST
     MCP -->|"lookup_cnpj"| EXT4
 ```
@@ -100,6 +104,7 @@ flowchart LR
 | Conta Azul (API v2) | Edge Functions `conta-azul-connect`, `conta-azul-callback`, `conta-azul-disconnect` (`_shared/contaAzul.ts`) | Conexão por empresa (OAuth2 Authorization Code), empresa conectada, revogação. Escopo do Conta Azul é de administrador; o adaptador só lê. Contrato: `.harness/integrations/conta-azul.md`, ADR-0044 | `CONTA_AZUL_CLIENT_ID`/`_SECRET` do app do Pulse; token de cada empresa cifrado com `CONTA_AZUL_TOKEN_KEY` |
 | Site oficial da empresa | Edge Function `company-site-scan` | Redes, WhatsApp, telefones, e-mails genéricos e pistas de sistema publicados pela empresa. Contrato: `.harness/integrations/site-da-empresa.md` | Nenhuma |
 | BrasilAPI (CNPJ) | Browser (`src/services/cnpjLookupService.ts`) e `mcp-prospeccao` (`lookup_cnpj`) | Dados públicos da empresa pelo CNPJ para o cadastro da Prospecção: razão social, nome fantasia, CNAE, cidade. Só o CNPJ sai. Contrato: `.harness/integrations/brasilapi-cnpj.md` | Nenhuma (API pública) |
+| CNPJá aberta (CNPJ, reserva) | Os mesmos consumidores da BrasilAPI, só quando ela falha (`cnpjLookupService.ts`, tradução em `_shared/receita.ts`) | O mesmo cadastro, sem regime tributário; a RPC da Receita mantém o regime gravado. Contrato: `.harness/integrations/brasilapi-cnpj.md` (seção Reserva) | Nenhuma (API pública, poucas consultas por minuto) |
 | Microsoft Entra ID | Browser (`msalClient.ts:54`) | Login OAuth Auth Code + PKCE | client_id público, sem secret (`config.ts:1-16`) |
 | Google Identity (**planejado**, ADR-0029 / PUL-225) | Browser (Google Identity Services) → Edge Function `google-sso` | Login social: ID token OpenID Connect com escopos mínimos `openid email profile`. A função valida JWKS do Google, `iss`, `aud`, `exp` e `email_verified`, casa o e-mail com funcionário ativo (o tenant vem dele) e emite magiclink pela Admin API. Nada do Drive | `VITE_GOOGLE_CLIENT_ID` (público) no front; `GOOGLE_CLIENT_ID` como secret da função; sem client secret (só ID token) |
 | Microsoft Graph v1.0 | Browser (`microsoftGraphService.ts:39`) | Calendário (`/me/calendarView`, `/me/events`) e Email (`/me/mailFolders/inbox/messages`); escopos `Calendars.ReadWrite`, `Mail.Read` (`:47`) | Bearer MSAL, renovado silent; backend nunca vê o token |

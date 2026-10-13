@@ -27,6 +27,30 @@ Pulse, do tenant ou da pessoa acompanha a chamada.
 No botão ao lado do CNPJ, a consulta só preenche campos vazios: o que a pessoa já digitou
 não é sobrescrito.
 
+## Reserva: CNPJá aberta (13/10/2026)
+
+Em 13/10/2026 o Minha Receita, de onde a BrasilAPI lê o CNPJ, devolvia 503 para 10 de 12
+CNPJs da Prospecção, e a BrasilAPI repassava como 500. Cadastro e importação em lote paravam.
+
+- **Quando entra:** a BrasilAPI falhou com qualquer coisa que não seja 404 (rede, 5xx). O 404
+  dela continua sendo "CNPJ não encontrado". Código: `src/services/cnpjLookupService.ts`.
+- **Chamada:** `GET https://open.cnpja.com/office/{cnpj}`, sem chave. Responde com
+  `access-control-allow-origin: *`, então sai do navegador como a BrasilAPI.
+- **Tradução:** `receitaFromCnpja` em `supabase/functions/_shared/receita.ts`, no mesmo
+  `ReceitaSnapshot`. O porte é escrito como a BrasilAPI escreve (ME vira "MICRO EMPRESA"),
+  porque o gatilho "mudou de porte" compara o texto. Do sócio pessoa física, **nunca** o
+  `taxId` mascarado nem `age`.
+- **O que não vem:** o regime tributário. A RPC `save_prospect_company_receita` (migration
+  `20261013130000`) mantém o regime e o histórico de regimes já gravados quando o retrato
+  chega sem regime nenhum. Assim, "Atualizar" pela reserva não apaga o "Lucro Real".
+- **Limite:** poucas consultas por minuto por IP; a 6ª seguida já deu 429, sem `Retry-After`.
+  No cadastro de um, a tela pede para tentar em 1 minuto. Na importação em lote, a linha
+  espera 1 minuto e tenta de novo, até 5 vezes. O lote anda a cerca de 5 empresas por minuto
+  enquanto a BrasilAPI estiver fora, e volta ao ritmo normal sozinho quando ela voltar.
+- **Latência:** a BrasilAPI leva ~5 s para devolver o 500, e só depois a reserva é chamada.
+- Testadas e descartadas como reserva: `publica.cnpj.ws` e `receitaws.com.br`, que deram 429
+  já na 4ª consulta.
+
 ## Falhas
 
 - `404`: "CNPJ não encontrado na Receita." A tela oferece seguir o cadastro à mão.

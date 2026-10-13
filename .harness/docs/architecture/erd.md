@@ -31,6 +31,8 @@ sources:
   - supabase/migrations/20261009120000_oportunidade_por_empresa.sql
   - supabase/migrations/20261009130000_prospect_files.sql
   - supabase/migrations/20261009140000_prospect_title.sql
+  - supabase/migrations/20261013120000_lei_do_bem_automatica.sql
+  - supabase/migrations/20261013130000_receita_preserva_regime.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
@@ -93,7 +95,14 @@ sources:
 #  CHECKs, cascade, ida/volta/ida).
 # 09/10/2026: 20261009140000 — prospects.title (nome da oportunidade, opcional; NULL = nome da
 #  empresa), conferido contra ProspectDB e ensaiado em PGlite (CHECK, ida/volta/ida).
-verified: 2026-10-09
+# 13/10/2026: 20261013120000 — fomento_publico_arquivos (lotes da Lei do Bem e situação da
+#  carga) e fomento_publico_varreduras (última leitura do índice), sem tenant, escritas só pelo
+#  service role (lei-do-bem-sync). Conferido contra a migration; não ensaiado em banco.
+# 13/10/2026: 20261013130000 — só a RPC save_prospect_company_receita: retrato sem regime
+#  mantém regime_tributario e receita->'regimes'. Sem coluna nem relação nova.
+# 13/10/2026: src/types/receita.ts ganhou só a reexportação de RespostaCnpja (resposta da
+#  consulta reserva); sem tabela — diagrama não muda por ele.
+verified: 2026-10-13
 ---
 
 # ERD — Entidades e Relações
@@ -155,6 +164,7 @@ erDiagram
     prospect_company_partners |o--o| prospect_contacts : "contact_id (Virar contato, desde 09/10/2026)"
     prospect_company_partners |o--o| prospects : "prospect_id (Virar contato até 09/10/2026 — histórico)"
     fomento_publico }o..o{ prospect_companies : "por CNPJ (sem FK: referência pública)"
+    fomento_publico_arquivos ||..o{ fomento_publico : "lote da Lei do Bem → linhas (sem FK: por fonte e ano)"
     prospects ||--o{ prospect_activities : ""
     prospects ||--o{ prospect_tasks : ""
     prospects ||--o{ prospect_files : "anexados direto na ficha (cascade)"
@@ -173,7 +183,7 @@ erDiagram
         text tier "Tier — livre, editável no card"
         numeric faturamento_anual "informado pelo time — NULL = não informado"
         text faturamento_anual_base "estimado | apurado — obrigatória junto com o valor"
-        text regime_tributario "ano mais recente — filtro da Lei do Bem"
+        text regime_tributario "ano mais recente — filtro da Lei do Bem; retrato sem regime não apaga"
         text porte "MICRO EMPRESA | EMPRESA DE PEQUENO PORTE | DEMAIS"
         text situacao_cadastral "alerta quando não ATIVA"
         jsonb receita "CNAEs, endereço, histórico de regime, Simples/MEI"
@@ -185,6 +195,18 @@ erDiagram
         text cnpj "14 dígitos; cruzado com prospect_companies.cnpj"
         int ano ""
         numeric valor ""
+    }
+    fomento_publico_arquivos {
+        text url PK "PDF do lote no índice do MCTI"
+        text fonte "lei_do_bem"
+        int ano "ano-base (2024 em diante)"
+        text situacao "pendente | importado | sem_cnpj | falhou"
+        int tentativas "falhou com 5 deixa de segurar a lista"
+        int empresas "CNPJs carregados do lote"
+    }
+    fomento_publico_varreduras {
+        text fonte PK "lei_do_bem"
+        timestamptz verificada_em "trava: índice lido no máximo a cada 6 h"
     }
     prospect_company_partners {
         text nome "chave da atualização: único por empresa (sem caixa)"
