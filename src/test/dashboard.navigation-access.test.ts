@@ -4,10 +4,8 @@ import { NAV_ITEMS, isNavItemVisible, type NavVisibilityContext } from '@/compon
 import { hasAnyCapability } from '@/lib/access/capabilities';
 
 /**
- * A intenção destes testes não mudou desde que foram escritos: o dashboard do admin é
- * só de quem administra, e o colaborador tem o dele. O que mudou é o mecanismo — papel
- * virou capacidade (PUL-201/PUL-206) — então a asserção passou a ser sobre a capacidade
- * exigida, e sobre o comportamento da navegação, não sobre o texto do código.
+ * Desde 21/10/2026 não existe dashboard de admin: todo mundo cai no mesmo /dashboard. O
+ * endereço antigo continua respondendo, mas só redireciona — favorito salvo não quebra.
  */
 const ctx = (capabilities: string[]): NavVisibilityContext => ({
   can: (required) => hasAnyCapability(capabilities, required),
@@ -21,34 +19,19 @@ const urls = (c: NavVisibilityContext) =>
   NAV_ITEMS.filter((item) => isNavItemVisible(item, c)).map((item) => item.url);
 
 describe('Dashboard navigation access', () => {
-  it('a rota /admin-dashboard exige capacidade de administrar configuração', () => {
+  it('o endereço antigo do dashboard do admin só redireciona para /dashboard', () => {
     const appSource = readFileSync('src/App.tsx', 'utf8');
 
     expect(appSource).toMatch(
-      /path="\/admin-dashboard"[\s\S]{0,200}?<RoleProtectedRoute requireCapability="configuracao:editar">/,
+      /path="\/admin-dashboard"\s+element=\{<Navigate to="\/dashboard" replace \/>\}/,
     );
     // O mecanismo antigo não pode voltar por descuido: `requireAdmin` foi removido.
     expect(appSource).not.toContain('requireAdmin');
   });
 
-  it('o Dashboard do admin aparece para quem administra, e não para o colaborador', () => {
-    expect(urls(ADMIN)).toContain('/admin-dashboard');
-    expect(urls(COLABORADOR)).not.toContain('/admin-dashboard');
-  });
-
-  it('o colaborador tem o dashboard dele, e o admin não vê os dois', () => {
+  it('admin e colaborador veem o mesmo dashboard', () => {
+    expect(urls(ADMIN)).toContain('/dashboard');
     expect(urls(COLABORADOR)).toContain('/dashboard');
-    expect(urls(ADMIN)).not.toContain('/dashboard');
-  });
-
-  it('nenhum item de dashboard fica sem porteiro', () => {
-    const semGuarda = NAV_ITEMS.filter(
-      (item) =>
-        (item.url === '/dashboard' || item.url === '/admin-dashboard') &&
-        item.kind === 'link' &&
-        !item.requiresCapability &&
-        !item.hiddenWhenCan,
-    );
-    expect(semGuarda).toEqual([]);
+    expect(urls(ADMIN)).not.toContain('/admin-dashboard');
   });
 });

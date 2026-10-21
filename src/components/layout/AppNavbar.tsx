@@ -24,7 +24,7 @@ export function AppNavbar() {
   // Mesmo destino de "/" (HomeRedirect) e do logo do sidebar: gerente também vai
   // para /dashboard. Antes o navbar mandava gerente para /inbox, divergindo dos
   // outros dois pontos de entrada (PUL-169).
-  const homeRoute = can('configuracao:editar') ? '/admin-dashboard' : '/dashboard';
+  const homeRoute = '/dashboard';
 
   // O app instalado mostra o menu inteiro, como o navegador (ADR-0043).
   const isVisible = (section: NavSection): boolean => isSectionVisible(section, can);

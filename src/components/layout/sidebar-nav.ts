@@ -36,9 +36,8 @@ export type LinkItem = {
   icon: LucideIcon;
   requiresCapability?: CapabilityRequirement;
   /**
-   * Esconde de quem TEM a capacidade. Serve aos dois pares de entrada que se excluem:
-   * "Meus Projetos" para quem já vê o Portfólio, e o Dashboard do funcionário para quem
-   * tem o do admin. É identidade de tela, não permissão.
+   * Esconde de quem TEM a capacidade. Serve ao par de entradas que se excluem: "Meus
+   * Projetos" para quem já vê o Portfólio. É identidade de tela, não permissão.
    */
   hiddenWhenCan?: CapabilityRequirement;
   /** Só aparece rodando local (`npm run dev`) — escondido em produção sem remover o código. */
@@ -64,11 +63,10 @@ export interface NavVisibilityContext {
 }
 
 export const NAV_ITEMS: SidebarNavItem[] = [
-  { kind: 'link', title: 'Dashboard', url: '/admin-dashboard', icon: LayoutDashboard, requiresCapability: 'configuracao:editar' },
-  { kind: 'link', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard, hiddenWhenCan: 'configuracao:editar' },
+  { kind: 'link', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { kind: 'link', title: 'Timesheet', url: '/my-timesheet', icon: Clock },
-  { kind: 'link', title: 'Agenda', url: '/minha-agenda', icon: CalendarDays, devOnly: true },
-  { kind: 'link', title: 'E-mails', url: '/meus-emails', icon: Mail, devOnly: true },
+  { kind: 'link', title: 'Agenda', url: '/minha-agenda', icon: CalendarDays },
+  { kind: 'link', title: 'E-mails', url: '/meus-emails', icon: Mail },
   { kind: 'link', title: 'Meus Projetos', url: '/my-projects', icon: FolderOpen, hiddenWhenCan: 'portfolio:ler' },
   {
     kind: 'group',

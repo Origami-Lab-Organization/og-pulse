@@ -80,6 +80,23 @@ export const HELP_GROUPS: HelpGroup[] = [
         },
       },
       {
+        id: 'outlook',
+        title: 'E-mails e Agenda — o seu Outlook no Pulse',
+        route: '/meus-emails',
+        what:
+          'A sua caixa de entrada e a sua agenda do Microsoft 365, lidas com a sua própria conta. Ninguém mais vê o que está ali, a não ser o e-mail que você salvar num projeto.',
+        how: [
+          'Abra E-mails ou Agenda no menu e clique em "Conectar conta Microsoft". A autorização fica guardada neste navegador.',
+          'Em E-mails: Prioritários e Outros como no Outlook, busca em toda a caixa, anexos e resposta a convite de reunião.',
+          'Na Agenda: calendário do mês, novo compromisso com convidados, Teams e repetição, e o vínculo da reunião a um rito do projeto.',
+          'Se a Microsoft pedir aprovação de um administrador, fale com quem cuida do Microsoft 365 da empresa.',
+        ],
+        mcp: {
+          server: null,
+          note: 'Não há ferramenta de MCP para e-mail e agenda: o acesso é com a sua conta Microsoft, dentro do Pulse.',
+        },
+      },
+      {
         id: 'meus-projetos',
         title: 'Meus Projetos — a visão de execução',
         route: '/my-projects',
@@ -297,6 +314,24 @@ export const HELP_GROUPS: HelpGroup[] = [
           ],
           example:
             'Sobe o arquivo ~/Downloads/ata-kickoff.docx na pasta Execução do projeto Cobrança Automática.',
+        },
+      },
+      {
+        id: 'emails-projeto',
+        title: 'E-mails do projeto — decisões registradas',
+        route: '/meus-emails',
+        requiresCapability: 'email-projeto:ler',
+        what:
+          'Aconteceu uma decisão importante e ela está num e-mail? Salve no projeto para ter rastreabilidade. O Pulse guarda uma cópia do e-mail, então quem não recebeu a mensagem também consegue ler.',
+        how: [
+          'Abra o e-mail em E-mails e use "Salvar no projeto". Escolha o projeto e, se quiser, escreva em uma frase o que foi decidido.',
+          'Com o projeto ligado a uma pasta do OneDrive, os anexos podem ir junto: ficam em E-mails, dentro da pasta do projeto.',
+          'Na tela do projeto, a aba E-mails lista o que foi salvo. Quem salvou e o gerente do projeto podem editar o resumo ou remover o e-mail.',
+          'A cópia não muda depois de salva. Se precisar corrigir, remova e salve de novo.',
+        ],
+        mcp: {
+          server: null,
+          note: 'Ainda não há ferramenta de MCP para e-mails do projeto: salvar e consultar acontece no Pulse.',
         },
       },
       {

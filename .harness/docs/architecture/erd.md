@@ -28,6 +28,8 @@ sources:
   - supabase/migrations/20261001190000_prospect_contacts.sql
   - supabase/migrations/20261001200000_prospect_company_faturamento.sql
   - supabase/migrations/20261002120000_prospect_une_cards_duplicados.sql
+  - supabase/migrations/20261021120000_project_emails.sql
+  - supabase/migrations/20261021130000_product_news_reads.sql
   - supabase/migrations/20261009120000_oportunidade_por_empresa.sql
   - supabase/migrations/20261009130000_prospect_files.sql
   - supabase/migrations/20261009140000_prospect_title.sql
@@ -453,6 +455,8 @@ erDiagram
     project_activity_releases |o--o{ project_activity_cards : "release_id"
     projects ||--o{ project_ritos : ""
     project_ritos ||--o{ project_rito_occurrences : ""
+    projects ||--o{ project_emails : ""
+    employees ||--o{ project_emails : "saved_by"
     projects ||--o{ project_gpo_reports : ""
     project_gpo_reports ||--o{ project_gpo_actions : "source_report_id"
     project_gpo_reports ||--o{ project_gpo_action_reviews : ""
@@ -471,12 +475,20 @@ erDiagram
     project_gpo_action_reviews {
         enum outcome "completed|not_completed"
     }
+    project_emails {
+        text internet_message_id "UNIQUE(project_id, internet_message_id)"
+        text body "cópia imutável (trigger project_emails_guard)"
+        text summary "único campo editável"
+        jsonb attachments "índice dos anexos no OneDrive"
+    }
 ```
 
 Fontes: `project_milestones` L3797, `project_activity_sprints` L2971,
 `project_activity_cards` L2667, `project_ritos` L3940; GPO em
 `supabase/migrations/20260810190000_project_gpo_reports.sql:15-70`
-(ciclo de vida no ADR-0017 e em `flows/` quando gerado).
+(ciclo de vida no ADR-0017 e em `flows/` quando gerado); `project_emails` em
+`supabase/migrations/20261021120000_project_emails.sql` (e-mail salvo no projeto como
+cópia, ADR-0047).
 
 ## Cluster 5 — Estratégia, RH e Admin
 
@@ -516,6 +528,10 @@ erDiagram
 Fontes: `strategy_*` L5172-L5470, `user_roles` L6452, `notifications` L2191,
 `vacation_requests` L6539, `vacation_request_approvals` L6484,
 `employee_terminations` L955, `job_openings` L1516, `job_applications` L1437.
+
+**Novidades do produto** (`product_news_reads`, 20261021130000, ADR-0048): uma linha por
+conta (`auth.users`) e versão de edição. Sem `tenant_id` de propósito: a leitura é da
+pessoa, e a tabela não guarda dado da empresa.
 
 ## Enums nativos (types.ts L6915-6993)
 

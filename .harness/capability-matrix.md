@@ -141,6 +141,9 @@ tinha `pipeline:ler`/`pipeline:editar`.
 | `alocacao:editar-mes-fechado` — corrigir planejamento de mes anterior | sim | — | — | — | trigger `enforce_past_month_allocation_edit`; criada em 08/09, substituiu `has_role(admin)` que ficou orfa na aposentadoria |
 | `gpo:reabrir-relatorio` — devolver ao rascunho relatorio entregue | sim | — | — | — | RPC `reopen_project_gpo_report`; criada em 08/09, mesma origem |
 | `arquivo-projeto:ler` | sim | sim | — | alocado | `can_view_project_document` |
+| `email-projeto:ler` — e-mails salvos no projeto como registro de decisão (aba E-mails, `project_emails`, 21/10/2026, ADR-0047) | sim | sim | — | alocado | `email_readable_project_ids()` — capacidade + (`portfolio:ler`, `projeto:gerir-qualquer`, GP do projeto ou alocado); nasce espelhando `arquivo-projeto:ler` |
+| `email-projeto:salvar` — salvar e-mail da própria caixa no projeto, editar o resumo e remover (quem salvou ou o GP) | sim | PM/alocado | — | alocado | `can_save_project_email` — capacidade + (`can_manage_project` ou alocado); ver o portfólio não basta para salvar |
+| *(sem capacidade)* Novidades do produto — anúncio de entrega na entrada do app (ADR-0048) | sim | sim | sim | sim | Todo autenticado, como a Ajuda. Cada tópico é recortado pela capacidade da tela que anuncia; a leitura (`product_news_reads`) é só da própria conta |
 
 ## 6. Timesheet, ponto e ferias
 

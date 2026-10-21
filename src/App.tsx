@@ -11,7 +11,6 @@ import RootEntry from "@/components/auth/RootEntry";
 import Index from "./pages/Index";
 import Ajuda from "./pages/Ajuda";
 import PlatformUsage from "./pages/PlatformUsage";
-import AdminDashboard from "./pages/AdminDashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -167,17 +166,12 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              {/* Root redirect — admin → /dashboard, demais → /inbox */}
+              {/* Raiz: visitante vê a landing; quem tem sessão vai para /dashboard */}
               <Route path="/" element={<RootEntry />} />
-                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route
-                path="/admin-dashboard"
-                element={
-                  <RoleProtectedRoute requireCapability="configuracao:editar">
-                    <AdminDashboard />
-                  </RoleProtectedRoute>
-                }
-              />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              {/* O dashboard do admin saiu (21/10/2026): todo mundo vê o mesmo. O endereço
+                  antigo segue vivo para favorito e link salvo. */}
+              <Route path="/admin-dashboard" element={<Navigate to="/dashboard" replace />} />
               {/* Ajuda é para todo mundo autenticado: o conteúdo já se filtra por
                   capacidade dentro da própria tela (ADR-0027). */}
               <Route path="/ajuda" element={<ProtectedRoute><Ajuda /></ProtectedRoute>} />

@@ -3,9 +3,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 /**
- * Destino da raiz "/" e do login sem rota de origem.
- * Admin → /admin-dashboard. Demais usuários → /inbox.
- * Aguarda o carregamento do perfil para decidir com base no papel real.
+ * Destino da raiz "/" e do login sem rota de origem: /dashboard, para todo mundo.
+ * O admin tinha painel próprio até 21/10/2026; agora vê o mesmo que o time.
+ * Aguarda o carregamento do perfil para não redirecionar antes de a sessão firmar.
  */
 const HomeRedirect = () => {
   const { user, employee, loading } = useAuth();
@@ -22,11 +22,7 @@ const HomeRedirect = () => {
     );
   }
 
-  const redirectPath = employee?.isAdmin
-    ? '/admin-dashboard'
-    : '/dashboard';
-
-  return <Navigate to={redirectPath} replace />;
+  return <Navigate to="/dashboard" replace />;
 };
 
 export default HomeRedirect;

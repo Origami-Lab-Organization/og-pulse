@@ -10,6 +10,15 @@ O GP abre o seletor na aba Arquivos, navega pelo proprio OneDrive e escolhe uma
 pasta. O Pulse guarda **apenas o ponteiro** para ela. Nenhum arquivo e movido,
 lido ou copiado, e nenhuma permissao e transferida.
 
+**Anexos de e-mail salvo no projeto (21/10/2026, ADR-0047).** Ao salvar um e-mail no
+projeto, quem salva pode copiar os anexos para `<raiz do projeto>/E-mails/<aaaa-mm-dd>
+<assunto>/`. As duas pastas sao criadas na primeira vez (`ensureDriveFolder`) e
+reaproveitadas depois; caracteres que o OneDrive recusa saem do assunto
+(`attachmentFolderName`). O upload usa o token de quem salva, entao vale a permissao
+de escrita dessa pessoa na pasta. O Pulse guarda so o indice (nome, tamanho, `driveId`,
+`itemId`, `webUrl`) em `project_emails.attachments`; remover o e-mail do projeto nao
+apaga os arquivos.
+
 ## Escopos
 
 | Escopo | Onde e pedido | Por que |

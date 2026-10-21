@@ -27,6 +27,8 @@ export const CAPABILITY_KEYS = [
   'custo-hora:ler',
   'custo-hora:ler-relatorio',
   'desligamento:executar',
+  'email-projeto:ler',
+  'email-projeto:salvar',
   'estrategia:editar',
   'ferias:administrar',
   'ferias:aprovar',

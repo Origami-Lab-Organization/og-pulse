@@ -2865,6 +2865,24 @@ export type Database = {
           },
         ]
       }
+      product_news_reads: {
+        Row: {
+          read_at: string
+          user_id: string
+          version: string
+        }
+        Insert: {
+          read_at?: string
+          user_id: string
+          version: string
+        }
+        Update: {
+          read_at?: string
+          user_id?: string
+          version?: string
+        }
+        Relationships: []
+      }
       project_activity_card_checklist: {
         Row: {
           card_id: string
@@ -3837,6 +3855,88 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_emails: {
+        Row: {
+          attachments: Json
+          body: string
+          body_is_html: boolean
+          cc_recipients: string[]
+          created_at: string
+          from_address: string | null
+          from_name: string | null
+          id: string
+          internet_message_id: string
+          project_id: string
+          received_at: string
+          saved_by: string
+          subject: string
+          summary: string | null
+          tenant_id: string
+          to_recipients: string[]
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json
+          body?: string
+          body_is_html?: boolean
+          cc_recipients?: string[]
+          created_at?: string
+          from_address?: string | null
+          from_name?: string | null
+          id?: string
+          internet_message_id: string
+          project_id: string
+          received_at: string
+          saved_by: string
+          subject: string
+          summary?: string | null
+          tenant_id?: string
+          to_recipients?: string[]
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json
+          body?: string
+          body_is_html?: boolean
+          cc_recipients?: string[]
+          created_at?: string
+          from_address?: string | null
+          from_name?: string | null
+          id?: string
+          internet_message_id?: string
+          project_id?: string
+          received_at?: string
+          saved_by?: string
+          subject?: string
+          summary?: string | null
+          tenant_id?: string
+          to_recipients?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_emails_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_emails_saved_by_fkey"
+            columns: ["saved_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_emails_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -7533,6 +7633,10 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: boolean
       }
+      can_save_project_email: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_view_project_document: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -7743,6 +7847,7 @@ export type Database = {
         Args: { p_employee_id: string }
         Returns: string
       }
+      email_readable_project_ids: { Args: never; Returns: string[] }
       ensure_project_membership: {
         Args: { p_employee_id: string; p_project_id: string }
         Returns: string
@@ -8002,6 +8107,14 @@ export type Database = {
       project_folder_belongs_to_project: {
         Args: { _folder_id: string; _project_id: string }
         Returns: boolean
+      }
+      projects_for_email_save: {
+        Args: never
+        Returns: {
+          has_drive_root: boolean
+          id: string
+          name: string
+        }[]
       }
       reactivate_project_member: {
         Args: { p_employee_id: string; p_project_id: string }

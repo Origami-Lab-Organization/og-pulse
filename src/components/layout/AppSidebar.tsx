@@ -56,9 +56,9 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { can } = useAuth();
 
-  // Tudo aqui decide por capacidade, home inclusive: quem configura a empresa cai no
-  // painel de admin (ADR-0027). Nenhuma checagem de papel sobrou nesta camada.
-  const homeRoute = can('configuracao:editar') ? '/admin-dashboard' : '/dashboard';
+  // A home é a mesma para todo mundo; o resto do menu decide por capacidade (ADR-0027).
+  // Nenhuma checagem de papel sobrou nesta camada.
+  const homeRoute = '/dashboard';
   const visibility = { can, isDev: import.meta.env.DEV };
   const visibleItems = NAV_ITEMS.filter((item) => isNavItemVisible(item, visibility));
 

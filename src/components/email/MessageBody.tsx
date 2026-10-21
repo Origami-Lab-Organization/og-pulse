@@ -88,7 +88,16 @@ function describeImageSources(html: string): string {
   return parts.length ? parts.join(' · ') : 'nenhuma tag <img> no corpo';
 }
 
-export function MessageBody({ message }: { message: MailMessageDetail }) {
+/**
+ * Basta corpo e formato: a cópia salva no projeto (ADR-0047) usa o mesmo isolamento,
+ * sem o diagnóstico de anexos, que só existe para a mensagem lida agora do Graph.
+ */
+type RenderableMessage = Pick<MailMessageDetail, 'body' | 'bodyIsHtml'> &
+  Partial<Pick<MailMessageDetail, 'unresolvedImageRefs' | 'inlineAttachmentKeys'>>;
+
+export function MessageBody({ message }: { message: RenderableMessage }) {
+  const unresolvedImageRefs = message.unresolvedImageRefs ?? [];
+  const inlineAttachmentKeys = message.inlineAttachmentKeys ?? [];
   const [allowImages, setAllowImages] = useState(true);
 
   const document = useMemo(
@@ -115,12 +124,12 @@ export function MessageBody({ message }: { message: MailMessageDetail }) {
       {import.meta.env.DEV && (
         <p className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
           Diagnóstico (dev) — imagens no corpo: {describeImageSources(message.body)}
-          {message.unresolvedImageRefs.length > 0 && (
+          {unresolvedImageRefs.length > 0 && (
             <>
-              {' '}· referências sem anexo: {message.unresolvedImageRefs.join(' · ')}
+              {' '}· referências sem anexo: {unresolvedImageRefs.join(' · ')}
               {' '}· chaves dos anexos:{' '}
-              {message.inlineAttachmentKeys.length
-                ? message.inlineAttachmentKeys.join(' · ')
+              {inlineAttachmentKeys.length
+                ? inlineAttachmentKeys.join(' · ')
                 : '(lista de anexos veio vazia)'}
             </>
           )}

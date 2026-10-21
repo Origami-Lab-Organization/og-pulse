@@ -17,6 +17,7 @@ injetada no SessionStart. Gerada em 2026-08-11.
 | Doc | O que mostra | Fonte |
 |---|---|---|
 | [roadmap.md](roadmap.md) | Roadmap por tema (ondas de valor) ancorado nos OKRs do PUL; objetivo/valor/storytelling por tema; modelo de sprint quinzenal | Épicos e OKRs do projeto PUL (Jira), 2026-08-17 |
+| [roadmap-sistema-operacional.md](roadmap-sistema-operacional.md) | Pulse como sistema operacional da Origami: 4 ondas, o que trazer (e não trazer) do projete.app, aposta do dossiê de P&D, trilha SaaS e backlog de ideias | Inventário do og-pulse e do projete-app, 2026-10-21 |
 
 ## Ainda não gerado (sob demanda)
 

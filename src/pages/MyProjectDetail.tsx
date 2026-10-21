@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Lock, Building2, Calendar, FolderKanban, Clock } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -10,6 +10,7 @@ import { useMyProjectDetail } from "@/hooks/useMyProjectDetail";
 import { useProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivitiesTab";
+import { ProjectEmailsTab } from "@/components/projects/detail/ProjectEmailsTab";
 import {
   PORTFOLIO_COLUMNS,
   PORTFOLIO_STAGE_LABELS,
@@ -38,13 +39,29 @@ function getInitials(name: string): string {
     .join("");
 }
 
+/** Mesma composição de `can_manage_project`: quem gere qualquer projeto, ou o gerente dele. */
+function managesProject(managesAny: boolean, managerId: string | null | undefined, employeeId: string | undefined): boolean {
+  return managesAny || (Boolean(employeeId) && managerId === employeeId);
+}
+
+/** Link vindo da caixa de entrada abre direto em E-mails; sem ele, a aba de sempre. */
+function pickDefaultTab(requested: string | null, canViewEmails: boolean, isEmployeeOnly: boolean): string {
+  if (canViewEmails && requested === "emails") return "emails";
+  return isEmployeeOnly ? "activities" : "overview";
+}
+
 export default function MyProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { employee } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { employee, can } = useAuth();
   const { data: project, isLoading } = useMyProjectDetail(id);
   const { data: fullProject } = useProject(id);
   const isEmployeeOnly = !(employee?.is_gerente || employee?.isAdmin);
+  // A tela só abre para quem está no projeto; a capacidade decide se a aba existe.
+  const canViewEmails = can('email-projeto:ler');
+  const canManageProject = managesProject(can('projeto:gerir-qualquer'), fullProject?.manager_id, employee?.id);
+  const defaultTab = pickDefaultTab(searchParams.get("tab"), canViewEmails, isEmployeeOnly);
 
   if (isLoading) {
     return (
@@ -180,10 +197,7 @@ export default function MyProjectDetail() {
         </div>
 
         {/* Tabs */}
-        <Tabs
-          defaultValue={isEmployeeOnly ? "activities" : "overview"}
-          className="w-full"
-        >
+        <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="w-full overflow-x-auto flex flex-nowrap lg:inline-flex lg:w-auto">
             {!isEmployeeOnly && (
               <>
@@ -210,6 +224,11 @@ export default function MyProjectDetail() {
             <TabsTrigger value="activities" className="shrink-0">
               Atividades
             </TabsTrigger>
+            {canViewEmails && (
+              <TabsTrigger value="emails" className="shrink-0">
+                E-mails
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {!isEmployeeOnly && (
@@ -252,6 +271,12 @@ export default function MyProjectDetail() {
           {fullProject && (
             <TabsContent value="activities" className="mt-6">
               <ProjectActivitiesTab project={fullProject} isReadOnly={false} />
+            </TabsContent>
+          )}
+
+          {canViewEmails && id && (
+            <TabsContent value="emails" className="mt-6">
+              <ProjectEmailsTab projectId={id} canManageProject={canManageProject} />
             </TabsContent>
           )}
         </Tabs>

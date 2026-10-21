@@ -555,6 +555,7 @@ export async function searchInboxPage(
 
 interface RawMessageDetail extends RawMessage {
   '@odata.type'?: string;
+  internetMessageId: string | null;
   body: { contentType: string; content: string } | null;
   hasAttachments: boolean;
   toRecipients: { emailAddress: { name: string | null; address: string | null } | null }[];
@@ -770,6 +771,16 @@ export async function listMessageAttachments(
     }));
 }
 
+/** Converte o base64 do Graph em bytes — para o navegador salvar ou para reenviar ao OneDrive. */
+export function base64ToBlob(base64: string, contentType: string): Blob {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: contentType });
+}
+
 /** Conteúdo de um anexo, em base64 como o Graph devolve. */
 export async function fetchAttachmentContent(
   token: string,
@@ -894,7 +905,7 @@ export async function getMailMessage(
 ): Promise<MailMessageDetail> {
   const query = buildQuery({
     $select:
-      'id,subject,body,receivedDateTime,isRead,webLink,from,toRecipients,ccRecipients,hasAttachments,inferenceClassification,bodyPreview',
+      'id,internetMessageId,subject,body,receivedDateTime,isRead,webLink,from,toRecipients,ccRecipients,hasAttachments,inferenceClassification,bodyPreview',
   });
 
   const raw = await graphFetch<RawMessageDetail>(
@@ -924,6 +935,8 @@ export async function getMailMessage(
 
   return {
     ...toMailMessage(raw),
+    internetMessageId: raw.internetMessageId?.trim() || null,
+    fromAddress: raw.from?.emailAddress?.address || null,
     to: recipientNames(raw.toRecipients),
     cc: recipientNames(raw.ccRecipients),
     body,
@@ -1170,7 +1183,7 @@ const SIMPLE_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
  * Envia bytes crus. Não passa por `graphFetch` de propósito: aquele serializa
  * o corpo em JSON, o que corromperia o arquivo.
  */
-async function putBytes(url: string, file: File, headers: Record<string, string>): Promise<Response> {
+async function putBytes(url: string, file: Blob, headers: Record<string, string>): Promise<Response> {
   const response = await fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': file.type || 'application/octet-stream', ...headers },
@@ -1186,18 +1199,23 @@ async function putBytes(url: string, file: File, headers: Record<string, string>
   return response;
 }
 
+/** Os dois caminhos de upload terminam devolvendo o driveItem criado. */
+async function readUploadedItem(response: Response, driveId: string): Promise<DriveEntry> {
+  return toDriveEntry((await response.json()) as GraphDriveItem, driveId);
+}
+
 export async function uploadDriveFile(
   token: string,
   driveId: string,
   parentItemId: string,
-  file: File,
+  file: Blob,
   fileName: string,
-): Promise<void> {
+): Promise<DriveEntry> {
   const target = `${GRAPH_BASE}${itemsBase(driveId)}/${parentItemId}:/${encodePathSegment(fileName)}`;
 
   if (file.size <= SIMPLE_UPLOAD_MAX_BYTES) {
-    await putBytes(`${target}:/content`, file, { Authorization: `Bearer ${token}` });
-    return;
+    const response = await putBytes(`${target}:/content`, file, { Authorization: `Bearer ${token}` });
+    return readUploadedItem(response, driveId);
   }
 
   // A sessão devolve uma uploadUrl pré-autorizada: o PUT seguinte NÃO leva o
@@ -1207,9 +1225,27 @@ export async function uploadDriveFile(
     body: { item: { '@microsoft.graph.conflictBehavior': 'rename' } },
   });
 
-  await putBytes(session.uploadUrl, file, {
+  const response = await putBytes(session.uploadUrl, file, {
     'Content-Range': `bytes 0-${file.size - 1}/${file.size}`,
   });
+  return readUploadedItem(response, driveId);
+}
+
+/**
+ * Subpasta pelo nome, criada se ainda não existir. Serve a quem grava sempre no
+ * mesmo lugar (os anexos de e-mail vão para "E-mails"): a primeira vez cria, as
+ * seguintes reaproveitam. A comparação ignora caixa, como o próprio OneDrive.
+ */
+export async function ensureDriveFolder(
+  token: string,
+  driveId: string,
+  parentItemId: string,
+  name: string,
+): Promise<DriveEntry> {
+  const wanted = name.trim().toLowerCase();
+  const children = await listDriveChildren(token, driveId, parentItemId);
+  const existing = children.find((entry) => entry.isFolder && entry.name.toLowerCase() === wanted);
+  return existing ?? createDriveFolder(token, driveId, parentItemId, name);
 }
 
 /**

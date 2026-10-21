@@ -5,6 +5,7 @@ import { AppFooter } from './AppFooter';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
 import { OwnerGuide } from '@/components/onboarding/OwnerGuide';
 import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
+import { ProductNews } from '@/components/product-news/ProductNews';
 import { OfflineBanner } from '@/components/pwa/OfflineBanner';
 import { CapabilitiesUnavailableBanner } from '@/components/access/CapabilitiesUnavailableBanner';
 import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
@@ -134,6 +135,8 @@ export function AppLayout({
             Convivem porque respondem perguntas diferentes (PUL-251 e PUL-250). */}
         <GuidedTour />
         <OwnerGuide />
+        {/* Anúncio de entrega nova (ADR-0048): espera o tour e qualquer diálogo aberto. */}
+        <ProductNews />
       </SidebarInset>
     </SidebarProvider>
   );

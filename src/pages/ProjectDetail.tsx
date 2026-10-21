@@ -22,6 +22,7 @@ import { ProjectRoadmapTab } from "@/components/projects/detail/ProjectRoadmapTa
 import { ProjectExpectedResultTab } from "@/components/projects/detail/ProjectExpectedResultTab";
 import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivitiesTab";
 import { EquipeTab } from "@/components/projects/detail/EquipeTab";
+import { ProjectEmailsTab } from "@/components/projects/detail/ProjectEmailsTab";
 import { ProjectFilesTab } from "@/components/projects/detail/ProjectFilesTab";
 import { useProjectAllocations } from "@/hooks/useProjectRoles";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog";
@@ -58,6 +59,15 @@ type ProjectCancellationFields = {
   cancellation_notes?: string | null;
 };
 
+/**
+ * Quem vê a ficha completa abre na aba pedida por `?tab=`. Os demais só chegam por link
+ * na aba E-mails (vindo da caixa de entrada); sem ele, Atividades, como antes.
+ */
+function pickInitialTab(requested: string | null, canAccessFullProject: boolean): string {
+  if (canAccessFullProject) return requested || "overview";
+  return requested === "emails" ? "emails" : "activities";
+}
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -72,9 +82,7 @@ export default function ProjectDetail() {
   const canAccessFullProject = isAdmin || isManager;
   const canAccessPortfolio = can('portfolio:ler');
   const homeRoute = canAccessPortfolio ? '/projetos' : '/my-projects';
-  const initialTab = canAccessFullProject
-    ? searchParams.get("tab") || "overview"
-    : "activities";
+  const initialTab = pickInitialTab(searchParams.get("tab"), canAccessFullProject);
   const { data: project, isLoading, error: projectError, refetch } = useProject(id);
   const { data: allocations = [] } = useProjectAllocations(id ?? '', false);
   const updateProject = useUpdateProject();
@@ -215,6 +223,8 @@ export default function ProjectDetail() {
   const isMember = allocations.some((a) => a.employeeId === employee?.id);
   const canViewActivities =
     isAdmin || isManager || isProjectManager || isMember;
+  // Mesmo alcance da policy `project_emails_select`: capacidade + relação com o projeto.
+  const canViewEmails = canViewActivities && can('email-projeto:ler');
   // Membro alocado sobe arquivo; pasta é só de GP/admin. Projeto encerrado
   // congela a escrita para todo mundo menos admin.
   const filesReadOnly = isCompleted && !isAdmin;
@@ -331,6 +341,9 @@ export default function ProjectDetail() {
                     <TabsTrigger value="files" className={projectTabClass}>Arquivos</TabsTrigger>
                   </>
                 )}
+                {canViewEmails && (
+                  <TabsTrigger value="emails" className={projectTabClass}>E-mails</TabsTrigger>
+                )}
               </TabsList>
             </div>
             {headerActions && (
@@ -414,6 +427,12 @@ export default function ProjectDetail() {
 				  />
 				</TabsContent>
 			  </>
+          )}
+
+          {canViewEmails && (
+            <TabsContent value="emails" className="mt-6">
+              <ProjectEmailsTab projectId={project.id} canManageProject={canManageProject} />
+            </TabsContent>
           )}
         </Tabs>
       </div>

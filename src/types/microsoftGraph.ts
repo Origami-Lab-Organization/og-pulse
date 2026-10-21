@@ -242,6 +242,12 @@ export interface MeetingInvite {
  * é o que permite mostrar formatação e imagem sem abrir porta para XSS.
  */
 export interface MailMessageDetail extends MailMessage {
+  /**
+   * Message-ID do RFC 5322 — igual em todas as caixas que receberam o e-mail, ao
+   * contrário do `id`, que é por caixa. É a identidade usada ao salvar no projeto.
+   */
+  internetMessageId: string | null;
+  fromAddress: string | null;
   to: string[];
   cc: string[];
   body: string;

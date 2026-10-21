@@ -39,6 +39,7 @@ import { HELP_GROUPS, type HelpTopic } from "@/content/helpTopics";
 import { McpSetupCard } from "@/components/help/McpSetupCard";
 import { OwnerGuideHelpCard } from "@/components/onboarding/OwnerGuideHelpCard";
 import { TourRestartCard } from "@/components/onboarding/TourRestartCard";
+import { ProductNewsHelpCard } from "@/components/product-news/ProductNewsHelpCard";
 
 const ABA_MCP = "mcp";
 
@@ -211,6 +212,9 @@ export default function Ajuda() {
         {/* Depois da trilha, e para todo mundo: o tour é de qualquer perfil, a trilha só de
             quem administra. */}
         <TourRestartCard />
+
+        {/* Rever o anúncio da última entrega, para quem fechou rápido ou chegou depois. */}
+        <ProductNewsHelpCard />
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

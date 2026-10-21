@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarDays, ExternalLink } from 'lucide-react';
+import { CalendarDays, ExternalLink, FolderCheck, FolderInput } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -11,58 +12,16 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/AuthContext';
 import { describeGraphError, useMailMessageDetail } from '@/hooks/useMicrosoftGraph';
+import { useEmailPlacements } from '@/hooks/useProjectEmails';
 import { InviteResponseButtons } from '@/components/microsoft/InviteResponseButtons';
 import { MessageAttachments } from './MessageAttachments';
 import { MessageBody } from './MessageBody';
+import { RecipientLine } from './RecipientLine';
+import { SaveEmailToProjectDialog } from './SaveEmailToProjectDialog';
 import { MEETING_MESSAGE_TYPE } from '@/types/microsoftGraph';
 import type { MailMessageDetail, MeetingInvite } from '@/types/microsoftGraph';
-
-/** Nomes visíveis antes do "+N" — o resto abre sob demanda, como no Outlook. */
-const RECIPIENTS_PREVIEW = 3;
-
-function RecipientLine({ label, names }: { label: string; names: string[] }) {
-  const [expanded, setExpanded] = useState(false);
-
-  if (!names.length) return null;
-
-  const visible = expanded ? names : names.slice(0, RECIPIENTS_PREVIEW);
-  const hidden = names.length - visible.length;
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 text-sm">
-      <span className="shrink-0 text-muted-foreground">{label}:</span>
-      {visible.map((name, index) => (
-        <span
-          key={`${name}-${index}`}
-          className="max-w-56 truncate rounded-full bg-muted px-2 py-0.5 text-xs text-foreground"
-        >
-          {name}
-        </span>
-      ))}
-      {hidden > 0 && (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="rounded-full px-2 py-0.5 text-xs text-primary hover:bg-muted
-                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          +{hidden}
-        </button>
-      )}
-      {expanded && names.length > RECIPIENTS_PREVIEW && (
-        <button
-          type="button"
-          onClick={() => setExpanded(false)}
-          className="px-1 text-xs text-muted-foreground hover:text-foreground
-                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-        >
-          mostrar menos
-        </button>
-      )}
-    </div>
-  );
-}
 
 function invitePeriod(invite: MeetingInvite): string {
   if (!invite.start) return 'Horário não informado';
@@ -113,6 +72,42 @@ function MeetingInviteCard({ invite }: { invite: MeetingInvite }) {
   );
 }
 
+interface SavedInProjectsProps {
+  internetMessageId: string | null;
+}
+
+/**
+ * Projetos onde este e-mail já está salvo (ADR-0047). Mostra antes do botão para
+ * ninguém salvar de novo no mesmo lugar, e leva direto à aba E-mails do projeto.
+ */
+function SavedInProjects(props: SavedInProjectsProps) {
+  const { internetMessageId } = props;
+  const { can } = useAuth();
+  const { data: placements } = useEmailPlacements(internetMessageId);
+
+  if (!placements?.length) return null;
+
+  // Mesmo destino da lista de projetos: quem vê o portfólio abre a ficha completa.
+  const projectBase = can('portfolio:ler') ? '/projects' : '/my-projects';
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-sm">
+      <FolderCheck className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+      <span className="shrink-0 text-muted-foreground">Salvo em:</span>
+      {placements.map((placement) => (
+        <Link
+          key={placement.id}
+          to={`${projectBase}/${placement.projectId}?tab=emails`}
+          className="max-w-56 truncate rounded-full bg-muted px-2 py-0.5 text-xs text-foreground
+                     hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {placement.projectName}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 function DetailBody({ message }: { message: MailMessageDetail }) {
   return (
     <div className="space-y-4">
@@ -124,6 +119,8 @@ function DetailBody({ message }: { message: MailMessageDetail }) {
           {format(parseISO(message.receivedAt), "d 'de' MMMM 'às' HH:mm", { locale: ptBR })}
         </p>
       </div>
+
+      <SavedInProjects internetMessageId={message.internetMessageId} />
 
       {message.meetingInvite && <MeetingInviteCard invite={message.meetingInvite} />}
 
@@ -141,6 +138,12 @@ interface MessageDetailDialogProps {
 
 export function MessageDetailDialog({ messageId, onOpenChange }: MessageDetailDialogProps) {
   const { data: message, isLoading, error } = useMailMessageDetail(messageId);
+  const { can } = useAuth();
+  const canSaveToProject = can('email-projeto:salvar');
+  const [saveOpen, setSaveOpen] = useState(false);
+
+  // Trocar de e-mail fecha o "Salvar no projeto" que ficou aberto no anterior.
+  useEffect(() => setSaveOpen(false), [messageId]);
 
   return (
     <Dialog open={Boolean(messageId)} onOpenChange={onOpenChange}>
@@ -167,13 +170,31 @@ export function MessageDetailDialog({ messageId, onOpenChange }: MessageDetailDi
           {message && !isLoading && <DetailBody message={message} />}
         </div>
 
-        {message?.webLink && (
-          <Button asChild variant="outline" className="w-full">
-            <a href={message.webLink} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
-              Abrir no Outlook
-            </a>
-          </Button>
+        {message && (
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            {message.webLink && (
+              <Button asChild variant="outline" className="flex-1">
+                <a href={message.webLink} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Abrir no Outlook
+                </a>
+              </Button>
+            )}
+            {canSaveToProject && (
+              <Button className="flex-1" onClick={() => setSaveOpen(true)}>
+                <FolderInput className="mr-2 h-4 w-4" aria-hidden="true" />
+                Salvar no projeto
+              </Button>
+            )}
+          </div>
+        )}
+
+        {message && canSaveToProject && (
+          <SaveEmailToProjectDialog
+            message={message}
+            open={saveOpen}
+            onOpenChange={setSaveOpen}
+          />
         )}
       </DialogContent>
     </Dialog>

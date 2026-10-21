@@ -85,18 +85,18 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 | Módulo | Rotas principais | Guard | Fonte (App.tsx) |
 |---|---|---|---|
 | Público | `/` (landing, para quem não tem sessão), `/login`, `/esqueci-minha-senha`, `/reset-password`, `/trabalhe-conosco/:tenantId`; `/landing` redireciona para `/`; `/register` é o autocadastro (PUL-227); `/boas-vindas` e `/confirme-seu-email` confirmam o e-mail; `/teste-encerrado` recebe tenant com teste vencido; `/termos` e `/privacidade` são páginas públicas pré-renderizadas (PUL-240); `/:slug` → `PublicContent` resolve as páginas de conteúdo de `src/landing/pages.ts` (`/o-que-e-psa`, `/controle-de-margem-por-projeto`, `/software-de-gestao-para-consultorias`, `/custo-hora-de-funcionario`, PUL-242) e cai em `NotFound` para slug desconhecido; rota `*` → `NotFound` (mesma página que a Vercel serve como `404.html`) | — | 110-124, 455-470 |
-| Home | `/` → RootEntry (`src/components/auth/RootEntry.tsx:25-37`): sem sessão → `LandingPage` (a mesma já pré-renderizada no HTML); com sessão → HomeRedirect (admin → `/admin-dashboard`, demais → `/dashboard`) | — (decide pela sessão) | 140 |
-| Pessoal | `/inbox`, `/minha-agenda`, `/meus-emails`, `/my-timesheet`, `/minhas-ferias`, `/my-kanban`, `/my-projects` | Protected | 153-158, 167, 450-452 |
+| Home | `/` → RootEntry (`src/components/auth/RootEntry.tsx:25-37`): sem sessão → `LandingPage` (a mesma já pré-renderizada no HTML); com sessão → HomeRedirect → `/dashboard` para todo mundo (o dashboard do admin saiu em 21/10/2026; `/admin-dashboard` redireciona para `/dashboard`) | — (decide pela sessão) | 140 |
+| Pessoal | `/inbox`, `/minha-agenda` e `/meus-emails` (os dois no menu para todos desde 21/10/2026; do e-mail se salva no projeto, ADR-0047; a entrega é anunciada pelas novidades do produto, ADR-0048), `/my-timesheet`, `/minhas-ferias`, `/my-kanban`, `/my-projects` | Protected | 153-158, 167, 450-452 |
 | Jornada (ponto) | `/jornada`, `/jornada/configuracoes`, `/jornada/aprovacoes`, `/jornada/relatorios`, `/jornada/auditoria` | Protected / Admin / RH | 176, 184, 192, 200, 208 |
 | GPO | `/gpo`, `/gpo/:id`, `/gpo/:id/apresentar` | Manager | sem rota `path` correspondente no App.tsx atual (busca por "gpo": —); ver Divergências |
 | Pessoas / RH | `/employees*`, `/rh/desligamentos`, `/rh/candidatos`, `/rh/vagas`, `/rh/ferias`, `/rh/ferramentas-beneficios` | Manager (benefícios: Admin) | 217, 225, 233, 435, 443, 453-454, 458-459 |
 | Clientes / Fornecedores | `/clients*`, `/suppliers` | Manager | 241, 249, 257, 265, 273 |
-| Projetos | `/projetos` (Portfolio), `/projects/:id` | Manager / **apenas Protected** | 282, 290, 307, 315, 323 |
+| Projetos | `/projetos` (Portfolio), `/projects/:id` (aba E-mails com `?tab=emails`, `email-projeto:ler` — ADR-0047) | Manager / **apenas Protected** | 282, 290, 307, 315, 323 |
 | Análises | `/analises/meu-time`, `/analises/alocacoes*`, `/analises/financeiro`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 299, 331, 339, 347, 355, 395-397 |
 | Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/comercial/empresas` (Empresas da prospecção, situação por conta — `prospeccao:ler`, 24/09/2026), `/comercial/contatos` (Contatos, a pessoa separada do card — `prospeccao:ler`, 01/10/2026, ADR-0045), `/comercial/metricas` (`prospeccao:ler`), `/comercial/servicos*` (redirect para `/admin/servicos`), `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 422, 430, 438, 446, 453-454, 468, 476, 484 |
 | Estratégia | `/estrategia` | Manager | 457 |
 | Financeiro | `/financeiro/conciliacao` (Conciliação com o Conta Azul — ADR-0044, parte 3); `/financeiro` redireciona | Capacidade (`conciliacao:receber` ou `conciliacao:pagar`; hoje só Admin) | — |
-| Admin | `/admin`, `/admin-dashboard`; `/admin/integracoes` e `/admin/integracoes/conta-azul/retorno` (URL de retorno do OAuth do Conta Azul — ADR-0044) | Admin; integrações por `integracoes:gerir` | 143, 427 |
+| Admin | `/admin`; `/admin/integracoes` e `/admin/integracoes/conta-azul/retorno` (URL de retorno do OAuth do Conta Azul — ADR-0044) | Admin; integrações por `integracoes:gerir` | 143, 427 |
 
 Redirects de compatibilidade: `/pipeline`, `/pipeline/archived`, `/crm`,
 `/crm/archived`, `/budgets` e `/comercial` → `/comercial/prospeccao`;
