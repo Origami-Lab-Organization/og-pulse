@@ -19,6 +19,7 @@ import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import { formatDate, formatPercent } from '@/lib/formatters';
 import { format, parseISO, startOfMonth, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { clientLabel, projectKindOf } from '@/lib/projectKind';
 
 interface ProjectOverviewTabProps {
   project: ProjectWithRelations;
@@ -176,7 +177,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
             <div>
               <p className="ol-label text-muted-foreground mb-0.5">Cliente</p>
               <p className="text-sm font-medium text-foreground">
-                {project.client?.trading_name || project.client?.company_name || 'Não definido'}
+                {clientLabel(project.client?.trading_name || project.client?.company_name, projectKindOf(project))}
               </p>
             </div>
             <div>

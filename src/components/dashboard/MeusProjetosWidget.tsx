@@ -84,7 +84,7 @@ export function MeusProjetosWidget() {
           </div>
         ) : (
           active.map((project) => {
-            const clientName = project.client.tradingName ?? project.client.companyName;
+            const clientName = project.clientLabel;
             const stageBadgeClass = getStageBadgeClass(project.portfolioStage);
             const stageLabel =
               PORTFOLIO_STAGE_LABELS[project.portfolioStage as PortfolioStage] ??

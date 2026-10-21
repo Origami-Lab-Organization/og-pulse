@@ -7,6 +7,9 @@ import { PortfolioStage } from '@/types/portfolio';
 export interface PortfolioProject {
   id: string;
   name: string;
+  /** Marcas de tipo (ADR-0035, ADR-0049): decidem o que mostrar no lugar do cliente. */
+  is_billable?: boolean;
+  is_internal_product?: boolean;
   manager_id: string | null;
   total_value: number;
   start_date: string;
@@ -84,6 +87,8 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
           prospect_id,
           service_line,
           manager_id,
+          is_billable,
+          is_internal_product,
           client:clients(id, company_name, trading_name),
           manager:employees!projects_manager_id_fkey(id, nome, cargo),
           installments:project_installments(value, status, due_date)

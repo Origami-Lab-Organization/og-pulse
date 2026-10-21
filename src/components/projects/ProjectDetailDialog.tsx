@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   History,
 } from 'lucide-react';
+import { clientLabel, projectKindOf } from '@/lib/projectKind';
 
 interface ProjectDetailDialogProps {
   open: boolean;
@@ -150,7 +151,9 @@ export function ProjectDetailDialog({
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="font-medium">{project.client?.company_name}</p>
+                  <p className="font-medium">
+                    {clientLabel(project.client?.company_name, projectKindOf(project))}
+                  </p>
                   {project.client?.trading_name && (
                     <p className="text-sm text-muted-foreground">
                       {project.client.trading_name}

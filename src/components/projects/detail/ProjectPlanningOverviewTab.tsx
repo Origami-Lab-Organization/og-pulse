@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { clientLabel, projectKindOf, requiresClient } from '@/lib/projectKind';
 
 interface ProjectPlanningOverviewTabProps {
   project: ProjectWithRelations;
@@ -67,7 +68,8 @@ export function ProjectPlanningOverviewTab({
   const primaryKeyResults = primaryOkr?.key_results ?? [];
 
   const checks = [
-    !!project.client_id && !!project.manager_id,
+    // Produto e projeto interno não pedem cliente (ADR-0049): o item fecha só com o GP.
+    (!requiresClient(projectKindOf(project)) || !!project.client_id) && !!project.manager_id,
     okrs.some((o) => (o.key_results?.length || 0) > 0),
     membersCount > 0,
     milestones.length > 0,
@@ -329,7 +331,7 @@ export function ProjectPlanningOverviewTab({
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Cliente
                 </p>
-                <p className="text-sm font-medium">{clientName || 'Não definido'}</p>
+                <p className="text-sm font-medium">{clientLabel(clientName, projectKindOf(project))}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">

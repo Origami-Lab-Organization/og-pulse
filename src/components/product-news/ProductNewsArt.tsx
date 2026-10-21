@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Folder, FolderInput, Mail, Video } from 'lucide-react';
+import { AlarmClock, Bell, NotebookPen, Pin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ProductNewsArt as ProductNewsArtKey } from '@/types/productNews';
 
@@ -7,60 +7,55 @@ import type { ProductNewsArt as ProductNewsArtKey } from '@/types/productNews';
  * Cartões em `bg-card` para acompanharem o tema; o fundo do banner é fixo (escala green).
  */
 const CARD = 'absolute rounded-lg bg-card text-card-foreground shadow-lg ring-1 ring-border';
+const CAPTION = 'flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground';
 
-function EmailCard() {
+function NoteCard() {
   return (
     <div className={cn(CARD, 'left-0 top-1 w-[146px] -rotate-3 px-3 py-2.5')}>
-      <p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-        Caixa de entrada
+      <p className={CAPTION}>
+        <NotebookPen className="h-2.5 w-2.5" />
+        Nota
       </p>
-      <p className="mt-1 flex items-center gap-1.5 text-[11px] font-semibold">
-        <Mail className="h-3 w-3 shrink-0 text-muted-foreground" />
-        Cliente Alfa
+      <p className="mt-1 flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold">
+        <Pin className="h-3 w-3 shrink-0 text-primary" />
+        Ata do kickoff
       </p>
-      <p className="mt-0.5 truncate text-[10px] text-muted-foreground">Aprovado o escopo da fase 2</p>
-      <span className="mt-2 inline-flex items-center gap-1 rounded-md bg-primary px-1.5 py-0.5 text-[9.5px] font-medium text-primary-foreground">
-        <FolderInput className="h-2.5 w-2.5" />
-        Salvar no projeto
-      </span>
+      <p className="mt-0.5 whitespace-nowrap text-[10px] text-muted-foreground">Fase 2 aprovada</p>
+      <p className="mt-1 whitespace-nowrap text-[9.5px] text-muted-foreground">Com 2 pessoas</p>
     </div>
   );
 }
 
-function MeetingCard() {
+function BellCard() {
   return (
     <div className={cn(CARD, 'right-0 top-0 w-[112px] rotate-6 px-2.5 py-2')}>
-      <p className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-        <CalendarDays className="h-2.5 w-2.5" />
-        Hoje
+      <p className={CAPTION}>
+        <span className="relative">
+          <Bell className="h-2.5 w-2.5" />
+          <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-destructive" />
+        </span>
+        Agora
       </p>
-      <p className="mt-1 text-[11px] font-semibold tabular-nums">09:30 Daily</p>
-      <p className="mt-0.5 flex items-center gap-1 whitespace-nowrap text-[9.5px] text-primary">
-        <Video className="h-2.5 w-2.5" />
-        Entrar no Teams
-      </p>
+      <p className="mt-1 text-[11px] font-semibold leading-tight">Nova nota para você</p>
     </div>
   );
 }
 
-function ProjectFolderChip() {
+function KanbanChip() {
   return (
-    <div className={cn(CARD, 'bottom-1 left-12 flex items-center gap-1.5 px-2.5 py-1.5 text-[10.5px] font-medium')}>
-      <Folder className="h-3 w-3 shrink-0 text-muted-foreground" />
-      Projeto Alfa › E-mails
-      <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-        <Check className="h-2.5 w-2.5" />
-      </span>
+    <div className={cn(CARD, 'bottom-0 left-10 flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1.5 text-[10.5px] font-medium')}>
+      <AlarmClock className="h-3 w-3 shrink-0 text-primary" />
+      Reunião com cliente · hoje 15h
     </div>
   );
 }
 
 const ARTS: Record<ProductNewsArtKey, () => JSX.Element> = {
-  outlook: () => (
+  'meu-espaco': () => (
     <>
-      <EmailCard />
-      <MeetingCard />
-      <ProjectFolderChip />
+      <NoteCard />
+      <BellCard />
+      <KanbanChip />
     </>
   ),
 };

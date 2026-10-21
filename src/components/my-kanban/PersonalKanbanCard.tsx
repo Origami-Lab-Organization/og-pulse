@@ -1,127 +1,178 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CalendarDays, X } from 'lucide-react';
-import { format, parseISO, isPast, isToday, isTomorrow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { PersonalKanbanCardWithTags } from '@/types/personalKanban';
+import { AlertTriangle, AlignLeft, Bell, CalendarClock, CheckCircle2, Circle, Link2 } from 'lucide-react';
+import { PersonalKanbanCardWithTags, DueTone } from '@/types/personalKanban';
 import { TagBadge } from '@/components/projects/activities/TagBadge';
 import { cn } from '@/lib/utils';
+import { describeDue, reminderLabel } from '@/lib/personalKanban';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PersonalKanbanCardProps {
   card: PersonalKanbanCardWithTags;
+  done: boolean;
   onClick: () => void;
-  onDelete: (e: React.MouseEvent) => void;
+  onToggleDone: () => void;
   moveTargets?: { id: string; name: string }[];
   onMove?: (columnId: string) => void;
   moveDisabled?: boolean;
 }
 
-function DueDateBadge({ dueDate }: { dueDate: string }) {
-  const date = parseISO(dueDate);
-  const overdue = isPast(date) && !isToday(date);
-  const dueToday = isToday(date);
-  const dueTomorrow = isTomorrow(date);
+interface CardPartProps {
+  card: PersonalKanbanCardWithTags;
+  done: boolean;
+}
 
-  const label = dueToday
-    ? 'Hoje'
-    : dueTomorrow
-    ? 'Amanhã'
-    : format(date, 'dd/MM', { locale: ptBR });
+const DUE_TONE: Record<DueTone, { className: string; srPrefix: string }> = {
+  overdue: { className: 'bg-destructive-subtle text-destructive', srPrefix: 'Atrasado:' },
+  today: { className: 'bg-warning-subtle text-warning-emphasis', srPrefix: 'Prazo:' },
+  upcoming: { className: 'bg-muted text-muted-foreground', srPrefix: 'Prazo:' },
+  done: { className: 'bg-muted text-muted-foreground', srPrefix: 'Prazo:' },
+};
 
+const stopPropagation = (event: React.SyntheticEvent) => event.stopPropagation();
+
+function DueChip(props: CardPartProps) {
+  const { card, done } = props;
+  const { label, tone } = describeDue(card.due_date!, card.due_time, { done });
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 text-[10px] font-medium rounded px-1.5 py-0.5',
-        overdue
-          ? 'bg-destructive/10 text-destructive'
-          : dueToday
-          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-          : 'bg-muted text-muted-foreground',
-      )}
-    >
-      <CalendarDays className="h-3 w-3" />
+    <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium', DUE_TONE[tone].className)}>
+      <CalendarClock className="h-3 w-3" aria-hidden />
+      <span className="sr-only">{DUE_TONE[tone].srPrefix}</span>
       {label}
     </span>
   );
 }
 
-export function PersonalKanbanCard({ card, onClick, onDelete, moveTargets, onMove, moveDisabled }: PersonalKanbanCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: card.id });
+function MetaIcon(props: { icon: typeof Bell; label: string }) {
+  const { icon: Icon, label } = props;
+  return (
+    <span className="inline-flex items-center text-muted-foreground" title={label}>
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+      <span className="sr-only">{label}</span>
+    </span>
+  );
+}
 
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
+function hasPendingReminder(props: CardPartProps) {
+  const { card, done } = props;
+  return !done && card.reminder_minutes !== null && !card.reminder_sent_at;
+}
 
-  const visibleTags = card.card_tags?.slice(0, 3) ?? [];
-  const extraTags = (card.card_tags?.length ?? 0) - visibleTags.length;
+function CardMeta(props: CardPartProps) {
+  const { card } = props;
+  if (!card.due_date && !card.description) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 pl-6">
+      {card.due_date && <DueChip {...props} />}
+      {hasPendingReminder(props) && (
+        <MetaIcon icon={Bell} label={`Lembrete: ${reminderLabel(card.reminder_minutes!, !!card.due_time)}`} />
+      )}
+      {card.description && <MetaIcon icon={AlignLeft} label="Tem descrição" />}
+    </div>
+  );
+}
+
+function ProjectChip(props: Pick<CardPartProps, 'card'>) {
+  const activity = props.card.project_activity;
+  if (!activity) return null;
+  const number = activity.card_number ? ` · #${activity.card_number}` : '';
+  return (
+    <div className="flex items-center gap-2 pl-6">
+      <span className="inline-flex min-w-0 items-center gap-1 rounded-md bg-info-subtle px-1.5 py-0.5 text-[11px] font-medium text-info-emphasis" title="Vinculado a uma atividade do projeto">
+        <Link2 className="h-3 w-3 shrink-0" aria-hidden />
+        <span className="sr-only">Projeto:</span>
+        <span className="truncate">{activity.project?.name ?? 'Projeto'}{number}</span>
+      </span>
+      {activity.is_blocked && (
+        <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-destructive">
+          <AlertTriangle className="h-3 w-3" aria-hidden />
+          Bloqueado
+        </span>
+      )}
+    </div>
+  );
+}
+
+function CardTags(props: Pick<CardPartProps, 'card'>) {
+  const visible = props.card.card_tags?.slice(0, 3) ?? [];
+  const extra = (props.card.card_tags?.length ?? 0) - visible.length;
+  if (visible.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1 pl-6">
+      {visible.map((ct) => <TagBadge key={ct.tag_id} tag={ct.tag} />)}
+      {extra > 0 && <span className="self-center text-[11px] text-muted-foreground">+{extra}</span>}
+    </div>
+  );
+}
+
+function DoneToggle(props: CardPartProps & { onToggle: () => void }) {
+  const { card, done, onToggle } = props;
+  return (
+    <button
+      type="button"
+      aria-label={done ? `Reabrir "${card.title}"` : `Concluir "${card.title}"`}
+      aria-pressed={done}
+      className={cn(
+        'mt-px shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        done ? 'text-success' : 'text-muted-foreground/60 hover:text-success',
+      )}
+      onPointerDown={stopPropagation}
+      onClick={(event) => { event.stopPropagation(); onToggle(); }}
+    >
+      {done ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+    </button>
+  );
+}
+
+function MobileMove(props: Pick<PersonalKanbanCardProps, 'card' | 'moveTargets' | 'onMove' | 'moveDisabled'>) {
+  const { card, moveTargets, onMove, moveDisabled } = props;
+  if (!moveTargets || !onMove) return null;
+  // Sem valor controlado: o gatilho mostra sempre "Mover para…", não a coluna onde o card já está.
+  return (
+    <div onPointerDown={stopPropagation} onClick={stopPropagation} className="pl-6">
+      <Select onValueChange={onMove} disabled={moveDisabled}>
+        <SelectTrigger className="h-10 w-full border-dashed bg-transparent text-xs text-muted-foreground" aria-label={`Mover "${card.title}" para outra coluna`}>
+          <SelectValue placeholder="Mover para outra coluna…" />
+        </SelectTrigger>
+        <SelectContent>
+          {moveTargets.filter((target) => target.id !== card.column_id).map((target) => <SelectItem key={target.id} value={target.id}>{target.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+export function PersonalKanbanCard(props: PersonalKanbanCardProps) {
+  const { card, done, onClick, onToggleDone } = props;
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} {...listeners}>
       <div
         className={cn(
-          'group relative rounded-md border border-border bg-background px-3 py-2.5 space-y-2',
-          'cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all',
+          'group space-y-2 rounded-lg border border-border bg-card p-3 shadow-sm transition-[border-color,box-shadow,opacity]',
+          'cursor-pointer hover:border-primary/40 hover:shadow-md',
+          isDragging && 'opacity-40',
         )}
         onClick={onClick}
       >
-        {/* Tags row */}
-        {visibleTags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {visibleTags.map((ct) => (
-              <TagBadge key={ct.tag_id} tag={ct.tag} />
-            ))}
-            {extraTags > 0 && (
-              <span className="text-[10px] text-muted-foreground self-center">
-                +{extraTags}
-              </span>
+        <ProjectChip card={card} />
+        <CardTags card={card} />
+        <div className="flex items-start gap-2">
+          <DoneToggle card={card} done={done} onToggle={onToggleDone} />
+          <button
+            type="button"
+            className={cn(
+              'min-w-0 flex-1 rounded-sm text-left text-sm font-medium leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              done && 'text-muted-foreground line-through decoration-muted-foreground/50',
             )}
-          </div>
-        )}
-
-        {/* Title */}
-        <p className="text-sm leading-snug line-clamp-2 pr-5">{card.title}</p>
-
-        {/* Description */}
-        {card.description && (
-          <p className="text-xs text-muted-foreground line-clamp-1">{card.description}</p>
-        )}
-
-        {/* Due date */}
-        {card.due_date && (
-          <div>
-            <DueDateBadge dueDate={card.due_date} />
-          </div>
-        )}
-
-        {moveTargets && onMove && (
-          <div onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-            <Select value={card.column_id} onValueChange={onMove} disabled={moveDisabled}>
-              <SelectTrigger className="h-10 w-full text-xs" aria-label="Mover card para">
-                <SelectValue placeholder="Mover para" />
-              </SelectTrigger>
-              <SelectContent>{moveTargets.map((target) => <SelectItem key={target.id} value={target.id}>{target.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Delete button */}
-        <button
-          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-          onClick={(e) => { e.stopPropagation(); onDelete(e); }}
-          tabIndex={-1}
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+            onClick={(event) => { event.stopPropagation(); onClick(); }}
+          >
+            <span className="line-clamp-3">{card.title}</span>
+          </button>
+        </div>
+        <CardMeta card={card} done={done} />
+        <MobileMove {...props} />
       </div>
     </div>
   );

@@ -33,6 +33,10 @@ sources:
   - supabase/migrations/20261001120000_conta_azul_conexao.sql
   - supabase/migrations/20261001130000_conta_azul_sincronizacao.sql
   - supabase/functions/_shared/contaAzulSync.ts
+  - supabase/functions/notify-personal-kanban-reminders/index.ts
+  - supabase/migrations/20261021135000_meu_kanban_lembretes_e_configuracao.sql
+  - public/push-sw.js
+  - src/lib/webPush.ts
 ---
 
 # Mapa de Integrações
@@ -50,7 +54,7 @@ flowchart LR
 
     subgraph Supabase
         REST[(Postgres + RLS)]
-        EF[Edge Functions x33]
+        EF[Edge Functions x35]
         CRON[pg_cron + pg_net]
         SMTP[Auth SMTP<br/>convites/recovery]
     end
@@ -69,6 +73,7 @@ flowchart LR
     EXT6[Site oficial da empresa<br/>leitura com proteção SSRF]
     EXT7[Conta Azul API v2<br/>OAuth2 por empresa · só leitura]
     EXT8[MCTI · Lei do Bem<br/>índice de lotes + PDFs]
+    EXT10[Serviço de push do navegador<br/>FCM · Mozilla · Apple]
 
     SPA -->|"JWT anon (RLS)"| REST
     SPA -->|functions.invoke| EF
@@ -88,6 +93,9 @@ flowchart LR
     EF -->|"conta-azul-* · Basic client_secret no token,<br/>Bearer do tenant (cifrado AES-GCM no banco)"| EXT7
     CRON -->|"company-watch diário (Receita)"| EF
     CRON -->|"lei-do-bem-sync de hora em hora"| EF
+    CRON -->|"notify-personal-kanban-reminders a cada minuto,<br/>só quando has_due_personal_kanban_reminders()"| EF
+    SPA -->|"PushManager.subscribe (VAPID pública)<br/>SW próprio /push-sw.js, escopo /push/"| EXT10
+    EF -->|"web-push · assinatura VAPID privada"| EXT10
     EF -->|"lei-do-bem-sync (índice a cada 6 h, PDFs ano-base 2024+, sem chave)<br/>também chamado pelo company-funding-check"| EXT8
     SPA -->|"GET /api/cnpj/v1, sem chave<br/>cnpjLookupService.ts"| EXT4
     SPA -->|"GET /office/{cnpj} quando a BrasilAPI falha<br/>sem chave, poucas por minuto"| EXT9
@@ -109,7 +117,8 @@ flowchart LR
 | Google Identity (**planejado**, ADR-0029 / PUL-225) | Browser (Google Identity Services) → Edge Function `google-sso` | Login social: ID token OpenID Connect com escopos mínimos `openid email profile`. A função valida JWKS do Google, `iss`, `aud`, `exp` e `email_verified`, casa o e-mail com funcionário ativo (o tenant vem dele) e emite magiclink pela Admin API. Nada do Drive | `VITE_GOOGLE_CLIENT_ID` (público) no front; `GOOGLE_CLIENT_ID` como secret da função; sem client secret (só ID token) |
 | Microsoft Graph v1.0 | Browser (`microsoftGraphService.ts:43`) | Calendário (`/me/calendarView`, `/me/events`) e Email (`/me/mailFolders/inbox/messages`, `/me/messages/{id}` com `internetMessageId` — `:902`); escopos `Calendars.ReadWrite`, `Mail.Read` (`:51`). Desde 21/10/2026 a aba E-mails está no menu de todos, e o e-mail aberto pode ser salvo no projeto como cópia em `project_emails` (ADR-0047) | Bearer MSAL, renovado silent; backend nunca vê o token |
 | Microsoft Graph — OneDrive | Browser (`microsoftGraphService.ts:979-1260`) | Seletor de pasta raiz do projeto: `/me/drive/root`, `/drives/{id}/items/{id}/children`, `/me/drive/sharedWithMe` e `/shares/u!{b64}/driveItem`; upload (`uploadDriveFile`, `:1207`, devolve o item criado) e `ensureDriveFolder` (`:1239`), usados também para copiar anexos de e-mail salvo no projeto para `E-mails/<data> <assunto>` (ADR-0047). Escopo `Files.ReadWrite.All` **em conjunto separado** (`FILES_SCOPES`, `:979`) | Bearer MSAL adquirido por consentimento incremental (`msalClient.ts:219`), só ao abrir o seletor |
-| Resend | `send-invite-email/index.ts:135`, `send-candidate-hired-email/index.ts:126` | Email transacional (ver divergência 2) | `RESEND_API_KEY` |
+| Resend | `send-invite-email/index.ts:135`, `send-candidate-hired-email/index.ts:126`, `notify-personal-kanban-reminders` | Email transacional (ver divergência 2); lembrete do Meu Kanban para quem não desligou o e-mail | `RESEND_API_KEY` |
+| Serviço de push do navegador (Web Push) | `notify-personal-kanban-reminders` (envio), `src/lib/webPush.ts` (inscrição) | Lembrete do Meu Kanban com o Pulse fechado. Inscrição por funcionário e navegador em `push_subscriptions`; 404/410 apaga a inscrição. ADR-0050 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (Edge); `VITE_VAPID_PUBLIC_KEY` (front) |
 | Anthropic | `market-analysis-start/index.ts:317` (Opus 4), `market-analysis-refine/index.ts:37` (Sonnet 4) | Relatórios de análise de mercado | `ANTHROPIC_API_KEY` |
 | Anthropic (Opus 5) | `parse-cnpj-card/index.ts:70-89` | Extração de Cartão CNPJ (PDF em base64 via bloco `document`), com schema Zod em `output_config` — o modelo é obrigado ao formato, sem pós-processamento de markdown; usado por `ClientForm` e `SupplierFormDialog` | `ANTHROPIC_API_KEY` |
 | Amplitude, modo **vitrine** | Browser, `src/lib/analytics.ts` → `startVisitorAnalytics` em `src/main.tsx`, só sem sessão guardada (`src/lib/session.ts`) | Instância `vitrine`: `identityStorage: 'none'` (sem cookie), `trackingOptions.ipAddress: false`, sem replay; autocapture só de páginas vistas e atribuição (referrer/UTM). Mede a vitrine e o cadastro; referrers de IA (chatgpt.com, perplexity.ai, gemini.google.com) medem GEO (PUL-239, ADR-0030) | chave pública de browser no código |
@@ -146,11 +155,13 @@ floats), `delete-face-profile`, `submit-time-adjustment`,
 |---|---|
 | `notify-time-tracking-reminders` | `0 9 * * *` — `20260717120000_*.sql:21-34` |
 | `notify-installment-alerts` | `0 8 * * *` — `20260622130000_*.sql:22-35` |
+| `notify-personal-kanban-reminders` | `* * * * *`, com a chamada condicionada a `has_due_personal_kanban_reminders()` — `20261021135000_*.sql`. Além do Inbox, manda e-mail (Resend) e push (VAPID). Reserva com `claim_due_personal_kanban_reminders` (SKIP LOCKED): no máximo uma entrega, janela de 6 h (ADR-0050) |
 | `notify-timesheet-reminder`, `notify-timesheet-pending`, `timesheet-alert-managers`, `timesheet-reminder-employees` | **sem cron no repo e sem chamador** (ver divergência 3) |
 
 Crons só-SQL (sem edge function): ativação de versões de employee `0 3 * * *`
 (`20260721150000_*.sql:85-88`); recálculo trimestral de ticket médio
-(`20260806130000_*.sql:193-197`, `20260806140000_*.sql:194-198`).
+(`20260806130000_*.sql:193-197`, `20260806140000_*.sql:194-198`); arquivamento do Feito do
+Meu Kanban `30 6 * * *` (`archive_done_personal_kanban_cards()`, `20261021135000_*.sql`).
 
 **Integração Conta Azul** (ADR-0044) — `conta-azul-connect` grava `state` de uso único e
 devolve a URL de autorização; `conta-azul-callback` consome o `state`, troca o código, lê a

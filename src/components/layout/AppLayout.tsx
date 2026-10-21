@@ -5,10 +5,11 @@ import { AppFooter } from './AppFooter';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
 import { OwnerGuide } from '@/components/onboarding/OwnerGuide';
 import { OnboardingBanner } from '@/components/onboarding/OnboardingBanner';
+import { AppHeader } from '@/components/layout/AppHeader';
 import { ProductNews } from '@/components/product-news/ProductNews';
 import { OfflineBanner } from '@/components/pwa/OfflineBanner';
 import { CapabilitiesUnavailableBanner } from '@/components/access/CapabilitiesUnavailableBanner';
-import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sidebar';
 import { HideValuesToggle } from '@/components/layout/HideValuesToggle';
 import { HideValuesProvider, useHideValuesPreference } from '@/contexts/HideValuesContext';
 import { cn } from '@/lib/utils';
@@ -89,11 +90,7 @@ export function AppLayout({
       <SidebarInset className={cn('relative', fillViewport && 'h-svh min-w-0 overflow-hidden')}>
         <DesktopSidebarToggle />
 
-        {/* Mobile-only top bar */}
-        <header className="md:hidden sticky top-0 z-40 flex h-12 items-center border-b bg-background px-4 gap-3">
-          <SidebarTrigger />
-          <span className="font-semibold text-foreground">Pulse</span>
-        </header>
+        <AppHeader />
 
         <OfflineBanner />
         <CapabilitiesUnavailableBanner />

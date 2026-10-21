@@ -10,6 +10,7 @@ import { PortfolioProject } from '@/hooks/usePortfolioProjects';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { clientLabel, projectKindOf } from '@/lib/projectKind';
 
 interface PortfolioCardProps {
   project: PortfolioProject;
@@ -58,7 +59,10 @@ export function PortfolioCard({ project, canEdit = false, onRemove, hideValues }
     .reduce((sum, i) => sum + Number(i.value), 0);
   const progressPercent = totalValue > 0 ? Math.round((receivedValue / totalValue) * 100) : 0;
 
-  const clientName = project.client?.trading_name || project.client?.company_name || 'Cliente não definido';
+  const clientName = clientLabel(
+    project.client?.trading_name || project.client?.company_name,
+    projectKindOf(project),
+  );
   const managerName = project.manager?.nome || 'Gerente não definido';
 
   const handleClick = (e: React.MouseEvent) => {

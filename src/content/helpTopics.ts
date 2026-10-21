@@ -86,7 +86,7 @@ export const HELP_GROUPS: HelpGroup[] = [
         what:
           'A sua caixa de entrada e a sua agenda do Microsoft 365, lidas com a sua própria conta. Ninguém mais vê o que está ali, a não ser o e-mail que você salvar num projeto.',
         how: [
-          'Abra E-mails ou Agenda no menu e clique em "Conectar conta Microsoft". A autorização fica guardada neste navegador.',
+          'Abra E-mails ou Agenda, em Meu Espaço no menu, e clique em "Conectar conta Microsoft". A autorização fica guardada neste navegador.',
           'Em E-mails: Prioritários e Outros como no Outlook, busca em toda a caixa, anexos e resposta a convite de reunião.',
           'Na Agenda: calendário do mês, novo compromisso com convidados, Teams e repetição, e o vínculo da reunião a um rito do projeto.',
           'Se a Microsoft pedir aprovação de um administrador, fale com quem cuida do Microsoft 365 da empresa.',
@@ -94,6 +94,23 @@ export const HELP_GROUPS: HelpGroup[] = [
         mcp: {
           server: null,
           note: 'Não há ferramenta de MCP para e-mail e agenda: o acesso é com a sua conta Microsoft, dentro do Pulse.',
+        },
+      },
+      {
+        id: 'notas-e-sino',
+        title: 'Notas e notificações — no topo de qualquer tela',
+        requiresCapability: 'nota:usar',
+        what:
+          'No canto de cima, o sino mostra as notificações que você ainda não leu, e o caderno abre as suas notas. As notas são suas e podem ser compartilhadas com pessoas ou com a empresa.',
+        how: [
+          'Sino: abra a notificação para ir direto à tela dela; "Marcar todas como lidas" limpa o contador.',
+          'Notas: "Nova nota", escreva e salve. Fixe no topo as que você mais usa.',
+          'Para compartilhar, escolha pessoas ou abra para a empresa inteira. Quem recebe lê, mas só você edita, e quem recebe é avisado no sino.',
+          'Depois de salvar, anexe arquivos de até 10 MB.',
+        ],
+        mcp: {
+          server: null,
+          note: 'Ainda não há ferramenta de MCP para notas e notificações; elas ficam no Pulse.',
         },
       },
       {
@@ -255,6 +272,24 @@ export const HELP_GROUPS: HelpGroup[] = [
           server: 'drive',
           tools: ['list_projects', 'find_project'],
           example: 'Quais projetos estão na etapa de entrega de valor?',
+        },
+      },
+      {
+        id: 'produtos',
+        title: 'Produtos — o que a casa constrói para si',
+        route: '/projetos/produtos',
+        requiresCapability: 'produto:ler',
+        what:
+          'Os produtos internos, como o Pulse e o Harness: quanto já investimos em horas, quem é o responsável, quem trabalha neles agora, o próximo marco do roadmap e a última release.',
+        how: [
+          'Cada produto é um projeto do tipo "Produto interno": sem cliente, não faturável, com as horas no centro Projeto Interno.',
+          'Use "Novo produto" para cadastrar. O responsável é o gerente do projeto, e a equipe vem das alocações.',
+          'O clique no produto abre o projeto: roadmap, atividades, releases e arquivos ficam lá, como em qualquer projeto.',
+          'O custo das horas só aparece para quem vê o financeiro; as horas aparecem para todos que abrem a tela.',
+        ],
+        mcp: {
+          server: null,
+          note: 'Ainda não há ferramenta de MCP para a visão de produtos; o projeto de cada produto é lido pelas ferramentas de projeto.',
         },
       },
       {

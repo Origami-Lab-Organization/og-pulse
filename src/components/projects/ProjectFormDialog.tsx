@@ -44,12 +44,27 @@ import { useEmployees } from '@/hooks/useEmployees';
 import { useServices } from '@/hooks/useServices';
 import { useCostCenters } from '@/hooks/useCostCenters';
 import { formatCurrency, parseCurrency } from '@/lib/masks';
+import { ProjectKindField } from '@/components/projects/ProjectKindField';
+import { PROJECT_KIND } from '@/lib/projectKind.constants';
+import { projectKindOf, requiresClient } from '@/lib/projectKind';
+import type { ProjectKind } from '@/types/projectKind';
+
+/** Centro padrão do produto e do projeto interno (ADR-0035): sugerido, nunca imposto. */
+const INTERNAL_COST_CENTER_NAME = 'projeto interno';
+
+function internalCostCenterId(centers: { id: string; name: string; is_active: boolean }[]): string {
+  const internal = centers.find(
+    (center) => center.is_active && center.name.trim().toLowerCase() === INTERNAL_COST_CENTER_NAME,
+  );
+  return internal?.id ?? '';
+}
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   serviceLine: z.string().optional(),
   description: z.string().optional(),
-  clientId: z.string().min(1, 'Cliente é obrigatório'),
+  kind: z.enum([PROJECT_KIND.CLIENT, PROJECT_KIND.INTERNAL, PROJECT_KIND.PRODUCT]).default(PROJECT_KIND.CLIENT),
+  clientId: z.string().optional(),
   managerId: z.string().min(1, 'Gerente é obrigatório'),
   startDate: z.string().min(1, 'Data de início é obrigatória'),
   endDate: z.string().optional(),
@@ -62,12 +77,15 @@ const projectSchema = z.object({
   firstInvoiceDate: z.string().optional(),
   dueDay: z.coerce.number().min(1).max(90).default(10),
   successFeePercent: z.coerce.number().min(0).max(100).optional(),
-  isInternal: z.boolean().default(false),
   costCenterId: z.string().optional(),
+}).refine((data) => !requiresClient(data.kind) || Boolean(data.clientId), {
+  // Só projeto de cliente exige cliente; o banco garante o mesmo por CHECK (ADR-0049).
+  message: 'Cliente é obrigatório',
+  path: ['clientId'],
 }).refine((data) => data.isContinuous || (data.endDate && data.endDate.length > 0), {
   message: 'Data de fim é obrigatória para projetos com prazo determinado',
   path: ['endDate'],
-}).refine((data) => !data.isInternal || (data.costCenterId && data.costCenterId.length > 0), {
+}).refine((data) => data.kind === PROJECT_KIND.CLIENT || Boolean(data.costCenterId), {
   // Sem centro, o custo do projeto interno não tem onde ser lido (ADR-0035). O banco também
   // recusa, por CHECK; aqui a pessoa descobre antes de salvar.
   message: 'Escolha o centro de custo que recebe o custo deste projeto',
@@ -82,6 +100,7 @@ type ProjectFormExtras = ProjectWithRelations & {
   success_fee_percent?: number | null;
   is_billable?: boolean | null;
   cost_center_id?: string | null;
+  is_internal_product?: boolean | null;
 };
 
 interface ProjectFormDialogProps {
@@ -92,6 +111,8 @@ interface ProjectFormDialogProps {
   isSubmitting?: boolean;
   requireJustification?: boolean;
   canChangeManager?: boolean;
+  /** Tipo inicial de um projeto novo — "Novo produto" abre já como produto interno. */
+  defaultKind?: ProjectKind;
 }
 
 export function ProjectFormDialog({
@@ -102,6 +123,7 @@ export function ProjectFormDialog({
   isSubmitting,
   requireJustification = false,
   canChangeManager = true,
+  defaultKind = PROJECT_KIND.CLIENT,
 }: ProjectFormDialogProps) {
   const [activeTab, setActiveTab] = useState('basic');
   const [justification, setJustification] = useState('');
@@ -132,7 +154,7 @@ export function ProjectFormDialog({
       firstInvoiceDate: '',
       dueDay: 10,
       successFeePercent: undefined,
-      isInternal: false,
+      kind: PROJECT_KIND.CLIENT,
       costCenterId: '',
     },
   });
@@ -172,15 +194,31 @@ export function ProjectFormDialog({
         firstInvoiceDate: project?.first_invoice_date || '',
         dueDay: project?.due_day || 10,
         successFeePercent: projectWithExtras?.success_fee_percent ?? undefined,
-        isInternal: projectWithExtras?.is_billable === false,
+        kind: projectWithExtras ? projectKindOf(projectWithExtras) : defaultKind,
         costCenterId: projectWithExtras?.cost_center_id || '',
       });
       setActiveTab('basic');
       setJustification('');
     }
-  }, [open, project, form, services]);
+  }, [open, project, form, services, defaultKind]);
+
+  // Projeto novo interno ou produto já chega com o centro "Projeto Interno", quando a lista de
+  // centros estiver carregada. Efeito à parte para não resetar o formulário quando ela chegar.
+  useEffect(() => {
+    if (!open || project || costCenters.length === 0) return;
+    if (form.getValues('kind') === PROJECT_KIND.CLIENT || form.getValues('costCenterId')) return;
+    form.setValue('costCenterId', internalCostCenterId(costCenters));
+  }, [open, project, costCenters, form]);
 
   const isContinuous = form.watch('isContinuous');
+  const watchedKind = form.watch('kind') as ProjectKind;
+
+  /** Projeto interno e produto já chegam com o centro "Projeto Interno", se existir e estiver vazio. */
+  const handleKindChange = (kind: ProjectKind) => {
+    if (kind === PROJECT_KIND.PRODUCT) form.setValue('clientId', '');
+    if (kind === PROJECT_KIND.CLIENT || form.getValues('costCenterId')) return;
+    form.setValue('costCenterId', internalCostCenterId(costCenters));
+  };
   const watchedServiceLine = form.watch('serviceLine');
   const selectedService = services.find(s => s.id === watchedServiceLine);
   const isFinanciamento = watchedServiceLine === 'financiamento_inovacao'
@@ -200,7 +238,8 @@ export function ProjectFormDialog({
       name: values.name,
       serviceLine: values.serviceLine || undefined,
       description: values.description,
-      clientId: values.clientId,
+      // Produto não tem cliente; projeto interno pode ter ou não (ADR-0049).
+      clientId: values.kind === PROJECT_KIND.PRODUCT ? null : values.clientId || null,
       managerId: values.managerId,
       startDate: values.startDate,
       endDate: values.isContinuous ? undefined : values.endDate,
@@ -213,8 +252,9 @@ export function ProjectFormDialog({
       firstInvoiceDate: values.firstInvoiceDate || undefined,
       dueDay: values.dueDay,
       successFeePercent: values.successFeePercent,
-      isBillable: !values.isInternal,
-      costCenterId: values.isInternal ? values.costCenterId : undefined,
+      isBillable: values.kind === PROJECT_KIND.CLIENT,
+      costCenterId: values.kind === PROJECT_KIND.CLIENT ? undefined : values.costCenterId,
+      isInternalProduct: values.kind === PROJECT_KIND.PRODUCT,
     }, requireJustification ? justification.trim() : undefined);
   };
 
@@ -236,10 +276,13 @@ export function ProjectFormDialog({
             className="space-y-6 [&_*:focus]:ring-primary-deep [&_*:focus-visible]:ring-primary-deep"
           >
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
-                <TabsTrigger value="financial">Financeiro</TabsTrigger>
-              </TabsList>
+              {/* Produto não fatura (ADR-0049): sem valor nem parcela, a aba financeira some. */}
+              {watchedKind !== PROJECT_KIND.PRODUCT && (
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
+                  <TabsTrigger value="financial">Financeiro</TabsTrigger>
+                </TabsList>
+              )}
 
               <TabsContent value="basic" className="space-y-4 mt-4">
                 <FormField
@@ -284,35 +327,9 @@ export function ProjectFormDialog({
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="isInternal"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          className="border-primary-deep data-[state=checked]:bg-primary-deep data-[state=checked]:border-primary-deep data-[state=checked]:text-primary-deep-foreground"
-                        />
-                      </FormControl>
-                      <FormLabel className="font-normal cursor-pointer">Projeto interno, sem faturamento</FormLabel>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-[260px]">
-                          <p>
-                            Trabalho que a casa faz para si mesma: nenhum cliente paga por ele. As horas
-                            contam como custo interno, e não como trabalho vendido.
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </FormItem>
-                  )}
-                />
+                <ProjectKindField control={form.control} name="kind" onKindChange={handleKindChange} />
 
-                {form.watch('isInternal') && (
+                {watchedKind !== PROJECT_KIND.CLIENT && (
                   <FormField
                     control={form.control}
                     name="costCenterId"
@@ -361,13 +378,14 @@ export function ProjectFormDialog({
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {watchedKind !== PROJECT_KIND.PRODUCT && (
                   <FormField
                     control={form.control}
                     name="clientId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cliente *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormLabel>{requiresClient(watchedKind) ? 'Cliente *' : 'Cliente (opcional)'}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione o cliente" />
@@ -385,13 +403,16 @@ export function ProjectFormDialog({
                       </FormItem>
                     )}
                   />
+                  )}
 
                   <FormField
                     control={form.control}
                     name="managerId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Gerente do Projeto *</FormLabel>
+                        <FormLabel>
+                          {watchedKind === PROJECT_KIND.PRODUCT ? 'Responsável pelo produto *' : 'Gerente do Projeto *'}
+                        </FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}

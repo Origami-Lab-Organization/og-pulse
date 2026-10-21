@@ -2,12 +2,25 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   PersonalKanbanCardWithTags,
   PersonalKanbanColumnDB,
+  PersonalKanbanSettingsDB,
   PersonalKanbanTagDB,
   CreatePersonalKanbanCardInput,
   CreatePersonalKanbanColumnInput,
   UpdatePersonalKanbanCardInput,
+  UpdatePersonalKanbanColumnInput,
+  UpdatePersonalKanbanSettingsInput,
   AssignedProjectCard,
+  ProjectOption,
 } from '@/types/personalKanban';
+import type { ActivityColumnName } from '@/types/projectActivity';
+
+const CARD_SELECT =
+  '*, card_tags:personal_kanban_card_tags(*, tag:personal_kanban_tags(*)), ' +
+  'project_activity:project_activity_cards(id, title, column_name, card_number, is_blocked, is_archived, sprint_id, project_id, ' +
+  'project:projects!project_activity_cards_project_id_fkey(id, name))';
+
+// Projeto que ainda recebe trabalho: o seletor de vínculo não oferece concluído nem cancelado.
+const LINKABLE_PROJECT_STATUSES = ['planning', 'active', 'paused'] as const;
 
 export const personalKanbanService = {
   // ── Columns ────────────────────────────────────────────────────────────────
@@ -19,7 +32,7 @@ export const personalKanbanService = {
       .eq('employee_id', employeeId)
       .order('position');
     if (error) throw error;
-    return data || [];
+    return (data || []) as PersonalKanbanColumnDB[];
   },
 
   async createColumn(
@@ -33,10 +46,10 @@ export const personalKanbanService = {
       .select()
       .single();
     if (error) throw error;
-    return data;
+    return data as PersonalKanbanColumnDB;
   },
 
-  async updateColumn(id: string, updates: { name: string }): Promise<PersonalKanbanColumnDB> {
+  async updateColumn(id: string, updates: UpdatePersonalKanbanColumnInput): Promise<PersonalKanbanColumnDB> {
     const { data, error } = await supabase
       .from('personal_kanban_columns')
       .update(updates)
@@ -44,7 +57,7 @@ export const personalKanbanService = {
       .select()
       .single();
     if (error) throw error;
-    return data;
+    return data as PersonalKanbanColumnDB;
   },
 
   async deleteColumn(id: string): Promise<void> {
@@ -63,13 +76,26 @@ export const personalKanbanService = {
   // ── Cards ──────────────────────────────────────────────────────────────────
 
   async getCards(employeeId: string): Promise<PersonalKanbanCardWithTags[]> {
-    const { data, error } = await (supabase
+    const { data, error } = await supabase
       .from('personal_kanban_cards')
-      .select('*, card_tags:personal_kanban_card_tags(*, tag:personal_kanban_tags(*))')
+      .select(CARD_SELECT)
       .eq('employee_id', employeeId)
-      .order('position') as any);
+      .is('archived_at', null)
+      .order('position');
     if (error) throw error;
-    return (data || []) as PersonalKanbanCardWithTags[];
+    return (data || []) as unknown as PersonalKanbanCardWithTags[];
+  },
+
+  async getArchivedCards(employeeId: string): Promise<PersonalKanbanCardWithTags[]> {
+    const { data, error } = await supabase
+      .from('personal_kanban_cards')
+      .select(CARD_SELECT)
+      .eq('employee_id', employeeId)
+      .not('archived_at', 'is', null)
+      .order('archived_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    return (data || []) as unknown as PersonalKanbanCardWithTags[];
   },
 
   async createCard(
@@ -83,13 +109,14 @@ export const personalKanbanService = {
         column_id: input.column_id,
         title: input.title,
         description: input.description ?? null,
+        project_activity_card_id: input.project_activity_card_id ?? null,
         employee_id: employeeId,
         tenant_id: tenantId,
       })
-      .select('*, card_tags:personal_kanban_card_tags(*, tag:personal_kanban_tags(*))')
-      .single() as any;
+      .select(CARD_SELECT)
+      .single();
     if (error) throw error;
-    return data as PersonalKanbanCardWithTags;
+    return data as unknown as PersonalKanbanCardWithTags;
   },
 
   async updateCard(id: string, updates: UpdatePersonalKanbanCardInput): Promise<PersonalKanbanCardWithTags> {
@@ -97,10 +124,10 @@ export const personalKanbanService = {
       .from('personal_kanban_cards')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .select('*, card_tags:personal_kanban_card_tags(*, tag:personal_kanban_tags(*))')
-      .single() as any;
+      .select(CARD_SELECT)
+      .single();
     if (error) throw error;
-    return data as PersonalKanbanCardWithTags;
+    return data as unknown as PersonalKanbanCardWithTags;
   },
 
   async deleteCard(id: string): Promise<void> {
@@ -116,6 +143,37 @@ export const personalKanbanService = {
         supabase.from('personal_kanban_cards').update({ position, column_id }).eq('id', id),
       ),
     );
+  },
+
+  // ── Settings ───────────────────────────────────────────────────────────────
+
+  // A base vem dos DEFAULTs da tabela (ADR-0050): inserir só com as chaves e ler de volta.
+  async ensureSettings(employeeId: string, tenantId: string): Promise<PersonalKanbanSettingsDB> {
+    const { error: insertError } = await supabase
+      .from('personal_kanban_settings')
+      .upsert({ employee_id: employeeId, tenant_id: tenantId }, { onConflict: 'employee_id', ignoreDuplicates: true });
+    if (insertError) throw insertError;
+    const { data, error } = await supabase
+      .from('personal_kanban_settings')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .single();
+    if (error) throw error;
+    return data as PersonalKanbanSettingsDB;
+  },
+
+  async updateSettings(
+    employeeId: string,
+    updates: UpdatePersonalKanbanSettingsInput,
+  ): Promise<PersonalKanbanSettingsDB> {
+    const { data, error } = await supabase
+      .from('personal_kanban_settings')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('employee_id', employeeId)
+      .select('*')
+      .single();
+    if (error) throw error;
+    return data as PersonalKanbanSettingsDB;
   },
 
   // ── Tags ───────────────────────────────────────────────────────────────────
@@ -164,6 +222,55 @@ export const personalKanbanService = {
       .eq('card_id', cardId)
       .eq('tag_id', tagId);
     if (error) throw error;
+  },
+
+  // ── Atividade de projeto vinculada (ADR-0050) ─────────────────────────────
+
+  async listLinkableProjects(): Promise<ProjectOption[]> {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id, name')
+      .in('status', LINKABLE_PROJECT_STATUSES)
+      .order('name');
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  // Entra no fim da coluna de destino, como no drag & drop do board do projeto.
+  async moveProjectActivity(activityId: string, projectId: string, column: ActivityColumnName): Promise<void> {
+    const { data: last, error: lastError } = await supabase
+      .from('project_activity_cards')
+      .select('position')
+      .eq('project_id', projectId)
+      .eq('column_name', column)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (lastError) throw lastError;
+    const { data, error } = await supabase
+      .from('project_activity_cards')
+      .update({ column_name: column, position: (last?.position ?? -1) + 1 })
+      .eq('id', activityId)
+      .select('id');
+    if (error) throw error;
+    // harness-ok: UPDATE barrado pela RLS volta sem erro e sem linha; vira toast no hook.
+    if (!data?.length) throw new Error('Atividade não atualizada');
+  },
+
+  async renameProjectActivity(activityId: string, title: string): Promise<void> {
+    const { error } = await supabase.from('project_activity_cards').update({ title }).eq('id', activityId);
+    if (error) throw error;
+  },
+
+  // Mesma regra do board: sem item de Done, conta como completo.
+  async isActivityDodComplete(activityId: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('project_activity_card_checklist')
+      .select('is_checked')
+      .eq('card_id', activityId)
+      .eq('type', 'dod');
+    if (error) throw error;
+    return (data ?? []).every((item) => item.is_checked);
   },
 
   // ── Project integration ────────────────────────────────────────────────────

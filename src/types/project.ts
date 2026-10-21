@@ -29,7 +29,8 @@ export type InstallmentStatus = "pending" | "invoiced" | "received" | "overdue";
 export interface ProjectDB {
   id: string;
   tenant_id: string;
-  client_id: string;
+  /** Nulo só em projeto não faturável — produto interno, por exemplo (ADR-0049). */
+  client_id: string | null;
   manager_id: string;
   budget_id: string | null;
   name: string;
@@ -55,6 +56,10 @@ export interface ProjectDB {
   value_book_url: string | null;
   /** Dias de antecedência para o lembrete de emissão de NF antes do vencimento. */
   nf_emission_lead_days?: number | null;
+  /** Falso = projeto interno (ADR-0035). */
+  is_billable?: boolean;
+  /** Produto interno: não faturável e sem cliente (ADR-0049). */
+  is_internal_product?: boolean;
 }
 
 export interface ProjectMemberDB {
@@ -171,7 +176,8 @@ export interface UpdateProjectCostInput {
 }
 
 export interface CreateProjectInput {
-  clientId: string;
+  /** Obrigatório em projeto de cliente; nulo em produto interno (ADR-0049). */
+  clientId: string | null;
   managerId: string;
   budgetId?: string;
   name: string;
@@ -193,6 +199,8 @@ export interface CreateProjectInput {
   isBillable?: boolean;
   /** Obrigatório quando `isBillable` é falso: o centro que recebe o custo (ADR-0035). */
   costCenterId?: string;
+  /** Produto que a casa constrói para si (Pulse, Harness): não faturável e sem cliente (ADR-0049). */
+  isInternalProduct?: boolean;
   /** Contato da Prospecção que originou o projeto, gravado em `projects.prospect_id`. */
   prospectId?: string;
   valueBookUrl?: string;

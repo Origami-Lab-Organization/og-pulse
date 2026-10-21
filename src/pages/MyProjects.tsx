@@ -109,7 +109,7 @@ export default function MyProjects() {
       const matchesSearch =
         !q ||
         p.name.toLowerCase().includes(q) ||
-        (p.client.tradingName ?? p.client.companyName)
+        p.clientLabel
           .toLowerCase()
           .includes(q);
       const matchesStage =

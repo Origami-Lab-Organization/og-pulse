@@ -92,7 +92,7 @@ export function MyProjectCard({
   onLogHours
 }: MyProjectCardProps) {
   const { employee } = useAuth();
-  const clientName = project.client.tradingName ?? project.client.companyName;
+  const clientName = project.clientLabel;
   const isPlanning = project.portfolioStage === "planning";
   // CA-01: consultor não acessa o detalhe do projeto em preparação
   const isLocked = isPlanning && isEmployeeOnly;

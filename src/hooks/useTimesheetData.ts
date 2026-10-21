@@ -23,8 +23,9 @@ export interface ProjectMemberWithDetails extends SaidaDeEquipe {
 export interface ProjectWithMembers extends SaidaDeEquipe {
   projectId: string;
   projectName: string;
-  clientId: string;
-  clientName: string;
+  /** Nulo em projeto interno sem cliente — produto próprio, por exemplo (ADR-0049). */
+  clientId: string | null;
+  clientName: string | null;
   members: ProjectMemberWithDetails[];
   startDate?: string;
   endDate?: string | null;
@@ -140,7 +141,7 @@ export const useActiveProjectsWithMembers = (options?: ActiveProjectsFilterOptio
           start_date,
           end_date,
           is_continuous,
-          clients!inner (
+          clients (
             id,
             company_name
           ),
@@ -170,8 +171,8 @@ export const useActiveProjectsWithMembers = (options?: ActiveProjectsFilterOptio
       const projects: ProjectWithMembers[] = (data || []).map((project: any) => ({
         projectId: project.id,
         projectName: project.name,
-        clientId: project.clients.id,
-        clientName: project.clients.company_name,
+        clientId: project.clients?.id ?? null,
+        clientName: project.clients?.company_name ?? null,
         startDate: project.start_date,
         endDate: project.end_date,
         isContinuous: project.is_continuous,

@@ -10,6 +10,9 @@ sources:
   - src/integrations/microsoft/msalClient.ts
   - src/microsoftAuthBridge.ts
   - src/sw.ts
+  - public/push-sw.js
+  - src/lib/webPush.ts
+  - src/components/pwa/PushNavigationListener.tsx
   - src/lib/pwa.ts
   - src/components/auth/ProtectedRoute.tsx
   - src/components/auth/RoleProtectedRoute.tsx
@@ -59,7 +62,9 @@ sources:
   `startProductAnalytics`): autocapture completo e session replay, herdando o device id da
   vitrine; `setOptOut(true)` no `signOut`. PUL-239, ADR-0030.
 - **PWA:** service worker próprio (`injectManifest`, `vite.config.ts:23-46`),
-  registrado **somente em viewport mobile** (`src/main.tsx:7-9`).
+  registrado **somente em viewport mobile** (`src/main.tsx:7-9`). O push tem service worker
+  separado (`public/push-sw.js`, escopo `/push/`), registrado em qualquer aparelho só quando a
+  pessoa ativa as notificações no Meu Kanban (ADR-0050).
 
 ## Composição da aplicação (bootstrap)
 
@@ -72,7 +77,7 @@ QueryClientProvider (staleTime 2min, App.tsx:78-80)
       └─ TooltipProvider + Toaster/Sonner
          └─ BrowserRouter
             └─ OnboardingProvider
-               └─ InstallPwaBanner + PwaRouteGuard
+               └─ InstallPwaBanner + PushNavigationListener + PwaRouteGuard
                   └─ <Routes> (App.tsx:109-462)
 ```
 
@@ -85,13 +90,14 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 | Módulo | Rotas principais | Guard | Fonte (App.tsx) |
 |---|---|---|---|
 | Público | `/` (landing, para quem não tem sessão), `/login`, `/esqueci-minha-senha`, `/reset-password`, `/trabalhe-conosco/:tenantId`; `/landing` redireciona para `/`; `/register` é o autocadastro (PUL-227); `/boas-vindas` e `/confirme-seu-email` confirmam o e-mail; `/teste-encerrado` recebe tenant com teste vencido; `/termos` e `/privacidade` são páginas públicas pré-renderizadas (PUL-240); `/:slug` → `PublicContent` resolve as páginas de conteúdo de `src/landing/pages.ts` (`/o-que-e-psa`, `/controle-de-margem-por-projeto`, `/software-de-gestao-para-consultorias`, `/custo-hora-de-funcionario`, PUL-242) e cai em `NotFound` para slug desconhecido; rota `*` → `NotFound` (mesma página que a Vercel serve como `404.html`) | — | 110-124, 455-470 |
+| Cabeçalho | `AppHeader` em toda tela do app (21/10/2026, ADR-0051): sino com as notificações não lidas e painel de notas; no celular, também o botão do menu | Protected; notas por `nota:usar` | — |
 | Home | `/` → RootEntry (`src/components/auth/RootEntry.tsx:25-37`): sem sessão → `LandingPage` (a mesma já pré-renderizada no HTML); com sessão → HomeRedirect → `/dashboard` para todo mundo (o dashboard do admin saiu em 21/10/2026; `/admin-dashboard` redireciona para `/dashboard`) | — (decide pela sessão) | 140 |
-| Pessoal | `/inbox`, `/minha-agenda` e `/meus-emails` (os dois no menu para todos desde 21/10/2026; do e-mail se salva no projeto, ADR-0047; a entrega é anunciada pelas novidades do produto, ADR-0048), `/my-timesheet`, `/minhas-ferias`, `/my-kanban`, `/my-projects` | Protected | 153-158, 167, 450-452 |
+| Pessoal | `/inbox`, `/minha-agenda` e `/meus-emails` (os dois no menu para todos desde 21/10/2026, agrupados com o Timesheet e o Meu Kanban em "Meu Espaço", que abre aberto por padrão; do e-mail se salva no projeto, ADR-0047; a entrega é anunciada pelas novidades do produto, ADR-0048), `/my-timesheet`, `/minhas-ferias`, `/my-kanban`, `/my-projects` | Protected | 153-158, 167, 450-452 |
 | Jornada (ponto) | `/jornada`, `/jornada/configuracoes`, `/jornada/aprovacoes`, `/jornada/relatorios`, `/jornada/auditoria` | Protected / Admin / RH | 176, 184, 192, 200, 208 |
 | GPO | `/gpo`, `/gpo/:id`, `/gpo/:id/apresentar` | Manager | sem rota `path` correspondente no App.tsx atual (busca por "gpo": —); ver Divergências |
 | Pessoas / RH | `/employees*`, `/rh/desligamentos`, `/rh/candidatos`, `/rh/vagas`, `/rh/ferias`, `/rh/ferramentas-beneficios` | Manager (benefícios: Admin) | 217, 225, 233, 435, 443, 453-454, 458-459 |
 | Clientes / Fornecedores | `/clients*`, `/suppliers` | Manager | 241, 249, 257, 265, 273 |
-| Projetos | `/projetos` (Portfolio), `/projects/:id` (aba E-mails com `?tab=emails`, `email-projeto:ler` — ADR-0047) | Manager / **apenas Protected** | 282, 290, 307, 315, 323 |
+| Projetos | `/projetos` (Portfolio), `/projetos/produtos` (Produtos internos, `produto:ler` — ADR-0049), `/projects/:id` (aba E-mails com `?tab=emails`, `email-projeto:ler` — ADR-0047) | Manager / **apenas Protected** | 282, 290, 307, 315, 323 |
 | Análises | `/analises/meu-time`, `/analises/alocacoes*`, `/analises/financeiro`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 299, 331, 339, 347, 355, 395-397 |
 | Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/comercial/empresas` (Empresas da prospecção, situação por conta — `prospeccao:ler`, 24/09/2026), `/comercial/contatos` (Contatos, a pessoa separada do card — `prospeccao:ler`, 01/10/2026, ADR-0045), `/comercial/metricas` (`prospeccao:ler`), `/comercial/servicos*` (redirect para `/admin/servicos`), `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 422, 430, 438, 446, 453-454, 468, 476, 484 |
 | Estratégia | `/estrategia` | Manager | 457 |
@@ -224,6 +230,17 @@ aquisições de agenda e e-mail. Ver `.harness/integrations/onedrive.md`.
   resposta sem fingerprint válido não é gravada (`sw.ts:29-54`).
 - Logout envia `CLEAR_PRIVATE_CACHES` e apaga o cache privado
   (`sw.ts:67-69`, `AuthContext.tsx:300-308`).
+
+### Push (`public/push-sw.js`)
+
+- Só entrega notificação, sem cache. Escopo `/push/` para não disputar `/` com o `sw.ts`:
+  ligar o push no desktop não liga o cache offline (ADR-0004/0043, ADR-0050).
+- Inscrição em `src/lib/webPush.ts` (`subscribeToPush`), gravada em `push_subscriptions`
+  pelo `useWebPush`; só conta como ativa se a linha do funcionário logado existir
+  (computador compartilhado).
+- Clique na notificação: com o Pulse aberto, o SW manda `PULSE_NAVIGATE` e o
+  `PushNavigationListener` navega pelo router (o SW não controla a página); sem janela,
+  abre uma nova.
 
 ## Divergências código × doc
 

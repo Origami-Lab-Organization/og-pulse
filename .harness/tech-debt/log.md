@@ -8,6 +8,27 @@
 
 ## Aberto
 
+- TD-0030 (achado no typecheck da entrega do Meu Kanban, 21/10): `npx tsc -p
+  tsconfig.app.json --noEmit` falha na HEAD com um erro so, em
+  `src/pages/JornadaConfiguracoes.tsx:63`: o objeto montado a partir do formulario tem todos os
+  campos opcionais e `TimeTrackingSettings` (`src/hooks/useTimeTrackingSettings.ts`) exige
+  `tolerancia_entrada_minutos`. O build do Vite passa porque nao checa tipo, entao o erro nao
+  bloqueia nada e por isso passou despercebido; o custo e que o typecheck do app nunca sai
+  limpo, e erro novo some no meio do antigo. Provado reproduzindo numa worktree limpa da HEAD
+  (sem nenhuma mudanca da sessao). Proximo passo: tipar o formulario com os campos obrigatorios
+  (ou completar com os valores atuais antes de salvar) e conferir que a tela de Configuracoes
+  da Jornada continua salvando igual.
+
+- TD-0029 (achado no ensaio local da migration do Meu Kanban, 21/10):
+  `supabase/migrations/20260427200000_personal_kanban.sql` tem duas crases soltas no fim da
+  linha `created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()``, e o arquivo nao e SQL valido.
+  Producao nao e afetada (a migration ja esta aplicada e o historico nao reexecuta), mas
+  qualquer banco montado a partir do repo — `supabase db reset`, stub de teste, ambiente novo —
+  quebra nesse arquivo. No ensaio de 21/10 a crase foi removida com `sed` so na copia local.
+  Proximo passo: remover as crases do arquivo. Nao muda o schema nem o checksum que importa
+  para producao, mas confirmar com `supabase migration list` que a versao continua marcada
+  como aplicada.
+
 - TD-0028 (achado ao conferir as historias da onda S2 contra producao, 17/09): `supabase
   migration list` mostra QUATRO migrations aplicadas em producao **sem arquivo no
   repositorio** — `20260915100000`, `20260915110000`, `20260915120000` e `20260915130000`,

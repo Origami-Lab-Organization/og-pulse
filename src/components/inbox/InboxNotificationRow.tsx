@@ -11,6 +11,7 @@ import {
   FileText,
   FolderKanban,
   Bell,
+  BellRing,
   RotateCcw
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -49,6 +50,11 @@ const categoryIcon: Record<
     bg: "bg-muted",
     text: "text-muted-foreground",
     icon: Bell
+  },
+  lembrete: {
+    bg: "bg-warning-subtle",
+    text: "text-warning-emphasis",
+    icon: BellRing
   }
 };
 

@@ -99,6 +99,9 @@ uma conta que alguém precisa lembrar de fazer.
 
 ## Pendencias
 
+- **Resolvida em 21/10/2026 pelo ADR-0049:** cliente passou a ser opcional em projeto não
+  faturável (CHECK `projects_billable_needs_client`), e o produto interno não tem cliente. O
+  texto abaixo fica como registro do problema.
 - **`projects.client_id` NOT NULL.** O projeto interno precisa apontar para algum cliente.
   Enquanto a coluna for obrigatória, a saída é um cliente da própria casa, que suja carteira e
   breakdown. Tornar a coluna anulável é migration de contract com impacto em várias leituras —

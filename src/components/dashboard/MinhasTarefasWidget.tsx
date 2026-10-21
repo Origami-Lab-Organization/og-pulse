@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { usePersonalKanbanColumns, usePersonalKanbanCards } from '@/hooks/usePersonalKanban';
 import { PersonalKanbanCardWithTags, PersonalKanbanColumnDB } from '@/types/personalKanban';
 import { cn } from '@/lib/utils';
+import { isDoneColumn } from '@/lib/personalKanban';
 
 function DueDateChip({ due }: { due: string }) {
   const date = parseISO(due);
@@ -45,17 +46,16 @@ function ColumnPill({
   column: PersonalKanbanColumnDB | undefined;
 }) {
   if (!column) return null;
-  const isInProgress = column.name === 'Doing';
+  // A etapa, não o nome, diz se está em andamento: o nome da coluna é livre (ADR-0050).
+  const isInProgress = column.stage === 'doing';
   return (
     <span
       className={cn(
-        'inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap',
-        isInProgress
-          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-          : 'bg-muted text-muted-foreground',
+        'inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap max-w-[96px] truncate',
+        isInProgress ? 'bg-info-subtle text-info-emphasis' : 'bg-muted text-muted-foreground',
       )}
     >
-      {isInProgress ? 'Em andamento' : column.name === 'To do' ? 'A fazer' : column.name}
+      {column.name}
     </span>
   );
 }
@@ -88,10 +88,10 @@ export function MinhasTarefasWidget() {
     );
   }
 
-  const doneColumn = columns.find((c) => c.name === 'Done');
+  const doneColumnIds = new Set(columns.filter((c) => isDoneColumn(c)).map((c) => c.id));
 
   const allPending: PersonalKanbanCardWithTags[] = cards
-    .filter((c) => c.column_id !== doneColumn?.id)
+    .filter((c) => !doneColumnIds.has(c.column_id))
     .sort((a, b) => {
       if (!a.due_date && !b.due_date) return 0;
       if (!a.due_date) return 1;

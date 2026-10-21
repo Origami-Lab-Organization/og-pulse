@@ -8,45 +8,44 @@ interface ProjectActivityCardItemProps {
   onClick: () => void;
 }
 
-export function ProjectActivityCardItem({ card, onClick }: ProjectActivityCardItemProps) {
+function ProjectCardFooter(props: { card: AssignedProjectCard }) {
+  const { card } = props;
+  if (card.points == null && !card.is_blocked) return null;
   return (
-    <div
+    <div className="flex items-center gap-2">
+      {card.points != null && (
+        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{card.points} pts</span>
+      )}
+      {card.is_blocked && (
+        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-destructive">
+          <AlertTriangle className="h-3 w-3" aria-hidden />
+          Bloqueado
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function ProjectActivityCardItem(props: ProjectActivityCardItemProps) {
+  const { card, onClick } = props;
+  return (
+    <button
+      type="button"
       className={cn(
-        'relative rounded-md border border-border bg-background px-3 py-2.5 space-y-1.5',
-        'cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all',
-        'border-l-4',
-        card.is_blocked ? 'border-l-destructive' : 'border-l-blue-500',
+        'w-full space-y-2 rounded-lg border border-l-[3px] border-border bg-card p-3 text-left shadow-sm transition-[border-color,box-shadow]',
+        'hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        card.is_blocked ? 'border-l-destructive' : 'border-l-info',
       )}
       onClick={onClick}
     >
-      {card.project && (
-        <div className="flex items-center justify-between gap-1">
-          <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 rounded px-1.5 py-0.5 truncate max-w-[160px]">
-            {card.project.name}
-          </span>
-          <span className="text-[10px] text-muted-foreground bg-muted rounded px-1.5 py-0.5 shrink-0">
-            {CARD_TYPE_LABELS[card.card_type]}
-          </span>
-        </div>
-      )}
-
-      <p className="text-sm leading-snug line-clamp-2">{card.title}</p>
-
-      {(card.points != null || card.is_blocked) && (
-        <div className="flex items-center gap-2">
-          {card.points != null && (
-            <span className="text-[10px] text-muted-foreground bg-muted rounded px-1.5 py-0.5">
-              {card.points} pts
-            </span>
-          )}
-          {card.is_blocked && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-destructive">
-              <AlertTriangle className="h-3 w-3" />
-              Bloqueado
-            </span>
-          )}
-        </div>
-      )}
-    </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="max-w-[180px] truncate rounded-md bg-info-subtle px-1.5 py-0.5 text-[11px] font-medium text-info-emphasis">
+          {card.project?.name ?? 'Projeto'}
+        </span>
+        <span className="shrink-0 text-[11px] text-muted-foreground">{CARD_TYPE_LABELS[card.card_type]}</span>
+      </div>
+      <p className="line-clamp-3 text-sm font-medium leading-snug">{card.title}</p>
+      <ProjectCardFooter card={card} />
+    </button>
   );
 }

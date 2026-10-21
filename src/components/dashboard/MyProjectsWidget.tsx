@@ -81,8 +81,7 @@ export function MyProjectsWidget() {
       ) : (
         <div className="space-y-2">
           {recentProjects.map((project) => {
-            const clientName =
-              project.client.tradingName ?? project.client.companyName;
+            const clientName = project.clientLabel;
             return (
               <Card
                 key={project.id}

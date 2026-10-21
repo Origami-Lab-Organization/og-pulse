@@ -44,7 +44,7 @@ export const OWNER_GUIDE_STEPS: readonly OwnerGuideStep[] = [
   {
     id: OwnerGuideStepId.CLIENTS,
     title: 'Para quem você entrega',
-    why: 'Todo projeto nasce de um cliente. É por ele que a receita e a margem se agrupam.',
+    why: 'Projeto vendido nasce de um cliente. É por ele que a receita e a margem se agrupam.',
     cta: 'Cadastrar o primeiro cliente',
     route: '/clients',
     selectors: ['[data-tour="nav-/clients"]'],
@@ -77,7 +77,7 @@ export const OWNER_GUIDE_STEPS: readonly OwnerGuideStep[] = [
     why: 'É a hora que transforma cadastro em número. Depois dela, custo e margem aparecem nas análises.',
     cta: 'Lançar hora no projeto',
     route: '/my-timesheet',
-    selectors: ['[data-tour="nav-/my-timesheet"]'],
+    selectors: ['[data-tour="nav-/my-timesheet"]', '[data-tour="nav-group-/my-timesheet"]'],
     fallback: 'Abra Meu Espaço e depois Timesheet para lançar as horas da semana.',
     isDone: (c) => c.hours > 0,
   },

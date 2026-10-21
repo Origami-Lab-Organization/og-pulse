@@ -67,6 +67,7 @@ export const DOMAIN_LABELS: Record<string, string> = {
   ponto: 'Ponto',
   recrutamento: 'Recrutamento',
   estrategia: 'Estratégia',
+  pessoal: 'Meu Espaço',
 };
 
 /** A capacidade que a invariante do banco protege — ver 20260902170000. */

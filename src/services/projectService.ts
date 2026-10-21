@@ -117,6 +117,26 @@ function withTotalValue<T>(row: T): T {
   return { ...record, total_value: Number(financials?.total_value ?? 0) } as T;
 }
 
+/**
+ * Campos de faturamento do update: faturável, centro de custo e produto interno andam juntos.
+ * Voltar a ser faturável limpa o centro (senão a hora seguinte continuaria indo para o centro
+ * do projeto, ignorando o serviço, ADR-0035) e tira a marca de produto, que o banco só aceita
+ * em projeto não faturável (ADR-0049).
+ */
+function billingUpdate(updates: Partial<CreateProjectInput>): Record<string, unknown> {
+  if (updates.isBillable === undefined) {
+    return updates.costCenterId !== undefined ? { cost_center_id: updates.costCenterId || null } : {};
+  }
+  if (updates.isBillable) {
+    return { is_billable: true, cost_center_id: null, is_internal_product: false };
+  }
+  return {
+    is_billable: false,
+    cost_center_id: updates.costCenterId ?? null,
+    is_internal_product: updates.isInternalProduct ?? false,
+  };
+}
+
 export const projectService = {
   async getAll(tenantId: string, options?: ProjectFilterOptions): Promise<ProjectWithRelations[]> {
     let query = supabase
@@ -255,6 +275,8 @@ export const projectService = {
         // porque aí a hora herda o centro do serviço (ADR-0035).
         is_billable: input.isBillable ?? true,
         cost_center_id: input.isBillable === false ? (input.costCenterId ?? null) : null,
+        // Produto é sempre não faturável: o CHECK do banco recusa o par contrário (ADR-0049).
+        is_internal_product: input.isBillable === false && (input.isInternalProduct ?? false),
         prospect_id: input.prospectId || null,
       })
       .select()
@@ -318,7 +340,8 @@ export const projectService = {
   async update(id: string, updates: Partial<CreateProjectInput>): Promise<ProjectDB> {
     const updateData: Record<string, unknown> = {};
 
-    if (updates.clientId !== undefined) updateData.client_id = updates.clientId;
+    // Vazio vira nulo: '' não é uuid, e o Postgres recusaria o update inteiro.
+    if (updates.clientId !== undefined) updateData.client_id = updates.clientId || null;
     if (updates.managerId !== undefined) updateData.manager_id = updates.managerId;
     if (updates.budgetId !== undefined) updateData.budget_id = updates.budgetId;
     if (updates.name !== undefined) updateData.name = updates.name;
@@ -335,14 +358,7 @@ export const projectService = {
     if (updates.durationMonths !== undefined) updateData.duration_months = updates.durationMonths;
     if (updates.serviceLine !== undefined) updateData.service_line = updates.serviceLine;
     if (updates.successFeePercent !== undefined) updateData.success_fee_percent = updates.successFeePercent;
-    if (updates.isBillable !== undefined) {
-      updateData.is_billable = updates.isBillable;
-      // Voltar a ser faturável limpa o centro junto: deixá-lo para trás faria a hora seguinte
-      // continuar indo para o centro do projeto, ignorando o serviço (ADR-0035).
-      updateData.cost_center_id = updates.isBillable ? null : (updates.costCenterId ?? null);
-    } else if (updates.costCenterId !== undefined) {
-      updateData.cost_center_id = updates.costCenterId || null;
-    }
+    Object.assign(updateData, billingUpdate(updates));
     if (updates.valueBookUrl !== undefined) updateData.value_book_url = updates.valueBookUrl || null;
 
     const { data, error } = await supabase

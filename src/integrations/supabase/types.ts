@@ -2518,6 +2518,112 @@ export type Database = {
           },
         ]
       }
+      note_attachments: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          note_id: string
+          path: string
+          size: number
+          tenant_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          note_id: string
+          path: string
+          size: number
+          tenant_id?: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          note_id?: string
+          path?: string
+          size?: number
+          tenant_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_attachments_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_shares: {
+        Row: {
+          created_at: string
+          employee_id: string
+          note_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          note_id: string
+          tenant_id?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          note_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_shares_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notes: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          is_pinned: boolean
+          shared_with_company: boolean
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          shared_with_company?: boolean
+          tenant_id: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          shared_with_company?: boolean
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_type: string | null
@@ -2743,6 +2849,13 @@ export type Database = {
       }
       personal_kanban_cards: {
         Row: {
+          archived_at: string | null
+          completed_at: string | null
+          due_time: string | null
+          remind_at: string | null
+          reminder_minutes: number | null
+          reminder_sent_at: string | null
+          project_activity_card_id: string | null
           column_id: string
           created_at: string
           description: string | null
@@ -2755,6 +2868,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
+          completed_at?: string | null
+          due_time?: string | null
+          remind_at?: string | null
+          reminder_minutes?: number | null
+          reminder_sent_at?: string | null
+          project_activity_card_id?: string | null
           column_id: string
           created_at?: string
           description?: string | null
@@ -2767,6 +2887,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
+          completed_at?: string | null
+          due_time?: string | null
+          remind_at?: string | null
+          reminder_minutes?: number | null
+          reminder_sent_at?: string | null
+          project_activity_card_id?: string | null
           column_id?: string
           created_at?: string
           description?: string | null
@@ -2787,6 +2914,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "personal_kanban_cards_project_activity_card_id_fkey"
+            columns: ["project_activity_card_id"]
+            isOneToOne: false
+            referencedRelation: "project_activity_cards"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "personal_kanban_cards_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
@@ -2797,27 +2931,33 @@ export type Database = {
       }
       personal_kanban_columns: {
         Row: {
+          color: string
           created_at: string
           employee_id: string
           id: string
           name: string
           position: number
+          stage: string
           tenant_id: string
         }
         Insert: {
+          color?: string
           created_at?: string
           employee_id: string
           id?: string
           name: string
           position?: number
+          stage?: string
           tenant_id: string
         }
         Update: {
+          color?: string
           created_at?: string
           employee_id?: string
           id?: string
           name?: string
           position?: number
+          stage?: string
           tenant_id?: string
         }
         Relationships: [
@@ -2825,6 +2965,41 @@ export type Database = {
             foreignKeyName: "personal_kanban_columns_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_kanban_settings: {
+        Row: {
+          archive_done_after_days: number
+          default_reminder_minutes: number | null
+          email_reminders: boolean
+          employee_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          archive_done_after_days?: number
+          default_reminder_minutes?: number | null
+          email_reminders?: boolean
+          employee_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          archive_done_after_days?: number
+          default_reminder_minutes?: number | null
+          email_reminders?: boolean
+          employee_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_kanban_settings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -5349,7 +5524,7 @@ export type Database = {
           cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
-          client_id: string
+          client_id: string | null
           completed_date: string | null
           contract_url: string | null
           created_at: string
@@ -5361,6 +5536,7 @@ export type Database = {
           id: string
           installments_count: number
           is_continuous: boolean
+          is_internal_product: boolean
           manager_id: string
           name: string
           nf_emission_lead_days: number
@@ -5389,7 +5565,7 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
-          client_id: string
+          client_id?: string | null
           completed_date?: string | null
           contract_url?: string | null
           created_at?: string
@@ -5401,6 +5577,7 @@ export type Database = {
           id?: string
           installments_count?: number
           is_continuous?: boolean
+          is_internal_product?: boolean
           manager_id: string
           name: string
           nf_emission_lead_days?: number
@@ -5429,7 +5606,7 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
-          client_id?: string
+          client_id?: string | null
           completed_date?: string | null
           contract_url?: string | null
           created_at?: string
@@ -5441,6 +5618,7 @@ export type Database = {
           id?: string
           installments_count?: number
           is_continuous?: boolean
+          is_internal_product?: boolean
           manager_id?: string
           name?: string
           nf_emission_lead_days?: number
@@ -5488,6 +5666,50 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          employee_id: string
+          endpoint: string
+          id: string
+          last_success_at: string | null
+          p256dh: string
+          tenant_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          employee_id: string
+          endpoint: string
+          id?: string
+          last_success_at?: string | null
+          p256dh: string
+          tenant_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          employee_id?: string
+          endpoint?: string
+          id?: string
+          last_success_at?: string | null
+          p256dh?: string
+          tenant_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
@@ -8065,6 +8287,7 @@ export type Database = {
         Args: { _capability: string; _tenant_text: string; _user_id: string }
         Returns: boolean
       }
+      is_note_author: { Args: { _note_id: string }; Returns: boolean }
       is_project_team_member: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -8103,6 +8326,27 @@ export type Database = {
       project_employee_has_actual_hours: {
         Args: { p_employee_id: string; p_project_id: string }
         Returns: boolean
+      }
+      internal_products_overview: {
+        Args: never
+        Returns: {
+          cost_month: number | null
+          cost_total: number | null
+          first_hour_on: string | null
+          hours_month: number
+          hours_total: number
+          last_release_name: string | null
+          last_release_on: string | null
+          manager_id: string | null
+          manager_name: string | null
+          name: string
+          next_milestone_on: string | null
+          next_milestone_title: string | null
+          portfolio_stage: string | null
+          project_id: string
+          status: string | null
+          team_size: number
+        }[]
       }
       project_folder_belongs_to_project: {
         Args: { _folder_id: string; _project_id: string }

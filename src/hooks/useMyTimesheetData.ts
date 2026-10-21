@@ -37,7 +37,7 @@ export const useMyProjectMemberships = (employeeId: string | undefined, weekStar
           employee_id,
           projects!inner (
             id, name, status, portfolio_stage, start_date, end_date, is_continuous,
-            clients!inner (id, company_name)
+            clients (id, company_name)
           ),
           employees!inner (
             id, nome, foto_url
@@ -57,8 +57,8 @@ export const useMyProjectMemberships = (employeeId: string | undefined, weekStar
           projectMap.set(project.id, {
             projectId: project.id,
             projectName: project.name,
-            clientId: project.clients.id,
-            clientName: project.clients.company_name,
+            clientId: project.clients?.id ?? null,
+            clientName: project.clients?.company_name ?? null,
             startDate: project.start_date,
             endDate: project.end_date,
             isContinuous: project.is_continuous,
@@ -89,7 +89,7 @@ export const useMyProjectMemberships = (employeeId: string | undefined, weekStar
             budget_role:budget_roles(role_name),
             projects!inner (
               id, name, status, portfolio_stage, start_date, end_date, is_continuous,
-              clients!inner (id, company_name)
+              clients (id, company_name)
             )
           `)
           .eq('employee_id', employeeId)
@@ -153,8 +153,8 @@ export const useMyProjectMemberships = (employeeId: string | undefined, weekStar
         projectMap.set(project.id, {
           projectId: project.id,
           projectName: project.name,
-          clientId: project.clients.id,
-          clientName: project.clients.company_name,
+          clientId: project.clients?.id ?? null,
+          clientName: project.clients?.company_name ?? null,
           startDate: project.start_date,
           endDate: project.end_date,
           isContinuous: project.is_continuous,

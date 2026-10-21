@@ -62,10 +62,11 @@ export function AppSidebar() {
   const visibility = { can, isDev: import.meta.env.DEV };
   const visibleItems = NAV_ITEMS.filter((item) => isNavItemVisible(item, visibility));
 
-  // Controlled open state for group collapsibles — initialized from current route
+  // Controlled open state for group collapsibles — initialized from current route, plus the
+  // groups that open by default (Meu Espaço)
   const [openGroups, setOpenGroups] = useState<string[]>(() =>
     NAV_ITEMS.filter((item): item is GroupItem => item.kind === 'group')
-      .filter((item) => isGroupActive(item, location.pathname))
+      .filter((item) => item.defaultOpen || isGroupActive(item, location.pathname))
       .map((item) => item.title)
   );
 

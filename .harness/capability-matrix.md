@@ -141,8 +141,10 @@ tinha `pipeline:ler`/`pipeline:editar`.
 | `alocacao:editar-mes-fechado` — corrigir planejamento de mes anterior | sim | — | — | — | trigger `enforce_past_month_allocation_edit`; criada em 08/09, substituiu `has_role(admin)` que ficou orfa na aposentadoria |
 | `gpo:reabrir-relatorio` — devolver ao rascunho relatorio entregue | sim | — | — | — | RPC `reopen_project_gpo_report`; criada em 08/09, mesma origem |
 | `arquivo-projeto:ler` | sim | sim | — | alocado | `can_view_project_document` |
+| `produto:ler` — tela Produtos (`/projetos/produtos`): produtos internos com responsável, equipe, horas investidas, próximo marco e última release (21/10/2026, ADR-0049). O custo das horas segue `financeiro:ler` | sim | sim | — | — | rota `requireCapability` + RPC `internal_products_overview()` (definer, tenant de `auth.uid()`); nasce espelhando `portfolio:ler` |
 | `email-projeto:ler` — e-mails salvos no projeto como registro de decisão (aba E-mails, `project_emails`, 21/10/2026, ADR-0047) | sim | sim | — | alocado | `email_readable_project_ids()` — capacidade + (`portfolio:ler`, `projeto:gerir-qualquer`, GP do projeto ou alocado); nasce espelhando `arquivo-projeto:ler` |
 | `email-projeto:salvar` — salvar e-mail da própria caixa no projeto, editar o resumo e remover (quem salvou ou o GP) | sim | PM/alocado | — | alocado | `can_save_project_email` — capacidade + (`can_manage_project` ou alocado); ver o portfólio não basta para salvar |
+| `nota:usar` — notas do cabeçalho: escrever, fixar, compartilhar com pessoas ou com a empresa, anexar e ler as recebidas (`notes`, `note_shares`, `note_attachments`, bucket `note-attachments`; 21/10/2026, ADR-0051) | sim | sim | sim | sim | `readable_note_ids()` para ler (próprias, abertas para a empresa ou compartilhadas com a pessoa) e `is_note_author()` para escrever; nasce espelhando `timesheet-proprio:apontar` |
 | *(sem capacidade)* Novidades do produto — anúncio de entrega na entrada do app (ADR-0048) | sim | sim | sim | sim | Todo autenticado, como a Ajuda. Cada tópico é recortado pela capacidade da tela que anuncia; a leitura (`product_news_reads`) é só da própria conta |
 
 ## 6. Timesheet, ponto e ferias
@@ -454,3 +456,18 @@ o comportamento medido.
 > (`prospect_companies.fomento`) segue a RLS da empresa (`prospeccao:ler`/`:editar`). A
 > Edge Function `company-watch` roda com service role, só chamada pelo cron, e grava/avisa
 > sempre no tenant da própria linha.
+
+> **Meu Kanban (21/10/2026, ADR-0050).** Colunas, cards, tags, preferências
+> (`personal_kanban_settings`) e inscrições de push (`push_subscriptions`) são dado do próprio
+> funcionário: RLS pelo funcionário do login — nas tabelas novas, pelo par
+> `(employee_id, tenant_id)`, o que impede gravar linha em outro tenant. Não é dado de
+> gestão, então não precisa de capacidade. As funções do lembrete e do arquivamento são
+> revogadas de `anon`/`authenticated`; a Edge Function `notify-personal-kanban-reminders`
+> roda com service role, só chamada pelo cron, e grava cada notificação no tenant da própria
+> linha.
+> **Vínculo com projeto (21/10/2026, adendo do ADR-0050):** o card pessoal pode virar atividade
+> de qualquer projeto visível pela RLS de `projects` — mais largo que o `canCreateCard` do board
+> (equipe/gerente), por decisão registrada no adendo; o banco aceita porque a policy de
+> `project_activity_cards` é do tenant inteiro. O trigger `sync_personal_cards_from_activity`
+> é SECURITY DEFINER: escreve só nos cards pessoais vinculados à atividade alterada e no tenant
+> dela, sem devolver dado.

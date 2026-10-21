@@ -1,30 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { parseISO } from 'date-fns';
-import { Bell, Clock, FolderKanban, FileText, ArrowRight } from 'lucide-react';
+import { Bell, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInboxNotifications } from '@/hooks/useInboxNotifications';
 import { Notification } from '@/hooks/useNotifications';
-
-function timeAgo(dateStr: string): string {
-  const diffMs = Date.now() - parseISO(dateStr).getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'agora';
-  if (diffMin < 60) return `${diffMin}min`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h`;
-  const diffDays = Math.floor(diffHours / 24);
-  return diffDays === 1 ? 'ontem' : `${diffDays}d`;
-}
-
-function CategoryIcon({ category }: { category: string }) {
-  const cls = 'h-3.5 w-3.5 shrink-0';
-  if (category === 'timesheet') return <Clock className={cls} />;
-  if (category === 'projeto') return <FolderKanban className={cls} />;
-  if (category === 'budget') return <FileText className={cls} />;
-  return <Bell className={cls} />;
-}
+import { NotificationCategoryIcon } from '@/components/notifications/NotificationCategoryIcon';
+import { notificationAge } from '@/lib/notificationAge';
 
 export function NotificacoesRecentesWidget() {
   const navigate = useNavigate();
@@ -92,7 +74,7 @@ export function NotificacoesRecentesWidget() {
               onClick={() => (n.action_url ? navigate(n.action_url) : navigate('/inbox'))}
             >
               <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0 text-muted-foreground group-hover:bg-muted/80 transition-colors">
-                <CategoryIcon category={n.category} />
+                <NotificationCategoryIcon category={n.category} />
               </div>
               <div className="flex-1 min-w-0 pt-0.5">
                 <p className="text-xs font-medium leading-snug truncate">{n.title}</p>
@@ -103,7 +85,7 @@ export function NotificacoesRecentesWidget() {
                 )}
               </div>
               <span className="text-[10px] text-muted-foreground shrink-0 pt-0.5 tabular-nums">
-                {timeAgo(n.created_at)}
+                {notificationAge(n.created_at)}
               </span>
             </div>
           ))

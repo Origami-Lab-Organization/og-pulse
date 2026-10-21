@@ -84,3 +84,21 @@ tem; foco e teclado vêm do Dialog e do Accordion do Radix (shadcn), não de có
   esperado, não defeito.
 - Código: `src/content/productNews.ts`, `src/hooks/useProductNews.ts`,
   `src/components/product-news/`, `src/lib/productNews.ts`.
+
+## Emenda — 2026-10-21 (edição "O Pulse ficou mais seu")
+
+O Italo pediu um banner de tudo o que saiu no dia, inclusive o Meu Kanban (ADR-0050).
+
+- A edição `meu-espaco-2026-10` substitui a `outlook-2026-10`. Uma edição vigente por vez:
+  quem não leu a do Outlook **não vê as duas**, vê só esta — que repete o que aquela dizia
+  (e-mails, agenda, e-mail salvo no projeto) e soma notas, sino, Meu Kanban e
+  produtos internos. Quem leu a do Outlook vê esta uma vez.
+- Sete tópicos, cada um com "Por quê" e "O que dá para fazer"; notas, e-mail no projeto e
+  produtos recortados pela capacidade da tela. "Como conectar" virou um item dos tópicos de
+  E-mails e Agenda. O tópico do Dashboard único saiu, a pedido do Italo.
+- Arte nova (`meu-espaco`): uma nota fixada, uma notificação nova e um lembrete do kanban.
+- Sem chamada principal: "Continuar" passa a ser o botão principal quando é a única ação
+  (antes ficava apagado, como secundário).
+- O Meu Kanban entrou no menu, dentro de Meu Espaço, para o tópico ter para onde apontar.
+- O tópico do kanban anuncia o lembrete no navegador e no celular "se você ativar": o push
+  depende das chaves VAPID que o ADR-0050 lista como pré-requisito manual.

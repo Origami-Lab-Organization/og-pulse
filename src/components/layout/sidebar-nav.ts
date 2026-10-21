@@ -1,16 +1,14 @@
 import {
   BarChart3,
   Building2,
-  CalendarDays,
   CircleHelp,
-  Clock,
   FolderKanban,
   FolderOpen,
   Kanban,
   LayoutDashboard,
-  Mail,
   Settings,
   Timer,
+  UserRound,
   Users,
   Wallet,
   type LucideIcon,
@@ -51,6 +49,11 @@ export type GroupItem = {
   icon: LucideIcon;
   /** Só aparece rodando local (`npm run dev`) — escondido em produção sem remover o código. */
   devOnly?: boolean;
+  /**
+   * Já abre aberto na primeira carga, fora da própria rota. Só para o grupo do dia a dia:
+   * o Timesheet não pode ficar um clique mais fundo do que estava antes de virar filho.
+   */
+  defaultOpen?: boolean;
   /** O grupo aparece quando alguma filha aparece. */
   children: NavChild[];
 };
@@ -64,9 +67,21 @@ export interface NavVisibilityContext {
 
 export const NAV_ITEMS: SidebarNavItem[] = [
   { kind: 'link', title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
-  { kind: 'link', title: 'Timesheet', url: '/my-timesheet', icon: Clock },
-  { kind: 'link', title: 'Agenda', url: '/minha-agenda', icon: CalendarDays },
-  { kind: 'link', title: 'E-mails', url: '/meus-emails', icon: Mail },
+  // O dia a dia de cada pessoa num lugar só (21/10/2026). "Meu Espaço" é o nome que o guia e o
+  // onboarding já usavam para esta área.
+  {
+    kind: 'group',
+    title: 'Meu Espaço',
+    url: '/my-timesheet',
+    icon: UserRound,
+    defaultOpen: true,
+    children: [
+      { title: 'Timesheet', url: '/my-timesheet' },
+      { title: 'Meu Kanban', url: '/my-kanban' },
+      { title: 'Agenda', url: '/minha-agenda' },
+      { title: 'E-mails', url: '/meus-emails' },
+    ],
+  },
   { kind: 'link', title: 'Meus Projetos', url: '/my-projects', icon: FolderOpen, hiddenWhenCan: 'portfolio:ler' },
   {
     kind: 'group',
@@ -87,6 +102,7 @@ export const NAV_ITEMS: SidebarNavItem[] = [
     icon: FolderKanban,
     children: [
       { title: 'Portfólio', url: '/projetos', requiresCapability: 'portfolio:ler' },
+      { title: 'Produtos', url: '/projetos/produtos', requiresCapability: 'produto:ler' },
       { title: 'Alocações', url: '/projetos/alocacoes', requiresCapability: 'alocacao:ler' },
     ],
   },

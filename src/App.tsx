@@ -51,6 +51,7 @@ import ProspeccaoEmpresas from "./pages/ProspeccaoEmpresas";
 import ProspeccaoContatos from "./pages/ProspeccaoContatos";
 import ProspeccaoMetricas from "./pages/ProspeccaoMetricas";
 import Portfolio from "./pages/Portfolio";
+import Produtos from "./pages/Produtos";
 import AlocacaoPage from "./pages/AlocacaoPage";
 import MinhaEquipeAlocacaoPage from "./pages/MinhaEquipeAlocacaoPage";
 import AnaliseHorasNaoLancadas from "./pages/AnaliseHorasNaoLancadas";
@@ -88,6 +89,7 @@ import VacationManagement from "./pages/VacationManagement";
 import Dashboard from "./pages/Dashboard";
 import SiteUnderConstruction from "./pages/SiteUnderConstruction";
 import { PwaRouteGuard } from "@/components/pwa/PwaRouteGuard";
+import { PushNavigationListener } from "@/components/pwa/PushNavigationListener";
 import { InstallPwaBanner } from "@/components/pwa/InstallPwaBanner";
 
 const queryClient = new QueryClient({
@@ -130,6 +132,7 @@ const App = () => (
           <BrowserRouter>
             <OnboardingProvider>
               <InstallPwaBanner />
+              <PushNavigationListener />
               <PwaRouteGuard>
                 <Routes>
               <Route path="/em-construcao" element={<SiteUnderConstruction />} />
@@ -308,6 +311,15 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireCapability="portfolio:ler">
                     <Portfolio />
+                  </RoleProtectedRoute>
+                }
+              />
+              {/* Produtos internos (ADR-0049): projetos que a casa constrói para si. */}
+              <Route
+                path="/projetos/produtos"
+                element={
+                  <RoleProtectedRoute requireCapability="produto:ler">
+                    <Produtos />
                   </RoleProtectedRoute>
                 }
               />

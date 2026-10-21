@@ -7,10 +7,17 @@ import type { PRODUCT_NEWS_ACTION, PRODUCT_NEWS_ORIGIN } from '@/lib/productNews
  */
 
 /** Ícone do tópico — chave fechada, para o conteúdo não importar componente. */
-export type ProductNewsIcon = 'mail' | 'folder-input' | 'calendar' | 'plug' | 'dashboard';
+export type ProductNewsIcon =
+  | 'notebook'
+  | 'bell'
+  | 'kanban'
+  | 'mail'
+  | 'folder-input'
+  | 'calendar'
+  | 'package';
 
 /** Arte do banner da edição. */
-export type ProductNewsArt = 'outlook';
+export type ProductNewsArt = 'meu-espaco';
 
 export interface ProductNewsTopic {
   id: string;

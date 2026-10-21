@@ -16,6 +16,7 @@ import {
   Palmtree,
   FolderKanban,
   Bell,
+  BellRing,
   RotateCcw,
   ArrowRight,
   Timer,
@@ -39,7 +40,8 @@ const typeActionLabel: Record<string, string> = {
   time_adjustment_decided: "Ver jornada",
   time_tracking_closing_reminder: "Ver relatórios",
   time_adjustment_stale_reminder: "Ver aprovações",
-  absence_period_registered: "Ver jornada"
+  absence_period_registered: "Ver jornada",
+  personal_kanban_reminder: "Abrir card"
 };
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -208,6 +210,13 @@ const categoryConfig: Record<
     badge: "Jornada",
     badgeClass:
       "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
+  },
+  lembrete: {
+    bg: "bg-warning-subtle",
+    text: "text-warning-emphasis",
+    icon: BellRing,
+    badge: "Lembrete",
+    badgeClass: "bg-warning-subtle text-warning-emphasis"
   }
 };
 

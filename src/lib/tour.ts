@@ -40,8 +40,8 @@ export const TOUR_STEPS: readonly TourStep[] = [
     id: 'timesheet',
     title: 'A hora é o coração',
     body: 'É lançando hora que o Pulse aprende quanto cada projeto custou. Sem isso ele mostra o planejado e nunca o realizado.',
-    selectors: ['[data-tour="nav-/my-timesheet"]'],
-    fallback: 'Timesheet, no menu lateral: é onde você lança as horas da semana.',
+    selectors: ['[data-tour="nav-/my-timesheet"]', '[data-tour="nav-group-/my-timesheet"]'],
+    fallback: 'Timesheet, em Meu Espaço no menu lateral: é onde você lança as horas da semana.',
   },
   {
     id: 'my-projects',

@@ -114,10 +114,13 @@ export function ProjectStakeholdersTab({ project, isReadOnly = false }: ProjectS
         </div>
         {!isReadOnly && (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-              <Download className="mr-2 h-4 w-4" />
-              Importar do Cliente
-            </Button>
+            {/* Produto interno não tem cliente de onde importar (ADR-0049). */}
+            {project.client_id && (
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                <Download className="mr-2 h-4 w-4" />
+                Importar do Cliente
+              </Button>
+            )}
             <Button onClick={handleAdd}>
               <Plus className="mr-2 h-4 w-4" />
               Novo Stakeholder
@@ -302,13 +305,15 @@ export function ProjectStakeholdersTab({ project, isReadOnly = false }: ProjectS
         stakeholder={editingStakeholder}
       />
 
-      <ImportStakeholdersDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        projectId={project.id}
-        clientId={project.client_id}
-        currentStakeholders={stakeholders}
-      />
+      {project.client_id && (
+        <ImportStakeholdersDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          projectId={project.id}
+          clientId={project.client_id}
+          currentStakeholders={stakeholders}
+        />
+      )}
     </div>
   );
 }

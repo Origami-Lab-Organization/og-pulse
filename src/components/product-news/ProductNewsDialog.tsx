@@ -2,12 +2,14 @@ import { useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  Bell,
   CalendarDays,
   Check,
   FolderInput,
-  LayoutDashboard,
+  Kanban,
   Mail,
-  PlugZap,
+  NotebookPen,
+  Package,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -37,11 +39,13 @@ import type {
 } from '@/types/productNews';
 
 const ICONS: Record<ProductNewsIcon, LucideIcon> = {
+  notebook: NotebookPen,
+  bell: Bell,
+  kanban: Kanban,
   mail: Mail,
   'folder-input': FolderInput,
   calendar: CalendarDays,
-  plug: PlugZap,
-  dashboard: LayoutDashboard,
+  package: Package,
 };
 
 /** Grade técnica sobre o verde da marca — feita com o token, sem cor avulsa. A máscara só
@@ -64,7 +68,7 @@ interface BannerProps {
 function Banner(props: BannerProps) {
   const { edition, onClose } = props;
   return (
-    <div className="relative isolate overflow-hidden bg-gradient-to-br from-green-700 via-green-800 to-green-900 px-5 pb-6 pt-6 text-neutral-0 sm:grid sm:min-h-[200px] sm:grid-cols-[minmax(0,1fr)_240px] sm:gap-4 sm:px-6">
+    <div className="relative isolate shrink-0 overflow-hidden bg-gradient-to-br from-green-700 via-green-800 to-green-900 px-5 pb-6 pt-6 text-neutral-0 sm:grid sm:min-h-[200px] sm:grid-cols-[minmax(0,1fr)_240px] sm:gap-4 sm:px-6">
       <div aria-hidden="true" style={GRID} className="absolute inset-0 -z-10" />
       <DialogClose asChild>
         <button
@@ -139,7 +143,11 @@ function Actions(props: ActionsProps) {
   const { edition, onAnswer } = props;
   return (
     <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
-      <Button variant="ghost" onClick={() => onAnswer(PRODUCT_NEWS_ACTION.CONTINUE)}>
+      {/* Sem chamada, "Continuar" é a única ação e vira a principal. */}
+      <Button
+        variant={edition.call ? 'ghost' : 'default'}
+        onClick={() => onAnswer(PRODUCT_NEWS_ACTION.CONTINUE)}
+      >
         {edition.call ? 'Agora não' : 'Continuar'}
       </Button>
       {edition.call && (

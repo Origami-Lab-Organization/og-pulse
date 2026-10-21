@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { clientLabel, projectKindOf } from '@/lib/projectKind';
 import { getEmployeeDirectoryMap } from '@/services/employeeDirectoryService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,7 +17,10 @@ export interface MyProjectDetail {
   portfolioStage: string;
   serviceLine: string | null;
   isContinuous: boolean;
-  client: { companyName: string; tradingName: string | null };
+  /** Nulo em projeto interno sem cliente — produto próprio, por exemplo (ADR-0049). */
+  client: { companyName: string; tradingName: string | null } | null;
+  /** O que a tela mostra no lugar do cliente: o nome, ou o tipo do projeto quando não há. */
+  clientLabel: string;
   manager: { nome: string; cargo: string };
   myRole: string;
   myHoursPerMonth: number;
@@ -105,6 +109,7 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
           .select(`
             id, name, description, start_date, end_date, duration_months,
             status, portfolio_stage, service_line, is_continuous,
+            is_billable, is_internal_product,
             clients(company_name, trading_name),
             manager_id
           `)
@@ -246,10 +251,10 @@ export const useMyProjectDetail = (projectId: string | undefined) => {
         portfolioStage: project.portfolio_stage,
         serviceLine: project.service_line ?? null,
         isContinuous: project.is_continuous,
-        client: {
-          companyName: client.company_name,
-          tradingName: client.trading_name ?? null,
-        },
+        client: client
+          ? { companyName: client.company_name, tradingName: client.trading_name ?? null }
+          : null,
+        clientLabel: clientLabel(client?.trading_name ?? client?.company_name, projectKindOf(project)),
         manager: {
           nome: manager.nome,
           cargo: manager.cargo,

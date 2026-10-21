@@ -213,7 +213,8 @@ export function useRevenueAnalytics(
         if (received === 0 && planned === 0 && faturado === 0) continue;
 
         const clientId = proj.client?.id || 'sem-cliente';
-        const clientName = proj.client?.company_name || 'Sem cliente';
+        // Sem cliente desde o ADR-0049 é projeto interno ou produto, não cadastro incompleto.
+        const clientName = proj.client?.company_name || 'Interno (sem cliente)';
         const managerId = proj.manager?.id || 'sem-gerente';
         const managerName = proj.manager?.nome || 'Sem gerente';
         const serviceLine = proj.service_line || 'other';

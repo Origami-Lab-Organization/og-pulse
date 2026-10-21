@@ -24,12 +24,16 @@ sources:
   - supabase/migrations/20260929160000_fomento_publico.sql
   - supabase/migrations/20261001120000_conta_azul_conexao.sql
   - supabase/migrations/20261001130000_conta_azul_sincronizacao.sql
+  - supabase/migrations/20261021135000_meu_kanban_lembretes_e_configuracao.sql
+  - supabase/migrations/20261021137000_meu_kanban_vinculo_com_projeto.sql
   - supabase/migrations/20261001140000_conta_azul_conciliacao_receber.sql
   - supabase/migrations/20261001190000_prospect_contacts.sql
   - supabase/migrations/20261001200000_prospect_company_faturamento.sql
   - supabase/migrations/20261002120000_prospect_une_cards_duplicados.sql
   - supabase/migrations/20261021120000_project_emails.sql
   - supabase/migrations/20261021130000_product_news_reads.sql
+  - supabase/migrations/20261021140000_internal_products.sql
+  - supabase/migrations/20261021170000_notes.sql
   - supabase/migrations/20261009120000_oportunidade_por_empresa.sql
   - supabase/migrations/20261009130000_prospect_files.sql
   - supabase/migrations/20261009140000_prospect_title.sql
@@ -529,6 +533,16 @@ Fontes: `strategy_*` L5172-L5470, `user_roles` L6452, `notifications` L2191,
 `vacation_requests` L6539, `vacation_request_approvals` L6484,
 `employee_terminations` L955, `job_openings` L1516, `job_applications` L1437.
 
+**Produtos internos** (20261021140000, ADR-0049): `projects.client_id` aceita nulo só em
+projeto não faturável (CHECK `projects_billable_needs_client`); `projects.is_internal_product`
+marca o produto, sempre não faturável (CHECK `projects_internal_product_not_billable`).
+`timesheet_cost_center_corrections` guarda o centro anterior de cada hora reclassificada.
+
+**Notas** (20261021170000, ADR-0051): `notes` (autor e tenant fixos, texto simples,
+`shared_with_company`, `is_pinned`), `note_shares` (PK `note_id, employee_id`, tenant herdado
+da nota) e `note_attachments` (arquivo no bucket `note-attachments`, em `{tenant}/{nota}/`).
+Leitura por `readable_note_ids()`, escrita por `is_note_author()`.
+
 **Novidades do produto** (`product_news_reads`, 20261021130000, ADR-0048): uma linha por
 conta (`auth.users`) e versão de edição. Sem `tenant_id` de propósito: a leitura é da
 pessoa, e a tabela não guarda dado da empresa.
@@ -555,7 +569,10 @@ do types.ts.
 Timesheet por atividade (`activity_timesheets`, `activity_types`…), ponto
 eletrônico (`time_entries`, `time_daily_summary`, `time_bank_ledger`,
 `time_punch_face_profiles`…), reembolsos (`reimbursement_*` — ver ADR-0007),
-kanban pessoal (`personal_kanban_*`), benefícios/ferramentas, folha
+kanban pessoal (`personal_kanban_*`: coluna com etapa `todo`/`doing`/`done` e cor por token, card
+com hora, lembrete, arquivamento e vínculo opcional com `project_activity_cards`
+(`project_activity_card_id`, sincronizado por trigger), `personal_kanban_settings` uma linha por funcionário — ADR-0050),
+inscrições Web Push (`push_subscriptions`, por funcionário e navegador), benefícios/ferramentas, folha
 (`payroll_*`), análise de mercado (`market_analyses`), tentativas de autocadastro (`signup_attempts`: só
 hashes de IP e e-mail, sem policy, lida e escrita apenas pela service role em
 `register-tenant`), centros de custo (`cost_centers`, PUL-217: cadastro-base do tenant,

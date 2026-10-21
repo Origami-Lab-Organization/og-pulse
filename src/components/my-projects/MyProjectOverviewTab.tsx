@@ -110,7 +110,7 @@ export function MyProjectOverviewTab({ project, currentEmployeeId }: MyProjectOv
   const myMember = project.members.find((m) => m.employeeId === currentEmployeeId);
 
   // ── Dados formatados ─────────────────────────────────────────────────────
-  const clientName = project.client.tradingName ?? project.client.companyName;
+  const clientName = project.clientLabel;
   const serviceLabel = project.serviceLine
     ? (SERVICE_LINE_LABELS[project.serviceLine] ?? project.serviceLine)
     : '—';
