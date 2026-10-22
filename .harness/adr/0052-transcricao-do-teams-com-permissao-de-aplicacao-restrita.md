@@ -77,7 +77,10 @@ Fatos conferidos na documentação da Microsoft em 22/10/2026:
    a transcrição alguns minutos depois do fim; só dispensa esperar o cron.
 7b. **Resumo e notas pela equipe** (22/10, Italo: "o pessoal pode gerar com a IA deles e
    subir"). O Pulse não resume: cada reunião transcrita tem um resumo (`summary`) que quem pode
-   pedir transcrição cola ou importa de um .md/.txt — gerado na IA de cada um — e a reunião
+   pedir transcrição cola ou importa de um .md/.txt — gerado na IA de cada um, a partir do
+   "Copiar para a IA", que leva a transcrição junto com instruções de notas por assunto, com
+   decisões e próximos passos (formato inspirado no Granola, texto em
+   `src/content/meetingSummaryPrompt.ts`) — e a reunião
    vinculada sem transcrição tem notas (`notes`: pauta antes, ata manual depois). Quem e quando
    escreveu são carimbados por trigger. A tela vira uma linha do tempo por dia, com filtros
    (Transcritas, Sem resumo, Pendentes), participantes e prévia no cartão, busca no título, no

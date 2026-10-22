@@ -231,3 +231,12 @@ export const MEETING_TIMELINE_FILTER = {
 } as const;
 
 export type MeetingTimelineFilter = (typeof MEETING_TIMELINE_FILTER)[keyof typeof MEETING_TIMELINE_FILTER];
+
+/** O que vai junto das instruções no "Copiar para a IA". */
+export interface SummaryPromptInput {
+  subject: string;
+  when: string;
+  durationSeconds: number | null;
+  participants: string[];
+  transcript: string;
+}

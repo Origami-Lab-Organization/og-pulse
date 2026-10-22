@@ -1,5 +1,6 @@
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { MEETING_SUMMARY_INSTRUCTIONS } from '@/content/meetingSummaryPrompt';
 import {
   LINKED_MEETING_STATUS,
   MEETING_TIMELINE_ENTRY_KIND,
@@ -13,6 +14,7 @@ import {
   type MeetingTranscriptionListItem,
   type MeetingTranscriptionStatus,
   type ProjectTeamsMeeting,
+  type SummaryPromptInput,
   type ProjectRitoEvent,
   type SpeakerName,
   type TranscriptBlock,
@@ -420,4 +422,36 @@ export function plainExcerpt(markdown: string, max = 240): string {
     .replace(/\s+/g, ' ')
     .trim();
   return plain.length > max ? `${plain.slice(0, max).trimEnd()}…` : plain;
+}
+
+/**
+ * Texto do "Copiar para a IA": as instruções de notas por assunto, os dados da reunião e a
+ * transcrição. A pessoa cola na IA que usa e traz as notas para "Resumo e notas".
+ */
+export function buildSummaryPrompt(input: SummaryPromptInput): string {
+  const duration = formatDuration(input.durationSeconds);
+  const header = [
+    `Reunião: ${input.subject}`,
+    `Data: ${format(parseISO(input.when), "d 'de' MMMM 'de' yyyy, HH:mm", { locale: ptBR })}${duration ? ` (${duration})` : ''}`,
+    input.participants.length ? `Participantes: ${input.participants.join(', ')}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+  return `${MEETING_SUMMARY_INSTRUCTIONS}\n\n${header}\n\nTranscrição:\n${input.transcript}`;
+}
+
+/** "Italo Cesar Castro" → "IC"; "Voz 2" → "V2". */
+export function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
+/** "08:24–08:26": começo da reunião e fim pela duração. Sem duração, só o começo. */
+export function meetingTimeRange(startIso: string, durationSeconds: number | null): string {
+  const start = parseISO(startIso);
+  const begin = format(start, 'HH:mm');
+  if (!durationSeconds || durationSeconds <= 0) return begin;
+  return `${begin}–${format(new Date(start.getTime() + durationSeconds * 1000), 'HH:mm')}`;
 }

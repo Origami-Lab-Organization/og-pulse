@@ -42,7 +42,7 @@ export const CURRENT_PRODUCT_NEWS: ProductNewsEdition = {
       reason:
         'Transcrição é longa; o que a equipe precisa é das decisões e dos próximos passos. Cada pessoa já usa a sua IA — o Pulse guarda o resultado onde o projeto mora.',
       features: [
-        'Na reunião, use "Copiar transcrição", peça o resumo à sua IA e cole em "Resumo e notas" — ou importe o arquivo .md ou .txt que ela gerou.',
+        'Na reunião, "Copiar para a IA" leva a transcrição junto com as instruções para notas por assunto, com decisões e próximos passos. Cole na IA que você usa e traga as notas para "Resumo e notas" — ou importe o arquivo .md ou .txt.',
         'O resumo aparece formatado e no cartão da reunião, e fica registrado quem trouxe e quando.',
         'O filtro "Sem resumo" mostra as reuniões transcritas que ainda esperam o resumo.',
         'Reunião sem transcrição também tem notas: a pauta antes, a ata depois.',
