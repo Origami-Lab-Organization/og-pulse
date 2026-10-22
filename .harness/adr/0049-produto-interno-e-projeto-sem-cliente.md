@@ -41,6 +41,11 @@ Pulse nunca foi marcado, e o cliente obrigatório seguia exigindo um cliente fic
    para os demais), desde quando, próximo marco aberto e última release. Agregado por produto: a
    tela não recebe hora nem custo por pessoa. "Novo produto" (com `projeto:editar`) abre o
    formulário já no tipo produto.
+5a. **Produto não aparece no Portfólio** (22/10/2026, Italo: "deveria estar só em produtos").
+   O Portfólio é o portfólio de projetos — estágios, valor de contrato, parcelas — e o produto é
+   gerido em Produtos. `usePortfolioProjects` filtra `is_internal_product = false` (lista,
+   kanban, KPIs e PDF de receita usam a mesma consulta), e o caminho no topo da página do
+   produto leva a Produtos. Projeto interno pontual, que não é produto, continua no Portfólio.
 6. **Investimento desta versão = horas × custo-hora gravado no lançamento**, o mesmo custo
    realizado que o projeto já usa. Despesas do projeto (`project_costs`: infraestrutura,
    ferramentas) ficam para a próxima etapa: as regras de recorrência vivem no front e

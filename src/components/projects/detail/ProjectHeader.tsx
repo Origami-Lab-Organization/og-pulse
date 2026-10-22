@@ -97,6 +97,11 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
     return start;
   };
 
+  // Produto interno mora em Produtos, não no portfólio (ADR-0049).
+  const parent = project.is_internal_product
+    ? { label: 'Produtos', href: '/projetos/produtos' }
+    : { label: 'Portfólio', href: '/projetos' };
+
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
@@ -107,10 +112,10 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
           <ol className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             <li>
               <Link
-                to="/projetos"
+                to={parent.href}
                 className="rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                Portfólio
+                {parent.label}
               </Link>
             </li>
             <ChevronRight className="h-3 w-3 shrink-0" aria-hidden />

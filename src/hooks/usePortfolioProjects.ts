@@ -93,7 +93,9 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
           manager:employees!projects_manager_id_fkey(id, nome, cargo),
           installments:project_installments(value, status, due_date)
         `)
-        .eq('tenant_id', tenantId!);
+        .eq('tenant_id', tenantId!)
+        // Produto interno é gerido na tela Produtos, não no portfólio de projetos (ADR-0049).
+        .eq('is_internal_product', false);
 
       // Filtros avançados
       if (clientId) query = query.eq('client_id', clientId);
