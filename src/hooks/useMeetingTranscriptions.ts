@@ -310,3 +310,26 @@ export function useSetUpTeamsMeeting() {
     },
   });
 }
+
+/** Busca agora, sem esperar o cron, as transcrições das reuniões vinculadas ao projeto. */
+export function useSyncTeamsTranscripts(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => meetingTranscriptionService.syncTeamsTranscripts(projectId),
+    onSuccess: (imported) => {
+      queryClient.invalidateQueries({ queryKey: [TRANSCRIPTIONS_KEY, projectId] });
+      queryClient.invalidateQueries({ queryKey: [TEAMS_MEETINGS_KEY] });
+      if (imported > 0) {
+        toast.success(imported === 1 ? '1 transcrição nova chegou.' : `${imported} transcrições novas chegaram.`);
+        return;
+      }
+      toast.info('Nenhuma transcrição nova por enquanto.', {
+        description: 'O Teams costuma publicar a transcrição alguns minutos depois do fim da reunião.',
+      });
+    },
+    onError: (error) => {
+      toast.error(mensagemParaUsuario(error));
+    },
+  });
+}

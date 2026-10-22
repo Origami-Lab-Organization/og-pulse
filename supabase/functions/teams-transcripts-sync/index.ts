@@ -1,5 +1,7 @@
 // teams-transcripts-sync — traz a transcrição do Teams para a aba Reuniões do projeto
-// (ADR-0052). Chamada pelo cron de 10 em 10 minutos, com a chave de serviço.
+// (ADR-0052). Chamada pelo cron de 10 em 10 minutos, com a chave de serviço, para todas as
+// reuniões vinculadas; e pelo botão "Buscar transcrições agora", com a sessão de quem pode
+// pedir transcrição no projeto, só para as reuniões daquele projeto.
 //
 // Credencial própria do app "Pulse — Transcrições" (client credentials), com
 // OnlineMeetingTranscript.Read.All limitada pela application access policy do Teams. Só
@@ -57,8 +59,18 @@ class FalhaGraph extends Error {
   }
 }
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 function credenciais(): Credenciais | null {
@@ -151,10 +163,13 @@ function mensagemPara(erro: unknown): string {
 
 // ── Pulse ─────────────────────────────────────────────────────────────────────
 
-async function vinculos(supabase: Supabase): Promise<Vinculo[]> {
-  const { data, error } = await supabase
+/** Todas as reuniões vinculadas (cron) ou só as de um projeto (botão da tela). */
+async function vinculos(supabase: Supabase, projectId: string | null): Promise<Vinculo[]> {
+  let consulta = supabase
     .from("project_online_meetings")
     .select("id, tenant_id, project_id, online_meeting_id, organizer_entra_id, ical_uid, event_subject, registered_by");
+  if (projectId) consulta = consulta.eq("project_id", projectId);
+  const { data, error } = await consulta;
   if (error) throw new Error("vinculos");
   return data ?? [];
 }
@@ -238,8 +253,8 @@ async function importarDoOrganizador(
   return novas;
 }
 
-async function sincronizar(supabase: Supabase, c: Credenciais) {
-  const grupos = porOrganizador(await vinculos(supabase));
+async function sincronizar(supabase: Supabase, c: Credenciais, projectId: string | null) {
+  const grupos = porOrganizador(await vinculos(supabase, projectId));
   if (grupos.size === 0) return { organizadores: 0, importadas: 0 };
 
   const token = await tokenDoApp(c);
@@ -258,15 +273,53 @@ async function sincronizar(supabase: Supabase, c: Credenciais) {
   return { organizadores: grupos.size, importadas };
 }
 
+// ── Quem chama ────────────────────────────────────────────────────────────────
+
+async function projetoDoCorpo(req: Request): Promise<string | null> {
+  try {
+    const corpo = await req.json();
+    return typeof corpo?.projectId === "string" && UUID_RE.test(corpo.projectId) ? corpo.projectId : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Pela tela, vale a mesma regra de pedir transcrição (`can_request_meeting_transcription`) e
+ * a busca fica restrita ao projeto. Devolve o projeto, ou a resposta de recusa.
+ */
+async function projetoDaPessoa(req: Request, supabase: Supabase): Promise<string | Response> {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const pessoa = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user } } = await pessoa.auth.getUser();
+  if (!user) return json({ error: "Não autorizado" }, 401);
+
+  const projectId = await projetoDoCorpo(req);
+  if (!projectId) return json({ error: "Projeto inválido." }, 400);
+
+  const { data: pode } = await supabase.rpc("can_request_meeting_transcription", {
+    _user_id: user.id,
+    _project_id: projectId,
+  });
+  return pode === true
+    ? projectId
+    : json({ error: "Você não tem permissão para buscar transcrições deste projeto." }, 403);
+}
+
 Deno.serve(async (req) => {
-  if (!(await ehChamadaDeServico(req))) return json({ error: "Não autorizado" }, 401);
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const escopo = (await ehChamadaDeServico(req)) ? null : await projetoDaPessoa(req, supabase);
+  if (escopo instanceof Response) return escopo;
 
   const c = credenciais();
   if (!c) return json({ situacao: "nao_configurado" });
 
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   try {
-    return json({ situacao: "ok", ...(await sincronizar(supabase, c)) });
+    return json({ situacao: "ok", ...(await sincronizar(supabase, c, escopo)) });
   } catch (erro) {
     console.error("teams-transcripts-sync: falha", erro instanceof FalhaGraph ? erro.status : (erro as Error).message);
     return json({ situacao: "falhou" }, 500);

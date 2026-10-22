@@ -97,8 +97,9 @@ verify_jwt = false
 
 # Transcrição de reunião (ADR-0039, ADR-0052). As duas chamadas pela tela validam a sessão
 # dentro (auth.getUser) e conferem `can_request_meeting_transcription`; a de vínculo também
-# valida o id token do Entra. A sincronização é chamada só pelo cron, com a chave de serviço
-# conferida dentro (ehChamadaDeServico).
+# valida o id token do Entra. A sincronização é chamada pelo cron, com a chave de serviço
+# conferida dentro (ehChamadaDeServico), e pelo botão "Buscar transcrições agora", com a sessão
+# validada dentro e `can_request_meeting_transcription` no projeto pedido.
 [functions.transcription-enqueue]
 verify_jwt = false
 

@@ -225,6 +225,18 @@ export const meetingTranscriptionService = {
     );
   },
 
+  /** "Buscar transcrições agora": o que o cron faz, só para as reuniões deste projeto. */
+  async syncTeamsTranscripts(projectId: string): Promise<number> {
+    const { data, error } = await supabase.functions.invoke('teams-transcripts-sync', {
+      body: { projectId },
+    });
+    if (error) {
+      throw await readFunctionError(error, 'Não foi possível buscar as transcrições agora. Tente de novo em instantes.');
+    }
+    if (data?.error) throw new Error(data.error);
+    return typeof data?.importadas === 'number' ? data.importadas : 0;
+  },
+
   listTeamsMeetingsByProject(projectId: string): Promise<ProjectTeamsMeeting[]> {
     return listTeamsMeetingsWhere('project_id', projectId);
   },

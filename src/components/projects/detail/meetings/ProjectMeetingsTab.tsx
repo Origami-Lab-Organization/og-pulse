@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AudioLines, Loader2, RotateCcw, Search } from 'lucide-react';
+import { AudioLines, Loader2, RefreshCw, RotateCcw, Search } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import {
   useMeetingTranscriptions,
   useProjectTeamsMeetings,
   useRequestTranscription,
+  useSyncTeamsTranscripts,
 } from '@/hooks/useMeetingTranscriptions';
 import { formatDuration, groupByLinkedMeeting, isTranscriptionStuck } from '@/lib/meetingTranscription';
 import { MeetingTranscriptionDialog } from './MeetingTranscriptionDialog';
@@ -251,6 +252,22 @@ function MeetingsOverview(props: MeetingsOverviewProps) {
   );
 }
 
+/** Não espera o cron de 10 minutos: busca já as transcrições das reuniões vinculadas. */
+function SyncNowButton(props: { projectId: string }) {
+  const { projectId } = props;
+  const { data: meetings } = useProjectTeamsMeetings(projectId);
+  const sync = useSyncTeamsTranscripts(projectId);
+  if (!meetings?.length) return null;
+
+  const Icon = sync.isPending ? Loader2 : RefreshCw;
+  return (
+    <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
+      <Icon className={`mr-2 h-4 w-4${sync.isPending ? ' animate-spin' : ''}`} aria-hidden="true" />
+      Buscar transcrições agora
+    </Button>
+  );
+}
+
 interface ProjectMeetingsTabProps {
   projectId: string;
   /** Pode pedir transcrição e dar nome às vozes neste projeto. */
@@ -288,10 +305,13 @@ export function ProjectMeetingsTab(props: ProjectMeetingsTabProps) {
           </p>
         </div>
         {canRequest && (
-          <Button variant="outline" size="sm" className="shrink-0" onClick={() => setRequestOpen(true)}>
-            <AudioLines className="mr-2 h-4 w-4" aria-hidden="true" />
-            Transcrever gravação
-          </Button>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <SyncNowButton projectId={projectId} />
+            <Button variant="outline" size="sm" onClick={() => setRequestOpen(true)}>
+              <AudioLines className="mr-2 h-4 w-4" aria-hidden="true" />
+              Transcrever gravação
+            </Button>
+          </div>
         )}
       </div>
 

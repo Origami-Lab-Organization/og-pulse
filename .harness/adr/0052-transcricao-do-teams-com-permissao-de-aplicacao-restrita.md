@@ -70,7 +70,14 @@ Fatos conferidos na documentação da Microsoft em 22/10/2026:
    e toda reunião vinculada por "Vincular a um projeto", recebe `meetingSpokenLanguageTag:
    'pt-BR'` (`prepareOnlineMeeting`). Só vale antes de a reunião começar; reunião criada fora do
    Pulse depende de quem organiza escolher o idioma no Teams.
-7. Quem vinculou recebe aviso no sino quando a transcrição chega.
+7. Quem vinculou recebe aviso no sino quando a transcrição chega. **"Buscar transcrições
+   agora"** (22/10, pedido do Italo) faz na hora o que o cron faz, só para as reuniões do
+   projeto aberto: a mesma `teams-transcripts-sync` aceita a sessão de quem passa em
+   `can_request_meeting_transcription` naquele projeto. Não apressa a Microsoft, que publica
+   a transcrição alguns minutos depois do fim; só dispensa esperar o cron.
+7a. Na tela, a transcrição do Teams mostra o **nome real** de quem falou (o "Voz 1" é só da
+   gravação enviada, que não sabe nomes) e a **hora do relógio** de cada fala — início da
+   transcrição (`createdDateTime`) mais o deslocamento do VTT.
 8. **A aba Reuniões lista as reuniões vinculadas, não só as transcrições** (22/10, pedido do
    Italo: "dessa forma parece que não teve reunião"). Cada uma mostra a situação — Agendada,
    Aguardando transcrição (até 40 min depois do fim), Transcrita (com as ocorrências embaixo),

@@ -379,7 +379,7 @@ export const HELP_GROUPS: HelpGroup[] = [
         how: [
           'Na Agenda, ao criar a reunião do Teams, escolha o projeto (rito ou não) e deixe ligado "Gravar e transcrever automaticamente".',
           'Reunião que você já organizou: abra na Agenda e use "Vincular a um projeto". Só quem organizou consegue trazer a transcrição.',
-          'Uns 10 a 20 minutos depois de a reunião acabar, a transcrição aparece na aba Reuniões do projeto e você recebe um aviso no sino.',
+          'Uns 10 a 20 minutos depois de a reunião acabar, a transcrição aparece na aba Reuniões do projeto e você recebe um aviso no sino. Com pressa, use "Buscar transcrições agora" na aba.',
           'Gravação de outra origem: na aba Reuniões, use "Transcrever gravação" e escolha o arquivo no OneDrive. Essa transcrição não sabe nomes; abra a reunião e dê o nome de cada voz.',
           'Se uma gravação enviada aparecer como "Não concluída", use "Pedir de novo": o link dela vale pouco tempo e às vezes expira antes da vez dela.',
         ],

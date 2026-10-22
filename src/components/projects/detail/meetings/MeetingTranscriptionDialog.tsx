@@ -29,10 +29,10 @@ import {
 } from '@/hooks/useMeetingTranscriptions';
 import {
   formatDuration,
-  formatTimestamp,
   groupSegments,
   speakerDisplayName,
   speakerLabels,
+  speechTime,
   transcriptAsText,
 } from '@/lib/meetingTranscription';
 import { TranscriptionStatusBadge } from './TranscriptionStatusBadge';
@@ -42,6 +42,14 @@ import {
   type MeetingTranscriptionDetail,
   type SpeakerName,
 } from '@/types/meetingTranscription';
+
+/**
+ * Início da transcrição, para mostrar a hora real de cada fala. Só no Teams: na gravação
+ * enviada, `occurredAt` é quando o arquivo foi salvo, não quando a conversa começou.
+ */
+function clockStart(transcription: MeetingTranscriptionDetail): string | null {
+  return transcription.source === MEETING_TRANSCRIPTION_SOURCE.TEAMS ? transcription.occurredAt : null;
+}
 
 /** "20 de outubro de 2026 · 42 min · pedida por Fulana". */
 function metaLine(transcription: MeetingTranscriptionDetail): string {
@@ -194,7 +202,7 @@ function TranscriptBody(props: { transcription: MeetingTranscriptionDetail; labe
             <span className="font-medium text-foreground">
               {speakerDisplayName(block.speaker, transcription.speakers, labels)}
             </span>{' '}
-            <span className="tabular-nums">{formatTimestamp(block.start)}</span>
+            <span className="tabular-nums">{speechTime(clockStart(transcription), block.start)}</span>
           </p>
           <p className="whitespace-pre-wrap break-words text-foreground">{block.text}</p>
         </li>
@@ -209,7 +217,7 @@ function CopyTranscriptButton(props: { transcription: MeetingTranscriptionDetail
 
   const copy = async () => {
     const text = transcription.segments.length
-      ? transcriptAsText(transcription.segments, transcription.speakers)
+      ? transcriptAsText(transcription.segments, transcription.speakers, clockStart(transcription))
       : transcription.transcriptText ?? '';
     try {
       await navigator.clipboard.writeText(text);

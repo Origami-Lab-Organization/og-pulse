@@ -95,6 +95,9 @@ export function speakerLabels(segments: readonly TranscriptSegment[]): string[] 
 }
 
 /** Nome dado à voz, ou "Voz N" na ordem de aparição enquanto ninguém nomeou. */
+/** Rótulo de voz do WhisperX. A transcrição do Teams já traz o nome de quem falou no lugar. */
+const WHISPER_SPEAKER_LABEL = /^SPEAKER_\d+$/;
+
 export function speakerDisplayName(
   label: string | null,
   speakers: readonly SpeakerName[],
@@ -103,8 +106,23 @@ export function speakerDisplayName(
   if (!label) return 'Fala';
   const named = speakers.find((speaker) => speaker.label === label)?.name;
   if (named) return named;
+  if (!WHISPER_SPEAKER_LABEL.test(label)) return label;
   const position = labels.indexOf(label);
   return position < 0 ? 'Voz' : `Voz ${position + 1}`;
+}
+
+/**
+ * Quando a fala aconteceu. Com o início da transcrição conhecido (Teams), a hora do relógio —
+ * 08:00:15; sem ele (gravação enviada), o tempo desde o começo da gravação — 00:15.
+ */
+export function speechTime(startedAt: string | null, offsetSeconds: number): string {
+  const start = startedAt ? Date.parse(startedAt) : Number.NaN;
+  if (Number.isNaN(start)) return formatTimestamp(offsetSeconds);
+  return new Date(start + Math.max(0, offsetSeconds) * 1000).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 /** Nomes digitados, sem vazios e com tamanho limitado. */
@@ -147,12 +165,13 @@ export function formatTimestamp(seconds: number): string {
 export function transcriptAsText(
   segments: readonly TranscriptSegment[],
   speakers: readonly SpeakerName[],
+  startedAt: string | null = null,
 ): string {
   const labels = speakerLabels(segments);
   return groupSegments(segments)
     .map((block) => {
       const who = speakerDisplayName(block.speaker, speakers, labels);
-      return `[${formatTimestamp(block.start)}] ${who}: ${block.text}`;
+      return `[${speechTime(startedAt, block.start)}] ${who}: ${block.text}`;
     })
     .join('\n\n');
 }

@@ -19,7 +19,8 @@
    `can_request_meeting_transcription`, e grava `project_online_meetings` com
    `organizer_entra_id` = `oid` do token.
 3. Cron `teams-transcripts-sync-10min` (minuto 3, 13, 23...) chama `teams-transcripts-sync` com a
-   chave de servico. Ela pega token do app (client credentials), lista
+   chave de servico — ou o botao "Buscar transcricoes agora", com a sessao da pessoa e
+   `{projectId}`: a funcao confere `can_request_meeting_transcription` e busca so aquele projeto. Ela pega token do app (client credentials), lista
    `GET /users/{oid}/onlineMeetings/getAllTranscripts(meetingOrganizerUserId='{oid}',startDateTime=<agora-3d>)`
    de cada organizador, e para cada transcricao de reuniao vinculada ainda nao importada baixa
    `transcriptContentUrl` (`Accept: text/vtt`; se o tenant proibir atribuicao de voz, repete com
@@ -84,6 +85,9 @@ ao Graph. O que sobrar entra na proxima rodada.
   — as do Pulse nascem de evento (`/me/events`), entao valem.
 - A reuniao expira 60 dias depois da ultima ocorrencia; depois disso a transcricao nao e lida.
 - Deslocamento negativo no VTT (transcricao comecou com a conversa andando) vira 0.
+- **Propagacao do "acesso do Graph as transcricoes"**: por alguns minutos depois de ligado, as
+  respostas oscilam entre 200 e 403 `GraphAccessToTranscriptsDisabled` (cada pedido cai num
+  servidor diferente). Estabiliza sozinho; o cron e o botao tentam de novo.
 - **Idioma**: o Teams transcreve no `meetingSpokenLanguageTag` da reuniao (padrao en-US), sem
   detectar nem traduzir. Fala em portugues numa reuniao en-US vira ingles sem sentido. O Pulse
   grava `pt-BR` ao criar ou vincular a reuniao (PATCH `/me/onlineMeetings/{id}`, delegado);
