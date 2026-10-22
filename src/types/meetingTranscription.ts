@@ -54,6 +54,8 @@ export interface MeetingTranscriptionListItem {
   icalUid: string | null;
   eventSubject: string;
   occurredAt: string | null;
+  /** Reunião do Teams de onde veio ('teams'); liga a transcrição à reunião vinculada. */
+  onlineMeetingId: string | null;
   recordingDriveId: string | null;
   recordingItemId: string | null;
   recordingWebUrl: string | null;
@@ -117,8 +119,13 @@ export interface ProjectTeamsMeeting {
   id: string;
   projectId: string;
   projectName: string | null;
+  onlineMeetingId: string;
   eventSubject: string;
   icalUid: string | null;
+  /** Numa série, da ocorrência usada para vincular. Null em vínculo anterior a 22/10/2026. */
+  startsAt: string | null;
+  endsAt: string | null;
+  isSeries: boolean;
   registeredById: string;
   registeredByName: string | null;
   lastCheckedAt: string | null;
@@ -132,6 +139,9 @@ export interface TeamsMeetingSetupInput {
   joinUrl: string;
   eventSubject: string;
   icalUid: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  isSeries: boolean;
   recordAutomatically: boolean;
   /** Projeto que recebe a transcrição; null não vincula. */
   projectId: string | null;
@@ -149,5 +159,26 @@ export interface RegisterTeamsMeetingPayload {
   joinWebUrl: string | null;
   icalUid: string | null;
   eventSubject: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  isSeries: boolean;
   idToken: string;
+}
+
+/** Situação de uma reunião vinculada, do ponto de vista da transcrição dela. */
+export const LINKED_MEETING_STATUS = {
+  AGENDADA: 'agendada',
+  AGUARDANDO: 'aguardando',
+  TRANSCRITA: 'transcrita',
+  SEM_TRANSCRICAO: 'sem_transcricao',
+  COM_PROBLEMA: 'com_problema',
+} as const;
+
+export type LinkedMeetingStatus = (typeof LINKED_MEETING_STATUS)[keyof typeof LINKED_MEETING_STATUS];
+
+/** Reunião vinculada com as transcrições que já chegaram dela (uma por ocorrência). */
+export interface LinkedMeetingGroup {
+  meeting: ProjectTeamsMeeting;
+  transcriptions: MeetingTranscriptionListItem[];
+  status: LinkedMeetingStatus;
 }

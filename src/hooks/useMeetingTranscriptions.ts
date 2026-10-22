@@ -227,6 +227,9 @@ async function linkToProject(input: TeamsMeetingSetupInput, onlineMeetingId: str
     joinWebUrl: input.joinUrl,
     icalUid: input.icalUid,
     eventSubject: normalizeSubject(input.eventSubject),
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+    isSeries: input.isSeries,
     idToken,
   });
 }

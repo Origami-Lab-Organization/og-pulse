@@ -29,6 +29,7 @@ import {
 } from '@/types/projectRito';
 import type { ProjectRitoLink, ProjectRitoType } from '@/types/projectRito';
 import type { ProjectTeamsMeeting } from '@/types/meetingTranscription';
+import { saoPauloLocalToIso } from '@/lib/meetingTranscription';
 import { EVENT_TYPE } from '@/types/microsoftGraph';
 import type { CalendarEventDetail } from '@/types/microsoftGraph';
 
@@ -226,6 +227,9 @@ function LinkForm(props: LinkFormProps) {
         joinUrl: event.onlineMeetingUrl as string,
         eventSubject: event.subject,
         icalUid: event.icalUid,
+        startsAt: saoPauloLocalToIso(event.start),
+        endsAt: saoPauloLocalToIso(event.end),
+        isSeries: isSeriesEvent(event),
         recordAutomatically: false,
         projectId,
       })

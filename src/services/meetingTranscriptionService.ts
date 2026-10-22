@@ -23,7 +23,7 @@ import type {
 const transcriptions = () => supabase.from('meeting_transcriptions');
 
 const LIST_COLUMNS =
-  'id, project_id, source, ical_uid, event_subject, occurred_at, recording_drive_id, recording_item_id, recording_web_url, status, last_error, duration_seconds, requested_by, created_at, updated_at, claimed_at, finished_at';
+  'id, project_id, source, ical_uid, event_subject, occurred_at, online_meeting_id, recording_drive_id, recording_item_id, recording_web_url, status, last_error, duration_seconds, requested_by, created_at, updated_at, claimed_at, finished_at';
 
 type TranscriptionRow = Tables<'meeting_transcriptions'>;
 type ListRow = Pick<
@@ -34,6 +34,7 @@ type ListRow = Pick<
   | 'ical_uid'
   | 'event_subject'
   | 'occurred_at'
+  | 'online_meeting_id'
   | 'recording_drive_id'
   | 'recording_item_id'
   | 'recording_web_url'
@@ -55,6 +56,7 @@ function toListItem(row: ListRow, names: Map<string, string>): MeetingTranscript
     icalUid: row.ical_uid,
     eventSubject: row.event_subject,
     occurredAt: row.occurred_at,
+    onlineMeetingId: row.online_meeting_id,
     recordingDriveId: row.recording_drive_id,
     recordingItemId: row.recording_item_id,
     recordingWebUrl: row.recording_web_url,
@@ -106,11 +108,22 @@ async function invokeFunction(name: string, body: object, fallback: string): Pro
 }
 
 const TEAMS_MEETING_COLUMNS =
-  'id, project_id, event_subject, ical_uid, registered_by, last_checked_at, last_error, created_at, projects(name)';
+  'id, project_id, online_meeting_id, event_subject, ical_uid, starts_at, ends_at, is_series, registered_by, last_checked_at, last_error, created_at, projects(name)';
 
 type TeamsMeetingRow = Pick<
   Tables<'project_online_meetings'>,
-  'id' | 'project_id' | 'event_subject' | 'ical_uid' | 'registered_by' | 'last_checked_at' | 'last_error' | 'created_at'
+  | 'id'
+  | 'project_id'
+  | 'online_meeting_id'
+  | 'event_subject'
+  | 'ical_uid'
+  | 'starts_at'
+  | 'ends_at'
+  | 'is_series'
+  | 'registered_by'
+  | 'last_checked_at'
+  | 'last_error'
+  | 'created_at'
 > & { projects: { name: string } | null };
 
 function toTeamsMeeting(row: TeamsMeetingRow, names: Map<string, string>): ProjectTeamsMeeting {
@@ -118,8 +131,12 @@ function toTeamsMeeting(row: TeamsMeetingRow, names: Map<string, string>): Proje
     id: row.id,
     projectId: row.project_id,
     projectName: row.projects?.name ?? null,
+    onlineMeetingId: row.online_meeting_id,
     eventSubject: row.event_subject,
     icalUid: row.ical_uid,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    isSeries: row.is_series,
     registeredById: row.registered_by,
     registeredByName: names.get(row.registered_by) ?? null,
     lastCheckedAt: row.last_checked_at,

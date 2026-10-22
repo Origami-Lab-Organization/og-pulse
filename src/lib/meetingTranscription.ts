@@ -1,7 +1,11 @@
 import {
+  LINKED_MEETING_STATUS,
   MEETING_TRANSCRIPTION_STATUS,
+  type LinkedMeetingGroup,
+  type LinkedMeetingStatus,
   type MeetingTranscriptionListItem,
   type MeetingTranscriptionStatus,
+  type ProjectTeamsMeeting,
   type ProjectRitoEvent,
   type SpeakerName,
   type TranscriptBlock,
@@ -186,4 +190,71 @@ export function sanitizeTranscriptSearch(term: string): string {
 
 export function normalizeSubject(subject: string): string {
   return subject.trim().slice(0, MAX_SUBJECT);
+}
+
+export const LINKED_MEETING_STATUS_LABEL: Record<LinkedMeetingStatus, string> = {
+  [LINKED_MEETING_STATUS.AGENDADA]: 'Agendada',
+  [LINKED_MEETING_STATUS.AGUARDANDO]: 'Aguardando transcrição',
+  [LINKED_MEETING_STATUS.TRANSCRITA]: 'Transcrita',
+  [LINKED_MEETING_STATUS.SEM_TRANSCRICAO]: 'Sem transcrição',
+  [LINKED_MEETING_STATUS.COM_PROBLEMA]: 'Com problema',
+};
+
+/**
+ * Quanto esperar depois do fim antes de dizer "sem transcrição": o Teams publica em alguns
+ * minutos e a sincronização roda de 10 em 10 (ADR-0052).
+ */
+const TRANSCRIPT_WAIT_MS = 40 * 60 * 1000;
+
+/**
+ * A situação diz se a reunião aconteceu e se a transcrição veio — sem horário, uma reunião
+ * que aconteceu e não foi transcrita parecia não ter acontecido.
+ */
+export function linkedMeetingStatus(
+  meeting: ProjectTeamsMeeting,
+  transcriptions: readonly MeetingTranscriptionListItem[],
+  now = Date.now(),
+): LinkedMeetingStatus {
+  if (transcriptions.length) return LINKED_MEETING_STATUS.TRANSCRITA;
+  if (meeting.lastError) return LINKED_MEETING_STATUS.COM_PROBLEMA;
+  if (!meeting.endsAt) return LINKED_MEETING_STATUS.AGUARDANDO;
+  if (now < Date.parse(meeting.startsAt ?? meeting.endsAt)) return LINKED_MEETING_STATUS.AGENDADA;
+  if (now < Date.parse(meeting.endsAt) + TRANSCRIPT_WAIT_MS) return LINKED_MEETING_STATUS.AGUARDANDO;
+  return LINKED_MEETING_STATUS.SEM_TRANSCRICAO;
+}
+
+function meetingSortKey(meeting: ProjectTeamsMeeting): string {
+  return meeting.startsAt ?? meeting.createdAt;
+}
+
+/**
+ * Cada reunião vinculada com as transcrições que vieram dela (numa série, uma por ocorrência).
+ * O que não pertence a nenhuma — gravação enviada, ou reunião que deixou de ser acompanhada —
+ * fica em `others`.
+ */
+export function groupByLinkedMeeting(
+  meetings: readonly ProjectTeamsMeeting[],
+  transcriptions: readonly MeetingTranscriptionListItem[],
+  now = Date.now(),
+): { groups: LinkedMeetingGroup[]; others: MeetingTranscriptionListItem[] } {
+  const linkedIds = new Set(meetings.map((meeting) => meeting.onlineMeetingId));
+  const groups = [...meetings]
+    .sort((left, right) => meetingSortKey(right).localeCompare(meetingSortKey(left)))
+    .map((meeting) => {
+      const own = transcriptions.filter((item) => item.onlineMeetingId === meeting.onlineMeetingId);
+      return { meeting, transcriptions: own, status: linkedMeetingStatus(meeting, own, now) };
+    });
+  const others = transcriptions.filter((item) => !item.onlineMeetingId || !linkedIds.has(item.onlineMeetingId));
+  return { groups, others };
+}
+
+/**
+ * Horário que o Graph devolve na agenda ("2026-10-22T14:00:00.0000000"), já no fuso pedido
+ * (`America/Sao_Paulo`), para instante ISO. O Brasil não tem horário de verão desde 2019,
+ * então o deslocamento é fixo.
+ */
+export function saoPauloLocalToIso(local: string | null | undefined): string | null {
+  const trimmed = (local ?? '').slice(0, 19);
+  const instant = Date.parse(`${trimmed}-03:00`);
+  return Number.isNaN(instant) ? null : new Date(instant).toISOString();
 }

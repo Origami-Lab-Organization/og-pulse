@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/form';
 import { useCreateCalendarEvent, useUpdateCalendarEvent } from '@/hooks/useMicrosoftGraph';
 import { useSetUpTeamsMeeting } from '@/hooks/useMeetingTranscriptions';
+import { saoPauloLocalToIso } from '@/lib/meetingTranscription';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLinkProjectRito, useRitoEligibleProjects } from '@/hooks/useProjectRitos';
 import { PROJECT_RITO_LABEL, PROJECT_RITO_TYPE } from '@/types/projectRito';
@@ -197,6 +198,9 @@ async function setUpTeamsAfterCreate(
     joinUrl: created.onlineMeetingUrl,
     eventSubject: created.subject,
     icalUid: created.icalUid || null,
+    startsAt: saoPauloLocalToIso(created.start),
+    endsAt: saoPauloLocalToIso(created.end),
+    isSeries: data.isRecurring,
     recordAutomatically: data.recordAutomatically,
     projectId: data.projectId || null,
   }).catch(() => undefined);

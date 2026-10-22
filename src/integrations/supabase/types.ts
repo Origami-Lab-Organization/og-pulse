@@ -4886,9 +4886,11 @@ export type Database = {
       project_online_meetings: {
         Row: {
           created_at: string
+          ends_at: string | null
           event_subject: string
           ical_uid: string | null
           id: string
+          is_series: boolean
           join_web_url: string | null
           last_checked_at: string | null
           last_error: string | null
@@ -4896,14 +4898,17 @@ export type Database = {
           organizer_entra_id: string
           project_id: string
           registered_by: string
+          starts_at: string | null
           tenant_id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          ends_at?: string | null
           event_subject: string
           ical_uid?: string | null
           id?: string
+          is_series?: boolean
           join_web_url?: string | null
           last_checked_at?: string | null
           last_error?: string | null
@@ -4911,14 +4916,17 @@ export type Database = {
           organizer_entra_id: string
           project_id: string
           registered_by: string
+          starts_at?: string | null
           tenant_id?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          ends_at?: string | null
           event_subject?: string
           ical_uid?: string | null
           id?: string
+          is_series?: boolean
           join_web_url?: string | null
           last_checked_at?: string | null
           last_error?: string | null
@@ -4926,6 +4934,7 @@ export type Database = {
           organizer_entra_id?: string
           project_id?: string
           registered_by?: string
+          starts_at?: string | null
           tenant_id?: string
           updated_at?: string
         }

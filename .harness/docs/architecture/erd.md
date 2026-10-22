@@ -35,6 +35,7 @@ sources:
   - supabase/migrations/20261021140000_internal_products.sql
   - supabase/migrations/20261021170000_notes.sql
   - supabase/migrations/20261021200000_meeting_transcriptions.sql
+  - supabase/migrations/20261022120000_project_online_meetings_horario.sql
   - supabase/migrations/20261009120000_oportunidade_por_empresa.sql
   - supabase/migrations/20261009130000_prospect_files.sql
   - supabase/migrations/20261009140000_prospect_title.sql
@@ -506,6 +507,8 @@ erDiagram
     project_online_meetings {
         text online_meeting_id "UNIQUE(project_id, online_meeting_id)"
         text organizer_entra_id "oid de id token validado"
+        timestamptz starts_at "horário, para a situação na tela"
+        boolean is_series ""
         text last_error "diagnóstico da sincronização"
     }
 ```

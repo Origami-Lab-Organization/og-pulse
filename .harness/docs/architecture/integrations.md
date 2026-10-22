@@ -207,7 +207,8 @@ concluída vai para `notifications` pelo trigger `meeting_transcriptions_notify_
 **Transcrição do Teams** (ADR-0052) — `teams-meeting-register` vincula reunião do Teams ao projeto: valida o
 id token do Entra como o `microsoft-sso`, exige e-mail do token igual ao do funcionário logado e
 `can_request_meeting_transcription`, e grava o `oid` como organizador em `project_online_meetings` (só a
-service role escreve ali). `teams-transcripts-sync` (cron de 10 em 10 min, chave de serviço) traz a
+service role escreve ali), com o horário da reunião que a Agenda conhece (`starts_at`/`ends_at`/`is_series`, para a
+aba mostrar se ela aconteceu e se a transcrição veio). `teams-transcripts-sync` (cron de 10 em 10 min, chave de serviço) traz a
 transcrição pronta do Teams das reuniões vinculadas, com a credencial do app próprio; o token do app só vai
 para URL de `graph.microsoft.com`. Sem os secrets do app, responde `nao_configurado` e não faz nada.
 

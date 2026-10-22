@@ -23,6 +23,9 @@ interface Entrada {
   joinWebUrl: string | null;
   icalUid: string | null;
   eventSubject: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  isSeries: boolean;
   idToken: string;
 }
 
@@ -47,6 +50,11 @@ function texto(valor: unknown, maximo: number): string | null {
   return limpo && limpo.length <= maximo ? limpo : null;
 }
 
+function instante(valor: unknown): string | null {
+  const ms = Date.parse(typeof valor === "string" ? valor : "");
+  return Number.isNaN(ms) ? null : new Date(ms).toISOString();
+}
+
 function lerEntrada(body: Record<string, unknown>): Entrada | string {
   const projectId = typeof body.projectId === "string" && UUID_RE.test(body.projectId) ? body.projectId : null;
   if (!projectId) return "Projeto inválido.";
@@ -66,6 +74,9 @@ function lerEntrada(body: Record<string, unknown>): Entrada | string {
     joinWebUrl: texto(body.joinWebUrl, 2000),
     icalUid: texto(body.icalUid, 500),
     eventSubject,
+    startsAt: instante(body.startsAt),
+    endsAt: instante(body.endsAt),
+    isSeries: body.isSeries === true,
     idToken,
   };
 }
@@ -131,6 +142,9 @@ async function vincular(admin: Cliente, entrada: Entrada, funcionario: Funcionar
     join_web_url: entrada.joinWebUrl,
     ical_uid: entrada.icalUid,
     event_subject: entrada.eventSubject,
+    starts_at: entrada.startsAt,
+    ends_at: entrada.endsAt,
+    is_series: entrada.isSeries,
     registered_by: funcionario.id,
   });
   if (!error || error.code === PG_UNIQUE_VIOLATION) {

@@ -8,12 +8,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { useMeetingTranscriptions, useRequestTranscription } from '@/hooks/useMeetingTranscriptions';
-import { formatDuration, isTranscriptionStuck } from '@/lib/meetingTranscription';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  useMeetingTranscriptions,
+  useProjectTeamsMeetings,
+  useRequestTranscription,
+} from '@/hooks/useMeetingTranscriptions';
+import { formatDuration, groupByLinkedMeeting, isTranscriptionStuck } from '@/lib/meetingTranscription';
 import { MeetingTranscriptionDialog } from './MeetingTranscriptionDialog';
 import { RequestTranscriptionDialog } from './RequestTranscriptionDialog';
 import { TranscriptionStatusBadge } from './TranscriptionStatusBadge';
-import { TeamsMeetingsSection } from './TeamsMeetingsSection';
+import { LinkedMeetingCard } from './LinkedMeetingCard';
 import {
   MEETING_TRANSCRIPTION_SOURCE,
   MEETING_TRANSCRIPTION_STATUS,
@@ -127,49 +132,34 @@ function EmptyState(props: { message: string; hint?: string }) {
   );
 }
 
-interface TranscriptionListProps {
-  items: MeetingTranscriptionListItem[] | undefined;
-  isLoading: boolean;
-  hasError: boolean;
-  search: string;
+function LoadingRows() {
+  return (
+    <div className="space-y-3">
+      {[0, 1, 2].map((row) => (
+        <Skeleton key={row} className="h-20 w-full" />
+      ))}
+    </div>
+  );
+}
+
+function LoadError() {
+  return (
+    <Alert variant="destructive">
+      <AlertDescription>
+        Não foi possível carregar as reuniões do projeto. Tente de novo em instantes.
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+interface RowsProps {
+  items: MeetingTranscriptionListItem[];
   canRequest: boolean;
   onOpen: (id: string) => void;
 }
 
-function TranscriptionList(props: TranscriptionListProps) {
-  const { items, isLoading, hasError, search, canRequest, onOpen } = props;
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((row) => (
-          <Skeleton key={row} className="h-20 w-full" />
-        ))}
-      </div>
-    );
-  }
-
-  if (hasError) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          Não foi possível carregar as reuniões do projeto. Tente de novo em instantes.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (!items?.length) {
-    return search.trim() ? (
-      <EmptyState message={`Nenhuma reunião encontrada para "${search.trim()}".`} />
-    ) : (
-      <EmptyState
-        message="Nenhuma reunião transcrita neste projeto."
-        hint="Reunião do Teams vinculada ao projeto traz a transcrição sozinha, alguns minutos depois de acabar. Para uma gravação avulsa, use Transcrever gravação."
-      />
-    );
-  }
-
+function TranscriptionRows(props: RowsProps) {
+  const { items, canRequest, onOpen } = props;
   return (
     <ul className="space-y-2">
       {items.map((item) => (
@@ -179,17 +169,99 @@ function TranscriptionList(props: TranscriptionListProps) {
   );
 }
 
+interface SearchResultsProps {
+  projectId: string;
+  search: string;
+  canRequest: boolean;
+  onOpen: (id: string) => void;
+}
+
+/** Busca no título e no texto: aí a lista é das transcrições encontradas, não das reuniões. */
+function SearchResults(props: SearchResultsProps) {
+  const { projectId, search, canRequest, onOpen } = props;
+  const { data: items, isLoading, error } = useMeetingTranscriptions(projectId, search);
+
+  if (isLoading) return <LoadingRows />;
+  if (error) return <LoadError />;
+  if (!items?.length) return <EmptyState message={`Nenhuma reunião encontrada para "${search.trim()}".`} />;
+  return <TranscriptionRows items={items} canRequest={canRequest} onOpen={onOpen} />;
+}
+
+interface MeetingsOverviewProps {
+  projectId: string;
+  canRequest: boolean;
+  canManageProject: boolean;
+  onOpen: (id: string) => void;
+}
+
+/**
+ * As reuniões vinculadas ao projeto, cada uma com a situação da transcrição — inclusive a que
+ * aconteceu e não foi transcrita (ADR-0052). Gravação enviada e reunião que deixou de ser
+ * acompanhada ficam embaixo.
+ */
+function MeetingsOverview(props: MeetingsOverviewProps) {
+  const { projectId, canRequest, canManageProject, onOpen } = props;
+  const { employee } = useAuth();
+  const meetings = useProjectTeamsMeetings(projectId);
+  const transcriptions = useMeetingTranscriptions(projectId, '');
+  const { groups, others } = useMemo(
+    () => groupByLinkedMeeting(meetings.data ?? [], transcriptions.data ?? []),
+    [meetings.data, transcriptions.data],
+  );
+
+  if (meetings.isLoading || transcriptions.isLoading) return <LoadingRows />;
+  if (meetings.error || transcriptions.error) return <LoadError />;
+  if (!groups.length && !others.length) {
+    return (
+      <EmptyState
+        message="Nenhuma reunião vinculada a este projeto."
+        hint='Na Agenda, crie a reunião do Teams escolhendo este projeto, ou abra uma que você organizou e use "Vincular a um projeto". Ela aparece aqui, e a transcrição chega sozinha quando a reunião acabar.'
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {groups.length > 0 && (
+        <ul className="space-y-2" aria-label="Reuniões do Teams vinculadas">
+          {groups.map((group) => (
+            <LinkedMeetingCard
+              key={group.meeting.id}
+              group={group}
+              canStop={canManageProject || group.meeting.registeredById === employee?.id}
+              onOpenTranscription={onOpen}
+            />
+          ))}
+        </ul>
+      )}
+      {others.length > 0 && (
+        <section className="space-y-2" aria-labelledby="other-transcriptions-title">
+          <div>
+            <h4 id="other-transcriptions-title" className="text-sm font-semibold text-foreground">
+              Outras transcrições
+            </h4>
+            <p className="text-sm text-muted-foreground">
+              Gravações enviadas por Transcrever gravação e reuniões que deixaram de ser acompanhadas.
+            </p>
+          </div>
+          <TranscriptionRows items={others} canRequest={canRequest} onOpen={onOpen} />
+        </section>
+      )}
+    </div>
+  );
+}
+
 interface ProjectMeetingsTabProps {
   projectId: string;
   /** Pode pedir transcrição e dar nome às vozes neste projeto. */
   canRequest: boolean;
-  /** GP do projeto (ou quem gere qualquer projeto): remove transcrição. */
+  /** GP do projeto (ou quem gere qualquer projeto): remove transcrição e para de acompanhar reunião. */
   canManageProject: boolean;
 }
 
 /**
- * Reuniões do projeto transcritas: pela transcrição do próprio Teams, que chega sozinha
- * (ADR-0052), ou por gravação do OneDrive enviada ao worker (ADR-0039, plano B).
+ * Reuniões do projeto e a transcrição de cada uma: a do próprio Teams, que chega sozinha
+ * (ADR-0052), ou a de gravação do OneDrive enviada ao worker (ADR-0039, plano B).
  */
 export function ProjectMeetingsTab(props: ProjectMeetingsTabProps) {
   const { projectId, canRequest, canManageProject } = props;
@@ -199,11 +271,11 @@ export function ProjectMeetingsTab(props: ProjectMeetingsTabProps) {
   const [requestOpen, setRequestOpen] = useState(false);
 
   const all = useMeetingTranscriptions(projectId, '');
-  const filtered = useMeetingTranscriptions(projectId, debouncedSearch);
   const sentItemIds = useMemo(
     () => new Set((all.data ?? []).flatMap((item) => (item.recordingItemId ? [item.recordingItemId] : []))),
     [all.data],
   );
+  const isSearching = debouncedSearch.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -211,8 +283,8 @@ export function ProjectMeetingsTab(props: ProjectMeetingsTabProps) {
         <div>
           <h3 className="text-base font-semibold text-foreground">Reuniões</h3>
           <p className="text-sm text-muted-foreground">
-            A transcrição das reuniões do Teams vinculadas ao projeto chega aqui sozinha. Para
-            uma gravação avulsa do OneDrive, use Transcrever gravação.
+            Reuniões do Teams vinculadas ao projeto e a transcrição de cada uma, que chega sozinha
+            depois que a reunião acaba. Para uma gravação avulsa do OneDrive, use Transcrever gravação.
           </p>
         </div>
         {canRequest && (
@@ -222,8 +294,6 @@ export function ProjectMeetingsTab(props: ProjectMeetingsTabProps) {
           </Button>
         )}
       </div>
-
-      <TeamsMeetingsSection projectId={projectId} canManageProject={canManageProject} />
 
       {(all.data?.length ?? 0) > 0 && (
         <div className="relative max-w-md">
@@ -242,14 +312,16 @@ export function ProjectMeetingsTab(props: ProjectMeetingsTabProps) {
         </div>
       )}
 
-      <TranscriptionList
-        items={filtered.data}
-        isLoading={filtered.isLoading}
-        hasError={Boolean(filtered.error)}
-        search={debouncedSearch}
-        canRequest={canRequest}
-        onOpen={setOpenId}
-      />
+      {isSearching ? (
+        <SearchResults projectId={projectId} search={debouncedSearch} canRequest={canRequest} onOpen={setOpenId} />
+      ) : (
+        <MeetingsOverview
+          projectId={projectId}
+          canRequest={canRequest}
+          canManageProject={canManageProject}
+          onOpen={setOpenId}
+        />
+      )}
 
       <MeetingTranscriptionDialog
         transcriptionId={openId}

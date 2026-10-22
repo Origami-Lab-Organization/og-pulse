@@ -60,8 +60,13 @@ Fatos conferidos na documentação da Microsoft em 22/10/2026:
    Edge Functions (`MICROSOFT_TRANSCRIPTS_CLIENT_ID`/`_SECRET`), nunca no front.
 6. **Gravar e transcrever automaticamente** continua sendo ligado pelo navegador, com escopo
    delegado (`OnlineMeetings.ReadWrite`, pedido só no uso), ao criar a reunião.
-7. Quem vinculou recebe aviso no sino quando a transcrição chega. A tela mostra cada reunião
-   vinculada com a última verificação ou o problema encontrado, já em português.
+7. Quem vinculou recebe aviso no sino quando a transcrição chega.
+8. **A aba Reuniões lista as reuniões vinculadas, não só as transcrições** (22/10, pedido do
+   Italo: "dessa forma parece que não teve reunião"). Cada uma mostra a situação — Agendada,
+   Aguardando transcrição (até 40 min depois do fim), Transcrita (com as ocorrências embaixo),
+   Sem transcrição, Com problema — a partir do horário guardado no vínculo
+   (`starts_at`/`ends_at`/`is_series`, migration `20261022120000`). Numa série, só as
+   ocorrências que foram transcritas aparecem: o servidor não lê a agenda.
 
 ## Consequências
 
