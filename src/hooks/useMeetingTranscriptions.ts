@@ -9,11 +9,11 @@ import {
   FILES_SCOPES,
   GraphError,
   ONLINE_MEETING_SCOPES,
-  enableAutomaticRecording,
   findOnlineMeetingId,
   findRecordingsFolder,
   getDriveDownloadUrl,
   getMyDriveRoot,
+  prepareOnlineMeeting,
 } from '@/services/microsoftGraphService';
 import { meetingTranscriptionService } from '@/services/meetingTranscriptionService';
 import { describeGraphError } from '@/hooks/useMicrosoftGraph';
@@ -255,19 +255,32 @@ async function setUpTeamsMeeting(input: TeamsMeetingSetupInput) {
   const token = await acquireGraphTokenForScopes(ONLINE_MEETING_SCOPES);
   const onlineMeetingId = await findOnlineMeetingId(token, input.joinUrl);
 
-  const recordingTurnedOn =
-    input.recordAutomatically && (await attempt(() => enableAutomaticRecording(token, onlineMeetingId), failures));
+  const prepared = await attempt(
+    () => prepareOnlineMeeting(token, onlineMeetingId, input.recordAutomatically),
+    failures,
+  );
   const linkedToProject =
     Boolean(input.projectId) && (await attempt(() => linkToProject(input, onlineMeetingId), failures));
 
-  return { recordingTurnedOn, linkedToProject, failures };
+  return {
+    languageSet: prepared,
+    recordingTurnedOn: input.recordAutomatically && prepared,
+    linkedToProject,
+    failures,
+  };
 }
 
 function warnAboutSetup(input: TeamsMeetingSetupInput, result: TeamsMeetingSetupResult, failures: unknown[]) {
-  if (input.recordAutomatically && !result.recordingTurnedOn) {
-    toast.warning('A gravação automática não foi ligada.', {
-      description: 'Lembre de gravar e transcrever pelo Teams quando a reunião começar.',
-    });
+  if (!result.languageSet) {
+    toast.warning(
+      input.recordAutomatically
+        ? 'A gravação automática e o idioma português não foram configurados.'
+        : 'O idioma português não foi configurado na reunião.',
+      {
+        description:
+          'No Teams, antes de começar, escolha Português (Brasil) como idioma falado e ligue a gravação e a transcrição.',
+      },
+    );
   }
   if (input.projectId && !result.linkedToProject) {
     toast.warning('A transcrição desta reunião não vai vir sozinha para o projeto.', {

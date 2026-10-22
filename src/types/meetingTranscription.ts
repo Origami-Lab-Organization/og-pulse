@@ -148,6 +148,8 @@ export interface TeamsMeetingSetupInput {
 }
 
 export interface TeamsMeetingSetupResult {
+  /** Idioma falado definido como português — sem ele o Teams transcreve como inglês. */
+  languageSet: boolean;
   recordingTurnedOn: boolean;
   linkedToProject: boolean;
 }

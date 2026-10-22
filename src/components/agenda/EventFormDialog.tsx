@@ -185,14 +185,16 @@ async function linkRitoAfterCreate(
   }
 }
 
-/** Gravar e transcrever sozinha e/ou trazer a transcrição para o projeto (ADR-0052). */
+/**
+ * Toda reunião do Teams criada aqui sai em português; com pedido, grava e transcreve sozinha
+ * e traz a transcrição para o projeto (ADR-0052).
+ */
 async function setUpTeamsAfterCreate(
   setUp: (input: TeamsMeetingSetupInput) => Promise<unknown>,
   created: CalendarEventCreated,
   data: FormData,
 ): Promise<void> {
-  const wanted = data.recordAutomatically || Boolean(data.projectId);
-  if (!data.withTeamsMeeting || !created.onlineMeetingUrl || !wanted) return;
+  if (!data.withTeamsMeeting || !created.onlineMeetingUrl) return;
   // O hook já avisa a falha; aqui ela só não pode interromper o fechamento do formulário.
   await setUp({
     joinUrl: created.onlineMeetingUrl,

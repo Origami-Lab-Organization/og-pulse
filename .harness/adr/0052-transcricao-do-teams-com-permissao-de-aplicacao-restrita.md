@@ -55,11 +55,21 @@ Fatos conferidos na documentação da Microsoft em 22/10/2026:
    torna a releitura idempotente. Webhook pediria endpoint público com validação, assinatura
    renovada a cada poucos dias, notificação de ciclo de vida e assinatura feita antes de a
    transcrição começar — tudo para ganhar minutos.
-5. **Credencial em app próprio.** "Pulse — Transcrições" é um registro de app separado do app
-   SPA do login, só com `OnlineMeetingTranscript.Read.All`. O segredo fica nos secrets das
-   Edge Functions (`MICROSOFT_TRANSCRIPTS_CLIENT_ID`/`_SECRET`), nunca no front.
+5. **Credencial: o mesmo app do login** ("Origami Pulse", `53d51c7c-…`), com um client secret
+   próprio para isto ("Pulse — Transcrições (Supabase)"). Previsto como app separado; na
+   configuração de 22/10 o Italo usou o app existente, que já reúne permissões de aplicativo
+   para outros usos (`OnlineMeetings.Read.All` e `OnlineMeetings.ReadWrite.All`). O segredo fica
+   nos secrets das Edge Functions (`MICROSOFT_TRANSCRIPTS_CLIENT_ID`/`_SECRET`), nunca no front.
+   Custo aceito: o app do login passou a ter segredo e permissões de aplicativo; girar o segredo
+   e revisar as permissões dele é agora tarefa de quem cuida do login também.
 6. **Gravar e transcrever automaticamente** continua sendo ligado pelo navegador, com escopo
    delegado (`OnlineMeetings.ReadWrite`, pedido só no uso), ao criar a reunião.
+6a. **Idioma falado sempre pt-BR** (22/10, Italo: "é sempre pt"). O Teams não detecta o idioma:
+   transcreve no idioma configurado na reunião, que vem inglês. No teste de 22/10 a fala em
+   português chegou como inglês sem sentido. Toda reunião do Teams criada pela Agenda do Pulse,
+   e toda reunião vinculada por "Vincular a um projeto", recebe `meetingSpokenLanguageTag:
+   'pt-BR'` (`prepareOnlineMeeting`). Só vale antes de a reunião começar; reunião criada fora do
+   Pulse depende de quem organiza escolher o idioma no Teams.
 7. Quem vinculou recebe aviso no sino quando a transcrição chega.
 8. **A aba Reuniões lista as reuniões vinculadas, não só as transcrições** (22/10, pedido do
    Italo: "dessa forma parece que não teve reunião"). Cada uma mostra a situação — Agendada,
@@ -104,9 +114,12 @@ Fatos conferidos na documentação da Microsoft em 22/10/2026:
 
 ## Verificação pendente
 
-1. Criar o app, dar consentimento de admin e conceder a policy (passo a passo em
-   `.harness/integrations/teams-transcricao.md`).
-2. Uma reunião de teste com fala: conferir que a transcrição aparece na aba em até 20 minutos e
-   com os nomes.
-3. `recordAutomatically` liga também a transcrição, ou só a gravação? No tenant a transcrição
-   começou sozinha no teste, mas pode ser política do tenant e não a opção.
+1. ~~Criar o app, dar consentimento de admin e conceder a policy~~ — feito em 22/10: segredo,
+   permissão de aplicativo com consentimento (token com `OnlineMeetingTranscript.Read.All`
+   conferido), política do Teams. A primeira sincronização devolveu
+   `GraphAccessToTranscriptsDisabled`: o "acesso do Microsoft Graph às transcrições" vem
+   **desligado por padrão** no Teams Admin Center; ligado, valeu em ~2 minutos.
+2. ~~Reunião de teste com fala~~ — 22/10 07:58: "Teste gravacao" importada sozinha, com o nome
+   de quem falou, na primeira sincronização depois de o acesso liberar.
+3. ~~`recordAutomatically` liga também a transcrição?~~ — no teste de 22/10 a reunião gravada
+   automaticamente "conforme a configuração do organizador" saiu com Transcrição no Recap.

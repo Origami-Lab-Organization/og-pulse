@@ -1,6 +1,8 @@
 # Integracao: Transcricao de reuniao do Teams (Microsoft Graph, permissao de aplicacao)
 
-- Status: **codigo pronto, configuracao do tenant pendente** (22/10/2026).
+- Status: **funcionando desde 22/10/2026 07:58** — primeira transcricao importada sozinha
+  ("Teste gravacao", com o nome de quem falou). O acesso do Graph levou ~2 minutos para valer
+  depois de ligado no Teams Admin Center.
 - Decisao: ADR-0052. Plano B por gravacao + WhisperX: ADR-0039.
 - Codigo: `supabase/functions/teams-meeting-register`, `supabase/functions/teams-transcripts-sync`,
   `supabase/functions/_shared/transcricaoTeams.ts`, `supabase/functions/_shared/identidadeEntra.ts`,
@@ -31,10 +33,17 @@ ao Graph. O que sobrar entra na proxima rodada.
 
 ## Configuracao (admin do Microsoft 365 + quem publica as Edge Functions)
 
-1. **Registro de app no Entra** (separado do app SPA do login): "Pulse — Transcricoes".
-   - Permissao de aplicacao `OnlineMeetingTranscript.Read.All` (Microsoft Graph) e
-     **consentimento de admin**.
-   - Um client secret. Anotar a validade — vencido, a sincronizacao para.
+1. **App no Entra**: em producao e o proprio app do login, "Origami Pulse"
+   (`53d51c7c-a706-4c82-ba99-63192a93202f`, ADR-0052 item 5).
+   - Permissao **de aplicativo** (nao "delegada") `OnlineMeetingTranscript.Read.All` e
+     **consentimento de admin**. Conferir pelo token: `roles` precisa trazer a permissao.
+   - Client secret proprio ("Pulse — Transcricoes (Supabase)", criado em 22/10/2026, 24 meses).
+     Vencido, a sincronizacao para e todo cartao mostra "nao conseguiu se autenticar".
+   - **Cuidado ao consentir**: "Conceder consentimento do administrador" pela tela de Permissoes
+     de APIs pode REVOGAR o que estava concedido para o tenant e nao esta na lista configurada.
+     Em 22/10 isso derrubou `Files.ReadWrite.All`, `OnlineMeetings.ReadWrite`, `offline_access`,
+     `openid`, `profile` (usados pelo login e pelo OneDrive) e foi preciso adiciona-las a lista e
+     consentir de novo. A lista configurada precisa ter TUDO que o app usa.
 2. **Application access policy** (PowerShell do Teams, `Connect-MicrosoftTeams`):
    ```powershell
    New-CsApplicationAccessPolicy -Identity Pulse-Transcricoes -AppIds "<client id do app>" -Description "Pulse traz transcricao de reuniao de projeto"
@@ -44,8 +53,12 @@ ao Graph. O que sobrar entra na proxima rodada.
    # Grant-CsApplicationAccessPolicy -PolicyName Pulse-Transcricoes -Global
    ```
    Leva ate 30 minutos para valer no Graph.
-3. **Teams Admin Center**: transcricao liberada na politica de reuniao; "acesso do Graph as
-   transcricoes" ligado; atribuicao de voz ligada (senao vem sem nomes).
+3. **Teams Admin Center** → Reunioes → Configuracoes de reuniao → **Acesso a API de transcricao**:
+   ligar **Acesso ao Microsoft Graph** e, em Configurar, **Incluir atribuicao do locutor**. As
+   duas vem DESLIGADAS por padrao; sem a primeira, todo app recebe 403
+   `GraphAccessToTranscriptsDisabled`, com qualquer permissao. Equivalente em PowerShell:
+   `Set-CsTeamsMeetingConfiguration -EnableGraphTranscriptAccess $true -EnableAttributedTranscripts $true -Identity Global`.
+   A transcricao em si tambem precisa estar liberada na politica de reuniao.
 4. **Secrets das Edge Functions** (projeto de producao): `MICROSOFT_TRANSCRIPTS_CLIENT_ID`,
    `MICROSOFT_TRANSCRIPTS_CLIENT_SECRET`. `MICROSOFT_TENANT_ID` e `MICROSOFT_CLIENT_ID` ja
    existem (do `microsoft-sso`). Sem os dois novos, a sincronizacao responde
@@ -71,6 +84,10 @@ ao Graph. O que sobrar entra na proxima rodada.
   — as do Pulse nascem de evento (`/me/events`), entao valem.
 - A reuniao expira 60 dias depois da ultima ocorrencia; depois disso a transcricao nao e lida.
 - Deslocamento negativo no VTT (transcricao comecou com a conversa andando) vira 0.
+- **Idioma**: o Teams transcreve no `meetingSpokenLanguageTag` da reuniao (padrao en-US), sem
+  detectar nem traduzir. Fala em portugues numa reuniao en-US vira ingles sem sentido. O Pulse
+  grava `pt-BR` ao criar ou vincular a reuniao (PATCH `/me/onlineMeetings/{id}`, delegado);
+  so vale antes do inicio. Transcricao que ja saiu errada nao tem conserto pela API.
 
 ## Verificacao pendente
 

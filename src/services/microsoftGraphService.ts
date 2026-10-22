@@ -1425,12 +1425,29 @@ export async function findOnlineMeetingId(token: string, joinUrl: string): Promi
   return meeting.id;
 }
 
-/** Grava e transcreve sozinha quando a reunião começar ("Gravar e transcrever automaticamente"). */
-export async function enableAutomaticRecording(token: string, onlineMeetingId: string): Promise<void> {
+/** Toda reunião da Origami é em português. */
+export const MEETING_SPOKEN_LANGUAGE = 'pt-BR';
+
+/**
+ * Prepara a reunião do Teams antes de ela começar: idioma falado em português — sem isso o
+ * Teams transcreve a fala em português como se fosse inglês, e o texto sai sem sentido — e,
+ * se pedido, gravar e transcrever sozinha. As duas só valem se definidas antes do início.
+ */
+export async function prepareOnlineMeeting(
+  token: string,
+  onlineMeetingId: string,
+  recordAutomatically: boolean,
+): Promise<void> {
   await graphFetch<void>(
     token,
     `${GRAPH_BASE}/me/onlineMeetings/${encodeURIComponent(onlineMeetingId)}`,
-    { method: 'PATCH', body: { recordAutomatically: true } },
+    {
+      method: 'PATCH',
+      body: {
+        meetingSpokenLanguageTag: MEETING_SPOKEN_LANGUAGE,
+        ...(recordAutomatically ? { recordAutomatically: true } : {}),
+      },
+    },
   );
 }
 
