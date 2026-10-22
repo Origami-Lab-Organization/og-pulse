@@ -11,6 +11,7 @@ import { useProject } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
 import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivitiesTab";
 import { ProjectEmailsTab } from "@/components/projects/detail/ProjectEmailsTab";
+import { ProjectMeetingsTab } from "@/components/projects/detail/meetings/ProjectMeetingsTab";
 import {
   PORTFOLIO_COLUMNS,
   PORTFOLIO_STAGE_LABELS,
@@ -44,9 +45,14 @@ function managesProject(managesAny: boolean, managerId: string | null | undefine
   return managesAny || (Boolean(employeeId) && managerId === employeeId);
 }
 
-/** Link vindo da caixa de entrada abre direto em E-mails; sem ele, a aba de sempre. */
-function pickDefaultTab(requested: string | null, canViewEmails: boolean, isEmployeeOnly: boolean): string {
-  if (canViewEmails && requested === "emails") return "emails";
+/** Link vindo da caixa de entrada abre direto em E-mails ou Reuniões; sem ele, a aba de sempre. */
+function pickDefaultTab(
+  requested: string | null,
+  linkable: { emails: boolean; reunioes: boolean },
+  isEmployeeOnly: boolean,
+): string {
+  const tabs = Object.entries(linkable).filter(([, allowed]) => allowed).map(([tab]) => tab);
+  if (requested && tabs.includes(requested)) return requested;
   return isEmployeeOnly ? "activities" : "overview";
 }
 
@@ -60,8 +66,13 @@ export default function MyProjectDetail() {
   const isEmployeeOnly = !(employee?.is_gerente || employee?.isAdmin);
   // A tela só abre para quem está no projeto; a capacidade decide se a aba existe.
   const canViewEmails = can('email-projeto:ler');
+  const canViewMeetings = can('transcricao:ler');
   const canManageProject = managesProject(can('projeto:gerir-qualquer'), fullProject?.manager_id, employee?.id);
-  const defaultTab = pickDefaultTab(searchParams.get("tab"), canViewEmails, isEmployeeOnly);
+  const defaultTab = pickDefaultTab(
+    searchParams.get("tab"),
+    { emails: canViewEmails, reunioes: canViewMeetings },
+    isEmployeeOnly,
+  );
 
   if (isLoading) {
     return (
@@ -229,6 +240,11 @@ export default function MyProjectDetail() {
                 E-mails
               </TabsTrigger>
             )}
+            {canViewMeetings && (
+              <TabsTrigger value="reunioes" className="shrink-0">
+                Reuniões
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {!isEmployeeOnly && (
@@ -277,6 +293,17 @@ export default function MyProjectDetail() {
           {canViewEmails && id && (
             <TabsContent value="emails" className="mt-6">
               <ProjectEmailsTab projectId={id} canManageProject={canManageProject} />
+            </TabsContent>
+          )}
+
+          {/* A tela só abre para quem está no projeto: quem tem a capacidade pode pedir. */}
+          {canViewMeetings && id && (
+            <TabsContent value="reunioes" className="mt-6">
+              <ProjectMeetingsTab
+                projectId={id}
+                canRequest={can('transcricao:solicitar')}
+                canManageProject={canManageProject}
+              />
             </TabsContent>
           )}
         </Tabs>

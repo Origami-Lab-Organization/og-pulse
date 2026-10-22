@@ -94,3 +94,16 @@ verify_jwt = false
 # conferido dentro) e pelo "Sincronizar agora" (sessão + `integracoes:gerir`, validados dentro).
 [functions.conta-azul-sync]
 verify_jwt = false
+
+# Transcrição de reunião (ADR-0039, ADR-0052). As duas chamadas pela tela validam a sessão
+# dentro (auth.getUser) e conferem `can_request_meeting_transcription`; a de vínculo também
+# valida o id token do Entra. A sincronização é chamada só pelo cron, com a chave de serviço
+# conferida dentro (ehChamadaDeServico).
+[functions.transcription-enqueue]
+verify_jwt = false
+
+[functions.teams-meeting-register]
+verify_jwt = false
+
+[functions.teams-transcripts-sync]
+verify_jwt = false

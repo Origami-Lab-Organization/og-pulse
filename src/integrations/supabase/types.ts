@@ -2518,6 +2518,115 @@ export type Database = {
           },
         ]
       }
+      meeting_transcriptions: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          duration_seconds: number | null
+          event_subject: string
+          finished_at: string | null
+          ical_uid: string | null
+          id: string
+          language: string | null
+          last_error: string | null
+          occurred_at: string | null
+          online_meeting_id: string | null
+          project_id: string
+          recording_drive_id: string | null
+          recording_item_id: string | null
+          recording_web_url: string | null
+          requested_by: string
+          segments: Json | null
+          source: Database["public"]["Enums"]["meeting_transcription_source"]
+          source_transcript_id: string | null
+          speakers: Json
+          status: Database["public"]["Enums"]["meeting_transcription_status"]
+          tenant_id: string
+          transcript_text: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          event_subject: string
+          finished_at?: string | null
+          ical_uid?: string | null
+          id?: string
+          language?: string | null
+          last_error?: string | null
+          occurred_at?: string | null
+          online_meeting_id?: string | null
+          project_id: string
+          recording_drive_id?: string | null
+          recording_item_id?: string | null
+          recording_web_url?: string | null
+          requested_by: string
+          segments?: Json | null
+          source?: Database["public"]["Enums"]["meeting_transcription_source"]
+          source_transcript_id?: string | null
+          speakers?: Json
+          status?: Database["public"]["Enums"]["meeting_transcription_status"]
+          tenant_id?: string
+          transcript_text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          event_subject?: string
+          finished_at?: string | null
+          ical_uid?: string | null
+          id?: string
+          language?: string | null
+          last_error?: string | null
+          occurred_at?: string | null
+          online_meeting_id?: string | null
+          project_id?: string
+          recording_drive_id?: string | null
+          recording_item_id?: string | null
+          recording_web_url?: string | null
+          requested_by?: string
+          segments?: Json | null
+          source?: Database["public"]["Enums"]["meeting_transcription_source"]
+          source_transcript_id?: string | null
+          speakers?: Json
+          status?: Database["public"]["Enums"]["meeting_transcription_status"]
+          tenant_id?: string
+          transcript_text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_transcriptions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_transcriptions_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_transcriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       note_attachments: {
         Row: {
           created_at: string
@@ -4770,6 +4879,76 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_online_meetings: {
+        Row: {
+          created_at: string
+          event_subject: string
+          ical_uid: string | null
+          id: string
+          join_web_url: string | null
+          last_checked_at: string | null
+          last_error: string | null
+          online_meeting_id: string
+          organizer_entra_id: string
+          project_id: string
+          registered_by: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_subject: string
+          ical_uid?: string | null
+          id?: string
+          join_web_url?: string | null
+          last_checked_at?: string | null
+          last_error?: string | null
+          online_meeting_id: string
+          organizer_entra_id: string
+          project_id: string
+          registered_by: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_subject?: string
+          ical_uid?: string | null
+          id?: string
+          join_web_url?: string | null
+          last_checked_at?: string | null
+          last_error?: string | null
+          online_meeting_id?: string
+          organizer_entra_id?: string
+          project_id?: string
+          registered_by?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_online_meetings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_online_meetings_registered_by_fkey"
+            columns: ["registered_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_online_meetings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -7855,6 +8034,10 @@ export type Database = {
         Args: { p_project_id: string }
         Returns: boolean
       }
+      can_request_meeting_transcription: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_save_project_email: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -8473,6 +8656,7 @@ export type Database = {
         Returns: string
       }
       tenant_is_active: { Args: { _tenant_id: string }; Returns: boolean }
+      transcription_readable_project_ids: { Args: never; Returns: string[] }
       update_overdue_installments: { Args: never; Returns: undefined }
       update_project_activity_task: {
         Args: {
@@ -8553,6 +8737,12 @@ export type Database = {
         | "sent"
         | "received"
         | "overdue"
+      meeting_transcription_source: "teams" | "gravacao"
+      meeting_transcription_status:
+        | "pendente"
+        | "processando"
+        | "concluida"
+        | "falhou"
       payroll_adjustment_type:
         | "salary_proportional"
         | "vacation"
@@ -8762,6 +8952,13 @@ export const Constants = {
         "sent",
         "received",
         "overdue",
+      ],
+      meeting_transcription_source: ["teams", "gravacao"],
+      meeting_transcription_status: [
+        "pendente",
+        "processando",
+        "concluida",
+        "falhou",
       ],
       payroll_adjustment_type: [
         "salary_proportional",

@@ -30,12 +30,12 @@ corrigida em trilha propria (PUL-207).
 
 Perfis de sistema vem do enum `app_role` (`user_roles.role`):
 
-| Coluna      | `app_role` | Quem e                                               |
-| ----------- | ---------- | ---------------------------------------------------- |
-| **Admin**   | `admin`    | Responsavel pela operacao e pelos numeros da empresa |
-| **Gerente** | `manager`  | Conduz projetos e time; ve o portfolio inteiro       |
-| **RH**      | `rh`       | Recrutamento, ponto e pessoas                        |
-| **Colab.**  | `user`     | Colaborador sem perfil de gestao                     |
+| Coluna | `app_role` | Quem e |
+|---|---|---|
+| **Admin** | `admin` | Responsavel pela operacao e pelos numeros da empresa |
+| **Gerente** | `manager` | Conduz projetos e time; ve o portfolio inteiro |
+| **RH** | `rh` | Recrutamento, ponto e pessoas |
+| **Colab.** | `user` | Colaborador sem perfil de gestao |
 
 **PM nao e coluna.** PM e relacao com o registro (`projects.manager_id`), nao perfil
 de sistema. Onde o PM muda a resposta, o escopo aparece na celula como `PM`. Ver
@@ -43,46 +43,46 @@ decisao pendente **P2**.
 
 ### Escopos (celulas)
 
-| Simbolo   | Significado                                                                  |
-| --------- | ---------------------------------------------------------------------------- |
-| `sim`     | Sim, no tenant inteiro                                                       |
-| `—`       | Nao                                                                          |
-| `proprio` | Apenas o proprio registro / os proprios dados                                |
-| `PM`      | Apenas projetos onde e `projects.manager_id`                                 |
-| `alocado` | Apenas projetos onde esta alocado                                            |
-| `!`       | Divergencia entre esta matriz e a policy vigente — ver secao de divergencias |
+| Simbolo | Significado |
+|---|---|
+| `sim` | Sim, no tenant inteiro |
+| `—` | Nao |
+| `proprio` | Apenas o proprio registro / os proprios dados |
+| `PM` | Apenas projetos onde e `projects.manager_id` |
+| `alocado` | Apenas projetos onde esta alocado |
+| `!` | Divergencia entre esta matriz e a policy vigente — ver secao de divergencias |
 
 ---
 
 ## 1. Financeiro de projeto
 
-| Capacidade                                              | Admin | Gerente | RH  | Colab.  | Predicado vigente                                                   |
-| ------------------------------------------------------- | ----- | ------- | --- | ------- | ------------------------------------------------------------------- |
-| `financeiro:ler` — custo, comissao, parcela, fornecedor | sim   | sim     | —   | —       | `is_admin_or_manager` (ADR-0022)                                    |
-| `financeiro:editar`                                     | sim   | PM      | —   | —       | `can_manage_project` (ADR-0002)                                     |
-| `margem:ler`                                            | sim   | sim     | —   | —       | derivado de `financeiro:ler`                                        |
-| `margem:ler-detalhe-mao-de-obra`                        | sim   | PM `!`  | —   | —       | UI: `canSeeLaborBreakdown`; RLS permite a qualquer gerente — **D8** |
-| `horas-projeto:ler`                                     | sim   | sim     | —   | alocado | `can_read_project_hours`                                            |
-| `custo-hora:ler` — `role_rates`, `financial_settings`   | sim   | sim `!` | —   | —       | `is_admin_or_manager` — desvio do PUL-165, ver **P6**               |
-| `custo-hora:ler` — tela `/analises/custo-hora`          | sim   | —       | —   | —       | rota `requireAdmin`                                                 |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `financeiro:ler` — custo, comissao, parcela, fornecedor | sim | sim | — | — | `is_admin_or_manager` (ADR-0022) |
+| `financeiro:editar` | sim | PM | — | — | `can_manage_project` (ADR-0002) |
+| `margem:ler` | sim | sim | — | — | derivado de `financeiro:ler` |
+| `margem:ler-detalhe-mao-de-obra` | sim | PM `!` | — | — | UI: `canSeeLaborBreakdown`; RLS permite a qualquer gerente — **D8** |
+| `horas-projeto:ler` | sim | sim | — | alocado | `can_read_project_hours` |
+| `custo-hora:ler` — `role_rates`, `financial_settings` | sim | sim `!` | — | — | `is_admin_or_manager` — desvio do PUL-165, ver **P6** |
+| `custo-hora:ler` — tela `/analises/custo-hora` | sim | — | — | — | rota `requireAdmin` |
 
 ## 2. Folha e remuneracao
 
-| Capacidade                                                              | Admin | Gerente     | RH  | Colab.  | Predicado vigente                                    |
-| ----------------------------------------------------------------------- | ----- | ----------- | --- | ------- | ---------------------------------------------------- |
-| `folha:ler` — tela `/analises/folha-pagamento`                          | sim   | —           | —   | —       | rota `requireAdmin`                                  |
-| `remuneracao-pessoa:ler` — `salario_mensal`, `pro_labore`, `dividendos` | sim   | **sim** `!` | —   | proprio | policy de linha em `employees` — **D1**, ver **P3**  |
-| `remuneracao-pessoa:editar`                                             | sim   | sim `!`     | —   | —       | `has_role('admin') OR is_manager_in_tenant` — **D1** |
-| `parametro-folha:ler` — `payroll_profiles`                              | sim   | sim `!`     | —   | —       | `is_admin_or_manager` — ver **P6**                   |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `folha:ler` — tela `/analises/folha-pagamento` | sim | — | — | — | rota `requireAdmin` |
+| `remuneracao-pessoa:ler` — `salario_mensal`, `pro_labore`, `dividendos` | sim | **sim** `!` | — | proprio | policy de linha em `employees` — **D1**, ver **P3** |
+| `remuneracao-pessoa:editar` | sim | sim `!` | — | — | `has_role('admin') OR is_manager_in_tenant` — **D1** |
+| `parametro-folha:ler` — `payroll_profiles` | sim | sim `!` | — | — | `is_admin_or_manager` — ver **P6** |
 
 ## Plataforma (operacao do produto, nao do cliente)
 
 Dominio novo, e o unico que nao pertence ao produto que o cliente usa: e a Origami operando
 o Pulse. Uma capacidade, uma tela, e a UNICA leitura entre tenants que existe (ADR-0033).
 
-| Capacidade                         | Admin                      | Gerente | RH  | Colab. | Predicado vigente                                                                       |
-| ---------------------------------- | -------------------------- | ------- | --- | ------ | --------------------------------------------------------------------------------------- |
-| `plataforma:ler-uso` — tela `/uso` | sim, **so no tenant dono** | —       | —   | —      | `platform_tenant_usage()` exige `tenants.is_platform_owner` + a capacidade nesse tenant |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `plataforma:ler-uso` — tela `/uso` | sim, **so no tenant dono** | — | — | — | `platform_tenant_usage()` exige `tenants.is_platform_owner` + a capacidade nesse tenant |
 
 Tres coisas que a tornam diferente de todas as outras:
 
@@ -96,27 +96,27 @@ Tres coisas que a tornam diferente de todas as outras:
 
 ## 3. Pessoas
 
-| Capacidade                                                                                | Admin | Gerente | RH    | Colab.                   | Predicado vigente                                                                                                                                                                                                     |
-| ----------------------------------------------------------------------------------------- | ----- | ------- | ----- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pessoa:ler-identidade` — nome, cargo, foto                                               | sim   | sim     | sim   | sim                      | `get_employee_directory()` (ADR-0020)                                                                                                                                                                                 |
-| `pessoa:ler-ficha-completa` — CPF, nascimento, banco/PIX                                  | sim   | sim `!` | — `!` | proprio                  | policy de linha — **D1**, **D4**                                                                                                                                                                                      |
-| `pessoa:editar`                                                                           | sim   | sim     | — `!` | proprio (campos seguros) | **D4**                                                                                                                                                                                                                |
-| `pessoa:editar-papel` — `system_role`, `user_roles`                                       | sim   | —       | —     | —                        | trigger `prevent_employee_self_escalation`                                                                                                                                                                            |
-| `pessoa:editar-elegibilidade-alocacao`                                                    | sim   | —       | —     | —                        | trigger `enforce_aloca_em_projetos_admin_only` (ADR-0010)                                                                                                                                                             |
-| `pessoa:administrar` — admitir, excluir, beneficio/ferramenta da pessoa, versao, desligar | sim   | —       | —     | —                        | `has_role('admin')` em `employees` I/D, `employee_benefits`, `employee_tools`, `employee_versions`, `employee_terminations`, `payroll_adjustments`, `termination_documents` — capacidade criada no grupo 5b (TD-0019) |
-| `desligamento:executar` — `/rh/desligamentos`                                             | sim   | sim     | — `!` | —                        | rota `requireManager` — **D4**                                                                                                                                                                                        |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `pessoa:ler-identidade` — nome, cargo, foto | sim | sim | sim | sim | `get_employee_directory()` (ADR-0020) |
+| `pessoa:ler-ficha-completa` — CPF, nascimento, banco/PIX | sim | sim `!` | — `!` | proprio | policy de linha — **D1**, **D4** |
+| `pessoa:editar` | sim | sim | — `!` | proprio (campos seguros) | **D4** |
+| `pessoa:editar-papel` — `system_role`, `user_roles` | sim | — | — | — | trigger `prevent_employee_self_escalation` |
+| `pessoa:editar-elegibilidade-alocacao` | sim | — | — | — | trigger `enforce_aloca_em_projetos_admin_only` (ADR-0010) |
+| `pessoa:administrar` — admitir, excluir, beneficio/ferramenta da pessoa, versao, desligar | sim | — | — | — | `has_role('admin')` em `employees` I/D, `employee_benefits`, `employee_tools`, `employee_versions`, `employee_terminations`, `payroll_adjustments`, `termination_documents` — capacidade criada no grupo 5b (TD-0019) |
+| `desligamento:executar` — `/rh/desligamentos` | sim | sim | — `!` | — | rota `requireManager` — **D4** |
 
 ## 4. Comercial (Prospecção)
 
-| Capacidade                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Admin | Gerente | RH  | Colab. | Predicado vigente                              |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------- | --- | ------ | ---------------------------------------------- |
-| `orcamento:ler`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | sim   | sim     | —   | —      | `is_admin_or_manager` (ADR-0023)               |
-| `orcamento:editar`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | sim   | sim     | —   | —      | `is_admin_or_manager` (ADR-0023)               |
-| `catalogo:ler` — servicos, linhas de servico                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | sim   | sim     | sim | sim    | SELECT tenant-wide **de proposito** (ADR-0023) |
-| `catalogo:editar`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | sim   | sim     | —   | —      | `is_admin_or_manager` (ADR-0023)               |
-| `cliente:ler` / `cliente:editar`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | sim   | sim     | —   | —      | rota `requireManager`                          |
-| `prospeccao:ler` — quadro comercial (inclui Ganho com valor vendido e Perda), valor estimado e orçamento vinculado do contato, empresas (tela `/comercial/empresas`), contatos (tela `/comercial/contatos`, `prospect_contacts`, ADR-0045), atividades, tarefas, histórico de etapa e métricas (tela `/comercial/metricas`, item do menu desde 29/09/2026, que absorveu `/analises/comercial`); faturamento anual da empresa, estimado ou apurado (20261001200000); dados da Receita da empresa e a rede de sócios (`prospect_company_partners`, ADR-0041); site da empresa, fomento público e nota de fit (ADR-0042); também a aba Oportunidades da ficha do cliente e a origem comercial do projeto | sim   | sim     | —   | —      | `has_capability` (migration 20260915100000)    |
-| `prospeccao:editar` — cadastro (inclui criar, editar e excluir contato sem card, e "Levar para a Prospecção"), atividade, tarefa, registrar ganho (com valor) e perda, consultar/atualizar a Receita, editar redes e telefone de sócio e "Virar contato", importar CNPJs em lote, ler site e consultar fomento                                                                                                                                                                                                                                                                                                                                                                                        | sim   | sim     | —   | —      | `has_capability` (migration 20260915100000)    |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `orcamento:ler` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
+| `orcamento:editar` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
+| `catalogo:ler` — servicos, linhas de servico | sim | sim | sim | sim | SELECT tenant-wide **de proposito** (ADR-0023) |
+| `catalogo:editar` | sim | sim | — | — | `is_admin_or_manager` (ADR-0023) |
+| `cliente:ler` / `cliente:editar` | sim | sim | — | — | rota `requireManager` |
+| `prospeccao:ler` — quadro comercial (inclui Ganho com valor vendido e Perda), valor estimado e orçamento vinculado do contato, empresas (tela `/comercial/empresas`), contatos (tela `/comercial/contatos`, `prospect_contacts`, ADR-0045), atividades, tarefas, histórico de etapa e métricas (tela `/comercial/metricas`, item do menu desde 29/09/2026, que absorveu `/analises/comercial`); faturamento anual da empresa, estimado ou apurado (20261001200000); dados da Receita da empresa e a rede de sócios (`prospect_company_partners`, ADR-0041); site da empresa, fomento público e nota de fit (ADR-0042); também a aba Oportunidades da ficha do cliente e a origem comercial do projeto | sim | sim | — | — | `has_capability` (migration 20260915100000) |
+| `prospeccao:editar` — cadastro (inclui criar, editar e excluir contato sem card, e "Levar para a Prospecção"), atividade, tarefa, registrar ganho (com valor) e perda, consultar/atualizar a Receita, editar redes e telefone de sócio e "Virar contato", importar CNPJs em lote, ler site e consultar fomento | sim | sim | — | — | `has_capability` (migration 20260915100000) |
 
 **29/09/2026 — Prospecção absorveu Oportunidades** (migration 20260929120000). A tabela
 `leads` e as `lead_*` saíram, e com elas `/pipeline`, `/analises/comercial` e as capacidades
@@ -130,51 +130,73 @@ tinha `pipeline:ler`/`pipeline:editar`.
 
 ## 5. Projeto, portfolio e alocacao
 
-| Capacidade                                                            | Admin | Gerente | RH  | Colab.      | Predicado vigente                                                                                                           |
-| --------------------------------------------------------------------- | ----- | ------- | --- | ----------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `projeto:ler`                                                         | sim   | sim     | —   | alocado `!` | `/projects/:id` sem guard de perfil — **D7**                                                                                |
-| `projeto:editar`                                                      | sim   | PM      | —   | —           | `can_manage_project` (ADR-0002)                                                                                             |
-| `projeto:gerir-qualquer` — alcanca projeto que a pessoa nao gerencia  | sim   | —       | —   | —           | criada em 04/09; substituiu `has_role(admin)` dentro de `can_manage_project`                                                |
-| `portfolio:ler`                                                       | sim   | sim     | —   | —           | rota `requireManager` (ADR-0002)                                                                                            |
-| `alocacao:ler`                                                        | sim   | sim     | —   | proprio     | rota `requireManager`                                                                                                       |
-| `alocacao:editar`                                                     | sim   | PM      | —   | —           | `can_manage_project` (ADR-0003)                                                                                             |
-| `alocacao:editar-mes-fechado` — corrigir planejamento de mes anterior | sim   | —       | —   | —           | trigger `enforce_past_month_allocation_edit`; criada em 08/09, substituiu `has_role(admin)` que ficou orfa na aposentadoria |
-| `gpo:reabrir-relatorio` — devolver ao rascunho relatorio entregue     | sim   | —       | —   | —           | RPC `reopen_project_gpo_report`; criada em 08/09, mesma origem                                                              |
-| `arquivo-projeto:ler`                                                 | sim   | sim     | —   | alocado     | `can_view_project_document`                                                                                                 |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `projeto:ler` | sim | sim | — | alocado `!` | `/projects/:id` sem guard de perfil — **D7** |
+| `projeto:editar` | sim | PM | — | — | `can_manage_project` (ADR-0002) |
+| `projeto:gerir-qualquer` — alcanca projeto que a pessoa nao gerencia | sim | — | — | — | criada em 04/09; substituiu `has_role(admin)` dentro de `can_manage_project` |
+| `portfolio:ler` | sim | sim | — | — | rota `requireManager` (ADR-0002) |
+| `alocacao:ler` | sim | sim | — | proprio | rota `requireManager` |
+| `alocacao:editar` | sim | PM | — | — | `can_manage_project` (ADR-0003) |
+| `alocacao:editar-mes-fechado` — corrigir planejamento de mes anterior | sim | — | — | — | trigger `enforce_past_month_allocation_edit`; criada em 08/09, substituiu `has_role(admin)` que ficou orfa na aposentadoria |
+| `gpo:reabrir-relatorio` — devolver ao rascunho relatorio entregue | sim | — | — | — | RPC `reopen_project_gpo_report`; criada em 08/09, mesma origem |
+| `arquivo-projeto:ler` | sim | sim | — | alocado | `can_view_project_document` |
+| `produto:ler` — tela Produtos (`/projetos/produtos`): produtos internos com responsável, equipe, horas investidas, próximo marco e última release (21/10/2026, ADR-0049). O custo das horas segue `financeiro:ler` | sim | sim | — | — | rota `requireCapability` + RPC `internal_products_overview()` (definer, tenant de `auth.uid()`); nasce espelhando `portfolio:ler` |
+| `email-projeto:ler` — e-mails salvos no projeto como registro de decisão (aba E-mails, `project_emails`, 21/10/2026, ADR-0047) | sim | sim | — | alocado | `email_readable_project_ids()` — capacidade + (`portfolio:ler`, `projeto:gerir-qualquer`, GP do projeto ou alocado); nasce espelhando `arquivo-projeto:ler` |
+| `email-projeto:salvar` — salvar e-mail da própria caixa no projeto, editar o resumo e remover (quem salvou ou o GP) | sim | PM/alocado | — | alocado | `can_save_project_email` — capacidade + (`can_manage_project` ou alocado); ver o portfólio não basta para salvar |
+| `nota:usar` — notas do cabeçalho: escrever, fixar, compartilhar com pessoas ou com a empresa, anexar e ler as recebidas (`notes`, `note_shares`, `note_attachments`, bucket `note-attachments`; 21/10/2026, ADR-0051) | sim | sim | sim | sim | `readable_note_ids()` para ler (próprias, abertas para a empresa ou compartilhadas com a pessoa) e `is_note_author()` para escrever; nasce espelhando `timesheet-proprio:apontar` |
+| *(sem capacidade)* Novidades do produto — anúncio de entrega na entrada do app (ADR-0048) | sim | sim | sim | sim | Todo autenticado, como a Ajuda. Cada tópico é recortado pela capacidade da tela que anuncia; a leitura (`product_news_reads`) é só da própria conta |
+| `transcricao:ler` — aba Reuniões do projeto: texto das reuniões transcritas, com quem falou e quando (`meeting_transcriptions`, 21/10/2026, ADR-0039). **Sensível** | sim | sim | — | alocado | `transcription_readable_project_ids()` — capacidade + (`portfolio:ler`, `projeto:gerir-qualquer`, GP do projeto ou alocado); nasce espelhando `arquivo-projeto:ler` |
+| `transcricao:solicitar` — vincular reunião do Teams ao projeto para a transcrição chegar sozinha (`project_online_meetings`, ADR-0052, só o organizador), enviar gravação do OneDrive para transcrição, pedir de novo a que falhou, dar nome às vozes e corrigir o título | sim | PM/alocado | — | alocado | `can_request_meeting_transcription` — capacidade + (`can_manage_project` ou alocado); ver o portfólio não basta para pedir. Remover a transcrição é `can_manage_project` |
+
+Transcricao de reuniao (ADR-0039) espelha `arquivo-projeto:ler` no seed: a transcricao e mais
+um documento daquele projeto, e quem participou da reuniao e quem pede o texto dela. O alcance de
+leitura e o mesmo dos e-mails do projeto (ADR-0047). `transcricao:ler` e SENSIVEL — a conversa
+carrega valor, margem e decisao sobre pessoas. Ler e pedir sao capacidades separadas de proposito:
+quem envia a gravacao nao precisa ler o que saiu dela. Status, texto e falas so mudam pela service
+role (worker e Edge Function); pela tela, so titulo e nome das vozes (trigger
+`meeting_transcriptions_guard`). A URL de download da gravacao fica em
+`meeting_transcription_sources`, sem policy e sem GRANT para o cliente. `project_online_meetings` (reuniao do
+Teams vinculada, ADR-0052) le com o mesmo predicado da transcricao; so a service role escreve (o organizador
+vem de id token validado na Edge Function), e parar de acompanhar e de quem vinculou ou do GP.
+
+**Recorte em aberto:** reuniao de diretoria gravada dentro de um projeto fica visivel a todo alocado
+naquele projeto. O modelo nao distingue reuniao sensivel de reuniao de time — o controle hoje e nao
+transcrever aquela reuniao ali. Se virar problema, vira capacidade propria, nao remendo de policy.
 
 ## 6. Timesheet, ponto e ferias
 
-| Capacidade                                                                                                                                                                                                                                                                                                                                                                         | Admin | Gerente          | RH    | Colab.  | Predicado vigente                                                                     |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------- | ----- | ------- | ------------------------------------------------------------------------------------- |
-| `timesheet-proprio:apontar`                                                                                                                                                                                                                                                                                                                                                        | sim   | sim              | sim   | sim     | `/my-timesheet` sem guard                                                             |
-| `timesheet-terceiro:ler` — `/analises/meu-time`, `/analises/horas-por-projeto` (planejado × lançado por projeto e pessoa, só horas; cada projeto ainda passa por `can_read_project_hours`, ADR-0025)                                                                                                                                                                               | sim   | sim              | —     | —       | rota `requireManager`                                                                 |
-| `timesheet-terceiro:ler` — `/analises/custo-hora/auditoria/:employeeId` (auditoria do mês de uma pessoa, aberta pelo rateio da Custo x Hora: dia a dia com alertas, hora sem alocação, correções e lançamento atrasado; só horas, sem custo). Corrigir semana pede `timesheet-terceiro:editar` e usa a correção existente, que registra o log e avisa a pessoa na caixa de entrada | sim   | sim              | —     | —       | rota `requireCapability`                                                              |
-| `ponto:ler-proprio` — marcacao, resumo diario, banco de horas                                                                                                                                                                                                                                                                                                                      | sim   | sim              | sim   | proprio | `e.auth_id = auth.uid()`                                                              |
-| `ponto:ler-terceiro`                                                                                                                                                                                                                                                                                                                                                               | sim   | **—**            | sim   | —       | `has_role('admin') OR has_role('rh')` — **gerente nao entra**                         |
-| `ponto:aprovar`                                                                                                                                                                                                                                                                                                                                                                    | sim   | —                | —     | —       | rota `requireAdmin`                                                                   |
-| `ponto:relatorio:ler`                                                                                                                                                                                                                                                                                                                                                              | sim   | —                | sim   | —       | rota `requireRH` + RLS concede a `rh`                                                 |
-| `ponto:auditar`                                                                                                                                                                                                                                                                                                                                                                    | sim   | —                | sim   | —       | `time_tracking_audit_log_select_admin_rh`                                             |
-| `ponto:configurar`                                                                                                                                                                                                                                                                                                                                                                 | sim   | —                | —     | —       | `time_tracking_settings_write_admin`                                                  |
-| `ponto:travar-periodo` — fechar e reabrir competencia                                                                                                                                                                                                                                                                                                                              | sim   | —                | sim   | —       | `time_tracking_period_locks_write_admin_rh` — capacidade criada no grupo 5c (TD-0019) |
-| `ferias:solicitar`                                                                                                                                                                                                                                                                                                                                                                 | sim   | sim              | sim   | sim     | proprio registro                                                                      |
-| `ferias:aprovar`                                                                                                                                                                                                                                                                                                                                                                   | sim   | gestor designado | —     | —       | `is_vacation_approver` (ADR-0003 vacation)                                            |
-| `ferias:gerir` — `/rh/ferias`                                                                                                                                                                                                                                                                                                                                                      | sim   | sim              | — `!` | —       | rota `requireManager` — **D4**                                                        |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `timesheet-proprio:apontar` | sim | sim | sim | sim | `/my-timesheet` sem guard |
+| `timesheet-terceiro:ler` — `/analises/meu-time`, `/analises/horas-por-projeto` (planejado × lançado por projeto e pessoa, só horas; cada projeto ainda passa por `can_read_project_hours`, ADR-0025) | sim | sim | — | — | rota `requireManager` |
+| `timesheet-terceiro:ler` — `/analises/custo-hora/auditoria/:employeeId` (auditoria do mês de uma pessoa, aberta pelo rateio da Custo x Hora: dia a dia com alertas, hora sem alocação, correções e lançamento atrasado; só horas, sem custo). Corrigir semana pede `timesheet-terceiro:editar` e usa a correção existente, que registra o log e avisa a pessoa na caixa de entrada | sim | sim | — | — | rota `requireCapability` |
+| `ponto:ler-proprio` — marcacao, resumo diario, banco de horas | sim | sim | sim | proprio | `e.auth_id = auth.uid()` |
+| `ponto:ler-terceiro` | sim | **—** | sim | — | `has_role('admin') OR has_role('rh')` — **gerente nao entra** |
+| `ponto:aprovar` | sim | — | — | — | rota `requireAdmin` |
+| `ponto:relatorio:ler` | sim | — | sim | — | rota `requireRH` + RLS concede a `rh` |
+| `ponto:auditar` | sim | — | sim | — | `time_tracking_audit_log_select_admin_rh` |
+| `ponto:configurar` | sim | — | — | — | `time_tracking_settings_write_admin` |
+| `ponto:travar-periodo` — fechar e reabrir competencia | sim | — | sim | — | `time_tracking_period_locks_write_admin_rh` — capacidade criada no grupo 5c (TD-0019) |
+| `ferias:solicitar` | sim | sim | sim | sim | proprio registro |
+| `ferias:aprovar` | sim | gestor designado | — | — | `is_vacation_approver` (ADR-0003 vacation) |
+| `ferias:gerir` — `/rh/ferias` | sim | sim | — `!` | — | rota `requireManager` — **D4** |
 
 ## 7. Recrutamento
 
-| Capacidade        | Admin | Gerente | RH      | Colab. | Predicado vigente                                                     |
-| ----------------- | ----- | ------- | ------- | ------ | --------------------------------------------------------------------- |
-| `vaga:editar`     | sim   | sim     | sim `!` | —      | RLS concede a `rh`; rota `/rh/vagas` e `requireManager` — **D5**      |
-| `candidatura:ler` | sim   | sim     | sim `!` | —      | RLS concede a `rh`; rota `/rh/candidatos` e `requireManager` — **D5** |
-| `curriculo:ler`   | sim   | sim     | sim     | —      | policy **sem filtro de tenant** — **D6**                              |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `vaga:editar` | sim | sim | sim `!` | — | RLS concede a `rh`; rota `/rh/vagas` e `requireManager` — **D5** |
+| `candidatura:ler` | sim | sim | sim `!` | — | RLS concede a `rh`; rota `/rh/candidatos` e `requireManager` — **D5** |
+| `curriculo:ler` | sim | sim | sim | — | policy **sem filtro de tenant** — **D6** |
 
 ## 8. Estrategia
 
-| Capacidade                    | Admin | Gerente | RH  | Colab. | Predicado vigente                        |
-| ----------------------------- | ----- | ------- | --- | ------ | ---------------------------------------- |
-| `okr:editar`                  | sim   | —       | —   | —      | `canManageOkrs = isAdmin`                |
-| `iniciativa:editar`           | sim   | sim     | —   | —      | `canManageInitiatives` (ADR-0001)        |
-| `guardrail-estrategia:editar` | sim   | —       | —   | —      | `strategy_guardrails_*_admin` (ADR-0023) |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `okr:editar` | sim | — | — | — | `canManageOkrs = isAdmin` |
+| `iniciativa:editar` | sim | sim | — | — | `canManageInitiatives` (ADR-0001) |
+| `guardrail-estrategia:editar` | sim | — | — | — | `strategy_guardrails_*_admin` (ADR-0023) |
 
 ## 9. Configuracao da empresa
 
@@ -183,9 +205,9 @@ e quase muda em ESCRITA: 37 policies `has_role('admin')` nao tinham capacidade q
 representasse sem alargar acesso, porque `pessoa:editar` e `catalogo:editar` sao
 Admin + Gerente. Faltava vocabulario, nao mecanismo.
 
-| Capacidade                                                                                                                                                                                                               | Admin | Gerente | RH  | Colab. | Predicado vigente                                                                                                                                                                                                                                                                          |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- | ------- | --- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `configuracao:editar` — encargos e perfil de folha, tabela de precos por cargo, config. financeira, feriados, beneficios e ferramentas do catalogo, modelos de receita, dados da empresa, **centros de custo** (PUL-217) | sim   | —       | —   | —      | `has_role('admin')` em `payroll_profiles`, `role_rates`, `financial_settings`, `company_holidays`, `benefits`, `tools`, `service_revenue_models`, `tenants` UPDATE; `has_capability` direto em `cost_centers` INSERT/UPDATE (leitura tenant-wide por `user_belongs_to_tenant`; sem DELETE) |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `configuracao:editar` — encargos e perfil de folha, tabela de precos por cargo, config. financeira, feriados, beneficios e ferramentas do catalogo, modelos de receita, dados da empresa, **centros de custo** (PUL-217) | sim | — | — | — | `has_role('admin')` em `payroll_profiles`, `role_rates`, `financial_settings`, `company_holidays`, `benefits`, `tools`, `service_revenue_models`, `tenants` UPDATE; `has_capability` direto em `cost_centers` INSERT/UPDATE (leitura tenant-wide por `user_belongs_to_tenant`; sem DELETE) |
 
 Nao entra aqui, de proposito: **governanca do proprio mecanismo** (`tenant_roles`,
 `role_capabilities`, `user_tenant_roles`, `user_capability_overrides`, `user_roles`)
@@ -199,7 +221,7 @@ reativacao sao decisao da Origami: as colunas so mudam por service role ou sessa
 (trigger `tenants_guard_plan_columns`, migration `20260909120000`). A policy de UPDATE por
 `configuracao:editar` continua valendo para os demais campos do tenant. Ver PUL-224.
 
-**Centro de custo (PUL-216, ADR-0031).** O _cadastro_ do centro (`cost_centers`) e escrito por `configuracao:editar` (cadastro-base do tenant, so Admin no seed) e lido por todo membro do tenant — quem lanca hora precisa ver a lista. O _campo de centro no item_ (servico e atividade interna) **herda a capacidade do cadastro onde vive**, `catalogo:editar`: nao se cria capacidade para um campo. Divergencia aberta (P2 de PUL-216): em producao `catalogo:editar` esta habilitada para Admin **e** Gerente, mas `Services.tsx` restringe a acao a admin (`canManage = isAdmin`). Recomendacao do ADR-0031: alinhar a tela ao banco.
+**Centro de custo (PUL-216, ADR-0031).** O *cadastro* do centro (`cost_centers`) e escrito por `configuracao:editar` (cadastro-base do tenant, so Admin no seed) e lido por todo membro do tenant — quem lanca hora precisa ver a lista. O *campo de centro no item* (servico e atividade interna) **herda a capacidade do cadastro onde vive**, `catalogo:editar`: nao se cria capacidade para um campo. Divergencia aberta (P2 de PUL-216): em producao `catalogo:editar` esta habilitada para Admin **e** Gerente, mas `Services.tsx` restringe a acao a admin (`canManage = isAdmin`). Recomendacao do ADR-0031: alinhar a tela ao banco.
 
 ---
 
@@ -209,11 +231,11 @@ Criado em 01/10/2026 com a integracao Conta Azul (ADR-0044, migration
 `20261001120000_conta_azul_conexao`). Cada capacidade nasceu espelhando uma vizinha, entao o
 seed reproduz quem ja via aquele tipo de dado.
 
-| Capacidade                                                                                                  | Admin | Gerente | RH  | Colab. | Predicado vigente                                                                                                                                                                                                                                                |
-| ----------------------------------------------------------------------------------------------------------- | ----- | ------- | --- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `integracoes:gerir` — conectar, desconectar e sincronizar o Conta Azul; mapear centros de custo             | sim   | —       | —   | —      | `has_capability` nas Edge Functions `conta-azul-*`; espelha `configuracao:editar`                                                                                                                                                                                |
-| `conciliacao:receber` — parcelas de projeto x contas a receber do Conta Azul; tela Financeiro › Conciliação | sim   | —       | —   | —      | nasceu espelhando `financeiro:ler` (parte 1) e saiu do Gerente em `20261001140000`: Gerente vê recebimento pelo projeto (Italo, 01/10). RLS da receita no espelho e de `conta_azul_matches`; RPCs de ação conferem com `assert_tenant_access` + `has_capability` |
-| `conciliacao:pagar` — contas a pagar do Conta Azul, **inclusive pagamento de folha**                        | sim   | —       | —   | —      | espelha `folha:ler`; RLS da linha de despesa no espelho (parte 2)                                                                                                                                                                                                |
+| Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
+|---|---|---|---|---|---|
+| `integracoes:gerir` — conectar, desconectar e sincronizar o Conta Azul; mapear centros de custo | sim | — | — | — | `has_capability` nas Edge Functions `conta-azul-*`; espelha `configuracao:editar` |
+| `conciliacao:receber` — parcelas de projeto x contas a receber do Conta Azul; tela Financeiro › Conciliação | sim | — | — | — | nasceu espelhando `financeiro:ler` (parte 1) e saiu do Gerente em `20261001140000`: Gerente vê recebimento pelo projeto (Italo, 01/10). RLS da receita no espelho e de `conta_azul_matches`; RPCs de ação conferem com `assert_tenant_access` + `has_capability` |
+| `conciliacao:pagar` — contas a pagar do Conta Azul, **inclusive pagamento de folha** | sim | — | — | — | espelha `folha:ler`; RLS da linha de despesa no espelho (parte 2) |
 
 A linha de `conta_azul_connections` (empresa ligada, status) se le com qualquer uma das tres.
 Token (`conta_azul_tokens`) e estado do OAuth (`conta_azul_oauth_states`) **nao tem policy**:
@@ -267,11 +289,11 @@ recortes diferentes e armadilha de leitura para a onda inteira.
 
 ### D3 — Tres fontes de papel concorrentes, sem sincronia provada (severidade: alta)
 
-| Fonte                            | Valores                                   | Quem le                                          |
-| -------------------------------- | ----------------------------------------- | ------------------------------------------------ |
-| `user_roles.role` (`app_role`)   | `admin`, `manager`, `rh`, `user`          | `has_role`, `is_admin_or_manager`, `AuthContext` |
-| `employees.system_role` (text)   | `admin`, `manager`, `user` — **sem `rh`** | leitura de tela, versionamento                   |
-| `employees.is_gerente` (boolean) | `true` / `false`                          | policies de reembolso, trigger de candidatura    |
+| Fonte | Valores | Quem le |
+|---|---|---|
+| `user_roles.role` (`app_role`) | `admin`, `manager`, `rh`, `user` | `has_role`, `is_admin_or_manager`, `AuthContext` |
+| `employees.system_role` (text) | `admin`, `manager`, `user` — **sem `rh`** | leitura de tela, versionamento |
+| `employees.is_gerente` (boolean) | `true` / `false` | policies de reembolso, trigger de candidatura |
 
 `is_gerente` continua sendo lido inline por `20260319150000` (reembolso) e pelo trigger
 `notify_managers_new_job_application` (`20260325130000`). Um usuario `manager` em
@@ -279,6 +301,7 @@ recortes diferentes e armadilha de leitura para a onda inteira.
 
 → Esta e exatamente a flag booleana por usuario que o ADR-0027 recusa. Ela ja existe:
 o ADR precisa registrar o plano de remocao, nao apenas a proibicao.
+
 
 **Atualizacao 2026-09-04 (PUL-203):** duas das tres fontes deixaram de ser graváveis de
 forma independente. `employees.system_role` e `employees.is_gerente` passaram a ser
@@ -377,13 +400,13 @@ a decisao de nao mexer ("tabela vestigial").
 
 Sem estas respostas, as historias seguintes implementam vocabulario chutado.
 
-| #      | Pergunta                                                                                                                        | Impacto se ficar sem resposta                                                            |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| **P1** | Os 4 perfis bastam, ou e preciso separar **diretor / comercial / financeiro**?                                                  | Define as colunas. Muda o enum `app_role` e toda policy que usa `is_admin_or_manager`.   |
-| **P2** | **PM** continua papel de projeto (`projects.manager_id`) ou passa a perfil global?                                              | Muda o recorte da onda inteira — **D9**.                                                 |
-| **P3** | **Gerente ve salario individual** de colega?                                                                                    | **D1**. Se nao, exige projecao por coluna, nao ajuste de policy.                         |
-| **P4** | Confirmar: **gerente le financeiro do portfolio inteiro**, edita so onde e PM?                                                  | Confirma ou derruba ADR-0002 + ADR-0022.                                                 |
-| **P5** | Confirmar o escopo de **RH** = recrutamento + ponto, **fora** de pessoas e folha? E **gerente fora de ponto**?                  | **D4**, **D5**. Hoje e decisao implicita, nao escrita.                                   |
+| # | Pergunta | Impacto se ficar sem resposta |
+|---|---|---|
+| **P1** | Os 4 perfis bastam, ou e preciso separar **diretor / comercial / financeiro**? | Define as colunas. Muda o enum `app_role` e toda policy que usa `is_admin_or_manager`. |
+| **P2** | **PM** continua papel de projeto (`projects.manager_id`) ou passa a perfil global? | Muda o recorte da onda inteira — **D9**. |
+| **P3** | **Gerente ve salario individual** de colega? | **D1**. Se nao, exige projecao por coluna, nao ajuste de policy. |
+| **P4** | Confirmar: **gerente le financeiro do portfolio inteiro**, edita so onde e PM? | Confirma ou derruba ADR-0002 + ADR-0022. |
+| **P5** | Confirmar o escopo de **RH** = recrutamento + ponto, **fora** de pessoas e folha? E **gerente fora de ponto**? | **D4**, **D5**. Hoje e decisao implicita, nao escrita. |
 | **P6** | Confirmar o desvio do PUL-165: `payroll_profiles`, `role_rates` e `financial_settings` legiveis por **gerente** (nao so admin)? | O desvio foi deliberado para nao quebrar telas de gerente. A matriz confirma ou corrige. |
 
 ---
@@ -427,20 +450,21 @@ o comportamento medido.
 
 ## Evidencias
 
-| Afirmacao                                                         | Classificacao | Fonte                                                                  |
-| ----------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------- |
-| Enum `app_role` = `admin`, `user`, `manager`, `rh`                | PROVADO       | `20260121002930`, `20260121005324`, `20260716120000`, `20260717203747` |
-| `is_admin_or_manager` = `is_manager_in_tenant` (corpo identico)   | PROVADO       | `20260331013008`                                                       |
-| Gerente le linha inteira de `employees`                           | PROVADO       | `20260301031026` + `20260817200000` (linhas 96-99)                     |
-| Financeiro de projeto: leitura = escrita = `is_admin_or_manager`  | DECIDIDO      | ADR-0022, `20260817220000`                                             |
-| Gerente edita apenas projeto onde e PM                            | DECIDIDO      | ADR-0002, `can_manage_project`                                         |
-| `curriculos` sem filtro de tenant                                 | PROVADO       | `20260817230000`, policy `Recruiters can read curriculos`              |
-| `employees.system_role` nao aceita `rh`                           | PROVADO       | `20260202231437`, `employees_system_role_check`                        |
-| `is_gerente` vivo em policy de reembolso e trigger de candidatura | PROVADO       | `20260319150000`, `20260325130000`                                     |
-| 373 checagens de papel em 97 arquivos de `src/`                   | PROVADO       | `grep -rcE 'isAdmin\|isRH\|isManager\|is_gerente\|hasRole'`            |
-| RLS de ponto concede a `rh`; `manager` fora                       | PROVADO       | `20260716120100`, policies `time_*`                                    |
-| RH sem acesso a `employees` e a folha                             | PROVADO       | `20260301031026` (so `admin` + `is_manager_in_tenant`)                 |
-| Necessidade de perfis diretor/comercial/financeiro                | PENDENTE      | decisao de negocio (**P1**)                                            |
+| Afirmacao | Classificacao | Fonte |
+|---|---|---|
+| Enum `app_role` = `admin`, `user`, `manager`, `rh` | PROVADO | `20260121002930`, `20260121005324`, `20260716120000`, `20260717203747` |
+| `is_admin_or_manager` = `is_manager_in_tenant` (corpo identico) | PROVADO | `20260331013008` |
+| Gerente le linha inteira de `employees` | PROVADO | `20260301031026` + `20260817200000` (linhas 96-99) |
+| Financeiro de projeto: leitura = escrita = `is_admin_or_manager` | DECIDIDO | ADR-0022, `20260817220000` |
+| Gerente edita apenas projeto onde e PM | DECIDIDO | ADR-0002, `can_manage_project` |
+| `curriculos` sem filtro de tenant | PROVADO | `20260817230000`, policy `Recruiters can read curriculos` |
+| `employees.system_role` nao aceita `rh` | PROVADO | `20260202231437`, `employees_system_role_check` |
+| `is_gerente` vivo em policy de reembolso e trigger de candidatura | PROVADO | `20260319150000`, `20260325130000` |
+| 373 checagens de papel em 97 arquivos de `src/` | PROVADO | `grep -rcE 'isAdmin\|isRH\|isManager\|is_gerente\|hasRole'` |
+| RLS de ponto concede a `rh`; `manager` fora | PROVADO | `20260716120100`, policies `time_*` |
+| RH sem acesso a `employees` e a folha | PROVADO | `20260301031026` (so `admin` + `is_manager_in_tenant`) |
+| Necessidade de perfis diretor/comercial/financeiro | PENDENTE | decisao de negocio (**P1**) |
+
 
 > **Fomento público (29/09/2026, ADR-0042).** `fomento_publico` é referência de dados abertos
 > (FINEP e Lei do Bem), igual para todos os tenants: SELECT para qualquer `authenticated`, sem

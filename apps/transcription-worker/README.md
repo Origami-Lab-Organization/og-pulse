@@ -117,8 +117,9 @@ algumas horas é o que transforma isso em sintoma visível.
 
 ## O que este worker NÃO faz
 
-- **Não sobe arquivo para o OneDrive.** Ele não tem credencial do Graph. A cópia na pasta
-  do projeto é publicada pelo navegador de quem tem o token delegado (ADR-0039).
+- **Não sobe arquivo para o OneDrive.** Ele não tem credencial do Graph. O texto fica só no
+  Pulse, na aba Reuniões do projeto; a cópia na pasta do projeto ficou para depois e, quando
+  vier, sobe pelo navegador de quem tem o token delegado (ADR-0039).
 - **Não sabe o nome de quem falou.** Entrega `SPEAKER_00`, `SPEAKER_01`. Ligar voz a
   pessoa é confirmação na tela — inferir produziria registro errado com cara de oficial.
 - **Não decide de qual projeto é a reunião.** Isso vem do vínculo do rito (ADR-0011) ou de

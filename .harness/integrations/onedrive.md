@@ -19,12 +19,23 @@ de escrita dessa pessoa na pasta. O Pulse guarda so o indice (nome, tamanho, `dr
 `itemId`, `webUrl`) em `project_emails.attachments`; remover o e-mail do projeto nao
 apaga os arquivos.
 
+**Gravacao de reuniao para transcricao (21/10/2026, ADR-0039).** Na aba Reunioes do
+projeto, o seletor abre na pasta de gravacoes do Teams do OneDrive de quem pede
+(`findRecordingsFolder`: `Recordings` ou `Gravações`, conforme o idioma da conta; sem ela,
+a raiz) e mostra so audio e video. Ao confirmar, o navegador le
+`@microsoft.graph.downloadUrl` (`getDriveDownloadUrl`) com o token de quem pede e manda a
+URL para a Edge Function `transcription-enqueue`, que a guarda em
+`meeting_transcription_sources` (so service role). O worker baixa por ela sem credencial
+nenhuma e apaga a URL ao terminar. A gravacao nao e copiada para o Pulse; o projeto guarda
+`recording_drive_id`, `recording_item_id` e o `webUrl` para abrir no OneDrive.
+
 ## Escopos
 
 | Escopo | Onde e pedido | Por que |
 |---|---|---|
 | `Calendars.ReadWrite`, `Mail.Read` | `GRAPH_SCOPES`, toda aquisicao de token | agenda e caixa de entrada (pre-existente) |
 | `Files.ReadWrite.All` | `FILES_SCOPES`, **so** ao abrir o seletor | navegar pastas do OneDrive |
+| `OnlineMeetings.ReadWrite` | `ONLINE_MEETING_SCOPES`, **so** ao criar reuniao com "Gravar automaticamente" | ligar `recordAutomatically` no `onlineMeeting` (ADR-0039) |
 
 **Contorno importante — nao juntar os dois conjuntos.** `GRAPH_SCOPES` e usado
 em toda aquisicao, inclusive nas silenciosas de agenda. Somar o escopo de

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { addMonths, format, getDay, parseISO } from 'date-fns';
@@ -26,8 +26,12 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useCreateCalendarEvent, useUpdateCalendarEvent } from '@/hooks/useMicrosoftGraph';
+import { useSetUpTeamsMeeting } from '@/hooks/useMeetingTranscriptions';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLinkProjectRito, useRitoEligibleProjects } from '@/hooks/useProjectRitos';
 import { PROJECT_RITO_LABEL, PROJECT_RITO_TYPE } from '@/types/projectRito';
+import type { CreateProjectRitoInput } from '@/types/projectRito';
+import type { TeamsMeetingSetupInput } from '@/types/meetingTranscription';
 import {
   Select,
   SelectContent,
@@ -43,7 +47,11 @@ import {
   RECURRENCE_END,
   RECURRENCE_FREQUENCY,
 } from '@/types/microsoftGraph';
-import type { CalendarEventDetail, RecurrenceInput } from '@/types/microsoftGraph';
+import type {
+  CalendarEventCreated,
+  CalendarEventDetail,
+  RecurrenceInput,
+} from '@/types/microsoftGraph';
 
 const recurrenceSchema = z.object({
   frequency: z.enum([
@@ -64,6 +72,9 @@ const recurrenceSchema = z.object({
  */
 const NO_RITO_PROJECT = 'none';
 
+/** Reunião do projeto que não é rito — a transcrição vai para o projeto do mesmo jeito. */
+const NOT_A_RITO = 'nenhum';
+
 const formSchema = z
   .object({
     subject: z.string().trim().min(1, 'Título é obrigatório'),
@@ -73,12 +84,15 @@ const formSchema = z
     attendees: z.array(z.string().email()),
     location: z.string(),
     withTeamsMeeting: z.boolean(),
+    /** Só vale com reunião do Teams. */
+    recordAutomatically: z.boolean(),
     notes: z.string(),
     isRecurring: z.boolean(),
     recurrence: recurrenceSchema,
     /** Vazio = não vincular. Opcional por decisão de produto (ADR-0011). */
-    ritoProjectId: z.string(),
+    projectId: z.string(),
     ritoType: z.enum([
+      NOT_A_RITO,
       PROJECT_RITO_TYPE.DAILY,
       PROJECT_RITO_TYPE.PLANNING,
       PROJECT_RITO_TYPE.REVIEW,
@@ -146,6 +160,75 @@ function addOneHour(time: string): string {
   return format(end, 'HH:mm');
 }
 
+/**
+ * Depois que o Graph cria o evento: o iCalUId que o rito precisa e a reunião do Teams só
+ * existem a partir daí. Falhar aqui não desfaz o compromisso, que já está na agenda — cada
+ * passo avisa à parte.
+ */
+async function linkRitoAfterCreate(
+  link: (input: CreateProjectRitoInput) => Promise<void>,
+  created: CalendarEventCreated,
+  data: FormData,
+): Promise<void> {
+  if (!data.projectId || data.ritoType === NOT_A_RITO || !created.icalUid) return;
+  try {
+    await link({
+      projectId: data.projectId,
+      ritoType: data.ritoType,
+      icalUid: created.icalUid,
+      eventTitle: created.subject,
+      isSeries: data.isRecurring,
+    });
+  } catch {
+    toast.warning('Compromisso criado, mas o vínculo com o rito não foi salvo.');
+  }
+}
+
+/** Gravar e transcrever sozinha e/ou trazer a transcrição para o projeto (ADR-0052). */
+async function setUpTeamsAfterCreate(
+  setUp: (input: TeamsMeetingSetupInput) => Promise<unknown>,
+  created: CalendarEventCreated,
+  data: FormData,
+): Promise<void> {
+  const wanted = data.recordAutomatically || Boolean(data.projectId);
+  if (!data.withTeamsMeeting || !created.onlineMeetingUrl || !wanted) return;
+  // O hook já avisa a falha; aqui ela só não pode interromper o fechamento do formulário.
+  await setUp({
+    joinUrl: created.onlineMeetingUrl,
+    eventSubject: created.subject,
+    icalUid: created.icalUid || null,
+    recordAutomatically: data.recordAutomatically,
+    projectId: data.projectId || null,
+  }).catch(() => undefined);
+}
+
+/** Só na criação e só com reunião do Teams: é o recurso dela que grava (ADR-0039). */
+function RecordAutomaticallyField(props: { form: UseFormReturn<FormData>; isEditing: boolean }) {
+  const { form, isEditing } = props;
+  if (isEditing || !form.watch('withTeamsMeeting')) return null;
+
+  return (
+    <FormField
+      control={form.control}
+      name="recordAutomatically"
+      render={({ field }) => (
+        <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
+          <div className="space-y-0.5">
+            <FormLabel>Gravar e transcrever automaticamente</FormLabel>
+            <FormDescription>
+              O Teams grava e transcreve sozinho quando a reunião começar. Com um projeto
+              escolhido abaixo, a transcrição chega na aba Reuniões dele.
+            </FormDescription>
+          </div>
+          <FormControl>
+            <Switch checked={field.value} onCheckedChange={field.onChange} />
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+}
+
 interface EventFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -168,14 +251,15 @@ function valuesFromEvent(event: CalendarEventDetail): FormData {
     attendees: event.attendees.map((attendee) => attendee.email).filter(Boolean),
     location: event.location ?? '',
     withTeamsMeeting: Boolean(event.onlineMeetingUrl),
+    recordAutomatically: false,
     // Vazio de propósito: a descrição só é enviada se a pessoa escrever algo.
     // `preview` é texto truncado e sem o bloco do Teams — usar como valor
     // inicial apagaria o corpo real do evento ao salvar.
     notes: '',
     isRecurring: false,
     recurrence: defaultRecurrence(start),
-    ritoProjectId: '',
-    ritoType: PROJECT_RITO_TYPE.DAILY,
+    projectId: '',
+    ritoType: NOT_A_RITO,
   };
 }
 
@@ -189,11 +273,12 @@ function valuesForNewEvent(initialDate: Date): FormData {
     attendees: [],
     location: '',
     withTeamsMeeting: false,
+    recordAutomatically: true,
     notes: '',
     isRecurring: false,
     recurrence: defaultRecurrence(initialDate),
-    ritoProjectId: '',
-    ritoType: PROJECT_RITO_TYPE.DAILY,
+    projectId: '',
+    ritoType: NOT_A_RITO,
   };
 }
 
@@ -205,10 +290,12 @@ export function EventFormDialog({
 }: EventFormDialogProps) {
   const createEvent = useCreateCalendarEvent();
   const updateEvent = useUpdateCalendarEvent();
+  const setUpTeams = useSetUpTeamsMeeting();
+  const { can } = useAuth();
   const linkRito = useLinkProjectRito();
   const projects = useRitoEligibleProjects();
   const isEditing = Boolean(event);
-  const isSaving = createEvent.isPending || updateEvent.isPending;
+  const isSaving = [createEvent, updateEvent, setUpTeams].some((mutation) => mutation.isPending);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -256,22 +343,10 @@ export function EventFormDialog({
       recurrence: data.isRecurring ? (data.recurrence as RecurrenceInput) : null,
     });
 
-    // O vínculo só é possível depois da criação, porque o iCalUId nasce com o
-    // evento. Falhar aqui não desfaz o compromisso, que já existe na agenda —
-    // por isso o erro é reportado à parte em vez de parecer falha da criação.
-    if (data.ritoProjectId && created.icalUid) {
-      try {
-        await linkRito.mutateAsync({
-          projectId: data.ritoProjectId,
-          ritoType: data.ritoType,
-          icalUid: created.icalUid,
-          eventTitle: created.subject,
-          isSeries: data.isRecurring,
-        });
-      } catch {
-        toast.warning('Compromisso criado, mas o vínculo com o rito não foi salvo.');
-      }
-    }
+    await linkRitoAfterCreate(linkRito.mutateAsync, created, data);
+    // Trazer a transcrição para o projeto é `transcricao:solicitar`; sem ela, só grava.
+    const transcriptProjectId = can('transcricao:solicitar') ? data.projectId : '';
+    await setUpTeamsAfterCreate(setUpTeams.mutateAsync, created, { ...data, projectId: transcriptProjectId });
 
     onOpenChange(false);
   };
@@ -438,6 +513,8 @@ export function EventFormDialog({
 
             )}
 
+            <RecordAutomaticallyField form={form} isEditing={isEditing} />
+
             <FormField
               control={form.control}
               name="notes"
@@ -463,15 +540,16 @@ export function EventFormDialog({
             {!isEditing && (
               <div className="space-y-3 rounded-lg border border-border p-3">
                 <div>
-                  <p className="text-sm font-medium text-foreground">Rito de projeto</p>
+                  <p className="text-sm font-medium text-foreground">Projeto</p>
                   <p className="text-sm text-muted-foreground">
-                    Opcional. Vincule se este compromisso é um rito de um projeto seu.
+                    Opcional. Reunião de um projeto seu: com reunião do Teams, a transcrição
+                    chega sozinha na aba Reuniões dele. Se for um rito, diga qual.
                   </p>
                 </div>
 
                 <FormField
                   control={form.control}
-                  name="ritoProjectId"
+                  name="projectId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Projeto</FormLabel>
@@ -500,7 +578,7 @@ export function EventFormDialog({
                   )}
                 />
 
-                {form.watch('ritoProjectId') && (
+                {form.watch('projectId') && (
                   <FormField
                     control={form.control}
                     name="ritoType"
@@ -514,6 +592,7 @@ export function EventFormDialog({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value={NOT_A_RITO}>Não é rito</SelectItem>
                             {Object.entries(PROJECT_RITO_LABEL).map(([type, label]) => (
                               <SelectItem key={type} value={type}>
                                 {label}

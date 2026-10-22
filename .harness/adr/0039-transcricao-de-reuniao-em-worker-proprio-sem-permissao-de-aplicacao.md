@@ -1,7 +1,7 @@
 # ADR-0039 — Transcrição de reunião roda em worker próprio, sem permissão de aplicação
 
-- **Data:** 24/09/2026
-- **Status:** proposta
+- **Data:** 24/09/2026 (aceita em 21/10/2026, ver "Implementação")
+- **Status:** aceita — caminho principal substituído pela [ADR-0052](0052-transcricao-do-teams-com-permissao-de-aplicacao-restrita.md) em 22/10/2026; esta segue como plano B (gravação + WhisperX)
 - **Decisores:** Italo Castro
 - **Relacionadas:** [ADR-0011](0011-project-ritos-calendar-link.md) (identidade da reunião por `iCalUId`), [ADR-0016](0016-microsoft-sso-via-edge-function.md) (token delegado MSAL), [ADR-0019](0019-arquivos-de-projeto-e-integracao-onedrive.md) (OneDrive e a recusa de permissão de aplicação), [ADR-0027](0027-capacidade-derivada-de-papel.md) (capacidade nasce com a feature)
 
@@ -128,6 +128,35 @@ caminho do seletor de arquivos — pedido no momento do uso, falha contida.
 - **Sem gravação automática, o fluxo inteiro depende de alguém lembrar de gravar.** É o
   maior risco de adoção, e ele é de política do tenant, não de engenharia.
 
+## Implementação (21/10/2026)
+
+O que entrou, e onde difere do que foi proposto acima:
+
+- **A cópia no OneDrive ficou para depois** (escolha do Italo em 21/10). O texto fica só no
+  Pulse, na aba **Reuniões** do projeto. A seção "A saída vai para os dois lugares" continua
+  sendo o destino; hoje vale só a primeira metade.
+- **Gravação automática na Agenda.** Ao criar reunião do Teams, a chave "Gravar
+  automaticamente" pede `OnlineMeetings.ReadWrite` no momento do uso
+  (`ONLINE_MEETING_SCOPES`, fora de `GRAPH_SCOPES`), acha o `onlineMeeting` pelo link de
+  entrada (`$filter=JoinWebUrl eq ...`) e faz `PATCH recordAutomatically: true`. Falhar não
+  desfaz o compromisso: a tela avisa para gravar pelo Teams.
+- **Achar a gravação.** O seletor abre na pasta `Recordings`/`Gravações` do OneDrive de quem
+  pede e mostra só áudio e vídeo. Gravação cujo nome começa com o título de um rito do
+  projeto aparece destacada e já traz o `ical_uid` do rito — o sistema sugere e a pessoa
+  confirma, como decidido acima.
+- **Pedir de novo.** Enviar outra vez uma gravação em `falhou` passa pela mesma Edge
+  Function: ela confere `can_request_meeting_transcription` e devolve o trabalho para a fila
+  com a URL nova, gravada antes do status.
+- **Aviso no sino** para quem pediu, quando o trabalho chega a estado final, com link para
+  `?tab=reunioes`.
+- **Fila parada aparece na tela**: pendente há mais de 2 h ou transcrevendo há mais de 3 h
+  mostra o aviso de que o serviço pode estar fora do ar. Alerta para o time ainda falta
+  (`.harness/patterns/monitoring.md`).
+- **O resultado é do worker.** Trigger `meeting_transcriptions_guard`: pela tela só mudam
+  título e nome das vozes; status, texto e falas só pela service role.
+- **Migration** `20261021200000_meeting_transcriptions.sql`. Nasceu como `20260924120000`
+  na POC, número que já era de `prospect_tasks` — renumerada antes de qualquer aplicação.
+
 ## Alternativas descartadas
 
 **Serviço de transcrição por assinatura (Fireflies e similares).** Custo recorrente por
@@ -167,6 +196,13 @@ Nada foi exercitado contra o Graph real. Antes de qualquer código:
    tela promete: com GPU, minutos; só em CPU, pode passar de meia hora por reunião.
 5. **Bloqueio herdado:** o consentimento de admin para `Files.ReadWrite.All` continua
    sem ser dado. Nada da integração de arquivos funciona sem ele.
+6. **Validade real da `@microsoft.graph.downloadUrl`.** A tela trata como 50 minutos
+   (`DOWNLOAD_URL_LIFETIME_MS`). Com fila — VM só em CPU, várias reuniões no mesmo dia —
+   a URL do segundo trabalho pode vencer antes da vez dele; o sintoma é "Não concluída" com
+   "Pedir de novo". Se acontecer com frequência, o worker passa a baixar todos os pendentes
+   assim que chegam e só depois transcrever.
+7. **O `onlineMeeting` do evento recém-criado já responde ao `$filter` por `JoinWebUrl`?**
+   Se demorar a existir, a gravação automática falha logo após criar e a pessoa vê o aviso.
 
 ## Critério de revisão
 

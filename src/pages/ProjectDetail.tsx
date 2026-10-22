@@ -24,6 +24,7 @@ import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivi
 import { EquipeTab } from "@/components/projects/detail/EquipeTab";
 import { ProjectEmailsTab } from "@/components/projects/detail/ProjectEmailsTab";
 import { ProjectFilesTab } from "@/components/projects/detail/ProjectFilesTab";
+import { ProjectMeetingsTab } from "@/components/projects/detail/meetings/ProjectMeetingsTab";
 import { useProjectAllocations } from "@/hooks/useProjectRoles";
 import { ProjectFormDialog } from "@/components/projects/ProjectFormDialog";
 import { ProjectRemoveDialog } from "@/components/projects/ProjectRemoveDialog";
@@ -38,6 +39,7 @@ import { HideValuesProvider, useHideValuesPreference } from "@/contexts/HideValu
 import { HideValuesToggle } from "@/components/layout/HideValuesToggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CreateProjectInput } from "@/types/project";
+import type { CapabilityKey } from "@/lib/access/capabilities";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -60,12 +62,32 @@ type ProjectCancellationFields = {
 };
 
 /**
+ * Aba Reuniões com o mesmo alcance do banco: ler é `transcription_readable_project_ids`,
+ * pedir é `can_request_meeting_transcription` (gerir qualquer projeto, GP ou alocado) e
+ * remover é `can_manage_project`.
+ */
+function meetingTabAccess(
+  can: (capability: CapabilityKey) => boolean,
+  canViewActivities: boolean,
+  [managesAny, isProjectManager, isMember]: [boolean, boolean, boolean],
+) {
+  return {
+    canView: canViewActivities && can('transcricao:ler'),
+    canRequest: can('transcricao:solicitar') && (managesAny || isProjectManager || isMember),
+    canRemove: managesAny || isProjectManager,
+  };
+}
+
+/** Abas que o link do sino abre para quem não vê a ficha completa. */
+const LINKABLE_TABS = new Set(["emails", "reunioes"]);
+
+/**
  * Quem vê a ficha completa abre na aba pedida por `?tab=`. Os demais só chegam por link
- * na aba E-mails (vindo da caixa de entrada); sem ele, Atividades, como antes.
+ * nas abas E-mails e Reuniões (vindo da caixa de entrada); sem ele, Atividades, como antes.
  */
 function pickInitialTab(requested: string | null, canAccessFullProject: boolean): string {
   if (canAccessFullProject) return requested || "overview";
-  return requested === "emails" ? "emails" : "activities";
+  return requested && LINKABLE_TABS.has(requested) ? requested : "activities";
 }
 
 export default function ProjectDetail() {
@@ -225,6 +247,7 @@ export default function ProjectDetail() {
     isAdmin || isManager || isProjectManager || isMember;
   // Mesmo alcance da policy `project_emails_select`: capacidade + relação com o projeto.
   const canViewEmails = canViewActivities && can('email-projeto:ler');
+  const meetings = meetingTabAccess(can, canViewActivities, [canManageAnyProject, isProjectManager, isMember]);
   // Membro alocado sobe arquivo; pasta é só de GP/admin. Projeto encerrado
   // congela a escrita para todo mundo menos admin.
   const filesReadOnly = isCompleted && !isAdmin;
@@ -344,6 +367,9 @@ export default function ProjectDetail() {
                 {canViewEmails && (
                   <TabsTrigger value="emails" className={projectTabClass}>E-mails</TabsTrigger>
                 )}
+                {meetings.canView && (
+                  <TabsTrigger value="reunioes" className={projectTabClass}>Reuniões</TabsTrigger>
+                )}
               </TabsList>
             </div>
             {headerActions && (
@@ -432,6 +458,16 @@ export default function ProjectDetail() {
           {canViewEmails && (
             <TabsContent value="emails" className="mt-6">
               <ProjectEmailsTab projectId={project.id} canManageProject={canManageProject} />
+            </TabsContent>
+          )}
+
+          {meetings.canView && (
+            <TabsContent value="reunioes" className="mt-6">
+              <ProjectMeetingsTab
+                projectId={project.id}
+                canRequest={meetings.canRequest}
+                canManageProject={meetings.canRemove}
+              />
             </TabsContent>
           )}
         </Tabs>

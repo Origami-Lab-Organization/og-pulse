@@ -77,6 +77,8 @@ export const CAPABILITY_KEYS = [
   'timesheet-proprio:apontar',
   'timesheet-terceiro:editar',
   'timesheet-terceiro:ler',
+  'transcricao:ler',
+  'transcricao:solicitar',
   'vaga:editar',
 ] as const;
 

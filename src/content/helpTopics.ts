@@ -370,6 +370,25 @@ export const HELP_GROUPS: HelpGroup[] = [
         },
       },
       {
+        id: 'reunioes-projeto',
+        title: 'Reuniões do projeto — a gravação do Teams vira texto',
+        route: '/projetos',
+        requiresCapability: 'transcricao:ler',
+        what:
+          'O que foi dito numa reunião some da memória em poucos dias. Aqui a transcrição do Teams chega sozinha no projeto, com quem falou e quando, e dá para buscar depois.',
+        how: [
+          'Na Agenda, ao criar a reunião do Teams, escolha o projeto (rito ou não) e deixe ligado "Gravar e transcrever automaticamente".',
+          'Reunião que você já organizou: abra na Agenda e use "Vincular a um projeto". Só quem organizou consegue trazer a transcrição.',
+          'Uns 10 a 20 minutos depois de a reunião acabar, a transcrição aparece na aba Reuniões do projeto e você recebe um aviso no sino.',
+          'Gravação de outra origem: na aba Reuniões, use "Transcrever gravação" e escolha o arquivo no OneDrive. Essa transcrição não sabe nomes; abra a reunião e dê o nome de cada voz.',
+          'Se uma gravação enviada aparecer como "Não concluída", use "Pedir de novo": o link dela vale pouco tempo e às vezes expira antes da vez dela.',
+        ],
+        mcp: {
+          server: null,
+          note: 'Ainda não há ferramenta de MCP para reuniões: pedir e ler a transcrição acontece no Pulse.',
+        },
+      },
+      {
         id: 'alocacoes',
         title: 'Alocações — quem está em quê',
         route: '/projetos/alocacoes',

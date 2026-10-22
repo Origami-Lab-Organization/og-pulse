@@ -1392,6 +1392,48 @@ export async function getDriveDownloadUrl(
   return url;
 }
 
+/**
+ * Nomes que o Teams dá à pasta onde guarda as gravações no OneDrive de quem gravou — o
+ * nome segue o idioma da conta.
+ */
+const RECORDINGS_FOLDER_NAMES = ['recordings', 'gravações', 'gravacoes'];
+
+/** Pasta de gravações do Teams no OneDrive da pessoa, ou null se ela ainda não gravou nada. */
+export async function findRecordingsFolder(token: string): Promise<DriveFolder | null> {
+  const root = await getMyDriveRoot(token);
+  const folders = await listChildFolders(token, root.driveId, root.id);
+  return folders.find((folder) => RECORDINGS_FOLDER_NAMES.includes(folder.name.toLowerCase())) ?? null;
+}
+
+/**
+ * Escopo da gravação automática. Fora de `GRAPH_SCOPES` pelo mesmo motivo de
+ * `FILES_SCOPES`: somado ali, travaria agenda e e-mail de quem não consentiu (ADR-0039).
+ */
+export const ONLINE_MEETING_SCOPES = ['OnlineMeetings.ReadWrite'];
+
+/**
+ * `onlineMeeting.id` da reunião do Teams de um evento. A gravação e a transcrição vivem nesse
+ * recurso, não no evento, e o único elo entre os dois é o link de entrada.
+ */
+export async function findOnlineMeetingId(token: string, joinUrl: string): Promise<string> {
+  const query = buildQuery({ $filter: `JoinWebUrl eq '${joinUrl.replace(/'/g, "''")}'` });
+  const found = await graphGet<GraphList<{ id: string }>>(token, `/me/onlineMeetings?${query}`);
+  const meeting = found.value[0];
+  if (!meeting) {
+    throw new GraphError(GRAPH_ERROR_CODE.NOT_FOUND, 'Reunião do Teams não encontrada');
+  }
+  return meeting.id;
+}
+
+/** Grava e transcreve sozinha quando a reunião começar ("Gravar e transcrever automaticamente"). */
+export async function enableAutomaticRecording(token: string, onlineMeetingId: string): Promise<void> {
+  await graphFetch<void>(
+    token,
+    `${GRAPH_BASE}/me/onlineMeetings/${encodeURIComponent(onlineMeetingId)}`,
+    { method: 'PATCH', body: { recordAutomatically: true } },
+  );
+}
+
 interface GraphIdentity {
   displayName?: string;
   email?: string;

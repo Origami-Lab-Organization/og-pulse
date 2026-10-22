@@ -34,6 +34,7 @@ sources:
   - supabase/migrations/20261021130000_product_news_reads.sql
   - supabase/migrations/20261021140000_internal_products.sql
   - supabase/migrations/20261021170000_notes.sql
+  - supabase/migrations/20261021200000_meeting_transcriptions.sql
   - supabase/migrations/20261009120000_oportunidade_por_empresa.sql
   - supabase/migrations/20261009130000_prospect_files.sql
   - supabase/migrations/20261009140000_prospect_title.sql
@@ -461,6 +462,10 @@ erDiagram
     project_ritos ||--o{ project_rito_occurrences : ""
     projects ||--o{ project_emails : ""
     employees ||--o{ project_emails : "saved_by"
+    projects ||--o{ meeting_transcriptions : ""
+    employees ||--o{ meeting_transcriptions : "requested_by"
+    meeting_transcriptions ||--o| meeting_transcription_sources : "URL de download (só service role)"
+    projects ||--o{ project_online_meetings : "reunião do Teams vinculada"
     projects ||--o{ project_gpo_reports : ""
     project_gpo_reports ||--o{ project_gpo_actions : "source_report_id"
     project_gpo_reports ||--o{ project_gpo_action_reviews : ""
@@ -485,6 +490,24 @@ erDiagram
         text summary "único campo editável"
         jsonb attachments "índice dos anexos no OneDrive"
     }
+    meeting_transcriptions {
+        enum source "teams|gravacao"
+        text source_transcript_id "UNIQUE(project_id, source_transcript_id)"
+        text recording_item_id "UNIQUE(tenant_id, recording_item_id)"
+        enum status "pendente|processando|concluida|falhou"
+        text transcript_text "escrito só pelo worker"
+        jsonb segments "falas com tempo e voz"
+        jsonb speakers "nome de cada voz, dado na tela"
+    }
+    meeting_transcription_sources {
+        text download_url "segredo de validade curta"
+        timestamptz expires_at ""
+    }
+    project_online_meetings {
+        text online_meeting_id "UNIQUE(project_id, online_meeting_id)"
+        text organizer_entra_id "oid de id token validado"
+        text last_error "diagnóstico da sincronização"
+    }
 ```
 
 Fontes: `project_milestones` L3797, `project_activity_sprints` L2971,
@@ -492,7 +515,9 @@ Fontes: `project_milestones` L3797, `project_activity_sprints` L2971,
 `supabase/migrations/20260810190000_project_gpo_reports.sql:15-70`
 (ciclo de vida no ADR-0017 e em `flows/` quando gerado); `project_emails` em
 `supabase/migrations/20261021120000_project_emails.sql` (e-mail salvo no projeto como
-cópia, ADR-0047).
+cópia, ADR-0047); `meeting_transcriptions` e `meeting_transcription_sources` em
+`supabase/migrations/20261021200000_meeting_transcriptions.sql` (transcrição de reunião,
+ADR-0039).
 
 ## Cluster 5 — Estratégia, RH e Admin
 
