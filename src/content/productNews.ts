@@ -9,17 +9,47 @@ import type { ProductNewsEdition } from '@/types/productNews';
  * Só anuncie o que já está no ar para a pessoa — o tópico é recortado pela capacidade.
  *
  * Histórico: `outlook-2026-10` (e-mail, agenda e e-mail salvo no projeto) foi substituída por
- * esta, que reúne tudo o que saiu em 21/10/2026 — inclusive o que ela já dizia.
+ * `meu-espaco-2026-10`, que reunia tudo o que saiu em 21/10/2026. Esta, de 22/10, abre com as
+ * reuniões e mantém os tópicos de ontem: publicada um dia depois, tiraria a novidade de quem
+ * ainda não tinha entrado.
  */
 export const CURRENT_PRODUCT_NEWS: ProductNewsEdition = {
-  version: 'meu-espaco-2026-10',
-  publishedAt: '2026-10-21T18:00:00-03:00',
+  version: 'reunioes-2026-10',
+  publishedAt: '2026-10-22T09:00:00-03:00',
   label: 'Novidades',
-  title: 'O Pulse ficou mais seu',
+  title: 'Reunião do projeto agora vira registro',
   summary:
-    'Notas e notificações no topo, Meu Espaço com kanban, agenda e e-mail, decisões registradas no projeto e os produtos da casa num lugar só.',
-  art: 'meu-espaco',
+    'A transcrição das reuniões do Teams chega sozinha no projeto, com quem falou e quando, e a equipe completa com o resumo. E tudo o que saiu ontem continua aqui.',
+  art: 'reunioes',
   topics: [
+    {
+      id: 'reunioes',
+      icon: 'audio-lines',
+      title: 'Reuniões do Teams transcritas no projeto',
+      reason:
+        'O que se decide numa reunião some da memória em poucos dias, e a ata, quando existe, é escrita à mão depois. Agora a conversa fica registrada no projeto sem ninguém precisar operar nada.',
+      features: [
+        'Na Agenda, crie a reunião do Teams escolhendo o projeto — rito ou não. Ela já sai gravando, transcrevendo e em português.',
+        'Uns 10 a 20 minutos depois de acabar, a transcrição aparece na aba Reuniões do projeto, com o nome de quem falou e a hora de cada fala. Você recebe um aviso no sino.',
+        'Reunião que você já organizou também vale: abra na Agenda e use "Vincular a um projeto".',
+        'Busque no que foi dito em todas as reuniões do projeto, e baixe a transcrição em .txt.',
+      ],
+      requiresCapability: 'transcricao:ler',
+    },
+    {
+      id: 'resumo-da-reuniao',
+      icon: 'notebook-text',
+      title: 'Resumo da reunião feito com a sua IA',
+      reason:
+        'Transcrição é longa; o que a equipe precisa é das decisões e dos próximos passos. Cada pessoa já usa a sua IA — o Pulse guarda o resultado onde o projeto mora.',
+      features: [
+        'Na reunião, use "Copiar transcrição", peça o resumo à sua IA e cole em "Resumo e notas" — ou importe o arquivo .md ou .txt que ela gerou.',
+        'O resumo aparece formatado e no cartão da reunião, e fica registrado quem trouxe e quando.',
+        'O filtro "Sem resumo" mostra as reuniões transcritas que ainda esperam o resumo.',
+        'Reunião sem transcrição também tem notas: a pauta antes, a ata depois.',
+      ],
+      requiresCapability: 'transcricao:ler',
+    },
     {
       id: 'notas',
       icon: 'notebook',
@@ -98,7 +128,7 @@ export const CURRENT_PRODUCT_NEWS: ProductNewsEdition = {
         'Calendário do mês, e a agenda do dia no Dashboard com o botão para entrar no Teams.',
         'Novo compromisso com convidados, local, reunião do Teams e repetição.',
         'Editar, cancelar ou recusar: os convidados são avisados pelo próprio Outlook.',
-        'Reunião ligada a um rito do projeto (daily, planning, review, retro).',
+        'Reunião ligada a um projeto, como rito (daily, planning, review, retro) ou não — e a transcrição dela vai para o projeto.',
         'Fica em Meu Espaço, com a mesma conexão da conta Microsoft dos e-mails.',
       ],
     },

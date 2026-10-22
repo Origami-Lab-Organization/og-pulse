@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  AudioLines,
   Bell,
   CalendarDays,
   Check,
@@ -9,6 +10,7 @@ import {
   Kanban,
   Mail,
   NotebookPen,
+  NotebookText,
   Package,
   X,
   type LucideIcon,
@@ -46,6 +48,8 @@ const ICONS: Record<ProductNewsIcon, LucideIcon> = {
   'folder-input': FolderInput,
   calendar: CalendarDays,
   package: Package,
+  'audio-lines': AudioLines,
+  'notebook-text': NotebookText,
 };
 
 /** Grade técnica sobre o verde da marca — feita com o token, sem cor avulsa. A máscara só

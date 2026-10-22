@@ -14,10 +14,12 @@ export type ProductNewsIcon =
   | 'mail'
   | 'folder-input'
   | 'calendar'
-  | 'package';
+  | 'package'
+  | 'audio-lines'
+  | 'notebook-text';
 
 /** Arte do banner da edição. */
-export type ProductNewsArt = 'meu-espaco';
+export type ProductNewsArt = 'meu-espaco' | 'reunioes';
 
 export interface ProductNewsTopic {
   id: string;

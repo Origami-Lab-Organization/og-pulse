@@ -1,4 +1,4 @@
-import { AlarmClock, Bell, NotebookPen, Pin } from 'lucide-react';
+import { AlarmClock, AudioLines, Bell, NotebookPen, NotebookText, Pin, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ProductNewsArt as ProductNewsArtKey } from '@/types/productNews';
 
@@ -50,12 +50,55 @@ function KanbanChip() {
   );
 }
 
+function TranscriptCard() {
+  return (
+    <div className={cn(CARD, 'left-0 top-1 w-[150px] -rotate-3 px-3 py-2.5')}>
+      <p className={CAPTION}>
+        <AudioLines className="h-2.5 w-2.5" />
+        Transcrição · 08:24
+      </p>
+      <p className="mt-1 whitespace-nowrap text-[10.5px] font-semibold">Ana Souza</p>
+      <p className="whitespace-nowrap text-[10px] text-muted-foreground">Fechamos o escopo da fase 2.</p>
+      <p className="mt-0.5 whitespace-nowrap text-[10.5px] font-semibold">Bruno Lima</p>
+      <p className="whitespace-nowrap text-[10px] text-muted-foreground">Entrego na sexta.</p>
+    </div>
+  );
+}
+
+function SummaryCard() {
+  return (
+    <div className={cn(CARD, 'right-0 top-0 w-[116px] rotate-6 px-2.5 py-2')}>
+      <p className={CAPTION}>
+        <NotebookText className="h-2.5 w-2.5" />
+        Resumo
+      </p>
+      <p className="mt-1 text-[10.5px] font-semibold leading-tight">2 decisões, 3 próximos passos</p>
+    </div>
+  );
+}
+
+function ArrivedChip() {
+  return (
+    <div className={cn(CARD, 'bottom-0 left-10 flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1.5 text-[10.5px] font-medium')}>
+      <Sparkles className="h-3 w-3 shrink-0 text-primary" />
+      Daily do projeto · transcrita
+    </div>
+  );
+}
+
 const ARTS: Record<ProductNewsArtKey, () => JSX.Element> = {
   'meu-espaco': () => (
     <>
       <NoteCard />
       <BellCard />
       <KanbanChip />
+    </>
+  ),
+  reunioes: () => (
+    <>
+      <TranscriptCard />
+      <SummaryCard />
+      <ArrivedChip />
     </>
   ),
 };
