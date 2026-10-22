@@ -23,7 +23,7 @@ import type {
 const transcriptions = () => supabase.from('meeting_transcriptions');
 
 const LIST_COLUMNS =
-  'id, project_id, source, ical_uid, event_subject, occurred_at, online_meeting_id, recording_drive_id, recording_item_id, recording_web_url, status, last_error, duration_seconds, requested_by, created_at, updated_at, claimed_at, finished_at';
+  'id, project_id, source, ical_uid, event_subject, occurred_at, online_meeting_id, recording_drive_id, recording_item_id, recording_web_url, status, last_error, duration_seconds, requested_by, created_at, updated_at, claimed_at, finished_at, participants, speakers, preview, summary, summary_updated_at, summary_updated_by';
 
 type TranscriptionRow = Tables<'meeting_transcriptions'>;
 type ListRow = Pick<
@@ -46,7 +46,17 @@ type ListRow = Pick<
   | 'updated_at'
   | 'claimed_at'
   | 'finished_at'
+  | 'participants'
+  | 'speakers'
+  | 'preview'
+  | 'summary'
+  | 'summary_updated_at'
+  | 'summary_updated_by'
 >;
+
+function nameOf(names: Map<string, string>, id: string | null): string | null {
+  return id ? names.get(id) ?? null : null;
+}
 
 function toListItem(row: ListRow, names: Map<string, string>): MeetingTranscriptionListItem {
   return {
@@ -69,6 +79,12 @@ function toListItem(row: ListRow, names: Map<string, string>): MeetingTranscript
     updatedAt: row.updated_at,
     claimedAt: row.claimed_at,
     finishedAt: row.finished_at,
+    participants: row.participants ?? [],
+    speakers: jsonList<SpeakerName>(row.speakers),
+    preview: row.preview,
+    summary: row.summary,
+    summaryUpdatedAt: row.summary_updated_at,
+    summaryUpdatedByName: nameOf(names, row.summary_updated_by),
   };
 }
 
@@ -108,7 +124,7 @@ async function invokeFunction(name: string, body: object, fallback: string): Pro
 }
 
 const TEAMS_MEETING_COLUMNS =
-  'id, project_id, online_meeting_id, event_subject, ical_uid, starts_at, ends_at, is_series, registered_by, last_checked_at, last_error, created_at, projects(name)';
+  'id, project_id, online_meeting_id, event_subject, ical_uid, starts_at, ends_at, is_series, registered_by, last_checked_at, last_error, created_at, notes, notes_updated_at, notes_updated_by, projects(name)';
 
 type TeamsMeetingRow = Pick<
   Tables<'project_online_meetings'>,
@@ -124,6 +140,9 @@ type TeamsMeetingRow = Pick<
   | 'last_checked_at'
   | 'last_error'
   | 'created_at'
+  | 'notes'
+  | 'notes_updated_at'
+  | 'notes_updated_by'
 > & { projects: { name: string } | null };
 
 function toTeamsMeeting(row: TeamsMeetingRow, names: Map<string, string>): ProjectTeamsMeeting {
@@ -142,6 +161,9 @@ function toTeamsMeeting(row: TeamsMeetingRow, names: Map<string, string>): Proje
     lastCheckedAt: row.last_checked_at,
     lastError: row.last_error,
     createdAt: row.created_at,
+    notes: row.notes,
+    notesUpdatedAt: row.notes_updated_at,
+    notesUpdatedByName: nameOf(names, row.notes_updated_by),
   };
 }
 
@@ -167,7 +189,7 @@ export const meetingTranscriptionService = {
 
     const term = sanitizeTranscriptSearch(search);
     if (term) {
-      query = query.or(`event_subject.ilike.*${term}*,transcript_text.ilike.*${term}*`);
+      query = query.or(`event_subject.ilike.*${term}*,transcript_text.ilike.*${term}*,summary.ilike.*${term}*`);
     }
 
     const [{ data, error }, names] = await Promise.all([query, requesterNames()]);
@@ -187,7 +209,6 @@ export const meetingTranscriptionService = {
       language: data.language,
       transcriptText: data.transcript_text,
       segments: jsonList<TranscriptSegment>(data.segments),
-      speakers: jsonList<SpeakerName>(data.speakers),
     };
   },
 
@@ -200,6 +221,12 @@ export const meetingTranscriptionService = {
 
   async updateSubject(id: string, eventSubject: string): Promise<void> {
     const { error } = await transcriptions().update({ event_subject: eventSubject }).eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Resumo trazido pela equipe. Vazio apaga; quem e quando o banco carimba. */
+  async updateSummary(id: string, summary: string | null): Promise<void> {
+    const { error } = await transcriptions().update({ summary }).eq('id', id);
     if (error) throw error;
   },
 
@@ -244,6 +271,12 @@ export const meetingTranscriptionService = {
   /** Projetos que recebem a transcrição desta reunião — o detalhe do evento na Agenda. */
   listTeamsMeetingsByIcalUid(icalUid: string): Promise<ProjectTeamsMeeting[]> {
     return listTeamsMeetingsWhere('ical_uid', icalUid);
+  },
+
+  /** Notas da reunião vinculada que ainda não tem transcrição. */
+  async updateTeamsMeetingNotes(id: string, notes: string | null): Promise<void> {
+    const { error } = await supabase.from('project_online_meetings').update({ notes }).eq('id', id);
+    if (error) throw error;
   },
 
   async removeTeamsMeeting(id: string): Promise<void> {

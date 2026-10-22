@@ -36,6 +36,7 @@ sources:
   - supabase/migrations/20261021170000_notes.sql
   - supabase/migrations/20261021200000_meeting_transcriptions.sql
   - supabase/migrations/20261022120000_project_online_meetings_horario.sql
+  - supabase/migrations/20261022140000_reunioes_resumo_e_previa.sql
   - supabase/migrations/20261009120000_oportunidade_por_empresa.sql
   - supabase/migrations/20261009130000_prospect_files.sql
   - supabase/migrations/20261009140000_prospect_title.sql
@@ -495,6 +496,8 @@ erDiagram
         enum source "teams|gravacao"
         text source_transcript_id "UNIQUE(project_id, source_transcript_id)"
         text recording_item_id "UNIQUE(tenant_id, recording_item_id)"
+        text summary "resumo trazido pela equipe"
+        text_array participants "derivado das falas (trigger)"
         enum status "pendente|processando|concluida|falhou"
         text transcript_text "escrito só pelo worker"
         jsonb segments "falas com tempo e voz"

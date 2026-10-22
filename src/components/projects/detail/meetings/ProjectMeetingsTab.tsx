@@ -1,124 +1,46 @@
 import { useMemo, useState } from 'react';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { AudioLines, Loader2, RefreshCw, RotateCcw, Search } from 'lucide-react';
+import { AudioLines, Loader2, RefreshCw, Search } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import {
   useMeetingTranscriptions,
   useProjectTeamsMeetings,
-  useRequestTranscription,
   useSyncTeamsTranscripts,
 } from '@/hooks/useMeetingTranscriptions';
-import { formatDuration, groupByLinkedMeeting, isTranscriptionStuck } from '@/lib/meetingTranscription';
+import {
+  TRANSCRIPTION_WORKER_ENABLED,
+  buildMeetingTimeline,
+  filterMeetingTimeline,
+  groupTimelineByDay,
+} from '@/lib/meetingTranscription';
+import { LinkedMeetingDialog } from './LinkedMeetingDialog';
+import { MeetingTimelineCard } from './MeetingTimelineCard';
 import { MeetingTranscriptionDialog } from './MeetingTranscriptionDialog';
 import { RequestTranscriptionDialog } from './RequestTranscriptionDialog';
-import { TranscriptionStatusBadge } from './TranscriptionStatusBadge';
-import { LinkedMeetingCard } from './LinkedMeetingCard';
 import {
-  MEETING_TRANSCRIPTION_SOURCE,
-  MEETING_TRANSCRIPTION_STATUS,
-  type MeetingTranscriptionListItem,
+  MEETING_TIMELINE_ENTRY_KIND,
+  MEETING_TIMELINE_FILTER,
+  type MeetingTimelineEntry,
+  type MeetingTimelineFilter,
+  type ProjectTeamsMeeting,
 } from '@/types/meetingTranscription';
 
-function rowMeta(item: MeetingTranscriptionListItem): string {
-  const isTeams = item.source === MEETING_TRANSCRIPTION_SOURCE.TEAMS;
-  const origin = isTeams ? 'transcrição do Teams' : 'gravação enviada';
-  const who = `${isTeams ? 'vinculada' : 'pedida'} por ${item.requestedByName ?? 'alguém da equipe'}`;
-  return [formatDuration(item.durationSeconds), origin, who].filter(Boolean).join(' · ');
-}
+const FILTER_LABEL: Record<MeetingTimelineFilter, string> = {
+  [MEETING_TIMELINE_FILTER.TODAS]: 'Todas',
+  [MEETING_TIMELINE_FILTER.TRANSCRITAS]: 'Transcritas',
+  [MEETING_TIMELINE_FILTER.SEM_RESUMO]: 'Sem resumo',
+  [MEETING_TIMELINE_FILTER.PENDENTES]: 'Pendentes',
+};
 
-function RetryButton(props: { item: MeetingTranscriptionListItem }) {
-  const { item } = props;
-  const request = useRequestTranscription();
+const FILTERS = Object.keys(FILTER_LABEL) as MeetingTimelineFilter[];
 
-  const retry = () =>
-    request.mutate({
-      projectId: item.projectId,
-      recording: {
-        driveId: item.recordingDriveId as string,
-        itemId: item.recordingItemId as string,
-        webUrl: item.recordingWebUrl,
-      },
-      eventSubject: item.eventSubject,
-      occurredAt: item.occurredAt,
-      icalUid: item.icalUid,
-    });
-
-  return (
-    <Button variant="outline" size="sm" onClick={retry} disabled={request.isPending}>
-      {request.isPending ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-      ) : (
-        <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
-      )}
-      Pedir de novo
-    </Button>
-  );
-}
-
-function RowNotice(props: { item: MeetingTranscriptionListItem; canRequest: boolean }) {
-  const { item, canRequest } = props;
-
-  if (item.status === MEETING_TRANSCRIPTION_STATUS.FALHOU) {
-    return (
-      <div className="flex flex-col gap-2 border-t border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-destructive-emphasis">{item.lastError ?? 'A transcrição não foi concluída.'}</p>
-        {canRequest && <RetryButton item={item} />}
-      </div>
-    );
-  }
-
-  if (isTranscriptionStuck(item)) {
-    return (
-      <p className="border-t border-border px-3 py-2 text-sm text-warning-emphasis">
-        Parada há mais tempo que o normal. O serviço de transcrição pode estar fora do ar — avise
-        quem cuida do sistema.
-      </p>
-    );
-  }
-
-  return null;
-}
-
-interface TranscriptionRowProps {
-  item: MeetingTranscriptionListItem;
-  canRequest: boolean;
-  onOpen: () => void;
-}
-
-function TranscriptionRow(props: TranscriptionRowProps) {
-  const { item, canRequest, onOpen } = props;
-  const when = item.occurredAt ?? item.createdAt;
-
-  return (
-    <li className="rounded-lg border border-border">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="w-full rounded-lg p-3 text-left transition-colors hover:bg-muted/50
-                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="min-w-0 truncate text-sm font-medium text-foreground">{item.eventSubject}</p>
-          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-            {format(parseISO(when), "d 'de' MMM yyyy", { locale: ptBR })}
-          </span>
-        </div>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <TranscriptionStatusBadge status={item.status} />
-          <span className="text-xs text-muted-foreground">{rowMeta(item)}</span>
-        </div>
-      </button>
-      <RowNotice item={item} canRequest={canRequest} />
-    </li>
-  );
-}
+type PendingMeetingEntry = Extract<MeetingTimelineEntry, { kind: typeof MEETING_TIMELINE_ENTRY_KIND.REUNIAO }>;
 
 function EmptyState(props: { message: string; hint?: string }) {
   const { message, hint } = props;
@@ -130,125 +52,6 @@ function EmptyState(props: { message: string; hint?: string }) {
         {hint && <p className="max-w-md text-sm text-muted-foreground">{hint}</p>}
       </CardContent>
     </Card>
-  );
-}
-
-function LoadingRows() {
-  return (
-    <div className="space-y-3">
-      {[0, 1, 2].map((row) => (
-        <Skeleton key={row} className="h-20 w-full" />
-      ))}
-    </div>
-  );
-}
-
-function LoadError() {
-  return (
-    <Alert variant="destructive">
-      <AlertDescription>
-        Não foi possível carregar as reuniões do projeto. Tente de novo em instantes.
-      </AlertDescription>
-    </Alert>
-  );
-}
-
-interface RowsProps {
-  items: MeetingTranscriptionListItem[];
-  canRequest: boolean;
-  onOpen: (id: string) => void;
-}
-
-function TranscriptionRows(props: RowsProps) {
-  const { items, canRequest, onOpen } = props;
-  return (
-    <ul className="space-y-2">
-      {items.map((item) => (
-        <TranscriptionRow key={item.id} item={item} canRequest={canRequest} onOpen={() => onOpen(item.id)} />
-      ))}
-    </ul>
-  );
-}
-
-interface SearchResultsProps {
-  projectId: string;
-  search: string;
-  canRequest: boolean;
-  onOpen: (id: string) => void;
-}
-
-/** Busca no título e no texto: aí a lista é das transcrições encontradas, não das reuniões. */
-function SearchResults(props: SearchResultsProps) {
-  const { projectId, search, canRequest, onOpen } = props;
-  const { data: items, isLoading, error } = useMeetingTranscriptions(projectId, search);
-
-  if (isLoading) return <LoadingRows />;
-  if (error) return <LoadError />;
-  if (!items?.length) return <EmptyState message={`Nenhuma reunião encontrada para "${search.trim()}".`} />;
-  return <TranscriptionRows items={items} canRequest={canRequest} onOpen={onOpen} />;
-}
-
-interface MeetingsOverviewProps {
-  projectId: string;
-  canRequest: boolean;
-  canManageProject: boolean;
-  onOpen: (id: string) => void;
-}
-
-/**
- * As reuniões vinculadas ao projeto, cada uma com a situação da transcrição — inclusive a que
- * aconteceu e não foi transcrita (ADR-0052). Gravação enviada e reunião que deixou de ser
- * acompanhada ficam embaixo.
- */
-function MeetingsOverview(props: MeetingsOverviewProps) {
-  const { projectId, canRequest, canManageProject, onOpen } = props;
-  const { employee } = useAuth();
-  const meetings = useProjectTeamsMeetings(projectId);
-  const transcriptions = useMeetingTranscriptions(projectId, '');
-  const { groups, others } = useMemo(
-    () => groupByLinkedMeeting(meetings.data ?? [], transcriptions.data ?? []),
-    [meetings.data, transcriptions.data],
-  );
-
-  if (meetings.isLoading || transcriptions.isLoading) return <LoadingRows />;
-  if (meetings.error || transcriptions.error) return <LoadError />;
-  if (!groups.length && !others.length) {
-    return (
-      <EmptyState
-        message="Nenhuma reunião vinculada a este projeto."
-        hint='Na Agenda, crie a reunião do Teams escolhendo este projeto, ou abra uma que você organizou e use "Vincular a um projeto". Ela aparece aqui, e a transcrição chega sozinha quando a reunião acabar.'
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {groups.length > 0 && (
-        <ul className="space-y-2" aria-label="Reuniões do Teams vinculadas">
-          {groups.map((group) => (
-            <LinkedMeetingCard
-              key={group.meeting.id}
-              group={group}
-              canStop={canManageProject || group.meeting.registeredById === employee?.id}
-              onOpenTranscription={onOpen}
-            />
-          ))}
-        </ul>
-      )}
-      {others.length > 0 && (
-        <section className="space-y-2" aria-labelledby="other-transcriptions-title">
-          <div>
-            <h4 id="other-transcriptions-title" className="text-sm font-semibold text-foreground">
-              Outras transcrições
-            </h4>
-            <p className="text-sm text-muted-foreground">
-              Gravações enviadas por Transcrever gravação e reuniões que deixaram de ser acompanhadas.
-            </p>
-          </div>
-          <TranscriptionRows items={others} canRequest={canRequest} onOpen={onOpen} />
-        </section>
-      )}
-    </div>
   );
 }
 
@@ -268,95 +71,271 @@ function SyncNowButton(props: { projectId: string }) {
   );
 }
 
+interface ToolbarProps {
+  search: string;
+  onSearch: (value: string) => void;
+  filter: MeetingTimelineFilter;
+  onFilter: (value: MeetingTimelineFilter) => void;
+  counts: Record<MeetingTimelineFilter, number>;
+}
+
+function Toolbar(props: ToolbarProps) {
+  const { search, onSearch, filter, onFilter, counts } = props;
+  return (
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="relative w-full lg:max-w-sm">
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <Input
+          type="search"
+          value={search}
+          onChange={(changed) => onSearch(changed.target.value)}
+          placeholder="Buscar no título, no que foi dito ou no resumo"
+          aria-label="Buscar nas reuniões do projeto"
+          className="pl-9"
+        />
+      </div>
+      <ToggleGroup
+        type="single"
+        value={filter}
+        onValueChange={(value) => value && onFilter(value as MeetingTimelineFilter)}
+        aria-label="Filtrar reuniões"
+        className="flex-wrap justify-start"
+      >
+        {FILTERS.map((key) => (
+          <ToggleGroupItem key={key} value={key} size="sm" className="gap-1.5">
+            {FILTER_LABEL[key]}
+            <span className="tabular-nums text-muted-foreground">{counts[key]}</span>
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+    </div>
+  );
+}
+
+interface TimelineProps {
+  entries: MeetingTimelineEntry[];
+  canRequest: boolean;
+  emptyMessage: string;
+  onOpen: (entry: MeetingTimelineEntry) => void;
+}
+
+function Timeline(props: TimelineProps) {
+  const { entries, canRequest, emptyMessage, onOpen } = props;
+  const days = useMemo(() => groupTimelineByDay(entries), [entries]);
+  if (!days.length) return <EmptyState message={emptyMessage} />;
+
+  return (
+    <div className="space-y-6">
+      {days.map((day) => (
+        <section key={day.label} className="space-y-2" aria-label={day.label}>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{day.label}</h4>
+          <ul className="space-y-2">
+            {day.entries.map((entry) => (
+              <MeetingTimelineCard key={entry.key} entry={entry} canRequest={canRequest} onOpen={() => onOpen(entry)} />
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function countByFilter(entries: MeetingTimelineEntry[]): Record<MeetingTimelineFilter, number> {
+  return Object.fromEntries(
+    FILTERS.map((key) => [key, filterMeetingTimeline(entries, key).length]),
+  ) as Record<MeetingTimelineFilter, number>;
+}
+
+/**
+ * Todas as reuniões do projeto numa linha do tempo, ou — com busca — só as transcrições que
+ * batem com o termo (no título, no texto ou no resumo).
+ */
+function useTimeline(projectId: string, search: string) {
+  const meetings = useProjectTeamsMeetings(projectId);
+  const transcriptions = useMeetingTranscriptions(projectId, search);
+  const isSearching = search.trim().length > 0;
+
+  const entries = useMemo(
+    () => buildMeetingTimeline(isSearching ? [] : meetings.data ?? [], transcriptions.data ?? []),
+    [isSearching, meetings.data, transcriptions.data],
+  );
+  return {
+    entries,
+    isLoading: meetings.isLoading || transcriptions.isLoading,
+    hasError: Boolean(meetings.error || transcriptions.error),
+  };
+}
+
+interface OpenState {
+  transcriptionId: string | null;
+  linkedMeeting: ProjectTeamsMeeting | null;
+  pendingMeeting: PendingMeetingEntry | null;
+}
+
+const CLOSED: OpenState = { transcriptionId: null, linkedMeeting: null, pendingMeeting: null };
+
+function openStateFor(entry: MeetingTimelineEntry): OpenState {
+  if (entry.kind === MEETING_TIMELINE_ENTRY_KIND.REUNIAO) return { ...CLOSED, pendingMeeting: entry };
+  return { ...CLOSED, transcriptionId: entry.item.id, linkedMeeting: entry.meeting };
+}
+
+function sentRecordingIds(entries: MeetingTimelineEntry[]): Set<string> {
+  return new Set(
+    entries.flatMap((entry) =>
+      entry.kind === MEETING_TIMELINE_ENTRY_KIND.TRANSCRICAO && entry.item.recordingItemId
+        ? [entry.item.recordingItemId]
+        : [],
+    ),
+  );
+}
+
+interface TimelineBodyProps {
+  timeline: ReturnType<typeof useTimeline>;
+  filter: MeetingTimelineFilter;
+  isSearching: boolean;
+  canRequest: boolean;
+  onOpen: (entry: MeetingTimelineEntry) => void;
+}
+
+function TimelineBody(props: TimelineBodyProps) {
+  const { timeline, filter, isSearching, canRequest, onOpen } = props;
+
+  if (timeline.isLoading) {
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2].map((row) => (
+          <Skeleton key={row} className="h-24 w-full" />
+        ))}
+      </div>
+    );
+  }
+  if (timeline.hasError) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>Não foi possível carregar as reuniões do projeto. Tente de novo em instantes.</AlertDescription>
+      </Alert>
+    );
+  }
+  if (!timeline.entries.length && !isSearching) {
+    return (
+      <EmptyState
+        message="Nenhuma reunião vinculada a este projeto."
+        hint='Na Agenda, crie a reunião do Teams escolhendo este projeto, ou abra uma que você organizou e use "Vincular a um projeto". A transcrição chega aqui sozinha quando a reunião acaba.'
+      />
+    );
+  }
+  return (
+    <Timeline
+      entries={filterMeetingTimeline(timeline.entries, filter)}
+      canRequest={canRequest}
+      emptyMessage={isSearching ? 'Nenhuma reunião encontrada para essa busca.' : 'Nenhuma reunião neste filtro.'}
+      onOpen={onOpen}
+    />
+  );
+}
+
+interface TabHeaderProps {
+  projectId: string;
+  canRequest: boolean;
+  onRequestRecording: () => void;
+}
+
+function TabHeader(props: TabHeaderProps) {
+  const { projectId, canRequest, onRequestRecording } = props;
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h3 className="text-base font-semibold text-foreground">Reuniões</h3>
+        <p className="text-sm text-muted-foreground">
+          A transcrição das reuniões do Teams vinculadas ao projeto chega aqui sozinha. A equipe
+          completa com o resumo.
+        </p>
+      </div>
+      {canRequest && (
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <SyncNowButton projectId={projectId} />
+          {TRANSCRIPTION_WORKER_ENABLED && (
+            <Button variant="outline" size="sm" onClick={onRequestRecording}>
+              <AudioLines className="mr-2 h-4 w-4" aria-hidden="true" />
+              Transcrever gravação
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ProjectMeetingsTabProps {
   projectId: string;
-  /** Pode pedir transcrição e dar nome às vozes neste projeto. */
+  /** Pode pedir transcrição e editar título, resumo e notas neste projeto. */
   canRequest: boolean;
   /** GP do projeto (ou quem gere qualquer projeto): remove transcrição e para de acompanhar reunião. */
   canManageProject: boolean;
 }
 
 /**
- * Reuniões do projeto e a transcrição de cada uma: a do próprio Teams, que chega sozinha
- * (ADR-0052), ou a de gravação do OneDrive enviada ao worker (ADR-0039, plano B).
+ * Reuniões do projeto numa linha do tempo, com a situação da transcrição de cada uma e o
+ * resumo que a equipe trouxe (ADR-0052). A transcrição do Teams chega sozinha; a gravação
+ * enviada ao worker (ADR-0039) só aparece com ele no ar.
  */
 export function ProjectMeetingsTab(props: ProjectMeetingsTabProps) {
   const { projectId, canRequest, canManageProject } = props;
+  const { employee } = useAuth();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 400);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<MeetingTimelineFilter>(MEETING_TIMELINE_FILTER.TODAS);
+  const [open, setOpen] = useState<OpenState>(CLOSED);
   const [requestOpen, setRequestOpen] = useState(false);
 
-  const all = useMeetingTranscriptions(projectId, '');
-  const sentItemIds = useMemo(
-    () => new Set((all.data ?? []).flatMap((item) => (item.recordingItemId ? [item.recordingItemId] : []))),
-    [all.data],
-  );
   const isSearching = debouncedSearch.trim().length > 0;
+  const timeline = useTimeline(projectId, debouncedSearch);
+  const counts = useMemo(() => countByFilter(timeline.entries), [timeline.entries]);
+  const canStop = (meeting: ProjectTeamsMeeting | null) =>
+    Boolean(meeting) && (canManageProject || meeting?.registeredById === employee?.id);
+  const close = (isOpen: boolean) => !isOpen && setOpen(CLOSED);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">Reuniões</h3>
-          <p className="text-sm text-muted-foreground">
-            Reuniões do Teams vinculadas ao projeto e a transcrição de cada uma, que chega sozinha
-            depois que a reunião acaba. Para uma gravação avulsa do OneDrive, use Transcrever gravação.
-          </p>
-        </div>
-        {canRequest && (
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <SyncNowButton projectId={projectId} />
-            <Button variant="outline" size="sm" onClick={() => setRequestOpen(true)}>
-              <AudioLines className="mr-2 h-4 w-4" aria-hidden="true" />
-              Transcrever gravação
-            </Button>
-          </div>
-        )}
-      </div>
+      <TabHeader projectId={projectId} canRequest={canRequest} onRequestRecording={() => setRequestOpen(true)} />
 
-      {(all.data?.length ?? 0) > 0 && (
-        <div className="relative max-w-md">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            type="search"
-            value={search}
-            onChange={(changed) => setSearch(changed.target.value)}
-            placeholder="Buscar no título ou no que foi dito"
-            aria-label="Buscar nas reuniões do projeto"
-            className="pl-9"
-          />
-        </div>
-      )}
+      <Toolbar search={search} onSearch={setSearch} filter={filter} onFilter={setFilter} counts={counts} />
 
-      {isSearching ? (
-        <SearchResults projectId={projectId} search={debouncedSearch} canRequest={canRequest} onOpen={setOpenId} />
-      ) : (
-        <MeetingsOverview
-          projectId={projectId}
-          canRequest={canRequest}
-          canManageProject={canManageProject}
-          onOpen={setOpenId}
-        />
-      )}
+      <TimelineBody
+        timeline={timeline}
+        filter={filter}
+        isSearching={isSearching}
+        canRequest={canRequest}
+        onOpen={(entry) => setOpen(openStateFor(entry))}
+      />
 
       <MeetingTranscriptionDialog
-        transcriptionId={openId}
+        transcriptionId={open.transcriptionId}
         projectId={projectId}
         canRequest={canRequest}
         canManageProject={canManageProject}
-        onOpenChange={(open) => !open && setOpenId(null)}
+        linkedMeeting={open.linkedMeeting}
+        canStopFollowing={canStop(open.linkedMeeting)}
+        onOpenChange={close}
       />
 
-      {canRequest && (
+      <LinkedMeetingDialog
+        meeting={open.pendingMeeting?.meeting ?? null}
+        status={open.pendingMeeting?.status ?? null}
+        canEdit={canRequest}
+        canStop={canStop(open.pendingMeeting?.meeting ?? null)}
+        onOpenChange={close}
+      />
+
+      {canRequest && TRANSCRIPTION_WORKER_ENABLED && (
         <RequestTranscriptionDialog
           open={requestOpen}
           onOpenChange={setRequestOpen}
           projectId={projectId}
-          sentItemIds={sentItemIds}
+          sentItemIds={sentRecordingIds(timeline.entries)}
         />
       )}
     </div>

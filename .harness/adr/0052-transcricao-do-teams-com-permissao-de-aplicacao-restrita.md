@@ -75,6 +75,15 @@ Fatos conferidos na documentação da Microsoft em 22/10/2026:
    projeto aberto: a mesma `teams-transcripts-sync` aceita a sessão de quem passa em
    `can_request_meeting_transcription` naquele projeto. Não apressa a Microsoft, que publica
    a transcrição alguns minutos depois do fim; só dispensa esperar o cron.
+7b. **Resumo e notas pela equipe** (22/10, Italo: "o pessoal pode gerar com a IA deles e
+   subir"). O Pulse não resume: cada reunião transcrita tem um resumo (`summary`) que quem pode
+   pedir transcrição cola ou importa de um .md/.txt — gerado na IA de cada um — e a reunião
+   vinculada sem transcrição tem notas (`notes`: pauta antes, ata manual depois). Quem e quando
+   escreveu são carimbados por trigger. A tela vira uma linha do tempo por dia, com filtros
+   (Transcritas, Sem resumo, Pendentes), participantes e prévia no cartão, busca no título, no
+   texto e no resumo, e o "Transcrever gravação" (plano B) só aparece com
+   `VITE_TRANSCRIPTION_WORKER_ENABLED=true` — sem o worker no ar, enfileirava trabalho que nunca
+   andava. Migration `20261022140000`.
 7a. Na tela, a transcrição do Teams mostra o **nome real** de quem falou (o "Voz 1" é só da
    gravação enviada, que não sabe nomes) e a **hora do relógio** de cada fala — início da
    transcrição (`createdDateTime`) mais o deslocamento do VTT.

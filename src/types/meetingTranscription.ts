@@ -68,13 +68,22 @@ export interface MeetingTranscriptionListItem {
   updatedAt: string;
   claimedAt: string | null;
   finishedAt: string | null;
+  /** Quem falou: nomes no Teams, rótulos SPEAKER_NN na gravação. Derivado no banco. */
+  participants: string[];
+  /** Nome dado a cada voz da gravação (no Teams, vazio: o nome já vem). */
+  speakers: SpeakerName[];
+  /** Primeiras falas, para reconhecer a reunião sem abrir. */
+  preview: string | null;
+  /** Resumo trazido pela equipe — gerado na IA de cada um e colado ou importado. */
+  summary: string | null;
+  summaryUpdatedAt: string | null;
+  summaryUpdatedByName: string | null;
 }
 
 export interface MeetingTranscriptionDetail extends MeetingTranscriptionListItem {
   language: string | null;
   transcriptText: string | null;
   segments: TranscriptSegment[];
-  speakers: SpeakerName[];
 }
 
 /** Gravação do OneDrive que pode virar transcrição. */
@@ -132,6 +141,10 @@ export interface ProjectTeamsMeeting {
   /** Já escrito para a tela pela sincronização. */
   lastError: string | null;
   createdAt: string;
+  /** Pauta antes, ata manual se o Teams não transcreveu. */
+  notes: string | null;
+  notesUpdatedAt: string | null;
+  notesUpdatedByName: string | null;
 }
 
 /** Depois de criar ou vincular uma reunião do Teams: gravar sozinha e/ou trazer para o projeto. */
@@ -178,9 +191,43 @@ export const LINKED_MEETING_STATUS = {
 
 export type LinkedMeetingStatus = (typeof LINKED_MEETING_STATUS)[keyof typeof LINKED_MEETING_STATUS];
 
-/** Reunião vinculada com as transcrições que já chegaram dela (uma por ocorrência). */
-export interface LinkedMeetingGroup {
-  meeting: ProjectTeamsMeeting;
-  transcriptions: MeetingTranscriptionListItem[];
-  status: LinkedMeetingStatus;
+
+/** Tipo de entrada da linha do tempo: a transcrição, ou a reunião vinculada ainda sem texto. */
+export const MEETING_TIMELINE_ENTRY_KIND = {
+  TRANSCRICAO: 'transcription',
+  REUNIAO: 'meeting',
+} as const;
+
+/** Uma reunião na linha do tempo da aba: a que foi transcrita, ou a vinculada que ainda não tem texto. */
+export type MeetingTimelineEntry =
+  | {
+      kind: typeof MEETING_TIMELINE_ENTRY_KIND.TRANSCRICAO;
+      key: string;
+      when: string;
+      item: MeetingTranscriptionListItem;
+      /** Reunião do Teams vinculada de onde veio, se ainda acompanhada. */
+      meeting: ProjectTeamsMeeting | null;
+    }
+  | {
+      kind: typeof MEETING_TIMELINE_ENTRY_KIND.REUNIAO;
+      key: string;
+      when: string;
+      meeting: ProjectTeamsMeeting;
+      status: LinkedMeetingStatus;
+    };
+
+export interface MeetingTimelineDay {
+  /** "Hoje", "Ontem", "Amanhã" ou a data por extenso. */
+  label: string;
+  entries: MeetingTimelineEntry[];
 }
+
+/** Filtros da aba Reuniões. */
+export const MEETING_TIMELINE_FILTER = {
+  TODAS: 'todas',
+  TRANSCRITAS: 'transcritas',
+  SEM_RESUMO: 'sem_resumo',
+  PENDENTES: 'pendentes',
+} as const;
+
+export type MeetingTimelineFilter = (typeof MEETING_TIMELINE_FILTER)[keyof typeof MEETING_TIMELINE_FILTER];

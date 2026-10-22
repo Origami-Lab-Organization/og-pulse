@@ -1,7 +1,14 @@
+import { differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   LINKED_MEETING_STATUS,
+  MEETING_TIMELINE_ENTRY_KIND,
+  MEETING_TIMELINE_FILTER,
+  MEETING_TRANSCRIPTION_SOURCE,
   MEETING_TRANSCRIPTION_STATUS,
-  type LinkedMeetingGroup,
+  type MeetingTimelineDay,
+  type MeetingTimelineEntry,
+  type MeetingTimelineFilter,
   type LinkedMeetingStatus,
   type MeetingTranscriptionListItem,
   type MeetingTranscriptionStatus,
@@ -15,7 +22,7 @@ import {
 export const MEETING_TRANSCRIPTION_STATUS_LABEL: Record<MeetingTranscriptionStatus, string> = {
   [MEETING_TRANSCRIPTION_STATUS.PENDENTE]: 'Na fila',
   [MEETING_TRANSCRIPTION_STATUS.PROCESSANDO]: 'Transcrevendo',
-  [MEETING_TRANSCRIPTION_STATUS.CONCLUIDA]: 'Pronta',
+  [MEETING_TRANSCRIPTION_STATUS.CONCLUIDA]: 'Transcrita',
   [MEETING_TRANSCRIPTION_STATUS.FALHOU]: 'Não concluída',
 };
 
@@ -219,6 +226,17 @@ export const LINKED_MEETING_STATUS_LABEL: Record<LinkedMeetingStatus, string> = 
   [LINKED_MEETING_STATUS.COM_PROBLEMA]: 'Com problema',
 };
 
+/** O que a situação quer dizer, para quem olha a lista sem conhecer a sincronização. */
+export const LINKED_MEETING_STATUS_HINT: Record<LinkedMeetingStatus, string | null> = {
+  [LINKED_MEETING_STATUS.AGENDADA]: 'A transcrição chega alguns minutos depois de a reunião acabar.',
+  [LINKED_MEETING_STATUS.AGUARDANDO]:
+    'A transcrição do Teams costuma chegar em até 20 minutos depois do fim. Com pressa, use "Buscar transcrições agora".',
+  [LINKED_MEETING_STATUS.TRANSCRITA]: null,
+  [LINKED_MEETING_STATUS.SEM_TRANSCRICAO]:
+    'A reunião aconteceu, mas nenhuma transcrição chegou. Ela pode não ter sido transcrita no Teams.',
+  [LINKED_MEETING_STATUS.COM_PROBLEMA]: null,
+};
+
 /**
  * Quanto esperar depois do fim antes de dizer "sem transcrição": o Teams publica em alguns
  * minutos e a sincronização roda de 10 em 10 (ADR-0052).
@@ -242,31 +260,6 @@ export function linkedMeetingStatus(
   return LINKED_MEETING_STATUS.SEM_TRANSCRICAO;
 }
 
-function meetingSortKey(meeting: ProjectTeamsMeeting): string {
-  return meeting.startsAt ?? meeting.createdAt;
-}
-
-/**
- * Cada reunião vinculada com as transcrições que vieram dela (numa série, uma por ocorrência).
- * O que não pertence a nenhuma — gravação enviada, ou reunião que deixou de ser acompanhada —
- * fica em `others`.
- */
-export function groupByLinkedMeeting(
-  meetings: readonly ProjectTeamsMeeting[],
-  transcriptions: readonly MeetingTranscriptionListItem[],
-  now = Date.now(),
-): { groups: LinkedMeetingGroup[]; others: MeetingTranscriptionListItem[] } {
-  const linkedIds = new Set(meetings.map((meeting) => meeting.onlineMeetingId));
-  const groups = [...meetings]
-    .sort((left, right) => meetingSortKey(right).localeCompare(meetingSortKey(left)))
-    .map((meeting) => {
-      const own = transcriptions.filter((item) => item.onlineMeetingId === meeting.onlineMeetingId);
-      return { meeting, transcriptions: own, status: linkedMeetingStatus(meeting, own, now) };
-    });
-  const others = transcriptions.filter((item) => !item.onlineMeetingId || !linkedIds.has(item.onlineMeetingId));
-  return { groups, others };
-}
-
 /**
  * Horário que o Graph devolve na agenda ("2026-10-22T14:00:00.0000000"), já no fuso pedido
  * (`America/Sao_Paulo`), para instante ISO. O Brasil não tem horário de verão desde 2019,
@@ -276,4 +269,155 @@ export function saoPauloLocalToIso(local: string | null | undefined): string | n
   const trimmed = (local ?? '').slice(0, 19);
   const instant = Date.parse(`${trimmed}-03:00`);
   return Number.isNaN(instant) ? null : new Date(instant).toISOString();
+}
+
+/**
+ * O plano B (gravação do OneDrive + WhisperX, ADR-0039) só aparece com o worker no ar. Sem ele,
+ * o botão enfileira trabalho que nunca anda.
+ */
+export const TRANSCRIPTION_WORKER_ENABLED = import.meta.env.VITE_TRANSCRIPTION_WORKER_ENABLED === 'true';
+
+export const MAX_SUMMARY_CHARS = 50000;
+/** Resumo importado de arquivo: texto puro, então algumas centenas de KB já é muito. */
+export const MAX_SUMMARY_FILE_BYTES = 500 * 1024;
+
+/** Resumo como vai para o banco: sem espaço sobrando, vazio vira "sem resumo". */
+export function normalizeMeetingSummary(text: string): string | null {
+  const trimmed = text.trim().slice(0, MAX_SUMMARY_CHARS);
+  return trimmed ? trimmed : null;
+}
+
+function transcriptionEntry(
+  item: MeetingTranscriptionListItem,
+  byMeetingId: Map<string, ProjectTeamsMeeting>,
+): MeetingTimelineEntry {
+  return {
+    kind: MEETING_TIMELINE_ENTRY_KIND.TRANSCRICAO,
+    key: `t-${item.id}`,
+    when: item.occurredAt ?? item.createdAt,
+    item,
+    meeting: item.onlineMeetingId ? byMeetingId.get(item.onlineMeetingId) ?? null : null,
+  };
+}
+
+/**
+ * Uma lista só, da reunião mais adiante para a mais antiga: cada transcrição (numa série, uma
+ * por ocorrência) e cada reunião vinculada que ainda não tem nenhuma — essa com a situação
+ * dela, para reunião sem transcrição não parecer reunião que não houve.
+ */
+export function buildMeetingTimeline(
+  meetings: readonly ProjectTeamsMeeting[],
+  transcriptions: readonly MeetingTranscriptionListItem[],
+  now = Date.now(),
+): MeetingTimelineEntry[] {
+  const byMeetingId = new Map(meetings.map((meeting) => [meeting.onlineMeetingId, meeting]));
+  const transcribed = new Set(transcriptions.map((item) => item.onlineMeetingId).filter(Boolean));
+
+  const entries: MeetingTimelineEntry[] = [
+    ...transcriptions.map((item) => transcriptionEntry(item, byMeetingId)),
+    ...meetings
+      .filter((meeting) => !transcribed.has(meeting.onlineMeetingId))
+      .map((meeting) => ({
+        kind: MEETING_TIMELINE_ENTRY_KIND.REUNIAO,
+        key: `m-${meeting.id}`,
+        when: meeting.startsAt ?? meeting.createdAt,
+        meeting,
+        status: linkedMeetingStatus(meeting, [], now),
+      })),
+  ];
+  return entries.sort((left, right) => right.when.localeCompare(left.when));
+}
+
+function isPendingTranscription(item: MeetingTranscriptionListItem): boolean {
+  return item.status !== MEETING_TRANSCRIPTION_STATUS.CONCLUIDA;
+}
+
+const FILTER_RULE: Record<MeetingTimelineFilter, (entry: MeetingTimelineEntry) => boolean> = {
+  [MEETING_TIMELINE_FILTER.TODAS]: () => true,
+  [MEETING_TIMELINE_FILTER.TRANSCRITAS]: (entry) =>
+    entry.kind === MEETING_TIMELINE_ENTRY_KIND.TRANSCRICAO && !isPendingTranscription(entry.item),
+  [MEETING_TIMELINE_FILTER.SEM_RESUMO]: (entry) =>
+    entry.kind === MEETING_TIMELINE_ENTRY_KIND.TRANSCRICAO && !isPendingTranscription(entry.item) && !entry.item.summary,
+  [MEETING_TIMELINE_FILTER.PENDENTES]: (entry) =>
+    entry.kind === MEETING_TIMELINE_ENTRY_KIND.REUNIAO || isPendingTranscription(entry.item),
+};
+
+export function filterMeetingTimeline(
+  entries: readonly MeetingTimelineEntry[],
+  filter: MeetingTimelineFilter,
+): MeetingTimelineEntry[] {
+  return entries.filter(FILTER_RULE[filter]);
+}
+
+function dayLabel(iso: string, now: number): string {
+  const day = parseISO(iso);
+  const distance = differenceInCalendarDays(day, now);
+  if (distance === 0) return 'Hoje';
+  if (distance === -1) return 'Ontem';
+  if (distance === 1) return 'Amanhã';
+  return format(day, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR });
+}
+
+/** Agrupa por dia, mantendo a ordem: "Hoje", "Ontem", "Amanhã" ou a data por extenso. */
+export function groupTimelineByDay(
+  entries: readonly MeetingTimelineEntry[],
+  now = Date.now(),
+): MeetingTimelineDay[] {
+  const days: MeetingTimelineDay[] = [];
+  entries.forEach((entry) => {
+    const label = dayLabel(entry.when, now);
+    const last = days[days.length - 1];
+    if (last?.label === label) last.entries.push(entry);
+    else days.push({ label, entries: [entry] });
+  });
+  return days;
+}
+
+/** Quem falou, como a tela mostra: nomes no Teams; na gravação, o nome dado ou "Voz N". */
+export function participantNames(item: MeetingTranscriptionListItem): string[] {
+  if (item.source === MEETING_TRANSCRIPTION_SOURCE.TEAMS) return item.participants;
+  return item.participants.map((label) => speakerDisplayName(label, item.speakers, item.participants));
+}
+
+/** Pedaços do texto com o termo buscado marcado, sem diferenciar maiúscula nem acento. */
+export function highlightParts(text: string, term: string): { text: string; match: boolean }[] {
+  const needle = comparable(term);
+  if (!needle) return [{ text, match: false }];
+  const haystack = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const parts: { text: string; match: boolean }[] = [];
+  let cursor = 0;
+  for (let found = haystack.indexOf(needle); found >= 0; found = haystack.indexOf(needle, cursor)) {
+    if (found > cursor) parts.push({ text: text.slice(cursor, found), match: false });
+    parts.push({ text: text.slice(found, found + needle.length), match: true });
+    cursor = found + needle.length;
+  }
+  if (cursor < text.length) parts.push({ text: text.slice(cursor), match: false });
+  return parts;
+}
+
+/** Nome do .txt baixado: "2026-10-22 Daily Pulse.txt", sem o que o sistema de arquivos recusa. */
+export function transcriptFileName(subject: string, when: string | null): string {
+  const day = when ? when.slice(0, 10) : '';
+  const safe = subject.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Reunião';
+  return `${[day, safe].filter(Boolean).join(' ')}.txt`;
+}
+
+export function downloadTextFile(fileName: string, content: string): void {
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Trecho em texto corrido de um markdown, para o cartão: sem #, listas, ênfase nem links. */
+export function plainExcerpt(markdown: string, max = 240): string {
+  const plain = markdown
+    .replace(/^\s{0,3}(#{1,6}|[-*+]|\d+[.)]|>)\s+/gm, '')
+    .replace(/[*_`~]+/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return plain.length > max ? `${plain.slice(0, max).trimEnd()}…` : plain;
 }

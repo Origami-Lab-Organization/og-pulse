@@ -17,7 +17,12 @@ import {
 } from '@/services/microsoftGraphService';
 import { meetingTranscriptionService } from '@/services/meetingTranscriptionService';
 import { describeGraphError } from '@/hooks/useMicrosoftGraph';
-import { DOWNLOAD_URL_LIFETIME_MS, normalizeSpeakers, normalizeSubject } from '@/lib/meetingTranscription';
+import {
+  DOWNLOAD_URL_LIFETIME_MS,
+  normalizeMeetingSummary,
+  normalizeSpeakers,
+  normalizeSubject,
+} from '@/lib/meetingTranscription';
 import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import {
   MEETING_TRANSCRIPTION_STATUS,
@@ -327,6 +332,41 @@ export function useSyncTeamsTranscripts(projectId: string) {
       toast.info('Nenhuma transcrição nova por enquanto.', {
         description: 'O Teams costuma publicar a transcrição alguns minutos depois do fim da reunião.',
       });
+    },
+    onError: (error) => {
+      toast.error(mensagemParaUsuario(error));
+    },
+  });
+}
+
+/** Resumo da reunião transcrita, trazido pela equipe. */
+export function useUpdateMeetingSummary(projectId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (variables: { id: string; summary: string }) =>
+      meetingTranscriptionService.updateSummary(variables.id, normalizeMeetingSummary(variables.summary)),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [TRANSCRIPTION_KEY, variables.id] });
+      queryClient.invalidateQueries({ queryKey: [TRANSCRIPTIONS_KEY, projectId] });
+      toast.success('Resumo salvo.');
+    },
+    onError: (error) => {
+      toast.error(mensagemParaUsuario(error));
+    },
+  });
+}
+
+/** Notas da reunião vinculada que ainda não tem transcrição. */
+export function useUpdateTeamsMeetingNotes() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (variables: { id: string; notes: string }) =>
+      meetingTranscriptionService.updateTeamsMeetingNotes(variables.id, normalizeMeetingSummary(variables.notes)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TEAMS_MEETINGS_KEY] });
+      toast.success('Notas salvas.');
     },
     onError: (error) => {
       toast.error(mensagemParaUsuario(error));

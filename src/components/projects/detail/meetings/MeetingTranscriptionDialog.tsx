@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, Copy, ExternalLink, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { BellOff, Check, Copy, Download, ExternalLink, Loader2, Pencil, Search, Trash2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -15,33 +15,46 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
 import {
   useDeleteTranscription,
   useMeetingTranscriptionDetail,
+  useStopFollowingTeamsMeeting,
+  useUpdateMeetingSummary,
   useUpdateTranscriptionSpeakers,
   useUpdateTranscriptionSubject,
 } from '@/hooks/useMeetingTranscriptions';
 import {
+  downloadTextFile,
   formatDuration,
   groupSegments,
+  highlightParts,
+  participantNames,
   speakerDisplayName,
   speakerLabels,
   speechTime,
   transcriptAsText,
+  transcriptFileName,
 } from '@/lib/meetingTranscription';
+import { MeetingNotesEditor } from './MeetingNotesEditor';
 import { TranscriptionStatusBadge } from './TranscriptionStatusBadge';
 import {
   MEETING_TRANSCRIPTION_SOURCE,
   MEETING_TRANSCRIPTION_STATUS,
   type MeetingTranscriptionDetail,
+  type ProjectTeamsMeeting,
   type SpeakerName,
+  type TranscriptBlock,
 } from '@/types/meetingTranscription';
+
+const TAB = { RESUMO: 'resumo', TRANSCRICAO: 'transcricao' } as const;
 
 /**
  * Início da transcrição, para mostrar a hora real de cada fala. Só no Teams: na gravação
@@ -51,15 +64,27 @@ function clockStart(transcription: MeetingTranscriptionDetail): string | null {
   return transcription.source === MEETING_TRANSCRIPTION_SOURCE.TEAMS ? transcription.occurredAt : null;
 }
 
-/** "20 de outubro de 2026 · 42 min · pedida por Fulana". */
+/** Texto inteiro como vai para a IA, para o .txt e para a área de transferência. */
+function fullText(transcription: MeetingTranscriptionDetail): string {
+  return transcription.segments.length
+    ? transcriptAsText(transcription.segments, transcription.speakers, clockStart(transcription))
+    : transcription.transcriptText ?? '';
+}
+
+/** "quinta-feira, 22 de outubro às 08:24 · 1 min · transcrição do Teams". */
 function metaLine(transcription: MeetingTranscriptionDetail): string {
   const when = transcription.occurredAt ?? transcription.createdAt;
-  const parts = [
-    format(parseISO(when), "d 'de' MMMM 'de' yyyy", { locale: ptBR }),
+  const origin =
+    transcription.source === MEETING_TRANSCRIPTION_SOURCE.TEAMS
+      ? 'transcrição do Teams'
+      : `gravação enviada por ${transcription.requestedByName ?? 'alguém da equipe'}`;
+  return [
+    format(parseISO(when), "EEEE, d 'de' MMMM 'às' HH:mm", { locale: ptBR }),
     formatDuration(transcription.durationSeconds),
-    `pedida por ${transcription.requestedByName ?? 'alguém da equipe'}`,
-  ];
-  return parts.filter(Boolean).join(' · ');
+    origin,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 interface SubjectEditorProps {
@@ -127,8 +152,8 @@ interface SpeakersEditorProps {
 }
 
 /**
- * O WhisperX separa as vozes, mas não sabe de quem são. Quem participou dá o nome — o
- * Pulse não adivinha (ADR-0039).
+ * A gravação enviada separa as vozes, mas não sabe de quem são. Quem participou dá o nome — o
+ * Pulse não adivinha (ADR-0039). A do Teams já vem com nomes.
  */
 function SpeakersEditor(props: SpeakersEditorProps) {
   const { transcription, labels } = props;
@@ -184,47 +209,78 @@ function SpeakersEditor(props: SpeakersEditorProps) {
   );
 }
 
-function TranscriptBody(props: { transcription: MeetingTranscriptionDetail; labels: string[] }) {
-  const { transcription, labels } = props;
+function Highlighted(props: { text: string; term: string }) {
+  return (
+    <>
+      {highlightParts(props.text, props.term).map((part, index) =>
+        part.match ? (
+          <mark key={index} className="rounded bg-warning-subtle px-0.5 text-foreground">
+            {part.text}
+          </mark>
+        ) : (
+          <span key={index}>{part.text}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+function blockMatches(block: TranscriptBlock, who: string, term: string): boolean {
+  return highlightParts(`${who} ${block.text}`, term).some((part) => part.match);
+}
+
+interface TranscriptBodyProps {
+  transcription: MeetingTranscriptionDetail;
+  labels: string[];
+  term: string;
+}
+
+function TranscriptBody(props: TranscriptBodyProps) {
+  const { transcription, labels, term } = props;
   const blocks = useMemo(() => groupSegments(transcription.segments), [transcription.segments]);
+  const start = clockStart(transcription);
+  const nameOf = (block: TranscriptBlock) => speakerDisplayName(block.speaker, transcription.speakers, labels);
+  const visible = term.trim() ? blocks.filter((block) => blockMatches(block, nameOf(block), term)) : blocks;
 
   if (!blocks.length) {
     return transcription.transcriptText ? (
       <p className="whitespace-pre-wrap break-words text-sm text-foreground">{transcription.transcriptText}</p>
     ) : null;
   }
+  if (!visible.length) {
+    return <p className="py-6 text-center text-sm text-muted-foreground">Nada encontrado para "{term.trim()}".</p>;
+  }
 
   return (
     <ol className="space-y-3">
-      {blocks.map((block) => (
+      {visible.map((block) => (
         <li key={`${block.start}-${block.speaker ?? ''}`} className="text-sm">
           <p className="text-xs text-muted-foreground">
             <span className="font-medium text-foreground">
-              {speakerDisplayName(block.speaker, transcription.speakers, labels)}
+              <Highlighted text={nameOf(block)} term={term} />
             </span>{' '}
-            <span className="tabular-nums">{speechTime(clockStart(transcription), block.start)}</span>
+            <span className="tabular-nums">{speechTime(start, block.start)}</span>
           </p>
-          <p className="whitespace-pre-wrap break-words text-foreground">{block.text}</p>
+          <p className="whitespace-pre-wrap break-words text-foreground">
+            <Highlighted text={block.text} term={term} />
+          </p>
         </li>
       ))}
     </ol>
   );
 }
 
-function CopyTranscriptButton(props: { transcription: MeetingTranscriptionDetail }) {
-  const { transcription } = props;
+function CopyTranscriptButton(props: { transcription: MeetingTranscriptionDetail; label?: string }) {
+  const { transcription, label = 'Copiar' } = props;
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
-    const text = transcription.segments.length
-      ? transcriptAsText(transcription.segments, transcription.speakers, clockStart(transcription))
-      : transcription.transcriptText ?? '';
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(fullText(transcription));
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('O navegador não deixou copiar. Selecione o texto e copie manualmente.');
+      toast.error('O navegador não deixou copiar. Use Baixar .txt.');
     }
   };
 
@@ -232,62 +288,158 @@ function CopyTranscriptButton(props: { transcription: MeetingTranscriptionDetail
   return (
     <Button variant="outline" size="sm" onClick={copy}>
       <Icon className="mr-2 h-4 w-4" aria-hidden="true" />
-      {copied ? 'Copiado' : 'Copiar texto'}
+      {copied ? 'Copiado' : label}
     </Button>
   );
 }
 
-interface DetailHeaderProps {
-  transcription: MeetingTranscriptionDetail;
-  canRequest: boolean;
+function TranscriptActions(props: { transcription: MeetingTranscriptionDetail }) {
+  const { transcription } = props;
+  const download = () =>
+    downloadTextFile(
+      transcriptFileName(transcription.eventSubject, transcription.occurredAt ?? transcription.createdAt),
+      fullText(transcription),
+    );
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      <CopyTranscriptButton transcription={transcription} />
+      <Button variant="outline" size="sm" onClick={download}>
+        <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+        Baixar .txt
+      </Button>
+      {transcription.recordingWebUrl && (
+        <Button asChild variant="outline" size="sm">
+          <a href={transcription.recordingWebUrl} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
+            Abrir gravação
+          </a>
+        </Button>
+      )}
+    </div>
+  );
 }
 
-function DetailHeader(props: DetailHeaderProps) {
+function TranscriptTab(props: { transcription: MeetingTranscriptionDetail; canRequest: boolean }) {
+  const { transcription, canRequest } = props;
+  const [term, setTerm] = useState('');
+  const labels = useMemo(() => speakerLabels(transcription.segments), [transcription.segments]);
+  const canNameSpeakers =
+    canRequest && labels.length > 0 && transcription.source === MEETING_TRANSCRIPTION_SOURCE.GRAVACAO;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <Input
+            type="search"
+            value={term}
+            onChange={(changed) => setTerm(changed.target.value)}
+            placeholder="Buscar nesta reunião"
+            aria-label="Buscar no texto da reunião"
+            className="pl-9"
+          />
+        </div>
+        <TranscriptActions transcription={transcription} />
+      </div>
+      {canNameSpeakers && <SpeakersEditor transcription={transcription} labels={labels} />}
+      <TranscriptBody transcription={transcription} labels={labels} term={term} />
+    </div>
+  );
+}
+
+function SummaryTab(props: { transcription: MeetingTranscriptionDetail; canRequest: boolean }) {
+  const { transcription, canRequest } = props;
+  const save = useUpdateMeetingSummary(transcription.projectId);
+
+  return (
+    <MeetingNotesEditor
+      recordId={transcription.id}
+      value={transcription.summary}
+      updatedAt={transcription.summaryUpdatedAt}
+      updatedByName={transcription.summaryUpdatedByName}
+      canEdit={canRequest}
+      isSaving={save.isPending}
+      onSave={(summary, done) => save.mutate({ id: transcription.id, summary }, { onSuccess: done })}
+      emptyState={
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-foreground">Sem resumo ainda</p>
+          <p className="text-sm text-muted-foreground">
+            Copie a transcrição, peça à sua IA um resumo com as decisões e os próximos passos, e
+            cole aqui — ou importe o arquivo que ela gerou.
+          </p>
+          <CopyTranscriptButton transcription={transcription} label="Copiar transcrição" />
+        </div>
+      }
+    />
+  );
+}
+
+function ParticipantChips(props: { names: string[] }) {
+  if (!props.names.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      {props.names.map((name) => (
+        <Badge key={name} variant="secondary" className="font-normal">
+          {name}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function DetailHeader(props: { transcription: MeetingTranscriptionDetail; canRequest: boolean }) {
   const { transcription, canRequest } = props;
   const [editing, setEditing] = useState(false);
-  const isReady = transcription.status === MEETING_TRANSCRIPTION_STATUS.CONCLUIDA;
-
-  useEffect(() => setEditing(false), [transcription.id]);
 
   return (
     <div className="space-y-2">
       {editing && <SubjectEditor transcription={transcription} onDone={() => setEditing(false)} />}
-      <p className="text-xs text-muted-foreground">{metaLine(transcription)}</p>
       <div className="flex flex-wrap items-center gap-2">
         <TranscriptionStatusBadge status={transcription.status} />
-        {isReady && <CopyTranscriptButton transcription={transcription} />}
-        {transcription.recordingWebUrl && (
-          <Button asChild variant="outline" size="sm">
-            <a href={transcription.recordingWebUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
-              Abrir gravação
-            </a>
-          </Button>
-        )}
+        <p className="text-xs text-muted-foreground">{metaLine(transcription)}</p>
         {canRequest && !editing && (
-          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-            <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
+          <Button variant="ghost" size="sm" className="h-7" onClick={() => setEditing(true)}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
             Editar título
           </Button>
         )}
       </div>
+      <ParticipantChips names={participantNames(transcription)} />
     </div>
   );
 }
 
 function DetailContent(props: { transcription: MeetingTranscriptionDetail; canRequest: boolean }) {
   const { transcription, canRequest } = props;
-  const labels = useMemo(() => speakerLabels(transcription.segments), [transcription.segments]);
-  // A transcrição do Teams já vem com o nome de quem falou; só a da gravação precisa de nome.
-  const canNameSpeakers =
-    canRequest && labels.length > 0 && transcription.source === MEETING_TRANSCRIPTION_SOURCE.GRAVACAO;
+  const isReady = transcription.status === MEETING_TRANSCRIPTION_STATUS.CONCLUIDA;
+  // Abre no resumo quando já existe. Só na montagem (o pai remonta por reunião, via `key`):
+  // salvar o resumo não pode tirar a pessoa da aba em que está.
+  const [tab, setTab] = useState<string>(() => (transcription.summary ? TAB.RESUMO : TAB.TRANSCRICAO));
 
   return (
     <div className="space-y-4">
       <DetailHeader transcription={transcription} canRequest={canRequest} />
       <StatusNotice transcription={transcription} />
-      {canNameSpeakers && <SpeakersEditor transcription={transcription} labels={labels} />}
-      <TranscriptBody transcription={transcription} labels={labels} />
+      {isReady && (
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList>
+            <TabsTrigger value={TAB.RESUMO}>Resumo e notas</TabsTrigger>
+            <TabsTrigger value={TAB.TRANSCRICAO}>Transcrição</TabsTrigger>
+          </TabsList>
+          <TabsContent value={TAB.RESUMO} className="mt-4">
+            <SummaryTab transcription={transcription} canRequest={canRequest} />
+          </TabsContent>
+          <TabsContent value={TAB.TRANSCRICAO} className="mt-4">
+            <TranscriptTab transcription={transcription} canRequest={canRequest} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }
@@ -322,7 +474,7 @@ function DialogState(props: DialogStateProps) {
     );
   }
 
-  return <DetailContent transcription={transcription} canRequest={canRequest} />;
+  return <DetailContent key={transcription.id} transcription={transcription} canRequest={canRequest} />;
 }
 
 function RemoveTranscriptionButton(props: { id: string; projectId: string; onRemoved: () => void }) {
@@ -341,8 +493,8 @@ function RemoveTranscriptionButton(props: { id: string; projectId: string; onRem
         <AlertDialogHeader>
           <AlertDialogTitle>Remover esta transcrição?</AlertDialogTitle>
           <AlertDialogDescription>
-            O texto sai do projeto para toda a equipe. A gravação continua no OneDrive enquanto
-            o Teams guardar — depois disso, esta transcrição pode ser o único registro da reunião.
+            O texto e o resumo saem do projeto para toda a equipe. Depois que o Teams expira a
+            reunião, esta transcrição pode ser o único registro dela.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -359,23 +511,59 @@ function RemoveTranscriptionButton(props: { id: string; projectId: string; onRem
   );
 }
 
+function StopFollowingButton(props: { meetingId: string }) {
+  const stop = useStopFollowingTeamsMeeting();
+  return (
+    <Button variant="ghost" onClick={() => stop.mutate(props.meetingId)} disabled={stop.isPending}>
+      <BellOff className="mr-2 h-4 w-4" aria-hidden="true" />
+      Parar de trazer as próximas
+    </Button>
+  );
+}
+
 interface MeetingTranscriptionDialogProps {
   transcriptionId: string | null;
   projectId: string;
-  /** Pode pedir transcrição neste projeto: edita título e nome das vozes. */
+  /** Pode pedir transcrição neste projeto: edita título, resumo e nome das vozes. */
   canRequest: boolean;
   /** GP do projeto (ou quem gere qualquer projeto): remove. */
   canManageProject: boolean;
+  /** Reunião do Teams de onde veio, se ainda acompanhada, e se quem vê pode parar. */
+  linkedMeeting: ProjectTeamsMeeting | null;
+  canStopFollowing: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+interface FooterActionsProps {
+  transcription: MeetingTranscriptionDetail;
+  projectId: string;
+  canManageProject: boolean;
+  stopMeetingId: string | null;
+  onRemoved: () => void;
+}
+
+function FooterActions(props: FooterActionsProps) {
+  const { transcription, projectId, canManageProject, stopMeetingId, onRemoved } = props;
+  if (!stopMeetingId && !canManageProject) return null;
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      {stopMeetingId && <StopFollowingButton meetingId={stopMeetingId} />}
+      {canManageProject && (
+        <RemoveTranscriptionButton id={transcription.id} projectId={projectId} onRemoved={onRemoved} />
+      )}
+    </div>
+  );
+}
+
 export function MeetingTranscriptionDialog(props: MeetingTranscriptionDialogProps) {
-  const { transcriptionId, projectId, canRequest, canManageProject, onOpenChange } = props;
+  const { transcriptionId, projectId, canRequest, canManageProject, linkedMeeting, canStopFollowing, onOpenChange } =
+    props;
   const { data: transcription, isLoading, error } = useMeetingTranscriptionDetail(transcriptionId);
+  const stopMeetingId = canStopFollowing ? linkedMeeting?.id ?? null : null;
 
   return (
     <Dialog open={Boolean(transcriptionId)} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl flex max-h-[85vh] flex-col">
+      <DialogContent className="sm:max-w-3xl flex max-h-[90vh] flex-col">
         <DialogHeader>
           <DialogTitle className="pr-6">{transcription?.eventSubject ?? 'Reunião'}</DialogTitle>
         </DialogHeader>
@@ -389,14 +577,14 @@ export function MeetingTranscriptionDialog(props: MeetingTranscriptionDialogProp
           />
         </div>
 
-        {canManageProject && transcription && (
-          <div className="flex justify-end">
-            <RemoveTranscriptionButton
-              id={transcription.id}
-              projectId={projectId}
-              onRemoved={() => onOpenChange(false)}
-            />
-          </div>
+        {transcription && (
+          <FooterActions
+            transcription={transcription}
+            projectId={projectId}
+            canManageProject={canManageProject}
+            stopMeetingId={stopMeetingId}
+            onRemoved={() => onOpenChange(false)}
+          />
         )}
       </DialogContent>
     </Dialog>

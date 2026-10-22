@@ -2533,6 +2533,8 @@ export type Database = {
           last_error: string | null
           occurred_at: string | null
           online_meeting_id: string | null
+          participants: string[]
+          preview: string | null
           project_id: string
           recording_drive_id: string | null
           recording_item_id: string | null
@@ -2543,6 +2545,9 @@ export type Database = {
           source_transcript_id: string | null
           speakers: Json
           status: Database["public"]["Enums"]["meeting_transcription_status"]
+          summary: string | null
+          summary_updated_at: string | null
+          summary_updated_by: string | null
           tenant_id: string
           transcript_text: string | null
           updated_at: string
@@ -2561,6 +2566,8 @@ export type Database = {
           last_error?: string | null
           occurred_at?: string | null
           online_meeting_id?: string | null
+          participants?: string[]
+          preview?: string | null
           project_id: string
           recording_drive_id?: string | null
           recording_item_id?: string | null
@@ -2571,6 +2578,9 @@ export type Database = {
           source_transcript_id?: string | null
           speakers?: Json
           status?: Database["public"]["Enums"]["meeting_transcription_status"]
+          summary?: string | null
+          summary_updated_at?: string | null
+          summary_updated_by?: string | null
           tenant_id?: string
           transcript_text?: string | null
           updated_at?: string
@@ -2589,6 +2599,8 @@ export type Database = {
           last_error?: string | null
           occurred_at?: string | null
           online_meeting_id?: string | null
+          participants?: string[]
+          preview?: string | null
           project_id?: string
           recording_drive_id?: string | null
           recording_item_id?: string | null
@@ -2599,6 +2611,9 @@ export type Database = {
           source_transcript_id?: string | null
           speakers?: Json
           status?: Database["public"]["Enums"]["meeting_transcription_status"]
+          summary?: string | null
+          summary_updated_at?: string | null
+          summary_updated_by?: string | null
           tenant_id?: string
           transcript_text?: string | null
           updated_at?: string
@@ -4894,6 +4909,9 @@ export type Database = {
           join_web_url: string | null
           last_checked_at: string | null
           last_error: string | null
+          notes: string | null
+          notes_updated_at: string | null
+          notes_updated_by: string | null
           online_meeting_id: string
           organizer_entra_id: string
           project_id: string
@@ -4912,6 +4930,9 @@ export type Database = {
           join_web_url?: string | null
           last_checked_at?: string | null
           last_error?: string | null
+          notes?: string | null
+          notes_updated_at?: string | null
+          notes_updated_by?: string | null
           online_meeting_id: string
           organizer_entra_id: string
           project_id: string
@@ -4930,6 +4951,9 @@ export type Database = {
           join_web_url?: string | null
           last_checked_at?: string | null
           last_error?: string | null
+          notes?: string | null
+          notes_updated_at?: string | null
+          notes_updated_by?: string | null
           online_meeting_id?: string
           organizer_entra_id?: string
           project_id?: string
