@@ -21,6 +21,8 @@ const FORMATO_COM_VOZ = "text/vtt";
 const FORMATO_SEM_VOZ = "application/vnd.microsoft.graph.transcript+text";
 const SEM_ATRIBUICAO_DE_VOZ = "SpeakerAttributionNotAllowed";
 const ACESSO_A_TRANSCRICAO_DESLIGADO = "GraphAccessToTranscriptsDisabled";
+const TENTATIVAS_SE_DESLIGADO = 6;
+const ESPERA_ENTRE_TENTATIVAS_MS = 1500;
 const SEM_POLITICA_DE_ACESSO = "No application access policy";
 const FALHA_DE_TOKEN = "token";
 const PG_UNIQUE_VIOLATION = "23505";
@@ -109,15 +111,35 @@ async function codigoDoErro(resposta: Response): Promise<string> {
   }
 }
 
-async function graph(token: string, url: string, accept = "application/json"): Promise<Response> {
-  // O token do app só vai para o Graph, nunca para URL que veio de resposta sem conferir.
-  if (!url.startsWith(`${GRAPH}/`)) throw new FalhaGraph(0, "url_fora_do_graph");
+async function graphUmaVez(token: string, url: string, accept: string): Promise<Response> {
   const resposta = await fetch(url, {
     headers: { Authorization: `Bearer ${token}`, Accept: accept },
     signal: AbortSignal.timeout(TEMPO_MS),
   });
   if (!resposta.ok) throw new FalhaGraph(resposta.status, await codigoDoErro(resposta));
   return resposta;
+}
+
+const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Depois de o "acesso do Graph às transcrições" ser ligado, a Microsoft leva horas para
+ * espalhar a configuração: cada pedido cai num servidor, e parte deles ainda responde
+ * "desligado". Em 22/10, meia hora depois, 1 em cada 12 pedidos ainda era recusado — e um só
+ * bastava para a reunião aparecer "Com problema". Repetir algumas vezes resolve.
+ */
+async function graph(token: string, url: string, accept = "application/json"): Promise<Response> {
+  // O token do app só vai para o Graph, nunca para URL que veio de resposta sem conferir.
+  if (!url.startsWith(`${GRAPH}/`)) throw new FalhaGraph(0, "url_fora_do_graph");
+  for (let tentativa = 1; ; tentativa++) {
+    try {
+      return await graphUmaVez(token, url, accept);
+    } catch (erro) {
+      const passageiro = erro instanceof FalhaGraph && erro.codigo === ACESSO_A_TRANSCRICAO_DESLIGADO;
+      if (!passageiro || tentativa >= TENTATIVAS_SE_DESLIGADO) throw erro;
+      await esperar(ESPERA_ENTRE_TENTATIVAS_MS);
+    }
+  }
 }
 
 function inicioDaJanela(): string {
