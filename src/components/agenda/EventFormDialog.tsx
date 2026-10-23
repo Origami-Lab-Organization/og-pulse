@@ -42,6 +42,9 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { AttendeePicker } from './AttendeePicker';
+import { CategoryPicker } from './CategoryPicker';
+import { LocationPicker } from './LocationPicker';
+import { DEFAULT_REMINDER_MINUTES, ReminderSelect } from './ReminderSelect';
 import { RecurrenceFields } from './RecurrenceFields';
 import {
   GRAPH_WEEKDAYS,
@@ -51,6 +54,7 @@ import {
 import type {
   CalendarEventCreated,
   CalendarEventDetail,
+  EventRoom,
   RecurrenceInput,
 } from '@/types/microsoftGraph';
 
@@ -84,6 +88,11 @@ const formSchema = z
     endTime: z.string().min(1, 'Término é obrigatório'),
     attendees: z.array(z.string().email()),
     location: z.string(),
+    /** Sala reservada; quando presente, é ela o local. */
+    room: z.object({ email: z.string().email(), name: z.string() }).nullable(),
+    /** Minutos antes do início; `null` = sem lembrete. */
+    reminderMinutes: z.number().int().min(0).nullable(),
+    categories: z.array(z.string()),
     withTeamsMeeting: z.boolean(),
     /** Só vale com reunião do Teams. */
     recordAutomatically: z.boolean(),
@@ -240,22 +249,53 @@ interface EventFormDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Dia pré-selecionado ao abrir pela grade (modo criação). */
   initialDate: Date;
+  /** Início (HH:mm) ao clicar num horário da grade; ausente = próximo quarto de hora. */
+  initialTime?: string | null;
   /** Presente = editar este compromisso; ausente = criar novo. */
   event?: CalendarEventDetail | null;
+}
+
+/** Primeira sala (convidado `resource`) do evento, se houver. */
+function bookedRoom(event: CalendarEventDetail): EventRoom | null {
+  const resource = event.attendees.find((attendee) => attendee.isResource && attendee.email);
+  return resource ? { email: resource.email.toLowerCase(), name: resource.name } : null;
+}
+
+/** Horário do formulário no formato do Graph; `null` enquanto incompleto ou invertido. */
+function formWindow(date: string, startTime: string, endTime: string) {
+  if (!date || !startTime || !endTime || endTime <= startTime) return { start: null, end: null };
+  return { start: `${date}T${startTime}:00`, end: `${date}T${endTime}:00` };
+}
+
+/** Com sala, o local é a sala; o texto livre só vale sem ela. */
+function extraFields(data: FormData): { reminderMinutes: number | null; categories: string[] } {
+  return { reminderMinutes: data.reminderMinutes ?? null, categories: data.categories ?? [] };
+}
+
+function locationFields(data: FormData): { location: string; room: EventRoom | null } {
+  return { location: data.room ? '' : data.location.trim(), room: (data.room as EventRoom | null) };
 }
 
 /** Valores do formulário a partir de um evento existente. */
 function valuesFromEvent(event: CalendarEventDetail): FormData {
   const start = event.start ? parseISO(event.start) : new Date();
   const end = event.end ? parseISO(event.end) : start;
+  const room = bookedRoom(event);
 
   return {
     subject: event.subject,
     date: format(start, 'yyyy-MM-dd'),
     startTime: format(start, 'HH:mm'),
     endTime: format(end, 'HH:mm'),
-    attendees: event.attendees.map((attendee) => attendee.email).filter(Boolean),
-    location: event.location ?? '',
+    // Sala vai à parte: reenviada como pessoa, deixaria de ser reconhecida como sala.
+    attendees: event.attendees
+      .filter((attendee) => !attendee.isResource)
+      .map((attendee) => attendee.email)
+      .filter(Boolean),
+    location: room ? '' : event.location ?? '',
+    room,
+    reminderMinutes: event.reminderMinutes,
+    categories: event.categories,
     withTeamsMeeting: Boolean(event.onlineMeetingUrl),
     recordAutomatically: false,
     // Vazio de propósito: a descrição só é enviada se a pessoa escrever algo.
@@ -269,8 +309,8 @@ function valuesFromEvent(event: CalendarEventDetail): FormData {
   };
 }
 
-function valuesForNewEvent(initialDate: Date): FormData {
-  const start = currentTimeSlot();
+function valuesForNewEvent(initialDate: Date, initialTime: string | null): FormData {
+  const start = initialTime ?? currentTimeSlot();
   return {
     subject: '',
     date: format(initialDate, 'yyyy-MM-dd'),
@@ -278,6 +318,9 @@ function valuesForNewEvent(initialDate: Date): FormData {
     endTime: addOneHour(start),
     attendees: [],
     location: '',
+    room: null,
+    reminderMinutes: DEFAULT_REMINDER_MINUTES,
+    categories: [],
     withTeamsMeeting: false,
     recordAutomatically: true,
     notes: '',
@@ -288,12 +331,8 @@ function valuesForNewEvent(initialDate: Date): FormData {
   };
 }
 
-export function EventFormDialog({
-  open,
-  onOpenChange,
-  initialDate,
-  event = null,
-}: EventFormDialogProps) {
+export function EventFormDialog(props: EventFormDialogProps) {
+  const { open, onOpenChange, initialDate, initialTime = null, event = null } = props;
   const createEvent = useCreateCalendarEvent();
   const updateEvent = useUpdateCalendarEvent();
   const setUpTeams = useSetUpTeamsMeeting();
@@ -305,14 +344,22 @@ export function EventFormDialog({
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: event ? valuesFromEvent(event) : valuesForNewEvent(initialDate),
+    defaultValues: event ? valuesFromEvent(event) : valuesForNewEvent(initialDate, initialTime),
   });
 
   useEffect(() => {
     if (open) {
-      form.reset(event ? valuesFromEvent(event) : valuesForNewEvent(initialDate));
+      form.reset(event ? valuesFromEvent(event) : valuesForNewEvent(initialDate, initialTime));
     }
-  }, [open, initialDate, event, form]);
+  }, [open, initialDate, initialTime, event, form]);
+
+  const [watchedDate, watchedStart, watchedEnd, watchedLocation] = form.watch([
+    'date',
+    'startTime',
+    'endTime',
+    'location',
+  ]);
+  const timeWindow = formWindow(watchedDate, watchedStart, watchedEnd);
 
   const onSubmit = async (data: FormData) => {
     // Horário local sem sufixo Z — o fuso vai declarado à parte no Graph.
@@ -329,7 +376,8 @@ export function EventFormDialog({
             start,
             end,
             attendees: data.attendees,
-            location: data.location.trim(),
+            ...locationFields(data),
+            ...extraFields(data),
             notes: data.notes.trim(),
           },
         },
@@ -343,7 +391,8 @@ export function EventFormDialog({
       start,
       end,
       attendees: data.attendees,
-      location: data.location.trim(),
+      ...locationFields(data),
+      ...extraFields(data),
       withTeamsMeeting: data.withTeamsMeeting,
       notes: data.notes.trim(),
       recurrence: data.isRecurring ? (data.recurrence as RecurrenceInput) : null,
@@ -451,17 +500,58 @@ export function EventFormDialog({
 
             <FormField
               control={form.control}
-              name="location"
+              name="room"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Local</FormLabel>
                   <FormControl>
-                    <Input placeholder="Sala de reunião, endereço ou online" {...field} />
+                    <LocationPicker
+                      value={{ location: watchedLocation, room: field.value as EventRoom | null }}
+                      onChange={(next) => {
+                        field.onChange(next.room);
+                        form.setValue('location', next.location, { shouldDirty: true });
+                      }}
+                      start={timeWindow.start}
+                      end={timeWindow.end}
+                      bookedRoomEmail={event ? bookedRoom(event)?.email : null}
+                    />
                   </FormControl>
+                  <FormDescription>
+                    Escolha uma sala de reunião livre ou digite um endereço. Opcional.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="reminderMinutes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Lembrete</FormLabel>
+                    <FormControl>
+                      <ReminderSelect value={field.value ?? null} onChange={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="categories"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Categoria</FormLabel>
+                    <FormControl>
+                      <CategoryPicker value={field.value} onChange={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {!isEditing && (
             <FormField

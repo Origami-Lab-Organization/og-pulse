@@ -15,6 +15,14 @@ import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Quem saiu da empresa não é convidável. O diretório devolve todo o tenant
+ * (desligados inclusive, para resolver nomes no histórico). `em_desligamento`
+ * entra aqui porque o fluxo de desligamento grava esse status e não o promove a
+ * `desligado` depois — mesma regra de `useEmployees`.
+ */
+const TERMINATED_STATUSES = new Set(['desligado', 'em_desligamento', 'arquivado', 'inativo']);
+
 interface AttendeePickerProps {
   /** E-mails já escolhidos. */
   value: string[];
@@ -32,16 +40,22 @@ export function AttendeePicker({ value, onChange }: AttendeePickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
-  const selectable = useMemo(
+  const withEmail = useMemo(
     () => employees.filter((employee): employee is typeof employee & { email: string } => !!employee.email),
     [employees],
   );
 
+  const selectable = useMemo(
+    () => withEmail.filter((employee) => !TERMINATED_STATUSES.has(employee.status ?? '')),
+    [withEmail],
+  );
+
+  // Inclui desligados: ao editar um evento antigo, o convidado continua aparecendo pelo nome.
   const nameByEmail = useMemo(() => {
     const map = new Map<string, string>();
-    selectable.forEach((employee) => map.set(employee.email.toLowerCase(), employee.nome));
+    withEmail.forEach((employee) => map.set(employee.email.toLowerCase(), employee.nome));
     return map;
-  }, [selectable]);
+  }, [withEmail]);
 
   const toggle = (email: string) => {
     const normalized = email.trim().toLowerCase();
@@ -59,7 +73,8 @@ export function AttendeePicker({ value, onChange }: AttendeePickerProps) {
 
   return (
     <div className="space-y-2">
-      <Popover open={open} onOpenChange={setOpen}>
+      {/* modal: dentro do Dialog, sem isso o bloqueio de scroll do Dialog engole a roda do mouse na lista. */}
+      <Popover open={open} onOpenChange={setOpen} modal>
         <PopoverTrigger asChild>
           <Button type="button" variant="outline" className="w-full justify-start font-normal">
             <UserPlus className="mr-2 h-4 w-4" aria-hidden="true" />
