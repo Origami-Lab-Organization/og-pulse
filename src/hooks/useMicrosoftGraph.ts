@@ -8,6 +8,8 @@ import {
 import { toast } from 'sonner';
 import {
   acquireGraphToken,
+  acquireGraphTokenForScopes,
+  acquireGraphTokenSilentlyForScopes,
   connectMicrosoft,
   disconnectMicrosoft,
   getConnectedAccountEmail,
@@ -25,13 +27,19 @@ import {
   fetchAttachmentContent,
   deleteEventIfPresent,
   getMailMessage,
+  getRoomsAvailability,
   GraphError,
   listCalendarEvents,
-  listInboxPage,
+  listMeetingRooms,
+  listOutlookCategories,
+  CATEGORIES_SCOPES,
+  ROOMS_SCOPES,
+  listFolderPage,
+  listMailFolders,
   listMessageAttachments,
   listRecentMessages,
   respondToInvite,
-  searchInboxPage,
+  searchFolderPage,
   updateCalendarEvent,
 } from '@/services/microsoftGraphService';
 import {
@@ -53,6 +61,9 @@ const ACCOUNT_QUERY_KEY = ['microsoft-account'];
 const CALENDAR_QUERY_KEY = 'microsoft-calendar';
 const MAIL_QUERY_KEY = 'microsoft-mail';
 const EVENT_QUERY_KEY = 'microsoft-event';
+const ROOMS_QUERY_KEY = 'microsoft-rooms';
+const CATEGORIES_QUERY_KEY = 'microsoft-categories';
+const ROOM_AVAILABILITY_QUERY_KEY = 'microsoft-room-availability';
 
 const POPUP_BLOCKED_CODES: string[] = [
   BrowserAuthErrorCodes.popupWindowError,
@@ -242,6 +253,62 @@ export function useUpdateCalendarEvent() {
   });
 }
 
+/**
+ * Salas de reunião do Microsoft 365. Token com `ROOMS_SCOPES` à parte: sem o
+ * consentimento de admin de `Place.Read.All`, só este seletor falha.
+ */
+export function useMeetingRooms(enabled: boolean) {
+  return useQuery({
+    queryKey: [ROOMS_QUERY_KEY],
+    enabled,
+    staleTime: 30 * 60_000,
+    retry: false,
+    queryFn: async () => {
+      const token = await acquireGraphTokenForScopes(ROOMS_SCOPES);
+      return listMeetingRooms(token);
+    },
+  });
+}
+
+/** Livre/ocupada de cada sala no horário do compromisso (`start`/`end` locais, sem fuso). */
+export function useRoomsAvailability(
+  emails: string[],
+  start: string | null,
+  end: string | null,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [ROOM_AVAILABILITY_QUERY_KEY, start, end, emails.join(',')],
+    enabled: enabled && emails.length > 0 && Boolean(start && end),
+    staleTime: 60_000,
+    retry: false,
+    queryFn: async () => {
+      const token = await acquireGraphToken();
+      return getRoomsAvailability(token, emails, start as string, end as string);
+    },
+  });
+}
+
+/**
+ * Categorias do Outlook. `interactive` abre o consentimento de
+ * `MailboxSettings.Read` se faltar (no seletor); sem ele, a leitura só acontece
+ * se a pessoa já consentiu — a grade usa assim, para pintar sem abrir popup.
+ */
+export function useOutlookCategories(enabled: boolean, interactive: boolean) {
+  return useQuery({
+    queryKey: [CATEGORIES_QUERY_KEY],
+    enabled,
+    staleTime: 30 * 60_000,
+    retry: false,
+    queryFn: async () => {
+      const token = interactive
+        ? await acquireGraphTokenForScopes(CATEGORIES_SCOPES)
+        : await acquireGraphTokenSilentlyForScopes(CATEGORIES_SCOPES);
+      return listOutlookCategories(token);
+    },
+  });
+}
+
 /** Detalhe completo de um evento — carregado só quando o card é aberto. */
 export function useCalendarEventDetail(eventId: string | null) {
   return useQuery({
@@ -314,16 +381,31 @@ export function useEventAction() {
  * só: a separação Prioritários/Outros acontece na tela. O cursor é a `nextLink`
  * opaca do Graph — nunca montada por nós.
  */
-export function useInboxPages(top: number, enabled: boolean) {
+/** Pastas de primeiro nível da caixa, com contagem de não lidos. */
+export function useMailFolders(enabled: boolean) {
+  return useQuery({
+    queryKey: [MAIL_QUERY_KEY, 'folders'],
+    enabled,
+    staleTime: 60_000,
+    retry: false,
+    queryFn: async () => {
+      const token = await acquireGraphToken();
+      return listMailFolders(token);
+    },
+  });
+}
+
+/** Mensagens de uma pasta (id ou alias como `inbox`), mais recentes primeiro. */
+export function useFolderPages(folderId: string, top: number, enabled: boolean) {
   return useInfiniteQuery({
-    queryKey: [MAIL_QUERY_KEY, 'inbox', top],
+    queryKey: [MAIL_QUERY_KEY, 'folder', folderId, top],
     enabled,
     staleTime: 60_000,
     retry: false,
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
       const token = await acquireGraphToken();
-      return listInboxPage(token, { top, nextLink: pageParam });
+      return listFolderPage(token, folderId, { top, nextLink: pageParam });
     },
     getNextPageParam: (lastPage) => lastPage.nextLink,
   });
@@ -581,18 +663,18 @@ export function useRespondToInvite() {
 const MIN_SEARCH_LENGTH = 2;
 
 /** Busca paginada na caixa de entrada. Inativa com termo curto. */
-export function useInboxSearch(query: string, top: number, enabled: boolean) {
+export function useFolderSearch(folderId: string, query: string, top: number, enabled: boolean) {
   const term = query.trim();
 
   return useInfiniteQuery({
-    queryKey: [MAIL_QUERY_KEY, 'search', term, top],
+    queryKey: [MAIL_QUERY_KEY, 'search', folderId, term, top],
     enabled: enabled && term.length >= MIN_SEARCH_LENGTH,
     staleTime: 60_000,
     retry: false,
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
       const token = await acquireGraphToken();
-      return searchInboxPage(token, term, { top, nextLink: pageParam });
+      return searchFolderPage(token, folderId, term, { top, nextLink: pageParam });
     },
     getNextPageParam: (lastPage) => lastPage.nextLink,
   });

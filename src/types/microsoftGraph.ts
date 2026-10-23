@@ -28,6 +28,15 @@ export interface CalendarEvent {
   isRecurring: boolean;
   /** Minha resposta ao convite — dirige o destaque na grade, como no Outlook. */
   myResponse: string;
+  /** Nomes das categorias do Outlook; a cor vem da lista mestre da pessoa. */
+  categories: string[];
+}
+
+/** Categoria da lista mestre do Outlook. `color` é o preset do Graph (`preset0`…`preset24`, `none`). */
+export interface OutlookCategory {
+  id: string;
+  name: string;
+  color: string;
 }
 
 /** Resposta do convidado ao convite, como o Graph reporta. */
@@ -54,8 +63,35 @@ export interface EventAttendee {
   name: string;
   email: string;
   isRequired: boolean;
+  /** Sala/recurso reservado, não uma pessoa. */
+  isResource: boolean;
   response: AttendeeResponse;
 }
+
+/** Sala de reunião cadastrada no Microsoft 365 (Places API). */
+export interface MeetingRoom {
+  email: string;
+  name: string;
+  capacity: number | null;
+  building: string | null;
+  floorLabel: string | null;
+}
+
+/** Sala reservada no compromisso: vai como convidado `resource` e como local. */
+export interface EventRoom {
+  email: string;
+  name: string;
+}
+
+/** Situação da sala no horário do compromisso, pelo `getSchedule`. */
+export const ROOM_AVAILABILITY = {
+  FREE: 'free',
+  BUSY: 'busy',
+  /** O Graph não informou (sala sem agenda visível, erro por sala). */
+  UNKNOWN: 'unknown',
+} as const;
+
+export type RoomAvailability = (typeof ROOM_AVAILABILITY)[keyof typeof ROOM_AVAILABILITY];
 
 /** Evento com os dados completos, carregado ao abrir o detalhe. */
 export interface CalendarEventDetail extends CalendarEvent {
@@ -75,6 +111,8 @@ export interface CalendarEventDetail extends CalendarEvent {
   isCancelled: boolean;
   /** Texto puro da descrição. O HTML do corpo não é renderizado, por segurança. */
   preview: string;
+  /** Minutos antes do início; `null` = lembrete desligado. */
+  reminderMinutes: number | null;
 }
 
 /** Ações possíveis sobre um evento existente. */
@@ -152,8 +190,13 @@ export interface CalendarEventInput {
   end: string;
   /** E-mails dos convidados; opcional. */
   attendees: string[];
-  /** Local livre — sala, endereço ou "online". Opcional. */
+  /** Local livre — endereço ou "online". Ignorado quando há sala reservada. */
   location: string;
+  /** Sala de reunião reservada; `null` = sem sala. */
+  room: EventRoom | null;
+  /** Minutos antes do início para o lembrete; `null` = sem lembrete. */
+  reminderMinutes: number | null;
+  categories: string[];
   /** Cria a reunião do Teams e devolve o link de entrada. */
   withTeamsMeeting: boolean;
   notes: string;
@@ -180,6 +223,9 @@ export interface CalendarEventUpdate {
   end: string;
   attendees: string[];
   location: string;
+  room: EventRoom | null;
+  reminderMinutes: number | null;
+  categories: string[];
   notes: string;
 }
 
@@ -270,6 +316,30 @@ export interface MailMessage {
   isRead: boolean;
   webLink: string | null;
   classification: MailClassification;
+  /** Destinatários (nomes), para Enviados e Rascunhos mostrarem "Para:". */
+  to: string[];
+}
+
+/** Pastas padrão do Exchange, pelo alias que o Graph aceita no lugar do id. */
+export const WELL_KNOWN_FOLDER = {
+  INBOX: 'inbox',
+  DRAFTS: 'drafts',
+  SENT: 'sentitems',
+  DELETED: 'deleteditems',
+  JUNK: 'junkemail',
+  ARCHIVE: 'archive',
+} as const;
+
+export type WellKnownFolder = (typeof WELL_KNOWN_FOLDER)[keyof typeof WELL_KNOWN_FOLDER];
+
+/** Pasta de e-mail de primeiro nível da caixa da pessoa. */
+export interface MailFolder {
+  id: string;
+  /** Nome já no idioma da caixa ("Caixa de Entrada", "Itens Enviados"). */
+  name: string;
+  /** Qual pasta padrão é esta; `null` para pastas criadas pela pessoa. */
+  wellKnown: WellKnownFolder | null;
+  unreadCount: number;
 }
 
 // ─── OneDrive / SharePoint (ADR-0019) ─────────────────────────────────────────

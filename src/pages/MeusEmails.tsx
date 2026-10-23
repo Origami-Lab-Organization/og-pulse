@@ -10,14 +10,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MailFolderNav } from '@/components/email/MailFolderNav';
+import { ReadingPane } from '@/components/email/ReadingPane';
+import { useIsWideScreen } from '@/hooks/useIsWideScreen';
+import { folderKey, showsRecipients } from '@/components/email/mailFolders';
 import {
   describeGraphError,
-  useInboxPages,
-  useInboxSearch,
+  useFolderPages,
+  useFolderSearch,
+  useMailFolders,
   useMicrosoftConnection,
 } from '@/hooks/useMicrosoftGraph';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { MAIL_CLASSIFICATION } from '@/types/microsoftGraph';
+import { MAIL_CLASSIFICATION, WELL_KNOWN_FOLDER } from '@/types/microsoftGraph';
 import type { MailClassification } from '@/types/microsoftGraph';
 
 const PAGE_SIZE = 25;
@@ -46,20 +51,27 @@ function EmptyInbox({ message }: { message: string }) {
 }
 
 interface InboxListProps {
-  query: ReturnType<typeof useInboxPages> | ReturnType<typeof useInboxSearch>;
+  query: ReturnType<typeof useFolderPages> | ReturnType<typeof useFolderSearch>;
   emptyMessage: string;
   onOpenMessage: (messageId: string) => void;
   /** Quando presente, mostra só a classificação pedida das páginas carregadas. */
   classification?: MailClassification;
+  /** Enviados/Rascunhos mostram o destinatário no lugar do remetente. */
+  showRecipients?: boolean;
+  /** E-mail aberto na coluna de leitura, destacado na lista. */
+  selectedId?: string | null;
+}
+
+/** Mensagens das páginas já carregadas, só da classificação pedida quando houver. */
+function loadedMessages(query: InboxListProps['query'], classification?: MailClassification) {
+  const loaded = (query.data?.pages ?? []).flatMap((page) => page.messages);
+  if (!classification) return loaded;
+  return loaded.filter((message) => message.classification === classification);
 }
 
 /** Lista paginada de uma classificação, com "carregar mais" ao final. */
-function InboxList({
-  query,
-  emptyMessage,
-  onOpenMessage,
-  classification,
-}: InboxListProps) {
+function InboxList(props: InboxListProps) {
+  const { query, emptyMessage, onOpenMessage, classification, showRecipients, selectedId } = props;
   if (query.isLoading) return <ListSkeleton />;
 
   if (query.error) {
@@ -70,10 +82,7 @@ function InboxList({
     );
   }
 
-  const loaded = (query.data?.pages ?? []).flatMap((page) => page.messages);
-  const messages = classification
-    ? loaded.filter((message) => message.classification === classification)
-    : loaded;
+  const messages = loadedMessages(query, classification);
 
   if (!messages.length) return <EmptyInbox message={emptyMessage} />;
 
@@ -85,6 +94,8 @@ function InboxList({
             key={message.id}
             message={message}
             onOpen={() => onOpenMessage(message.id)}
+            showRecipients={showRecipients}
+            selected={message.id === selectedId}
           />
         ))}
       </ul>
@@ -119,12 +130,30 @@ export default function MeusEmails() {
     useMicrosoftConnection();
 
   const [openMessageId, setOpenMessageId] = useState<string | null>(null);
+  const [folder, setFolder] = useState<string>(WELL_KNOWN_FOLDER.INBOX);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedTerm = useDebouncedValue(searchTerm, SEARCH_DEBOUNCE_MS);
   const isSearching = debouncedTerm.trim().length >= MIN_SEARCH_LENGTH;
 
-  const inbox = useInboxPages(PAGE_SIZE, isConnected);
-  const search = useInboxSearch(debouncedTerm, PAGE_SIZE, isConnected);
+  const folders = useMailFolders(isConnected);
+  const inbox = useFolderPages(folder, PAGE_SIZE, isConnected);
+  const search = useFolderSearch(folder, debouncedTerm, PAGE_SIZE, isConnected);
+  const folderName =
+    folders.data?.find((item) => folderKey(item) === folder)?.name ?? 'Caixa de Entrada';
+  const isInbox = folder === WELL_KNOWN_FOLDER.INBOX;
+  // Tela larga lê na coluna da direita; estreita, na janela por cima.
+  const isWide = useIsWideScreen();
+
+  const listProps = {
+    onOpenMessage: setOpenMessageId,
+    showRecipients: showsRecipients(folder),
+    selectedId: isWide ? openMessageId : null,
+  };
+
+  const changeFolder = (key: string) => {
+    setFolder(key);
+    setOpenMessageId(null);
+  };
 
   const searchField = (
     <div className="relative">
@@ -136,7 +165,7 @@ export default function MeusEmails() {
         type="search"
         value={searchTerm}
         onChange={(changed) => setSearchTerm(changed.target.value)}
-        placeholder="Pesquisar em remetente, assunto e conteúdo"
+        placeholder={`Pesquisar em ${folderName}`}
         aria-label="Pesquisar e-mails"
         className="pl-9 pr-9"
       />
@@ -188,18 +217,51 @@ export default function MeusEmails() {
       );
     }
 
+    // Em tela larga cada coluna rola sozinha, como no Outlook.
+    return (
+      <div className="flex flex-col gap-6 md:flex-row lg:h-[calc(100vh-6.5rem)] lg:min-h-[32rem]">
+        <div className="lg:overflow-y-auto">
+          <MailFolderNav
+            folders={folders.data}
+            isLoading={folders.isLoading}
+            selectedKey={folder}
+            onSelect={changeFolder}
+          />
+        </div>
+        <div className="min-w-0 flex-1 lg:w-[24rem] lg:flex-none lg:overflow-y-auto lg:pr-1">
+          {renderFolder()}
+        </div>
+        {isWide && <ReadingPane messageId={openMessageId} />}
+      </div>
+    );
+  };
+
+  const renderFolder = () => {
     if (isSearching) {
       return (
         <div className="space-y-4">
           {searchField}
           <p className="text-sm text-muted-foreground">
-            Resultados para "{debouncedTerm.trim()}" — por relevância, em toda a caixa
-            de entrada.
+            Resultados para "{debouncedTerm.trim()}" — por relevância, em {folderName}.
           </p>
           <InboxList
             query={search}
             emptyMessage="Nenhum e-mail encontrado."
-            onOpenMessage={setOpenMessageId}
+            {...listProps}
+          />
+        </div>
+      );
+    }
+
+    // Prioritários/Outros só existem na Caixa de Entrada, como no Outlook.
+    if (!isInbox) {
+      return (
+        <div className="space-y-4">
+          {searchField}
+          <InboxList
+            query={inbox}
+            emptyMessage="Nenhum e-mail nesta pasta."
+            {...listProps}
           />
         </div>
       );
@@ -219,7 +281,7 @@ export default function MeusEmails() {
               query={inbox}
               classification={MAIL_CLASSIFICATION.FOCUSED}
               emptyMessage="Nenhum e-mail prioritário entre os carregados."
-              onOpenMessage={setOpenMessageId}
+              {...listProps}
             />
           </TabsContent>
 
@@ -228,7 +290,7 @@ export default function MeusEmails() {
               query={inbox}
               classification={MAIL_CLASSIFICATION.OTHER}
               emptyMessage="Nada em Outros entre os carregados."
-              onOpenMessage={setOpenMessageId}
+              {...listProps}
             />
           </TabsContent>
         </Tabs>
@@ -245,7 +307,7 @@ export default function MeusEmails() {
       {renderBody()}
 
       <MessageDetailDialog
-        messageId={openMessageId}
+        messageId={isWide ? null : openMessageId}
         onOpenChange={(open) => !open && setOpenMessageId(null)}
       />
     </AppLayout>

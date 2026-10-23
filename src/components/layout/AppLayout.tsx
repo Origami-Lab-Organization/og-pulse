@@ -13,6 +13,7 @@ import { SidebarProvider, SidebarInset, useSidebar } from '@/components/ui/sideb
 import { HideValuesToggle } from '@/components/layout/HideValuesToggle';
 import { HideValuesProvider, useHideValuesPreference } from '@/contexts/HideValuesContext';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // The shadcn SidebarProvider writes this cookie on every state change but never reads it.
 // Reading it here persists the collapsed/expanded state across page navigations.
@@ -67,15 +68,36 @@ interface AppLayoutProps {
   fillViewport?: boolean;
 }
 
-export function AppLayout({
-  children,
-  title,
-  description,
-  actions,
-  hideHeader = false,
-  financialValues = false,
-  fillViewport = false,
-}: AppLayoutProps) {
+/** Olho de ocultar valores (telas financeiras) seguido das ações da página. */
+function pageActions(financialValues: boolean, actions: ReactNode): ReactNode {
+  if (!financialValues && !actions) return null;
+  return (
+    <>
+      {financialValues && <HideValuesToggle />}
+      {actions}
+    </>
+  );
+}
+
+/**
+ * Título, descrição e ações da página moram na barra do topo, sem bloco de cabeçalho
+ * próprio — a altura vai toda para o conteúdo (21/10/2026). No celular a barra não
+ * comporta botões, então as ações descem para a primeira linha do conteúdo.
+ */
+function usePageHeader(props: AppLayoutProps) {
+  const { title, description, actions, hideHeader = false, financialValues = false } = props;
+  const isMobile = useIsMobile();
+  const allActions = pageActions(financialValues, actions);
+  if (hideHeader) return { page: undefined, contentActions: null };
+  return {
+    page: { title, description, actions: isMobile ? null : allActions },
+    contentActions: isMobile ? allActions : null,
+  };
+}
+
+export function AppLayout(props: AppLayoutProps) {
+  const { children, fillViewport = false } = props;
+  const { page, contentActions } = usePageHeader(props);
   // O provider mora aqui para a página não precisar refazer a fiação: qualquer tela pode
   // chamar `useMaskedCurrency()` e reagir ao olho, tenha ou não o botão no cabeçalho.
   const [hideValues] = useHideValuesPreference();
@@ -90,37 +112,18 @@ export function AppLayout({
       <SidebarInset className={cn('relative', fillViewport && 'h-svh min-w-0 overflow-hidden')}>
         <DesktopSidebarToggle />
 
-        <AppHeader />
+        <AppHeader page={page} />
 
         <OfflineBanner />
         <CapabilitiesUnavailableBanner />
-
-        {/* Page Header */}
-        {!hideHeader && (
-          <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex flex-col gap-1 py-4 px-4 sm:py-6 sm:px-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-                  {description && (
-                    <p className="text-muted-foreground mt-1">{description}</p>
-                  )}
-                </div>
-                {(financialValues || actions) && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    {financialValues && <HideValuesToggle />}
-                    {actions}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Main Content */}
         <main className={cn('flex-1 min-w-0', fillViewport ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-auto')}>
           <div className={cn('py-4 px-4 sm:py-6 sm:px-6 max-w-full', fillViewport && 'flex min-h-0 flex-1 flex-col')}>
             <OnboardingBanner />
+            {contentActions && (
+              <div className="mb-4 flex flex-wrap items-center gap-2">{contentActions}</div>
+            )}
             {/* Sem `key` de remontagem: quem faz a tela reagir é o contexto, então alternar o
                 olho não perde aba aberta, rolagem nem filtro preenchido. */}
             <HideValuesProvider value={hideValues}>{children}</HideValuesProvider>

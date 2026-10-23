@@ -15,8 +15,15 @@ import {
   GRAPH_WEEKDAYS,
   RECURRENCE_END,
   RECURRENCE_FREQUENCY,
+  ROOM_AVAILABILITY,
+  WELL_KNOWN_FOLDER,
 } from '@/types/microsoftGraph';
 import type {
+  MailFolder,
+  WellKnownFolder,
+  MeetingRoom,
+  OutlookCategory,
+  RoomAvailability,
   AttendeeResponse,
   MailClassification,
   CalendarEvent,
@@ -30,6 +37,7 @@ import type {
   DrivePermissionRole,
   DriveTreeNode,
   EventAttendee,
+  EventRoom,
   EventType,
   GraphErrorCode,
   InviteResponse,
@@ -190,6 +198,7 @@ interface RawEvent {
   location: { displayName: string | null } | null;
   organizer: { emailAddress: { name: string | null } | null } | null;
   onlineMeeting: { joinUrl: string | null } | null;
+  categories?: string[] | null;
 }
 
 interface RawMessage {
@@ -201,6 +210,7 @@ interface RawMessage {
   isRead: boolean;
   webLink: string | null;
   from: { emailAddress: { name: string | null; address: string | null } | null } | null;
+  toRecipients?: { emailAddress: { name: string | null; address: string | null } | null }[];
 }
 
 function toCalendarEvent(raw: RawEvent): CalendarEvent {
@@ -218,6 +228,7 @@ function toCalendarEvent(raw: RawEvent): CalendarEvent {
       raw.type === EVENT_TYPE.EXCEPTION ||
       raw.type === EVENT_TYPE.SERIES_MASTER,
     myResponse: raw.responseStatus?.response ?? ATTENDEE_RESPONSE.NONE,
+    categories: raw.categories ?? [],
   };
 }
 
@@ -235,6 +246,7 @@ function toMailMessage(raw: RawMessage): MailMessage {
       raw.inferenceClassification === MAIL_CLASSIFICATION.OTHER
         ? MAIL_CLASSIFICATION.OTHER
         : MAIL_CLASSIFICATION.FOCUSED,
+    to: recipientNames(raw.toRecipients),
   };
 }
 
@@ -250,7 +262,7 @@ export async function listCalendarEvents(
     $orderby: 'start/dateTime',
     $top: '100',
     $select:
-      'id,subject,start,end,isAllDay,location,organizer,onlineMeeting,type,responseStatus',
+      'id,subject,start,end,isAllDay,location,organizer,onlineMeeting,type,responseStatus,categories',
   });
 
   const events = await graphGetAll<RawEvent>(token, `/me/calendarView?${query}`);
@@ -305,6 +317,40 @@ function buildRecurrence(recurrence: RecurrenceInput, startDate: string) {
 }
 
 /**
+ * Pessoas como obrigatórias e a sala como `resource` — é o convite à caixa da
+ * sala que a reserva, e é assim que o Outlook a reconhece como sala.
+ */
+function eventAttendees(emails: string[], room: EventRoom | null) {
+  const people = emails.map((address) => ({
+    emailAddress: { address },
+    type: ATTENDEE_TYPE.REQUIRED,
+  }));
+  if (!room) return people;
+  return [
+    ...people,
+    { emailAddress: { address: room.email, name: room.name }, type: ATTENDEE_TYPE.RESOURCE },
+  ];
+}
+
+/** Lembrete e categorias, no formato do Graph — iguais na criação e na edição. */
+function eventExtras(input: { reminderMinutes: number | null; categories: string[] }) {
+  return {
+    isReminderOn: input.reminderMinutes !== null,
+    ...(input.reminderMinutes !== null ? { reminderMinutesBeforeStart: input.reminderMinutes } : {}),
+    categories: input.categories,
+  };
+}
+
+function eventLocation(location: string, room: EventRoom | null) {
+  if (!room) return { displayName: location };
+  return {
+    displayName: room.name,
+    locationEmailAddress: room.email,
+    locationType: 'conferenceRoom',
+  };
+}
+
+/**
  * Cria um compromisso na agenda do próprio usuário. O Graph devolve o evento
  * criado, já com o link do Teams quando a reunião online foi pedida.
  */
@@ -316,11 +362,9 @@ export async function createCalendarEvent(
     subject: input.subject,
     start: { dateTime: input.start, timeZone: GRAPH_TIMEZONE },
     end: { dateTime: input.end, timeZone: GRAPH_TIMEZONE },
-    attendees: input.attendees.map((address) => ({
-      emailAddress: { address },
-      type: ATTENDEE_TYPE.REQUIRED,
-    })),
-    ...(input.location ? { location: { displayName: input.location } } : {}),
+    attendees: eventAttendees(input.attendees, input.room),
+    ...(input.room || input.location ? { location: eventLocation(input.location, input.room) } : {}),
+    ...eventExtras(input),
     isOnlineMeeting: input.withTeamsMeeting,
     ...(input.withTeamsMeeting ? { onlineMeetingProvider: 'teamsForBusiness' } : {}),
     ...(input.notes ? { body: { contentType: 'text', content: input.notes } } : {}),
@@ -345,6 +389,8 @@ interface RawEventDetail extends RawEvent {
   isCancelled: boolean;
   type: string | null;
   seriesMasterId: string | null;
+  isReminderOn?: boolean;
+  reminderMinutesBeforeStart?: number | null;
   organizer: {
     emailAddress: { name: string | null; address: string | null } | null;
   } | null;
@@ -361,6 +407,7 @@ function toAttendee(raw: RawEventDetail['attendees'][number]): EventAttendee {
     name: contact?.name || contact?.address || 'Convidado',
     email: contact?.address ?? '',
     isRequired: raw.type === ATTENDEE_TYPE.REQUIRED,
+    isResource: raw.type === ATTENDEE_TYPE.RESOURCE,
     response: (raw.status?.response as AttendeeResponse) ?? ATTENDEE_RESPONSE.NONE,
   };
 }
@@ -388,7 +435,7 @@ export async function getCalendarEvent(
 ): Promise<CalendarEventDetail> {
   const query = buildQuery({
     $select:
-      'id,iCalUId,subject,start,end,isAllDay,location,organizer,onlineMeeting,bodyPreview,isOrganizer,isCancelled,attendees,type,seriesMasterId,responseStatus',
+      'id,iCalUId,subject,start,end,isAllDay,location,organizer,onlineMeeting,bodyPreview,isOrganizer,isCancelled,attendees,type,seriesMasterId,responseStatus,categories,isReminderOn,reminderMinutesBeforeStart',
   });
 
   const raw = await graphGet<RawEventDetail>(
@@ -406,7 +453,14 @@ export async function getCalendarEvent(
     eventType: (raw.type as EventType) ?? EVENT_TYPE.SINGLE,
     seriesMasterId: raw.seriesMasterId ?? null,
     preview: cleanEventPreview(raw.bodyPreview),
+    reminderMinutes: reminderOf(raw),
   };
+}
+
+/** Lembrete desligado vira `null`; ligado sem minutos é "na hora". */
+function reminderOf(raw: RawEventDetail): number | null {
+  if (!raw.isReminderOn) return null;
+  return raw.reminderMinutesBeforeStart ?? 0;
 }
 
 /**
@@ -427,11 +481,9 @@ export async function updateCalendarEvent(
     subject: input.subject,
     start: { dateTime: input.start, timeZone: GRAPH_TIMEZONE },
     end: { dateTime: input.end, timeZone: GRAPH_TIMEZONE },
-    location: { displayName: input.location },
-    attendees: input.attendees.map((address) => ({
-      emailAddress: { address },
-      type: ATTENDEE_TYPE.REQUIRED,
-    })),
+    location: eventLocation(input.location, input.room),
+    attendees: eventAttendees(input.attendees, input.room),
+    ...eventExtras(input),
     ...(input.notes ? { body: { contentType: 'text', content: input.notes } } : {}),
   };
 
@@ -482,6 +534,110 @@ export async function declineCalendarEvent(
   );
 }
 
+/**
+ * Listar salas pede `Place.Read.All`, em conjunto à parte pelo mesmo motivo de
+ * `FILES_SCOPES`: somado a GRAPH_SCOPES, um tenant sem esse consentimento de
+ * admin perderia agenda e e-mail. Aqui só falha o seletor de salas.
+ * A disponibilidade (`getSchedule`) já é coberta por `Calendars.ReadWrite`.
+ */
+export const ROOMS_SCOPES = ['Place.Read.All'];
+
+interface RawRoom {
+  emailAddress: string | null;
+  displayName: string | null;
+  capacity: number | null;
+  building: string | null;
+  floorLabel: string | null;
+}
+
+/** Salas de reunião do tenant, em ordem alfabética. */
+export async function listMeetingRooms(token: string): Promise<MeetingRoom[]> {
+  const raw = await graphGetAll<RawRoom>(token, '/places/microsoft.graph.room?$top=100');
+  return raw
+    .filter((room): room is RawRoom & { emailAddress: string } => Boolean(room.emailAddress))
+    .map((room) => ({
+      email: room.emailAddress.toLowerCase(),
+      name: room.displayName || room.emailAddress,
+      capacity: room.capacity ?? null,
+      building: room.building || null,
+      floorLabel: room.floorLabel || null,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+}
+
+/** Status do free/busy que não ocupam a sala. */
+const FREE_SCHEDULE_STATUS = 'free';
+
+/** O `getSchedule` aceita poucas agendas por chamada; lotes pequenos ficam dentro do limite. */
+const SCHEDULE_BATCH_SIZE = 20;
+
+interface RawSchedule {
+  scheduleId: string;
+  scheduleItems?: { status: string }[];
+  error?: { message: string } | null;
+}
+
+export function toRoomAvailability(schedule: RawSchedule): RoomAvailability {
+  if (schedule.error || !schedule.scheduleItems) return ROOM_AVAILABILITY.UNKNOWN;
+  // O Graph só devolve os compromissos que caem na janela pedida.
+  const occupied = schedule.scheduleItems.some((item) => item.status !== FREE_SCHEDULE_STATUS);
+  return occupied ? ROOM_AVAILABILITY.BUSY : ROOM_AVAILABILITY.FREE;
+}
+
+/**
+ * Livre/ocupada de cada sala entre `start` e `end` (horário local, sem fuso).
+ * Devolve um mapa e-mail → situação; sala ausente do retorno fica `unknown`.
+ */
+export async function getRoomsAvailability(
+  token: string,
+  emails: string[],
+  start: string,
+  end: string,
+): Promise<Record<string, RoomAvailability>> {
+  const batches: string[][] = [];
+  for (let index = 0; index < emails.length; index += SCHEDULE_BATCH_SIZE) {
+    batches.push(emails.slice(index, index + SCHEDULE_BATCH_SIZE));
+  }
+
+  const responses = await Promise.all(
+    batches.map((schedules) =>
+      graphFetch<{ value: RawSchedule[] }>(token, `${GRAPH_BASE}/me/calendar/getSchedule`, {
+        method: 'POST',
+        body: {
+          schedules,
+          startTime: { dateTime: start, timeZone: GRAPH_TIMEZONE },
+          endTime: { dateTime: end, timeZone: GRAPH_TIMEZONE },
+          availabilityViewInterval: 15,
+        },
+      }),
+    ),
+  );
+
+  const result: Record<string, RoomAvailability> = {};
+  responses.flatMap((response) => response.value).forEach((schedule) => {
+    result[schedule.scheduleId.toLowerCase()] = toRoomAvailability(schedule);
+  });
+  return result;
+}
+
+/**
+ * Ler a lista mestre de categorias pede `MailboxSettings.Read`, em conjunto à
+ * parte (mesmo motivo de `ROOMS_SCOPES`). Esse escopo não exige admin: a própria
+ * pessoa consente uma vez. Marcar a categoria no evento já é `Calendars.ReadWrite`.
+ */
+export const CATEGORIES_SCOPES = ['MailboxSettings.Read'];
+
+/** Categorias do Outlook da pessoa, na ordem alfabética. */
+export async function listOutlookCategories(token: string): Promise<OutlookCategory[]> {
+  const raw = await graphGetAll<{ id: string; displayName: string; color: string | null }>(
+    token,
+    '/me/outlook/masterCategories',
+  );
+  return raw
+    .map((category) => ({ id: category.id, name: category.displayName, color: category.color ?? 'none' }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+}
+
 /** Uma página de mensagens, com o ponteiro para a próxima. */
 export interface MailPage {
   messages: MailMessage[];
@@ -489,8 +645,72 @@ export interface MailPage {
   nextLink: string | null;
 }
 
+const MESSAGE_LIST_SELECT =
+  'id,subject,bodyPreview,receivedDateTime,isRead,webLink,from,toRecipients,inferenceClassification';
+
+/** Ordem do Outlook para as pastas padrão; as criadas pela pessoa vêm depois, em ordem alfabética. */
+const WELL_KNOWN_ORDER: WellKnownFolder[] = [
+  WELL_KNOWN_FOLDER.INBOX,
+  WELL_KNOWN_FOLDER.DRAFTS,
+  WELL_KNOWN_FOLDER.SENT,
+  WELL_KNOWN_FOLDER.DELETED,
+  WELL_KNOWN_FOLDER.JUNK,
+  WELL_KNOWN_FOLDER.ARCHIVE,
+];
+
+interface RawMailFolder {
+  id: string;
+  displayName: string | null;
+  unreadItemCount: number | null;
+}
+
 /**
- * Página da caixa de entrada, da mais recente para a mais antiga.
+ * Id de cada pasta padrão. O `wellKnownName` só existe no beta, então cada
+ * alias é resolvido à parte. Caixa sem a pasta (ex.: sem Arquivo Morto)
+ * responde 404 — ela só não aparece como padrão.
+ */
+async function resolveWellKnownFolderIds(token: string): Promise<Map<string, WellKnownFolder>> {
+  const entries = await Promise.all(
+    WELL_KNOWN_ORDER.map(async (alias) => {
+      try {
+        const folder = await graphGet<{ id: string }>(token, `/me/mailFolders/${alias}?$select=id`);
+        return [folder.id, alias] as const;
+      } catch (error) {
+        if (error instanceof GraphError && error.code === GRAPH_ERROR_CODE.NOT_FOUND) return null;
+        throw error;
+      }
+    }),
+  );
+  return new Map(entries.filter((entry): entry is readonly [string, WellKnownFolder] => entry !== null));
+}
+
+function folderRank(folder: MailFolder): number {
+  return folder.wellKnown ? WELL_KNOWN_ORDER.indexOf(folder.wellKnown) : WELL_KNOWN_ORDER.length;
+}
+
+/** Pastas de primeiro nível da caixa, na ordem do Outlook. Subpastas ficam de fora. */
+export async function listMailFolders(token: string): Promise<MailFolder[]> {
+  const [raw, wellKnownIds] = await Promise.all([
+    graphGetAll<RawMailFolder>(
+      token,
+      `/me/mailFolders?${buildQuery({ $top: '100', $select: 'id,displayName,unreadItemCount' })}`,
+    ),
+    resolveWellKnownFolderIds(token),
+  ]);
+
+  return raw
+    .map((folder) => ({
+      id: folder.id,
+      name: folder.displayName || 'Pasta sem nome',
+      wellKnown: wellKnownIds.get(folder.id) ?? null,
+      unreadCount: folder.unreadItemCount ?? 0,
+    }))
+    .sort((a, b) => folderRank(a) - folderRank(b) || a.name.localeCompare(b.name, 'pt-BR'));
+}
+
+/**
+ * Página de uma pasta, da mais recente para a mais antiga. `folderId` aceita o
+ * id ou um alias de pasta padrão (`inbox`, `sentitems`…).
  *
  * NÃO filtra por classificação de propósito. O Graph recusa `$filter` de
  * `inferenceClassification` junto com `$orderby` de `receivedDateTime`, e sem a
@@ -499,17 +719,17 @@ export interface MailPage {
  * página. Entre ter ordem correta e ter paginação por aba, a ordem importa mais;
  * a separação Prioritários/Outros é feita no cliente sobre o que já veio.
  */
-export async function listInboxPage(
+export async function listFolderPage(
   token: string,
+  folderId: string,
   options: { top: number; nextLink?: string | null },
 ): Promise<MailPage> {
   const url =
     options.nextLink ??
-    `${GRAPH_BASE}/me/mailFolders/inbox/messages?${buildQuery({
+    `${GRAPH_BASE}/me/mailFolders/${encodeURIComponent(folderId)}/messages?${buildQuery({
       $orderby: 'receivedDateTime desc',
       $top: String(options.top),
-      $select:
-        'id,subject,bodyPreview,receivedDateTime,isRead,webLink,from,inferenceClassification',
+      $select: MESSAGE_LIST_SELECT,
     })}`;
 
   const data = await graphFetch<GraphList<RawMessage>>(token, url);
@@ -521,15 +741,16 @@ export async function listInboxPage(
 }
 
 /**
- * Busca na caixa de entrada, no mesmo espírito da barra do Outlook: procura em
- * remetente, assunto e corpo.
+ * Busca dentro da pasta aberta, no mesmo espírito da barra do Outlook: procura
+ * em remetente, assunto e corpo.
  *
  * O Graph **não aceita `$search` junto com `$filter` nem com `$orderby`** em
  * mensagens. Por isso a busca ignora a separação Prioritários/Outros e vem por
  * relevância, não por data — que é também como o Outlook se comporta ao buscar.
  */
-export async function searchInboxPage(
+export async function searchFolderPage(
   token: string,
+  folderId: string,
   query: string,
   options: { top: number; nextLink?: string | null },
 ): Promise<MailPage> {
@@ -538,11 +759,10 @@ export async function searchInboxPage(
 
   const url =
     options.nextLink ??
-    `${GRAPH_BASE}/me/mailFolders/inbox/messages?${buildQuery({
+    `${GRAPH_BASE}/me/mailFolders/${encodeURIComponent(folderId)}/messages?${buildQuery({
       $search: `"${term}"`,
       $top: String(options.top),
-      $select:
-        'id,subject,bodyPreview,receivedDateTime,isRead,webLink,from,inferenceClassification',
+      $select: MESSAGE_LIST_SELECT,
     })}`;
 
   const data = await graphFetch<GraphList<RawMessage>>(token, url);

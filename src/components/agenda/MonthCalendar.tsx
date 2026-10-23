@@ -9,8 +9,9 @@ import {
 import { ptBR } from 'date-fns/locale';
 import { Repeat, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ATTENDEE_RESPONSE } from '@/types/microsoftGraph';
 import { getMonthGridRange } from './calendarGrid';
+import { useCategoryStripe } from './categoryColors';
+import { eventResponseStyle } from './eventStyle';
 import type { CalendarEvent } from '@/types/microsoftGraph';
 
 /** Quantos eventos cabem por célula antes de virar "+N". */
@@ -29,23 +30,10 @@ function eventsOfDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
   });
 }
 
-/**
- * Destaque do chip segue a resposta ao convite, como no Outlook: confirmado é
- * sólido, "talvez" fica tracejado, sem resposta fica só contornado.
- */
-function chipStyle(event: CalendarEvent): string {
-  if (event.myResponse === ATTENDEE_RESPONSE.TENTATIVE) {
-    return 'border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10';
-  }
-  if (event.myResponse === ATTENDEE_RESPONSE.NOT_RESPONDED) {
-    return 'border border-primary/40 bg-transparent hover:bg-primary/10';
-  }
-  return 'bg-primary/10 hover:bg-primary/20';
-}
-
 function EventChip({ event, onSelect }: { event: CalendarEvent; onSelect: () => void }) {
   const start = eventStart(event);
   const time = start && !event.isAllDay ? format(start, 'HH:mm') : null;
+  const stripe = useCategoryStripe(event);
 
   return (
     <button
@@ -55,8 +43,10 @@ function EventChip({ event, onSelect }: { event: CalendarEvent; onSelect: () => 
       className={cn(
         'flex w-full items-center gap-1 rounded px-1.5 py-0.5 text-left text-xs text-foreground',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        chipStyle(event),
+        eventResponseStyle(event),
+        stripe.className,
       )}
+      style={stripe.style}
     >
       <span className="min-w-0 flex-1 truncate">
         {time && <span className="font-medium tabular-nums">{time} </span>}
@@ -80,7 +70,8 @@ interface DayCellProps {
   onSelectEvent: (eventId: string) => void;
 }
 
-function DayCell({ day, month, events, onSelectDay, onSelectEvent }: DayCellProps) {
+function DayCell(props: DayCellProps) {
+  const { day, month, events, onSelectDay, onSelectEvent } = props;
   const visible = events.slice(0, EVENTS_PER_DAY);
   const hidden = events.length - visible.length;
   const outsideMonth = !isSameMonth(day, month);
@@ -131,12 +122,8 @@ interface MonthCalendarProps {
   onSelectEvent: (eventId: string) => void;
 }
 
-export function MonthCalendar({
-  month,
-  events,
-  onSelectDay,
-  onSelectEvent,
-}: MonthCalendarProps) {
+export function MonthCalendar(props: MonthCalendarProps) {
+  const { month, events, onSelectDay, onSelectEvent } = props;
   const { start, end } = getMonthGridRange(month);
   const days = eachDayOfInterval({ start, end });
 
