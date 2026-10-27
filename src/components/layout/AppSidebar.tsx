@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
-import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
 import { NAV_ITEMS, isNavItemVisible, visibleChildren, type GroupItem, type NavChild } from './sidebar-nav';
 import logo from '@/assets/logo.png';
@@ -11,7 +10,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -194,10 +192,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border p-2">
-        <UserMenu />
-      </SidebarFooter>
     </Sidebar>
   );
 }

@@ -196,7 +196,7 @@ sequenceDiagram
     autonumber
     participant U as Usuário
     participant F as SPA<br/>AuthContext.tsx:262-282
-    participant M as MSAL popup<br/>msalClient.ts:184-200
+    participant M as MSAL popup<br/>msalClient.ts:183-199
     participant B as microsoft-auth.html<br/>microsoftAuthBridge.ts:14
     participant E as Edge Function<br/>microsoft-sso/index.ts
     participant SB as Supabase Auth
@@ -214,12 +214,15 @@ sequenceDiagram
 ```
 
 O `msalClient` serve dois tipos de token, com finalidades que não se misturam:
-**ID token** (`acquireMicrosoftIdToken:184`), prova de identidade que só a Edge
+**ID token** (`acquireMicrosoftIdToken:183`), prova de identidade que só a Edge
 Function valida, e **access token do Graph**
-(`acquireGraphTokenForScopes:219`), usado para chamar a API. O segundo aceita o
+(`acquireGraphTokenForScopes:218`), usado para chamar a API. O segundo aceita o
 conjunto de escopos por parâmetro para permitir consentimento incremental — o
-seletor de pasta do OneDrive pede `Files.ReadWrite.All` sem contaminar as
-aquisições de agenda e e-mail. Ver `.harness/integrations/onedrive.md`.
+seletor de pasta do OneDrive pede `Files.ReadWrite.All`, o de salas pede
+`Place.Read.All` (exige admin) e o de categorias `MailboxSettings.Read`, sem contaminar as
+aquisições de agenda e e-mail. Para leitura que não pode abrir popup (cor da
+categoria na grade da agenda) existe `acquireGraphTokenSilentlyForScopes:240`,
+que só usa consentimento já dado. Ver `.harness/integrations/onedrive.md`.
 
 ## PWA / Service worker (`src/sw.ts`)
 

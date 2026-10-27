@@ -232,6 +232,19 @@ export async function acquireGraphTokenForScopes(scopes: string[]): Promise<stri
   }
 }
 
+/**
+ * Igual a `acquireGraphTokenForScopes`, mas nunca abre popup: para leituras de
+ * enfeite (cor da categoria na grade) que não podem interromper a pessoa. Sem
+ * consentimento prévio, falha com `InteractionRequiredAuthError`.
+ */
+export async function acquireGraphTokenSilentlyForScopes(scopes: string[]): Promise<string> {
+  const instance = await getInstance();
+  const account = firstAccount(instance);
+  if (!account) throw new MicrosoftNotConnectedError();
+  const result = await instance.acquireTokenSilent({ scopes, account });
+  return result.accessToken;
+}
+
 export async function acquireGraphToken(): Promise<string> {
   return acquireGraphTokenForScopes(GRAPH_SCOPES);
 }

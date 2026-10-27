@@ -1,22 +1,19 @@
 import { useState } from 'react';
-import { addMonths, format, parseISO, startOfMonth, subMonths } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import {
-  CalendarDays,
-  CalendarPlus,
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  Loader2,
-  Unplug,
-} from 'lucide-react';
+import { eachDayOfInterval, format } from 'date-fns';
+import { CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Unplug } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { MicrosoftConnectPrompt } from '@/components/microsoft/MicrosoftConnectPrompt';
 import { DayEventsDialog } from '@/components/agenda/DayEventsDialog';
 import { EventDetailDialog } from '@/components/agenda/EventDetailDialog';
 import { MonthCalendar } from '@/components/agenda/MonthCalendar';
-import { getMonthGridRange } from '@/components/agenda/calendarGrid';
+import { TimeGridCalendar } from '@/components/agenda/TimeGridCalendar';
+import {
+  formatViewTitle,
+  getViewRange,
+  shiftViewDate,
+} from '@/components/agenda/calendarGrid';
 import { EventFormDialog } from '@/components/agenda/EventFormDialog';
+import { Segmentado } from '@/components/prospeccao/metrics/parts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,8 +24,40 @@ import {
   useMicrosoftCalendarRange,
   useMicrosoftConnection,
   useMicrosoftDiagnostics,
+  useOutlookCategories,
 } from '@/hooks/useMicrosoftGraph';
+import { CategoryColorsProvider } from '@/components/agenda/CategoryColorsContext';
+import { CALENDAR_VIEW } from '@/types/agenda';
+import type { CalendarView } from '@/types/agenda';
 import type { CalendarEventDetail } from '@/types/microsoftGraph';
+
+const VIEW_OPTIONS = [
+  { value: CALENDAR_VIEW.DAY, label: 'Dia' },
+  { value: CALENDAR_VIEW.WEEK, label: 'Semana' },
+  { value: CALENDAR_VIEW.MONTH, label: 'Mês' },
+] as const;
+
+const VIEW_STORAGE_KEY = 'pulse:agenda:view';
+
+/** Última visão escolhida, por navegador — conveniência, cai no mês se não der para ler. */
+function readStoredView(): CalendarView {
+  try {
+    const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+    return VIEW_OPTIONS.some((option) => option.value === stored)
+      ? (stored as CalendarView)
+      : CALENDAR_VIEW.MONTH;
+  } catch {
+    return CALENDAR_VIEW.MONTH;
+  }
+}
+
+function storeView(view: CalendarView): void {
+  try {
+    window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+  } catch {
+    // Sem armazenamento (aba anônima, bloqueio): a visão só não fica lembrada.
+  }
+}
 
 function ListSkeleton() {
   return (
@@ -98,36 +127,45 @@ function ConnectionDiagnostics({ connectError }: { connectError: unknown }) {
   );
 }
 
-function MonthNavigator({
-  month,
-  onChange,
-}: {
-  month: Date;
-  onChange: (month: Date) => void;
-}) {
+const PERIOD_NOUN: Record<CalendarView, { previous: string; next: string }> = {
+  [CALENDAR_VIEW.DAY]: { previous: 'Dia anterior', next: 'Próximo dia' },
+  [CALENDAR_VIEW.WEEK]: { previous: 'Semana anterior', next: 'Próxima semana' },
+  [CALENDAR_VIEW.MONTH]: { previous: 'Mês anterior', next: 'Próximo mês' },
+};
+
+interface PeriodNavigatorProps {
+  view: CalendarView;
+  date: Date;
+  onChange: (date: Date) => void;
+}
+
+function PeriodNavigator(props: PeriodNavigatorProps) {
+  const { view, date, onChange } = props;
+  const labels = PERIOD_NOUN[view];
+
   return (
     <div className="flex items-center gap-2">
       <Button
         variant="outline"
         size="icon"
-        aria-label="Mês anterior"
-        onClick={() => onChange(subMonths(month, 1))}
+        aria-label={labels.previous}
+        onClick={() => onChange(shiftViewDate(view, date, -1))}
       >
         <ChevronLeft className="h-4 w-4" aria-hidden="true" />
       </Button>
-      <Button variant="outline" size="sm" onClick={() => onChange(startOfMonth(new Date()))}>
+      <Button variant="outline" size="sm" onClick={() => onChange(new Date())}>
         Hoje
       </Button>
       <Button
         variant="outline"
         size="icon"
-        aria-label="Próximo mês"
-        onClick={() => onChange(addMonths(month, 1))}
+        aria-label={labels.next}
+        onClick={() => onChange(shiftViewDate(view, date, 1))}
       >
         <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </Button>
-      <p className="ml-1 font-medium text-foreground first-letter:uppercase">
-        {format(month, "MMMM 'de' yyyy", { locale: ptBR })}
+      <p className="ml-1 font-medium text-foreground first-letter:uppercase" aria-live="polite">
+        {formatViewTitle(view, date)}
       </p>
     </div>
   );
@@ -146,19 +184,34 @@ export default function MinhaAgenda() {
     isDisconnecting,
   } = useMicrosoftConnection();
 
-  const [month, setMonth] = useState(() => startOfMonth(new Date()));
+  const [view, setView] = useState<CalendarView>(readStoredView);
+  const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [newEventDay, setNewEventDay] = useState<Date | null>(null);
+  const [newEventTime, setNewEventTime] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<CalendarEventDetail | null>(null);
 
-  const gridRange = getMonthGridRange(month);
-  const calendar = useMicrosoftCalendarRange(gridRange.start, gridRange.end, isConnected);
+  const viewRange = getViewRange(view, viewDate);
+  const calendar = useMicrosoftCalendarRange(viewRange.start, viewRange.end, isConnected);
   const events = calendar.data ?? [];
+  // Só pinta se a pessoa já autorizou as categorias no seletor — nunca abre popup daqui.
+  const categories = useOutlookCategories(isConnected, false);
 
-  const openNewEvent = (day: Date) => {
+  const changeView = (next: CalendarView) => {
+    setView(next);
+    storeView(next);
+  };
+
+  const openDayView = (day: Date) => {
+    setViewDate(day);
+    changeView(CALENDAR_VIEW.DAY);
+  };
+
+  const openNewEvent = (day: Date, time: string | null = null) => {
     setSelectedDay(null);
     setEditingEvent(null);
+    setNewEventTime(time);
     setNewEventDay(day);
   };
 
@@ -184,28 +237,57 @@ export default function MinhaAgenda() {
     </div>
   ) : undefined;
 
+  const renderGrid = () => {
+    if (calendar.isLoading) return <Skeleton className="h-[32rem] w-full" />;
+
+    if (view === CALENDAR_VIEW.MONTH) {
+      return (
+        <MonthCalendar
+          month={viewDate}
+          events={events}
+          onSelectDay={setSelectedDay}
+          onSelectEvent={setSelectedEventId}
+        />
+      );
+    }
+
+    return (
+      <TimeGridCalendar
+        days={eachDayOfInterval(viewRange)}
+        events={events}
+        onSelectEvent={setSelectedEventId}
+        onSelectSlot={(start) => openNewEvent(start, format(start, 'HH:mm'))}
+        onSelectDay={view === CALENDAR_VIEW.WEEK ? openDayView : undefined}
+      />
+    );
+  };
+
   const renderCalendar = () => {
     if (calendar.error) return <GraphErrorAlert error={calendar.error} />;
 
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <MonthNavigator month={month} onChange={setMonth} />
-          <Button variant="gradient" size="sm" onClick={() => openNewEvent(new Date())}>
-            <CalendarPlus className="mr-2 h-4 w-4" aria-hidden="true" />
-            Novo compromisso
-          </Button>
+          <PeriodNavigator view={view} date={viewDate} onChange={setViewDate} />
+          <div className="flex flex-wrap items-center gap-3">
+            <Segmentado
+              value={view}
+              onChange={changeView}
+              options={VIEW_OPTIONS}
+              label="Visualização da agenda"
+            />
+            <Button
+              variant="gradient"
+              size="sm"
+              onClick={() => openNewEvent(new Date())}
+              aria-label="Novo compromisso"
+            >
+              <CalendarPlus className="mr-2 h-4 w-4" aria-hidden="true" />
+              Novo
+            </Button>
+          </div>
         </div>
-        {calendar.isLoading ? (
-          <Skeleton className="h-[32rem] w-full" />
-        ) : (
-          <MonthCalendar
-            month={month}
-            events={events}
-            onSelectDay={setSelectedDay}
-            onSelectEvent={setSelectedEventId}
-          />
-        )}
+        <CategoryColorsProvider categories={categories.data}>{renderGrid()}</CategoryColorsProvider>
       </div>
     );
   };
@@ -269,6 +351,7 @@ export default function MinhaAgenda() {
         open={Boolean(newEventDay) || Boolean(editingEvent)}
         onOpenChange={(open) => !open && closeEventForm()}
         initialDate={newEventDay ?? new Date()}
+        initialTime={newEventTime}
         event={editingEvent}
       />
     </AppLayout>

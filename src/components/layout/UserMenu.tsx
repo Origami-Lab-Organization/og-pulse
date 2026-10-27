@@ -12,24 +12,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
+import { personInitials } from '@/lib/formatters';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+
+/** Foto do cadastro, pelo diretório (identidade, sem dado sensível — PUL-162), não pelo login. */
+function useOwnPhotoUrl(employeeId: string | undefined): string | undefined {
+  const { byId } = useEmployeeDirectoryMap(Boolean(employeeId));
+  if (!employeeId) return undefined;
+  return byId.get(employeeId)?.foto_url || undefined;
+}
 
 export function UserMenu() {
   const { employee, signOut, can } = useAuth();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { openOnboarding } = useOnboardingModal();
+  const photoUrl = useOwnPhotoUrl(employee?.id);
 
   if (!employee) return null;
 
-  const initials = employee.nome
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+  const initials = personInitials(employee.nome);
 
   const handleSignOut = async () => {
     await signOut();
@@ -45,9 +50,12 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-          <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+        {/* Mesmo tamanho dos botões vizinhos na barra do topo (sino, notas). */}
+        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Menu da conta">
+          <Avatar className="h-8 w-8">
+            {/* Foto do cadastro; sem foto (ou se falhar ao carregar), ficam as iniciais. */}
+            <AvatarImage src={photoUrl} alt="" className="object-cover" />
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
               {initials}
             </AvatarFallback>
           </Avatar>

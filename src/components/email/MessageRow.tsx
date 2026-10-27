@@ -13,19 +13,32 @@ function receivedLabel(receivedAt: string): string {
     : format(received, "d 'de' MMM", { locale: ptBR });
 }
 
-export function MessageRow({
-  message,
-  onOpen,
-}: {
+interface MessageRowProps {
   message: MailMessage;
   onOpen: () => void;
-}) {
+  /** Enviados e Rascunhos: o que importa é para quem foi, não quem enviou (eu). */
+  showRecipients?: boolean;
+  /** Aberto na coluna de leitura ao lado — destacado como no Outlook. */
+  selected?: boolean;
+}
+
+function rowStyle(message: MailMessage, selected?: boolean): string {
+  if (selected) return 'border-primary/50 bg-primary/10';
+  return message.isRead ? 'hover:bg-muted/50' : 'bg-primary/[0.03] hover:bg-muted/50';
+}
+
+function headline(message: MailMessage, showRecipients?: boolean): string {
+  if (!showRecipients) return message.from;
+  return message.to.length ? `Para: ${message.to.join(', ')}` : '(sem destinatário)';
+}
+
+export function MessageRow(props: MessageRowProps) {
+  const { message, onOpen, showRecipients, selected } = props;
   return (
     <li
       className={cn(
-        'group relative flex gap-3 rounded-lg border border-border p-3',
-        'transition-colors hover:bg-muted/50',
-        !message.isRead && 'bg-primary/[0.03]',
+        'group relative flex gap-3 rounded-lg border border-border p-3 transition-colors',
+        rowStyle(message, selected),
       )}
     >
       {/* Barra de não lido: mesma pista visual do Outlook, sem depender de cor só. */}
@@ -40,6 +53,7 @@ export function MessageRow({
       <button
         type="button"
         onClick={onOpen}
+        aria-current={selected ? 'true' : undefined}
         className="min-w-0 flex-1 text-left focus-visible:outline-none
                    focus-visible:ring-2 focus-visible:ring-ring rounded"
       >
@@ -50,7 +64,7 @@ export function MessageRow({
               message.isRead ? 'text-muted-foreground' : 'font-semibold text-foreground',
             )}
           >
-            {message.from}
+            {headline(message, showRecipients)}
           </p>
           <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
             {receivedLabel(message.receivedAt)}
