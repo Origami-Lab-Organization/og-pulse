@@ -137,6 +137,23 @@ function billingUpdate(updates: Partial<CreateProjectInput>): Record<string, unk
   };
 }
 
+/**
+ * Valor de contrato do projeto recém-criado. Mora em project_financials (PUL-164): o trigger
+ * cria a linha com 0, e sem este upsert todo projeto novo nascia com contrato de R$ 0,00.
+ */
+async function saveNewProjectTotalValue(project: { id: string; name: string }, totalValue: number | undefined) {
+  if (!totalValue) return;
+  const { error } = await supabase
+    .from('project_financials')
+    .upsert({ project_id: project.id, total_value: totalValue }, { onConflict: 'project_id' });
+  if (!error) return;
+  console.error('Error saving project total value:', error);
+  // harness-ok: erro de tela no front (sem HttpException); o projeto já existe e tentar de novo duplicaria.
+  throw new Error(
+    `O projeto "${project.name}" foi criado, mas sem o valor do contrato. Ajuste o valor na aba Financeiro do projeto.`,
+  );
+}
+
 export const projectService = {
   async getAll(tenantId: string, options?: ProjectFilterOptions): Promise<ProjectWithRelations[]> {
     let query = supabase
@@ -286,6 +303,8 @@ export const projectService = {
       console.error('Error creating project:', projectError);
       throw projectError;
     }
+
+    await saveNewProjectTotalValue(project, input.totalValue);
 
     const customInstallments = input.customInstallments?.map((installment) => ({
       project_id: project.id,

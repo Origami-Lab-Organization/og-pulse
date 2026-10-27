@@ -19,7 +19,7 @@ import {
 	User,
 	Wand2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type Control, useForm } from "react-hook-form";
 import * as z from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -271,6 +271,52 @@ function getBaseValue(
 	});
 }
 
+// O contato não guarda serviço: o tipo começa em escopo fechado e a pessoa ajusta.
+const TIPO_SUGERIDO: ProjectType = "fixed_scope";
+
+/** Valores com que o formulário abre: o orçamento, se houver, senão o contato que fechou. */
+function valoresIniciais(
+	budget: BudgetWithDetails | null,
+	origem: CloseBusinessOrigin | null | undefined,
+	managers: readonly { id: string }[],
+): CloseBusinessFormValues {
+	const projectType = TIPO_SUGERIDO;
+	const baseValue = getBaseValue(projectType, budget, origem);
+	const start = budget?.start_date || "";
+	const count = budget?.duration_months || 1;
+	const responsavelEhGerente = managers.some((manager) => manager.id === origem?.responsibleId);
+	return {
+		projectType,
+		managerId: responsavelEhGerente ? (origem?.responsibleId ?? "") : "",
+		paymentMethod: "mensal",
+		installmentsCount: count,
+		dueDay: 10,
+		dueDate: "",
+		firstInvoiceDate: start,
+		startDate: start,
+		endDate: fimPeloOrcamento(budget),
+		renewalDate: "",
+		successFeePercent: undefined,
+		installments: createInstallmentSchedule({
+			totalValue: baseValue,
+			installmentsCount: count,
+			firstInvoiceDate: start,
+			dueDay: 10,
+		}),
+		projectName: budget?.title || origem?.title || "",
+		clientId: budget?.client_id || origem?.clientId || "",
+		totalValue: baseValue,
+		monthlyValue: baseValue,
+	};
+}
+
+function fimPeloOrcamento(budget: BudgetWithDetails | null): string {
+	if (!budget) return "";
+	return addMonths(new Date(`${budget.start_date}T00:00:00`), budget.duration_months)
+		.toISOString()
+		.split("T")[0];
+}
+
 function normalizeInstallments(
 	installments: CloseBusinessFormValues["installments"] | undefined,
 ): CloseBusinessInstallment[] {
@@ -302,6 +348,7 @@ export function CloseBusinessDialog({
 	const needsClientField = !hasBudget || budgetMissingClient;
 
 	const [suggestedManagerId, setSuggestedManagerId] = useState<string>("");
+	const formIniciadoPara = useRef<string | null>(null);
 	const [celebration, setCelebration] = useState<{
 		projectId?: string;
 		clientName: string;
@@ -315,9 +362,6 @@ export function CloseBusinessDialog({
 				employee.systemRole === "manager" || employee.systemRole === "admin",
 		);
 	}, [employees]);
-
-	// O contato não guarda serviço: o tipo começa em escopo fechado e a pessoa ajusta.
-	const derivedProjectType: ProjectType = "fixed_scope";
 
 	const form = useForm<CloseBusinessFormValues>({
 		resolver: zodResolver(closeBusinessSchema),
@@ -390,58 +434,20 @@ export function CloseBusinessDialog({
 	useEffect(() => {
 		if (!open) {
 			setCelebration(null);
+			formIniciadoPara.current = null;
 			return;
 		}
+		// Uma vez por abertura (e de novo só quando o orçamento ou os gerentes chegam): o pai
+		// recria `origem` a cada render e os dados voltam do refetch depois do ganho — reiniciar
+		// a cada referência nova apagava o que a pessoa digitou e escondia a comemoração.
+		const chave = `${budget?.id ?? "sem-orcamento"}|${managers.length > 0}`;
+		if (formIniciadoPara.current === chave) return;
+		formIniciadoPara.current = chave;
 
-		const suggestedManager =
-			origem?.responsibleId &&
-			managers.some((manager) => manager.id === origem.responsibleId)
-				? origem.responsibleId
-				: "";
-		const resolvedProjectType = derivedProjectType;
-		const resolvedBaseValue = getBaseValue(resolvedProjectType, budget, origem);
-		const start = budget?.start_date || "";
-		const end = budget
-			? addMonths(
-					new Date(`${budget.start_date}T00:00:00`),
-					budget.duration_months,
-				)
-					.toISOString()
-					.split("T")[0]
-			: "";
-		const count = budget?.duration_months || 1;
-		const firstInvoiceDate = start;
-
-		setSuggestedManagerId(suggestedManager);
-		setCelebration(null);
-
-		form.reset({
-			projectType: resolvedProjectType,
-			managerId: suggestedManager,
-			paymentMethod: "mensal",
-			installmentsCount: count,
-			dueDay: 10,
-			dueDate: "",
-			firstInvoiceDate,
-			startDate: start,
-			endDate: end,
-			renewalDate: "",
-			successFeePercent: undefined,
-			installments:
-				resolvedProjectType === "fixed_scope"
-					? createInstallmentSchedule({
-							totalValue: resolvedBaseValue,
-							installmentsCount: count,
-							firstInvoiceDate,
-							dueDay: 10,
-						})
-					: [],
-			projectName: budget?.title || origem?.title || "",
-			clientId: budget?.client_id || origem?.clientId || "",
-			totalValue: resolvedBaseValue,
-			monthlyValue: resolvedBaseValue,
-		});
-	}, [open, budget, origem, form, derivedProjectType, managers]);
+		const iniciais = valoresIniciais(budget, origem, managers);
+		setSuggestedManagerId(iniciais.managerId);
+		form.reset(iniciais);
+	}, [open, budget, origem, form, managers]);
 
 	useEffect(() => {
 		if (startDateValue && budget && open && projectType === "fixed_scope") {
@@ -635,7 +641,7 @@ export function CloseBusinessDialog({
 										).map((type) => {
 											const Icon = PROJECT_TYPE_ICONS[type];
 											const isSelected = field.value === type;
-											const isSuggested = type === derivedProjectType;
+											const isSuggested = type === TIPO_SUGERIDO;
 
 											return (
 												<button
