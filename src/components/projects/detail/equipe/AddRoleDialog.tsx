@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Building2, Briefcase, Laptop, ChevronRight } from 'lucide-react';
-import { addMonths, parseISO, format } from 'date-fns';
+import { addMonths, parseISO, format, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   Dialog,
@@ -122,8 +122,8 @@ const EMPLOYMENT_CARDS: EmploymentCard[] = [
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function buildProjectMonths(startDate: string, endDate: string | null): { value: string; label: string }[] {
-  const start = parseISO(startDate);
-  const end = endDate ? parseISO(endDate) : addMonths(start, 12);
+  const start = startOfMonth(parseISO(startDate));
+  const end = endDate ? startOfMonth(parseISO(endDate)) : addMonths(start, 12);
   const months: { value: string; label: string }[] = [];
   let current = start;
   while (current <= end) {
