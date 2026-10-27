@@ -20,8 +20,10 @@ import {
 	Wand2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type Control, useForm } from "react-hook-form";
+import { type Control, type FieldErrors, useForm } from "react-hook-form";
 import * as z from "zod";
+import { ClientCombobox } from "@/components/clients/ClientCombobox";
+import { toast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,12 +96,36 @@ const PROJECT_TYPE_ICONS: Record<ProjectType, LucideIcon> = {
 	non_revenue: Eye,
 };
 
+// O vencimento é cobrado só no escopo fechado (`validarParcelas`): nos outros tipos o
+// cronograma fica escondido, e exigir aqui travava o salvar sem mostrar por quê.
 const installmentSchema = z.object({
 	installmentNumber: z.number().min(1),
 	invoiceDate: z.string().optional().default(""),
-	dueDate: z.string().min(1, "Vencimento é obrigatório"),
+	dueDate: z.string().optional().default(""),
 	value: z.coerce.number().min(0, "Valor não pode ser negativo"),
 });
+
+const ESCOPO_FECHADO: ProjectType = "fixed_scope";
+
+/** Escopo fechado precisa de parcelas, e cada uma com vencimento. */
+function validarParcelas(
+	data: { projectType?: ProjectType; installments?: Array<{ dueDate?: string }> },
+	ctx: z.RefinementCtx,
+) {
+	if (data.projectType !== ESCOPO_FECHADO) return;
+	const parcelas = data.installments ?? [];
+	if (parcelas.length === 0) {
+		ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Defina ao menos uma parcela", path: ["installments"] });
+		return;
+	}
+	if (parcelas.some((parcela) => !parcela.dueDate)) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: "Preencha o vencimento de todas as parcelas (ou a Data Primeira NF, que preenche sozinha).",
+			path: ["installments"],
+		});
+	}
+}
 
 const closeBusinessSchema = z
 	.object({
@@ -140,13 +166,7 @@ const closeBusinessSchema = z
 			});
 		}
 
-		if (data.projectType === "fixed_scope" && data.installments.length === 0) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: "Defina ao menos uma parcela",
-				path: ["installments"],
-			});
-		}
+		validarParcelas(data, ctx);
 	});
 
 export type CloseBusinessFormValues = z.infer<typeof closeBusinessSchema>;
@@ -208,20 +228,15 @@ function ClientField(props: ClientFieldProps) {
 			render={({ field }) => (
 				<FormItem>
 					<FormLabel>Cliente *</FormLabel>
-					<Select onValueChange={field.onChange} value={field.value} disabled={disabled}>
-						<FormControl>
-							<SelectTrigger>
-								<SelectValue placeholder="Selecione o cliente" />
-							</SelectTrigger>
-						</FormControl>
-						<SelectContent>
-							{clients.map((client) => (
-								<SelectItem key={client.id} value={client.id}>
-									{client.companyName}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+					<FormControl>
+						<ClientCombobox
+							clients={clients}
+							value={field.value ?? ""}
+							onChange={field.onChange}
+							onCriar={onCreate}
+							disabled={disabled}
+						/>
+					</FormControl>
 					<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
 						{!hasValue && <FormDescription>{hint}</FormDescription>}
 						<Button
@@ -241,6 +256,42 @@ function ClientField(props: ClientFieldProps) {
 			)}
 		/>
 	);
+}
+
+/** O erro do cronograma inteiro (sem parcela, ou parcela sem vencimento), embaixo da tabela. */
+function ErroDoCronograma({ erro }: { erro?: { message?: string; root?: { message?: string } } }) {
+	const mensagem = erro?.message ?? erro?.root?.message;
+	if (!mensagem) return null;
+	return (
+		<p role="alert" className="border-t px-3 py-2 text-sm font-medium text-destructive">
+			{mensagem}
+		</p>
+	);
+}
+
+/**
+ * Nenhum salvar falha calado: se algum campo reprovou — até um que não está à vista —, o
+ * motivo vai para a tela.
+ */
+function avisarCampoFaltando(erros: FieldErrors<CloseBusinessFormValues>) {
+	toast({
+		title: "Falta preencher um campo",
+		description: primeiraMensagem(erros) ?? "Revise os campos destacados.",
+		variant: "destructive",
+	});
+}
+
+function primeiraMensagem(erros: unknown): string | null {
+	if (!erros || typeof erros !== "object") return null;
+	const { message } = erros as { message?: unknown };
+	if (typeof message === "string" && message) return message;
+	// `ref` é o elemento do campo: percorrê-lo seria andar pelo DOM.
+	for (const [chave, valor] of Object.entries(erros)) {
+		if (chave === "ref") continue;
+		const achada = primeiraMensagem(valor);
+		if (achada) return achada;
+	}
+	return null;
 }
 
 function getClientName(
@@ -619,7 +670,7 @@ export function CloseBusinessDialog({
 
 				<Form {...form}>
 					<form
-						onSubmit={form.handleSubmit(handleSubmit)}
+						onSubmit={form.handleSubmit(handleSubmit, avisarCampoFaltando)}
 						className="space-y-5"
 					>
 						<p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -1230,6 +1281,7 @@ export function CloseBusinessDialog({
 											))}
 										</TableBody>
 									</Table>
+									<ErroDoCronograma erro={form.formState.errors.installments} />
 								</div>
 							</>
 						)}
