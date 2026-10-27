@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
+import { personInitials } from '@/lib/formatters';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 
@@ -33,12 +34,7 @@ export function UserMenu() {
 
   if (!employee) return null;
 
-  const initials = employee.nome
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+  const initials = personInitials(employee.nome);
 
   const handleSignOut = async () => {
     await signOut();

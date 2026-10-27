@@ -173,4 +173,15 @@ export function getProjectMonthLabel(monthNumber: number, projectStartDate: stri
   return `${MONTH_NAMES_SHORT[targetMonth]}/${yearShort}`;
 }
 
+/**
+ * Iniciais de uma pessoa: primeiro nome + último sobrenome ("Lucas D. Couto" → "LC"),
+ * como o Outlook e o Teams mostram. Uma palavra só vira as duas primeiras letras.
+ */
+export function personInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
+
 export { cn };
