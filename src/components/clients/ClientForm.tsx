@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, Search, Upload, FileText, CheckCircle2, Plus, Trash2 } from 'lucide-react';
-import { Client, CreateClientInput } from '@/types/client';
+import { Client, CreateClientInput, ClientPrefill } from '@/types/client';
 import { formatCNPJ, formatCEP, formatPhone, unformatPhone } from '@/lib/masks';
 import { toTitleCase } from '@/lib/formatters';
 import { fetchAddressByCep } from '@/lib/viaCep';
@@ -85,12 +85,19 @@ const EMPTY_VALUES: FormData = {
 
 interface ClientFormProps {
   client?: Client | null;
+  /** Só no cadastro novo: valores com que o formulário abre. */
+  prefill?: ClientPrefill | null;
   onSubmit: (data: CreateClientInput) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
 
-const ClientForm = ({ client, onSubmit, onCancel, isLoading = false }: ClientFormProps) => {
+/** Só os campos preenchidos: o resto fica com o valor vazio do formulário. */
+function filledPrefill(prefill: ClientPrefill | null | undefined): Partial<FormData> {
+  return Object.fromEntries(Object.entries(prefill ?? {}).filter(([, value]) => Boolean(value)));
+}
+
+const ClientForm = ({ client, prefill, onSubmit, onCancel, isLoading = false }: ClientFormProps) => {
   const { toast } = useToast();
   const [cnpjDisplay, setCnpjDisplay] = useState('');
   const [cepDisplay, setCepDisplay] = useState('');
@@ -148,12 +155,12 @@ const ClientForm = ({ client, onSubmit, onCancel, isLoading = false }: ClientFor
       setCepDisplay(client.cep ? formatCEP(client.cep) : '');
       setLogoUrl(client.logoUrl || null);
     } else {
-      form.reset(EMPTY_VALUES);
-      setCnpjDisplay('');
-      setCepDisplay('');
+      form.reset({ ...EMPTY_VALUES, ...filledPrefill(prefill) });
+      setCnpjDisplay(prefill?.cnpj ? formatCNPJ(prefill.cnpj) : '');
+      setCepDisplay(prefill?.cep ? formatCEP(prefill.cep) : '');
       setLogoUrl(null);
     }
-  }, [client, existingContacts, form]);
+  }, [client, existingContacts, form, prefill]);
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -72,6 +72,28 @@ export interface ClientContactInput {
   phone?: string;
 }
 
+/**
+ * Cadastro de cliente que já abre preenchido — por exemplo, com a empresa da Prospecção que
+ * acabou de fechar negócio. A pessoa confere e salva.
+ */
+export type ClientPrefill = Partial<
+  Pick<
+    CreateClientInput,
+    | 'companyName'
+    | 'tradingName'
+    | 'cnpj'
+    | 'segment'
+    | 'cep'
+    | 'logradouro'
+    | 'numero'
+    | 'complemento'
+    | 'bairro'
+    | 'cidade'
+    | 'estado'
+    | 'website'
+  >
+>;
+
 export interface CreateClientInput {
   companyName: string;
   tradingName?: string;

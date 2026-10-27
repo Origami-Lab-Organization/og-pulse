@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import { budgetService } from '@/services/budgetService';
 import { projectService } from '@/services/projectService';
 import { BudgetWithDetails } from '@/types/budget';
@@ -273,9 +274,10 @@ export function useCloseBusinessDeal() {
     },
     onError: (error: Error) => {
       console.error('Error closing business deal:', error);
+      // O motivo vai para a tela: "Tente novamente" escondia, por exemplo, o cliente que faltava.
       toast({
         title: 'Erro ao fechar negócio',
-        description: 'Não foi possível criar o projeto. Tente novamente.',
+        description: mensagemParaUsuario(error, 'Não foi possível criar o projeto. Tente novamente.'),
         variant: 'destructive',
       });
     },

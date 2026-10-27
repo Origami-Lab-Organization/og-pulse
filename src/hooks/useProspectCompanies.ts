@@ -90,6 +90,30 @@ export function useUpdateProspectCompany() {
   });
 }
 
+/**
+ * A empresa que fechou negócio vira cliente: a próxima oportunidade dela já abre com o cliente
+ * escolhido. Falhar aqui não desfaz o cliente cadastrado — só avisa.
+ */
+export function useLinkProspectCompanyToClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, clientId }: { companyId: string; clientId: string }) =>
+      prospectCompanyService.linkClient(companyId, clientId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['prospect-companies'] });
+      qc.invalidateQueries({ queryKey: ['prospects'] });
+      qc.invalidateQueries({ queryKey: ['prospect'] });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: 'Cliente cadastrado, mas não ligado à empresa da Prospecção',
+        description: mensagemParaUsuario(err),
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 type CardDaEmpresa = Pick<ProspectWithCompany, 'id' | 'company_id' | 'contacts'>;
 
 /** A empresa do tenant que já usa este CNPJ, quando não é a própria empresa do card. */

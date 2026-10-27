@@ -1,9 +1,11 @@
 import { useBudget } from '@/hooks/useBudgets';
 import { useCloseBusinessDeal } from '@/hooks/useCloseBusinessDeal';
+import { useLinkProspectCompanyToClient } from '@/hooks/useProspectCompanies';
 import { useProspectBudget } from '@/hooks/useProspectDeal';
 import type { CloseBusinessInstallment } from '@/lib/closeBusinessFinancials';
 import { resolveProspectValue } from '@/lib/prospecting/value';
 import type { BudgetWithDetails } from '@/types/budget';
+import type { ClientPrefill } from '@/types/client';
 import { opportunityName, type ProspectWithCompany } from '@/types/prospect';
 import {
   CloseBusinessDialog,
@@ -27,8 +29,10 @@ export function ProspectProjectDialog(props: ProspectProjectDialogProps) {
   const { data: vinculado } = useProspectBudget(open ? prospect?.id ?? null : null);
   const { data: orcamento = null } = useBudget(vinculado?.id ?? null);
   const fechar = useCloseBusinessDeal();
+  const ligarCliente = useLinkProspectCompanyToClient();
 
   if (!prospect) return null;
+  const empresaId = prospect.company?.id ?? prospect.company_id ?? null;
 
   return (
     <CloseBusinessDialog
@@ -37,6 +41,7 @@ export function ProspectProjectDialog(props: ProspectProjectDialogProps) {
       budget={orcamento}
       origem={origemDe(prospect)}
       onConfirm={(values) => fechar.mutateAsync(fechamentoDe(prospect, orcamento, values))}
+      onClientCreated={(clientId) => empresaId && ligarCliente.mutate({ companyId: empresaId, clientId })}
       isSubmitting={fechar.isPending}
     />
   );
@@ -51,6 +56,33 @@ function origemDe(prospect: ProspectWithCompany): CloseBusinessOrigin {
     responsibleId: prospect.owner_id,
     estimatedValue: prospect.estimated_value,
     wonValue: prospect.won_value,
+    clientPrefill: clientePreenchidoDe(prospect),
+  };
+}
+
+const soDigitos = (valor: string | null | undefined) => valor?.replace(/\D/g, '') || undefined;
+
+/**
+ * A empresa que fechou e ainda não é cliente: o cadastro de cliente abre com o que a
+ * Prospecção já sabe dela — nome, CNPJ, segmento, site e o endereço da Receita.
+ */
+function clientePreenchidoDe(prospect: ProspectWithCompany): ClientPrefill | null {
+  const empresa = prospect.company;
+  if (!empresa || empresa.client_id) return null;
+  const endereco = empresa.receita?.endereco;
+  return {
+    companyName: empresa.razao_social || empresa.name,
+    tradingName: empresa.nome_fantasia || (empresa.razao_social ? empresa.name : undefined),
+    cnpj: soDigitos(empresa.cnpj),
+    segment: empresa.segment || undefined,
+    website: empresa.website || undefined,
+    cep: soDigitos(endereco?.cep),
+    logradouro: endereco?.logradouro || undefined,
+    numero: endereco?.numero || undefined,
+    complemento: endereco?.complemento || undefined,
+    bairro: endereco?.bairro || undefined,
+    cidade: endereco?.municipio || undefined,
+    estado: endereco?.uf || undefined,
   };
 }
 

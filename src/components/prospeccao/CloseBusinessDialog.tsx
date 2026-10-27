@@ -11,6 +11,7 @@ import {
 	Eye,
 	Lock,
 	type LucideIcon,
+	Plus,
 	RefreshCw,
 	Sparkles,
 	Target,
@@ -19,7 +20,7 @@ import {
 	Wand2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { type Control, useForm } from "react-hook-form";
 import * as z from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ import {
 	Form,
 	FormControl,
 	FormField,
+	FormDescription,
 	FormItem,
 	FormLabel,
 	FormMessage,
@@ -58,7 +60,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { useClients } from "@/hooks/useClients";
+import ClientFormDialog from "@/components/clients/ClientFormDialog";
+import { useClients, useCreateClient } from "@/hooks/useClients";
+import type { Client, ClientPrefill } from "@/types/client";
 import { useEmployees } from "@/hooks/useEmployees";
 import {
 	type CloseBusinessInstallment,
@@ -159,6 +163,8 @@ export interface CloseBusinessOrigin {
 	responsibleId: string | null;
 	estimatedValue: number | null;
 	wonValue: number | null;
+	/** Empresa que ainda não é cliente: o cadastro de cliente abre com os dados dela. */
+	clientPrefill?: ClientPrefill | null;
 }
 
 interface CloseBusinessDialogProps {
@@ -171,7 +177,70 @@ interface CloseBusinessDialogProps {
 		data: CloseBusinessFormValues,
 	) => Promise<ProjectDB | void> | ProjectDB | void;
 	onClosed?: (projectId: string) => void;
+	/** Cliente cadastrado aqui mesmo — quem abriu o diálogo pode ligá-lo à empresa de origem. */
+	onClientCreated?: (clientId: string) => void;
 	isSubmitting?: boolean;
+}
+
+interface ClientFieldProps {
+	control: Control<CloseBusinessFormValues>;
+	clients: Client[];
+	disabled: boolean;
+	companyName: string | null;
+	hasValue: boolean;
+	onCreate: () => void;
+}
+
+/**
+ * Cliente do projeto. Se ele ainda não existe — a empresa acabou de fechar o primeiro negócio
+ * —, o cadastro abre aqui mesmo, já com os dados da empresa, e o cliente novo fica escolhido.
+ */
+function ClientField(props: ClientFieldProps) {
+	const { control, clients, disabled, companyName, hasValue, onCreate } = props;
+	const hint = companyName
+		? `${companyName} ainda não é cliente? Cadastre e ele já fica escolhido.`
+		: "Não está na lista? Cadastre o cliente sem sair daqui.";
+
+	return (
+		<FormField
+			control={control}
+			name="clientId"
+			render={({ field }) => (
+				<FormItem>
+					<FormLabel>Cliente *</FormLabel>
+					<Select onValueChange={field.onChange} value={field.value} disabled={disabled}>
+						<FormControl>
+							<SelectTrigger>
+								<SelectValue placeholder="Selecione o cliente" />
+							</SelectTrigger>
+						</FormControl>
+						<SelectContent>
+							{clients.map((client) => (
+								<SelectItem key={client.id} value={client.id}>
+									{client.companyName}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+						{!hasValue && <FormDescription>{hint}</FormDescription>}
+						<Button
+							type="button"
+							variant="link"
+							size="sm"
+							className="ml-auto h-auto px-0"
+							onClick={onCreate}
+							disabled={disabled}
+						>
+							<Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+							Cadastrar cliente
+						</Button>
+					</div>
+					<FormMessage />
+				</FormItem>
+			)}
+		/>
+	);
 }
 
 function getClientName(
@@ -220,10 +289,13 @@ export function CloseBusinessDialog({
 	origem,
 	onConfirm,
 	onClosed,
+	onClientCreated,
 	isSubmitting,
 }: CloseBusinessDialogProps) {
 	const { data: employees = [] } = useEmployees();
 	const { data: clients = [] } = useClients();
+	const createClient = useCreateClient();
+	const [clientDialogOpen, setClientDialogOpen] = useState(false);
 
 	const hasBudget = !!budget;
 	const budgetMissingClient = hasBudget && !budget?.client_id;
@@ -439,6 +511,11 @@ export function CloseBusinessDialog({
 	};
 
   const handleSubmit = async (values: CloseBusinessFormValues) => {
+    // Sem cliente o banco recusa o projeto faturável (ADR-0049) — melhor dizer aqui, no campo.
+    if (needsClientField && !values.clientId) {
+      form.setError("clientId", { type: "manual", message: "Escolha o cliente ou cadastre um novo." });
+      return;
+    }
     let project: ProjectDB | void;
 
     try {
@@ -652,33 +729,13 @@ export function CloseBusinessDialog({
 						)}
 
 						{needsClientField && (
-							<FormField
+							<ClientField
 								control={form.control}
-								name="clientId"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Cliente *</FormLabel>
-										<Select
-											onValueChange={field.onChange}
-											value={field.value}
-											disabled={!!celebration || isSubmitting}
-										>
-											<FormControl>
-												<SelectTrigger>
-													<SelectValue placeholder="Selecione o cliente" />
-												</SelectTrigger>
-											</FormControl>
-											<SelectContent>
-												{clients.map((client) => (
-													<SelectItem key={client.id} value={client.id}>
-														{client.companyName}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-										<FormMessage />
-									</FormItem>
-								)}
+								clients={clients}
+								disabled={!!celebration || !!isSubmitting}
+								companyName={origem?.clientPrefill ? origem.companyName : null}
+								hasValue={Boolean(clientIdValue)}
+								onCreate={() => setClientDialogOpen(true)}
 							/>
 						)}
 
@@ -1287,6 +1344,23 @@ export function CloseBusinessDialog({
 				</div>
 			</DialogContent>
 		</Dialog>
+
+		<ClientFormDialog
+			open={clientDialogOpen}
+			onOpenChange={setClientDialogOpen}
+			prefill={origem?.clientPrefill ?? null}
+			isLoading={createClient.isPending}
+			onSubmit={(data) =>
+				createClient.mutate(data, {
+					onSuccess: (newClient) => {
+						form.setValue("clientId", newClient.id, { shouldValidate: true });
+						form.clearErrors("clientId");
+						setClientDialogOpen(false);
+						onClientCreated?.(newClient.id);
+					},
+				})
+			}
+		/>
 		</>
 	);
 }

@@ -5,12 +5,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import ClientForm from '@/components/clients/ClientForm';
-import { Client, CreateClientInput } from '@/types/client';
+import { Client, ClientPrefill, CreateClientInput } from '@/types/client';
 
 interface ClientFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client?: Client | null;
+  /** Cadastro novo já preenchido (ex.: a empresa do ganho). */
+  prefill?: ClientPrefill | null;
   onSubmit: (data: CreateClientInput) => void;
   isLoading?: boolean;
 }
@@ -21,6 +23,7 @@ const ClientFormDialog = ({
   open,
   onOpenChange,
   client,
+  prefill,
   onSubmit,
   isLoading = false,
 }: ClientFormDialogProps) => {
@@ -36,6 +39,7 @@ const ClientFormDialog = ({
         {open && (
           <ClientForm
             client={client}
+            prefill={prefill}
             onSubmit={onSubmit}
             onCancel={() => onOpenChange(false)}
             isLoading={isLoading}

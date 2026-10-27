@@ -149,6 +149,15 @@ export const prospectCompanyService = {
     return data as unknown as ProspectCompanyDB;
   },
 
+  /**
+   * Liga a empresa ao cliente — só a coluna `client_id`. `update` regrava a empresa inteira e
+   * apagaria o que não viesse junto.
+   */
+  async linkClient(id: string, clientId: string): Promise<void> {
+    const { error } = await tabela('prospect_companies').update({ client_id: clientId }).eq('id', id);
+    if (error) throw error;
+  },
+
   async update(id: string, input: ProspectCompanyInput): Promise<ProspectCompanyDB> {
     const { data, error } = await tabela('prospect_companies')
       .update(normalize(input))
