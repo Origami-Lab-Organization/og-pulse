@@ -6,18 +6,15 @@ import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
 import { useMaskedCurrency, useMaskedPercent } from '@/contexts/HideValuesContext';
 import { InstallmentAlertsBanner } from './financial/InstallmentAlertsBanner';
 import { ProjectKPIBar } from './ProjectKPIBar';
-import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
-import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useProjectTimesheets } from '@/hooks/useProjectTimesheets';
 import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
-import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
-import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
+import { useProjectPlannedMargin } from '@/hooks/useProjectPlannedMargin';
 import { useHolidays } from '@/hooks/useHolidays';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import { formatDate, formatPercent } from '@/lib/formatters';
-import { format, parseISO, startOfMonth, addMonths } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { clientLabel, projectKindOf } from '@/lib/projectKind';
 
@@ -28,10 +25,6 @@ interface ProjectOverviewTabProps {
 export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
   const formatCurrency = useMaskedCurrency();
   const formatPercent = useMaskedPercent();
-  const memberIds = useMemo(
-    () => (project.members || []).map((m) => m.id),
-    [project.members]
-  );
   const supplierIds = useMemo(
     () => (project.suppliers || []).map((s) => s.id),
     [project.suppliers]
@@ -41,16 +34,12 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     [project.members],
   );
 
-  const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
   // Por project_id, não pela equipe atual — ver ProjectFinancialTab.tsx.
   const { data: timesheets = [] } = useProjectTimesheets(project.id);
-  const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
   const { data: holidays = [] } = useHolidays();
-  const plannedLaborFromAllocations = useProjectPlannedLaborCost(
-    project,
-    project.duration_months,
-  );
+  // Custo, comissão e margem PLANEJADOS: mesma fonte do simulador de alocação.
+  const plannedMargin = useProjectPlannedMargin(project);
 
   const metrics = useMemo(() => {
     const contractValue = Number(project.total_value || 0);
@@ -66,26 +55,6 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
       return getFallbackHourlyCost(member.employee.total_monthly_cost_estimated || 0, member.employee.jornada_diaria || 8, year, monthIndex, holidays);
     };
 
-    const projStart = startOfMonth(parseISO(project.start_date));
-    const laborPlanned = plannedLaborFromAllocations.hasRoleAllocations
-      ? plannedLaborFromAllocations.total
-      : (project.members || []).reduce((acc, member) => {
-          const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
-          if (memberEntries.length === 0) {
-            const fallbackCost = fallbackHourlyCost(member, projStart.getFullYear(), projStart.getMonth());
-            return acc + fallbackCost * Number(member.hours_per_month || 0) * project.duration_months;
-          }
-
-          return acc + memberEntries.reduce((sum, mm) => {
-            if ((mm as any).cost_per_hour != null) {
-              return sum + Number((mm as any).cost_per_hour) * Number(mm.hours);
-            }
-            const monthDate = addMonths(projStart, mm.month_number - 1);
-            const fallbackCost = fallbackHourlyCost(member, monthDate.getFullYear(), monthDate.getMonth());
-            return sum + fallbackCost * Number(mm.hours);
-          }, 0);
-        }, 0);
-
     const laborActual = timesheets.reduce((sum, t) => {
       if ((t as any).cost_per_hour != null) {
         return sum + Number((t as any).cost_per_hour) * Number(t.hours);
@@ -97,39 +66,20 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
       return sum + fallbackCost * Number(t.hours);
     }, 0);
 
-    const supplierPlanned = supplierMonths.reduce((s, sm) => s + sm.value, 0) ||
-      (project.suppliers || []).reduce((acc, sup) => {
-        const months = sup.end_month ? sup.end_month - sup.start_month + 1 : project.duration_months;
-        return acc + Number(sup.monthly_value || 0) * months;
-      }, 0);
-
     const supplierActualTotal = supplierActuals.reduce((s, sa) => s + sa.value, 0);
 
-    const materialPlanned = (project.materials || []).reduce((s, m) => s + Number(m.value || 0), 0);
     const materialActual = (project.materials || [])
       .filter((m) => m.is_realized)
       .reduce((s, m) => s + Number(m.value || 0), 0);
 
-    const totalPlanned = laborPlanned + supplierPlanned + materialPlanned;
     const totalActual = laborActual + supplierActualTotal + materialActual;
 
-    return { totalPlanned, totalActual };
-  }, [
-    project,
-    memberMap,
-    memberMonths,
-    timesheets,
-    supplierMonths,
-    supplierActuals,
-    holidays,
-    plannedLaborFromAllocations.hasRoleAllocations,
-    plannedLaborFromAllocations.total,
-  ]);
+    return { totalPlanned: plannedMargin.costPlanned, totalActual };
+  }, [project, memberMap, timesheets, supplierActuals, holidays, plannedMargin.costPlanned]);
 
   // A meta e os percentuais que julgam ESTE projeto são os que valiam quando ele começou
   // (PUL-260). Mudar a política em setembro não muda o que um projeto de janeiro assinou.
   const { data: financialSettings } = useFinancialSettings(project.start_date);
-  const { data: budget } = useBudget(project.budget_id);
   const { data: commissions = [] } = useProjectCommissions(project.id);
 
   const kpiData = useMemo(() => {
@@ -137,9 +87,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     const revenueActual = metrics.receivedValue;
     const revenueExecuted = revenuePlanned > 0 ? (revenueActual / revenuePlanned) * 100 : 0;
 
-    const commissionPlanned = budget
-      ? (budget.commission_percent / 100) * budget.total_with_fees
-      : 0;
+    const commissionPlanned = plannedMargin.commissionPlanned;
     const commissionActual = commissions.filter((c) => c.is_paid).reduce((s, c) => s + Number(c.planned_value), 0);
     const commissionExecuted = commissionPlanned > 0 ? (commissionActual / commissionPlanned) * 100 : 0;
 
@@ -157,7 +105,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
       costPlanned, costActual, costExecuted,
       marginPlanned, marginActual, marginVar,
     };
-  }, [metrics, costData, financialSettings, budget, commissions, project.installments]);
+  }, [metrics, costData, financialSettings, plannedMargin.commissionPlanned, commissions, project.installments]);
 
   const getPaymentMethodLabel = (method: string) => {
     const found = PAYMENT_METHOD_OPTIONS.find((m) => m.value === method);
