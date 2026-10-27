@@ -1,16 +1,10 @@
 import { useState } from 'react';
-import { Instagram, Linkedin, Loader2, Mail, Phone, Plus, X } from 'lucide-react';
+import { Instagram, Linkedin, Mail, Phone, Plus, X } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  useCreateProspectContact,
-  useProspectContactDuplicate,
-  useProspectContacts,
-} from '@/hooks/useProspectContacts';
+import { useProspectContacts } from '@/hooks/useProspectContacts';
 import {
   useAddOpportunityContact,
   useRemoveOpportunityContact,
@@ -20,12 +14,12 @@ import { iniciaisDe } from '@/lib/prospecting/iniciais';
 import { comProtocolo, urlDoInstagram } from '@/lib/prospecting/links';
 import {
   getContactRoleLabel,
-  opportunityName,
   sortOpportunityContacts,
   type ProspectContactWithCompany,
   type ProspectOpportunityContact,
   type ProspectWithCompany,
 } from '@/types/prospect';
+import { NovoContatoDaOportunidade } from './OpportunityNewContactForm';
 import { OpportunityContactRoleSelect } from './OpportunityContactRoleSelect';
 import { ProspectContactSelect } from './ProspectContactSelect';
 import { CartaoDaFicha } from './FichaDaOportunidade';
@@ -60,6 +54,7 @@ export function OpportunityContactsCard({ prospect, podeEditar: editavel }: Oppo
     <CartaoDaFicha
       rotulo="Contatos da oportunidade"
       titulo={<>Contatos <span className="font-normal text-muted-foreground">· {contatos.length}</span></>}
+      resumo={contatos.map((c) => c.contact?.name).filter(Boolean).join(', ')}
       acao={acao}
     >
       <ListaDeContatos prospectId={prospect.id} contatos={contatos} podeEditar={podeEditar} vazioVisivel={!incluindo} />
@@ -80,49 +75,57 @@ function ListaDeContatos(props: {
     return vazioVisivel ? <p className="text-sm text-muted-foreground">Nenhum contato nesta oportunidade ainda.</p> : null;
   }
   return (
-    <ul className="space-y-2">
+    <ul className="-mb-2.5 -mt-1.5 divide-y">
       {contatos.map((c) => (
         <li key={c.contact_id}>
-          <CartaoDoContato prospectId={prospectId} vinculo={c} podeEditar={podeEditar} />
+          <LinhaDoContato prospectId={prospectId} vinculo={c} podeEditar={podeEditar} />
         </li>
       ))}
     </ul>
   );
 }
 
-/** Uma pessoa: quem é, como falar com ela e o papel dela na decisão. */
-function CartaoDoContato(props: { prospectId: string; vinculo: ProspectOpportunityContact; podeEditar: boolean }) {
+/**
+ * Uma pessoa por linha (27/10/2026): nome e cargo em cima; embaixo, como falar com ela e o
+ * papel na decisão num seletor pequeno. Antes era um cartão por pessoa, com o seletor largo
+ * numa seção própria — três contatos enchiam a coluna.
+ */
+function LinhaDoContato(props: { prospectId: string; vinculo: ProspectOpportunityContact; podeEditar: boolean }) {
   const { prospectId, vinculo, podeEditar } = props;
   const retirar = useRemoveOpportunityContact();
   const pessoa = vinculo.contact;
   const nome = pessoa?.name ?? 'Contato';
 
   return (
-    <div className="space-y-3 rounded-lg border p-3">
-      <div className="flex items-start gap-2.5">
-        <Avatar className="h-9 w-9 shrink-0">
-          <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">{iniciaisDe(nome)}</AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{nome}</p>
-          {pessoa?.role && <p className="truncate text-xs text-muted-foreground">{pessoa.role}</p>}
+    <div className="flex items-start gap-2.5 py-2.5">
+      <Avatar className="mt-0.5 h-8 w-8 shrink-0">
+        <AvatarFallback className="bg-muted text-[11px] font-semibold text-muted-foreground">{iniciaisDe(nome)}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-center gap-1">
+          <p className="min-w-0 flex-1 truncate text-sm" title={pessoa?.role ? `${nome} · ${pessoa.role}` : nome}>
+            <span className="font-medium">{nome}</span>
+            {pessoa?.role && <span className="text-muted-foreground"> · {pessoa.role}</span>}
+          </p>
+          {podeEditar && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="-mr-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+              aria-label={`Retirar ${nome} da oportunidade`}
+              title="Retirar da oportunidade"
+              disabled={retirar.isPending}
+              onClick={() => retirar.mutate({ prospectId, contactId: vinculo.contact_id })}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </Button>
+          )}
         </div>
-        {podeEditar && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="-mr-1 -mt-1 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-            aria-label={`Retirar ${nome} da oportunidade`}
-            title="Retirar da oportunidade"
-            disabled={retirar.isPending}
-            onClick={() => retirar.mutate({ prospectId, contactId: vinculo.contact_id })}
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <MeiosDeContato pessoa={pessoa} />
+          <PapelNaDecisao prospectId={prospectId} vinculo={vinculo} nome={nome} podeEditar={podeEditar} />
+        </div>
       </div>
-      <MeiosDeContato pessoa={pessoa} />
-      <PapelNaDecisao prospectId={prospectId} vinculo={vinculo} nome={nome} podeEditar={podeEditar} />
     </div>
   );
 }
@@ -132,66 +135,47 @@ function PapelNaDecisao(props: { prospectId: string; vinculo: ProspectOpportunit
   const mudarPapel = useUpdateOpportunityContactRole();
   if (!podeEditar) {
     const papel = getContactRoleLabel(vinculo.role);
-    return papel ? <Badge variant="secondary" className="font-normal">{papel}</Badge> : null;
+    return papel ? <Badge variant="secondary" className="ml-auto shrink-0 font-normal">{papel}</Badge> : null;
   }
   return (
-    <div className="space-y-1.5 border-t pt-3">
-      <p className="text-xs text-muted-foreground">Papel na decisão</p>
-      <OpportunityContactRoleSelect
-        value={vinculo.role}
-        nome={nome}
-        onChange={(role) => mudarPapel.mutate({ prospectId, contactId: vinculo.contact_id, role })}
-        disabled={mudarPapel.isPending}
-        className="h-9 w-full text-sm"
-      />
-    </div>
+    <OpportunityContactRoleSelect
+      value={vinculo.role}
+      nome={nome}
+      onChange={(role) => mudarPapel.mutate({ prospectId, contactId: vinculo.contact_id, role })}
+      disabled={mudarPapel.isPending}
+      // Sem borda, do tamanho do texto: o seletor largo cortava o telefone ao lado.
+      className="ml-auto h-7 w-auto shrink-0 gap-1 border-transparent bg-transparent px-1.5 text-xs text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
+    />
   );
 }
 
-type Pessoa = NonNullable<ProspectOpportunityContact['contact']>;
-
-/** E-mail e telefone em linha, que é o que se copia; redes, só pelo ícone. */
+/** O telefone por extenso, que é o que se disca; e-mail e redes, só pelo ícone (o endereço vai no título). */
 function MeiosDeContato({ pessoa }: { pessoa: ProspectOpportunityContact['contact'] }) {
-  if (!pessoa) return null;
-  return (
-    <div className="space-y-1.5 empty:hidden">
-      <LinhaDeMeio valor={pessoa.email} href={(v) => `mailto:${v}`} icone={Mail} />
-      <LinhaDeMeio valor={pessoa.phone} href={(v) => `tel:${v.replace(/[^\d+]/g, '')}`} icone={Phone} />
-      <RedesDaPessoa pessoa={pessoa} />
-    </div>
-  );
-}
-
-function LinhaDeMeio(props: { valor: string | null; href: (valor: string) => string; icone: typeof Mail }) {
-  const { valor, href, icone: Icone } = props;
-  if (!valor) return null;
-  return (
-    <a
-      href={href(valor)}
-      className="flex min-w-0 items-center gap-2 rounded text-sm text-foreground/90 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <Icone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span className="truncate">{valor}</span>
-    </a>
-  );
-}
-
-function RedesDaPessoa({ pessoa }: { pessoa: Pessoa }) {
+  if (!pessoa) return <span className="flex-1" />;
   const instagram = urlDoInstagram(pessoa.instagram_url);
-  if (!pessoa.linkedin_url && !instagram) return null;
   return (
-    <div className="flex gap-1.5 pt-0.5">
-      {pessoa.linkedin_url && <IconeDeRede href={comProtocolo(pessoa.linkedin_url)} icone={Linkedin} rotulo={`LinkedIn de ${pessoa.name}`} />}
-      {instagram && <IconeDeRede href={instagram} icone={Instagram} rotulo={`Instagram de ${pessoa.name}`} />}
+    <div className="flex min-w-0 flex-1 items-center gap-1">
+      {pessoa.phone && (
+        <a
+          href={`tel:${pessoa.phone.replace(/[^\d+]/g, '')}`}
+          className="mr-0.5 flex min-w-0 items-center gap-1 rounded text-xs text-foreground/90 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Phone className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="truncate">{pessoa.phone}</span>
+        </a>
+      )}
+      {pessoa.email && <IconeDeMeio href={`mailto:${pessoa.email}`} icone={Mail} rotulo={pessoa.email} externo={false} />}
+      {pessoa.linkedin_url && <IconeDeMeio href={comProtocolo(pessoa.linkedin_url)} icone={Linkedin} rotulo={`LinkedIn de ${pessoa.name}`} />}
+      {instagram && <IconeDeMeio href={instagram} icone={Instagram} rotulo={`Instagram de ${pessoa.name}`} />}
     </div>
   );
 }
 
-function IconeDeRede(props: { href: string; icone: typeof Mail; rotulo: string }) {
-  const { href, icone: Icone, rotulo } = props;
+function IconeDeMeio(props: { href: string; icone: typeof Mail; rotulo: string; externo?: boolean }) {
+  const { href, icone: Icone, rotulo, externo = true } = props;
   return (
-    <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-      <a href={href} target="_blank" rel="noopener noreferrer" aria-label={rotulo} title={rotulo}>
+    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-primary" asChild>
+      <a href={href} aria-label={rotulo} title={rotulo} {...(externo ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
         <Icone className="h-3.5 w-3.5" aria-hidden="true" />
       </a>
     </Button>
@@ -213,7 +197,18 @@ function InclusaoDeContato({ prospect, onFechar }: { prospect: ProspectWithCompa
   };
 
   if (novoNome !== null) {
-    return <PessoaNova prospect={prospect} nomeInicial={novoNome} onUsarExistente={vincular} onFechar={onFechar} />;
+    return (
+      <div className="mt-3 rounded-md border bg-muted/30 p-2.5">
+        <NovoContatoDaOportunidade
+          prospect={prospect}
+          nomeInicial={novoNome}
+          onUsarExistente={vincular}
+          onIncluido={onFechar}
+          onCancelar={onFechar}
+          compacto
+        />
+      </div>
+    );
   }
 
   return (
@@ -228,89 +223,6 @@ function InclusaoDeContato({ prospect, onFechar }: { prospect: ProspectWithCompa
       />
       <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onFechar} disabled={incluir.isPending}>
         Cancelar
-      </Button>
-    </div>
-  );
-}
-
-type CampoDaPessoa = 'name' | 'role' | 'email' | 'phone' | 'linkedin_url';
-
-const CAMPOS_DA_PESSOA: ReadonlyArray<{ campo: CampoDaPessoa; rotulo: string; tipo?: string }> = [
-  { campo: 'name', rotulo: 'Nome' },
-  { campo: 'role', rotulo: 'Cargo' },
-  { campo: 'email', rotulo: 'E-mail', tipo: 'email' },
-  { campo: 'phone', rotulo: 'Telefone' },
-  { campo: 'linkedin_url', rotulo: 'LinkedIn' },
-];
-
-function PessoaNova(props: {
-  prospect: ProspectWithCompany;
-  nomeInicial: string;
-  onUsarExistente: (contato: ProspectContactWithCompany) => void;
-  onFechar: () => void;
-}) {
-  const { prospect, nomeInicial, onUsarExistente, onFechar } = props;
-  const criar = useCreateProspectContact();
-  const incluir = useAddOpportunityContact();
-  const [dados, setDados] = useState<Record<CampoDaPessoa, string>>({
-    name: nomeInicial, role: '', email: '', phone: '', linkedin_url: '',
-  });
-  const duplicado = useProspectContactDuplicate(dados.email, dados.linkedin_url).data ?? null;
-  const ocupado = criar.isPending || incluir.isPending;
-  const bloqueado = ocupado || !!duplicado || dados.name.trim().length < 2;
-
-  const salvar = async () => {
-    const pessoa = await criar.mutateAsync({ ...dados, company_id: prospect.company_id });
-    await incluir.mutateAsync({ prospectId: prospect.id, contactId: pessoa.id });
-    onFechar();
-  };
-
-  return (
-    <form
-      className="mt-3 space-y-2 rounded-md border bg-muted/30 p-2.5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        salvar().catch(() => undefined);
-      }}
-    >
-      <p className="text-xs font-medium">Novo contato em {opportunityName(prospect)}</p>
-      {CAMPOS_DA_PESSOA.map(({ campo, rotulo, tipo }) => (
-        <div key={campo} className="space-y-1">
-          <Label htmlFor={`novo-contato-${campo}`} className="text-xs text-muted-foreground">{rotulo}</Label>
-          <Input
-            id={`novo-contato-${campo}`}
-            type={tipo}
-            value={dados[campo]}
-            onChange={(e) => setDados((atual) => ({ ...atual, [campo]: e.target.value }))}
-            disabled={ocupado}
-            className="h-8"
-          />
-        </div>
-      ))}
-      {duplicado && <AvisoDeDuplicado contato={duplicado} onUsar={() => onUsarExistente(duplicado)} />}
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={bloqueado}>
-          {ocupado && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
-          Cadastrar e incluir
-        </Button>
-        <Button type="button" variant="outline" size="sm" onClick={onFechar} disabled={ocupado}>
-          Cancelar
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-/** A deduplicação vale aqui também: quem já usa o e-mail ou LinkedIn é incluído, não recriado. */
-function AvisoDeDuplicado({ contato, onUsar }: { contato: ProspectContactWithCompany; onUsar: () => void }) {
-  return (
-    <div role="alert" className="space-y-1.5 rounded-md border border-warning/40 bg-warning-subtle p-2 text-xs text-warning-emphasis">
-      <p>
-        Já existe <span className="font-medium">{contato.name}</span>
-        {contato.company?.name && <> ({contato.company.name})</>} com este e-mail ou LinkedIn.
-      </p>
-      <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={onUsar}>
-        Incluir este contato
       </Button>
     </div>
   );

@@ -10,7 +10,7 @@ import { CartaoDaFicha } from './FichaDaOportunidade';
 interface CompanyFitSectionProps {
   empresa: ProspectCompanyDB;
   fomento?: FundingSignals | null;
-  /** Cartão próprio, como na ficha da oportunidade (09/10/2026); sem ele, bloco dentro da Receita. */
+  /** Cartão próprio e recolhido, como na ficha da oportunidade (27/10/2026); sem ele, bloco dentro da Receita. */
   emCartao?: boolean;
 }
 
@@ -22,12 +22,13 @@ export function CompanyFitSection(props: CompanyFitSectionProps) {
   const { empresa, fomento = null, emCartao = false } = props;
   const fits = companyFit(empresa, fomento);
   if (!fits) return null;
-  const linhas = [...fits].sort((a, b) => b.nota - a.nota).map((fit) => (
-    <LinhaDeFit key={fit.frente} fit={fit} grande={emCartao} />
-  ));
+  const ordenados = [...fits].sort((a, b) => b.nota - a.nota);
+  const linhas = ordenados.map((fit) => <LinhaDeFit key={fit.frente} fit={fit} grande={emCartao} />);
   if (emCartao) {
+    // Fechado, o cartão diz a frente mais forte — é o que se procura num relance.
+    const melhor = ordenados[0];
     return (
-      <CartaoDaFicha titulo="Fit com a Origami">
+      <CartaoDaFicha titulo="Fit com a Origami" inicialAberto={false} resumo={melhor && `${melhor.rotulo} · ${melhor.nota}`}>
         <div className="space-y-3">{linhas}</div>
       </CartaoDaFicha>
     );

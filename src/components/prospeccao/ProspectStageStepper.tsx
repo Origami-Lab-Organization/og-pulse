@@ -51,8 +51,9 @@ export function ProspectStageStepper({ stage, className }: ProspectStageStepperP
             />
             <span
               title={rotulo}
+              // Uma linha só: quebrado em duas, o rótulo da etapa atual desalinhava a régua.
               className={cn(
-                'block text-xs leading-tight',
+                'block truncate text-xs',
                 ehAtual ? 'font-semibold text-foreground' : 'text-muted-foreground',
               )}
             >

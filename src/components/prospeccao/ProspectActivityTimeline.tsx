@@ -33,7 +33,7 @@ export function ProspectActivityTimeline({
   }
 
   return (
-    <ol className="relative space-y-3">
+    <ol className="relative space-y-1">
       {activities.length === 0 && (
         <li className="py-8 text-center text-sm text-muted-foreground">
           Nenhuma atividade registrada ainda.
@@ -73,10 +73,10 @@ function Marcador({ destacado = false, semFio = false }: { destacado?: boolean; 
   return (
     <span aria-hidden="true">
       {/* O último nó não puxa fio: linha que desce para o vazio sugere item que não veio. */}
-      {!semFio && <span className="absolute left-[7px] top-5 h-full w-px bg-border" />}
+      {!semFio && <span className="absolute left-[7px] top-[1.125rem] h-full w-px bg-border" />}
       <span
         className={cn(
-          'absolute left-0 top-3.5 h-3.5 w-3.5 rounded-full border-2 bg-background',
+          'absolute left-0 top-3 h-3.5 w-3.5 rounded-full border-2 bg-background',
           destacado ? 'border-primary bg-primary' : 'border-border',
         )}
       />

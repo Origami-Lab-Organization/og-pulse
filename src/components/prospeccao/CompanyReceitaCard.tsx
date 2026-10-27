@@ -15,6 +15,7 @@ import { CompanyPartnersList } from './CompanyPartnersList';
 import { CompanySiteSection } from './CompanySiteSection';
 import { CompanyFitSection } from './CompanyFitSection';
 import { CompanyFundingSection } from './CompanyFundingSection';
+import { CartaoDaFicha } from './FichaDaOportunidade';
 
 interface CompanyReceitaCardProps {
   empresa: ProspectCompanyDB;
@@ -41,6 +42,23 @@ export function CompanyReceitaCard(props: CompanyReceitaCardProps) {
   const { empresa, podeEditar, compacto = false } = props;
   const consultada = !!empresa.receita_consultada_em;
   const Retrato = compacto ? RetratoCompacto : RetratoCompleto;
+
+  // Na ficha da oportunidade a Receita é consulta: recolhida, com o primeiro sinal à vista (27/10/2026).
+  if (compacto) {
+    return (
+      <CartaoDaFicha
+        titulo="Dados da Receita"
+        inicialAberto={false}
+        resumo={consultada ? sinaisDa(empresa)[0]?.titulo : 'Não consultada'}
+        acao={podeEditar && empresa.cnpj && <BotaoAtualizar empresa={empresa} />}
+      >
+        {consultada ? <Retrato empresa={empresa} /> : <SemConsulta temCnpj={!!empresa.cnpj} />}
+        <CompanySiteSection empresa={empresa} podeEditar={podeEditar} />
+        <CompanyFundingSection empresa={empresa} podeEditar={podeEditar} />
+        <CompanyPartnersList empresa={empresa} podeEditar={podeEditar} />
+      </CartaoDaFicha>
+    );
+  }
 
   return (
     <section className={cn('rounded-lg border bg-card', compacto ? 'p-4' : 'p-3')} aria-label="Dados da Receita">

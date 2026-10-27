@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
 import { Loader2, Paperclip, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { useRegisterActivity } from '@/hooks/useProspectActivities';
+import { useAddOpportunityContact } from '@/hooks/useProspects';
 import { INTERACTION_CHANNELS } from '@/lib/interactionChannels';
 import {
   ALLOWED_ATTACHMENT_LABEL,
@@ -15,8 +17,13 @@ import {
   validateAttachment,
   type ProspectAttachment,
 } from '@/lib/prospectAttachments';
-import type { ProspectWithCompany } from '@/types/prospect';
+import { opportunityName, type ProspectWithCompany } from '@/types/prospect';
 import { ActivityContactSelect } from './ActivityContactSelect';
+import { NovoContatoDaOportunidade } from './OpportunityNewContactForm';
+
+/** Canal e "com quem" sem moldura, do tamanho do texto: a caixa de registro é sobre o relato. */
+const SELETOR_DISCRETO =
+  'h-8 w-auto gap-1.5 border-transparent bg-transparent px-2 text-sm text-muted-foreground shadow-none hover:bg-muted hover:text-foreground';
 
 interface ProspectActivityComposerProps {
   prospect: ProspectWithCompany;
@@ -34,13 +41,16 @@ interface ProspectActivityComposerProps {
  * vazio — marcar a pessoa ajuda quem lê depois, mas não pode custar o registro.
  */
 export function ProspectActivityComposer({ prospect }: ProspectActivityComposerProps) {
-  const { employee } = useAuth();
+  const { employee, can } = useAuth();
   const registrar = useRegisterActivity();
   const inputArquivo = useRef<HTMLInputElement>(null);
 
   const [texto, setTexto] = useState('');
   const [canal, setCanal] = useState(prospect.primary_channel);
   const [comQuem, setComQuem] = useState<string | null>(null);
+  // Quem acabou de ser cadastrado aqui: vale como opção até a oportunidade recarregar com ele.
+  const [recemIncluido, setRecemIncluido] = useState<{ id: string; name: string } | null>(null);
+  const [cadastrandoContato, setCadastrandoContato] = useState(false);
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [enviando, setEnviando] = useState(false);
 
@@ -75,6 +85,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
       setArquivos([]);
       setCanal(prospect.primary_channel);
       setComQuem(null);
+      setRecemIncluido(null);
       toast({
         title: `Atividade nº ${atividade.sequence_no} registrada`,
         description: 'A próxima data foi agendada pela cadência.',
@@ -104,7 +115,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
         rows={3}
         placeholder="O que aconteceu?"
         aria-label="O que aconteceu?"
-        className="resize-none border-0 p-2 shadow-none focus-visible:ring-0"
+        className="resize-none border-0 bg-transparent p-2 shadow-none focus-visible:ring-0"
         disabled={ocupado}
       />
 
@@ -158,7 +169,7 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
         </Button>
 
         <Select value={canal} onValueChange={setCanal} disabled={ocupado}>
-          <SelectTrigger className="h-8 w-40" aria-label="Canal da atividade">
+          <SelectTrigger className={SELETOR_DISCRETO} aria-label="Canal da atividade">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -172,6 +183,9 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
           contatos={prospect.contacts ?? []}
           value={comQuem}
           onChange={setComQuem}
+          atual={recemIncluido}
+          className={SELETOR_DISCRETO}
+          onNovoContato={can('prospeccao:editar') ? () => setCadastrandoContato(true) : undefined}
           disabled={ocupado}
         />
 
@@ -190,7 +204,61 @@ export function ProspectActivityComposer({ prospect }: ProspectActivityComposerP
           Registrar
         </Button>
       </div>
+
+      <NovoContatoDialog
+        prospect={prospect}
+        open={cadastrandoContato}
+        onOpenChange={setCadastrandoContato}
+        onEscolhido={(pessoa) => {
+          setRecemIncluido(pessoa);
+          setComQuem(pessoa.id);
+          setCadastrandoContato(false);
+        }}
+      />
     </div>
+  );
+}
+
+interface NovoContatoDialogProps {
+  prospect: ProspectWithCompany;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** A pessoa já incluída na oportunidade: passa a ser o "com quem" da atividade. */
+  onEscolhido: (pessoa: { id: string; name: string }) => void;
+}
+
+/**
+ * "Novo contato" no registro da atividade (27/10/2026): a conversa costuma ser com alguém que
+ * ainda não está cadastrado. A pessoa nasce na empresa, entra na oportunidade e já fica como o
+ * "com quem" da atividade. Se o e-mail ou LinkedIn já for de alguém, é essa pessoa que entra.
+ */
+function NovoContatoDialog(props: NovoContatoDialogProps) {
+  const { prospect, open, onOpenChange, onEscolhido } = props;
+  const incluir = useAddOpportunityContact();
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Novo contato</DialogTitle>
+          <DialogDescription>
+            Entra em {opportunityName(prospect)} e fica marcado nesta atividade.
+          </DialogDescription>
+        </DialogHeader>
+        {open && (
+          <NovoContatoDaOportunidade
+            prospect={prospect}
+            onIncluido={onEscolhido}
+            onUsarExistente={(contato) =>
+              incluir.mutate(
+                { prospectId: prospect.id, contactId: contato.id },
+                { onSuccess: () => onEscolhido({ id: contato.id, name: contato.name }) },
+              )
+            }
+            onCancelar={() => onOpenChange(false)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

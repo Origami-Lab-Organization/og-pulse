@@ -28,28 +28,29 @@ export function OpportunityNextTask(props: OpportunityNextTaskProps) {
   const vencida = dias < 0;
 
   return (
+    // Faixa compacta (27/10/2026): o bloco grande, todo em vermelho, pesava mais que a conversa.
+    // O vermelho ficou no rótulo e na borda da esquerda.
     <div
       role={vencida ? 'alert' : undefined}
       className={cn(
-        'flex flex-wrap items-start gap-3 rounded-lg border p-4',
-        vencida ? 'border-destructive/30 bg-destructive-subtle' : 'bg-muted/40',
+        'flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-l-4 px-3 py-2',
+        vencida ? 'border-l-destructive bg-destructive-subtle/50' : 'border-l-primary bg-muted/30',
       )}
     >
-      <Clock className={cn('mt-0.5 h-4 w-4 shrink-0', vencida ? 'text-destructive' : 'text-muted-foreground')} aria-hidden="true" />
-      <div className="min-w-0 flex-1 space-y-1">
-        <p className={cn('text-xs font-semibold', vencida ? 'text-destructive' : 'text-muted-foreground')}>
-          <span className="uppercase tracking-wide">{vencida ? 'Tarefa vencida' : 'Próxima tarefa'}</span>
-          {' · '}
-          {formatarData(tarefa.due_date)} · {descreverPrazo(dias)}
-        </p>
-        <p className="whitespace-pre-wrap break-words text-sm text-foreground">{tarefa.description}</p>
-      </div>
-      {podeEditar && <AcoesDaTarefa tarefa={tarefa} vencida={vencida} />}
+      <Clock className={cn('h-4 w-4 shrink-0', vencida ? 'text-destructive' : 'text-muted-foreground')} aria-hidden="true" />
+      <p className="min-w-0 flex-1 text-sm">
+        <span className={cn('font-medium', vencida ? 'text-destructive' : 'text-muted-foreground')}>
+          {vencida ? 'Vencida' : 'Próxima tarefa'} · {formatarData(tarefa.due_date)} ({descreverPrazo(dias)})
+        </span>
+        <span className="text-muted-foreground"> — </span>
+        <span className="break-words text-foreground">{tarefa.description}</span>
+      </p>
+      {podeEditar && <AcoesDaTarefa tarefa={tarefa} />}
     </div>
   );
 }
 
-function AcoesDaTarefa({ tarefa, vencida }: { tarefa: ProspectTaskDB; vencida: boolean }) {
+function AcoesDaTarefa({ tarefa }: { tarefa: ProspectTaskDB }) {
   const { employee } = useAuth();
   const atualizar = useUpdateProspectTask();
   const concluir = () =>
@@ -62,9 +63,9 @@ function AcoesDaTarefa({ tarefa, vencida }: { tarefa: ProspectTaskDB; vencida: b
     );
 
   return (
-    <div className="flex shrink-0 items-center gap-2">
+    <div className="flex shrink-0 items-center gap-1.5">
       <Reagendar tarefa={tarefa} />
-      <Button size="sm" variant={vencida ? 'destructive' : 'default'} onClick={concluir} disabled={atualizar.isPending}>
+      <Button size="sm" variant="outline" className="h-8 bg-background" onClick={concluir} disabled={atualizar.isPending}>
         Concluir
       </Button>
     </div>
@@ -93,7 +94,7 @@ function Reagendar({ tarefa }: { tarefa: ProspectTaskDB }) {
   return (
     <Popover open={aberto} onOpenChange={setAberto}>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="outline" className="bg-background">Reagendar</Button>
+        <Button size="sm" variant="ghost" className="h-8">Reagendar</Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 space-y-3">
         <div className="space-y-1.5">

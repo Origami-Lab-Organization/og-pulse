@@ -63,7 +63,7 @@ function AtividadeRecolhida({ activity, onAbrir }: { activity: ProspectActivityW
       type="button"
       onClick={onAbrir}
       aria-expanded={false}
-      className="flex w-full flex-wrap items-center gap-2 rounded-lg border bg-card px-4 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex w-full flex-wrap items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span className="text-sm font-semibold">Atividade nº {activity.sequence_no}</span>
       <SelosDaAtividade activity={activity} />
@@ -80,17 +80,19 @@ function AtividadeAberta(props: AtividadeAbertaProps) {
   const anexos = props.activity.attachments ?? [];
   const temCorpo = !!props.activity.notes || anexos.length > 0;
   return (
-    <article className="overflow-hidden rounded-lg border bg-card">
-      <CabecalhoDaAtividade {...props} comBorda={temCorpo} />
+    // Sem caixa nem cabeçalho cinza (27/10/2026): o fio da linha do tempo já separa um registro
+    // do outro, e a moldura em cada um deixava a conversa pesada.
+    <article className="rounded-md px-3 py-2">
+      <CabecalhoDaAtividade {...props} />
       {temCorpo && <CorpoDaAtividade notas={props.activity.notes} anexos={anexos} />}
     </article>
   );
 }
 
-function CabecalhoDaAtividade(props: AtividadeAbertaProps & { comBorda: boolean }) {
-  const { activity, autorNome, podeEditar, onRecolher, onEditar, comBorda } = props;
+function CabecalhoDaAtividade(props: AtividadeAbertaProps) {
+  const { activity, autorNome, podeEditar, onRecolher, onEditar } = props;
   return (
-    <header className={cn('space-y-1 bg-muted/40 px-4 py-2.5', comBorda && 'border-b')}>
+    <header className="space-y-0.5">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -125,8 +127,8 @@ function CabecalhoDaAtividade(props: AtividadeAbertaProps & { comBorda: boolean 
 
 function CorpoDaAtividade({ notas, anexos }: { notas: string | null; anexos: ProspectAttachment[] }) {
   return (
-    <div className="space-y-3 px-4 py-3">
-      {notas && <p className="whitespace-pre-wrap break-words text-sm">{notas}</p>}
+    <div className="space-y-2 pt-2">
+      {notas && <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{notas}</p>}
       {anexos.length > 0 && (
         <ul className="flex flex-wrap gap-1.5">
           {anexos.map((anexo) => (

@@ -1,8 +1,8 @@
+import type { ReactNode } from 'react';
 import { Globe, Instagram, Linkedin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useProspectCompanyByCnpj } from '@/hooks/useProspectCompanies';
 import { formatCurrency } from '@/lib/formatters';
 import { formatCNPJ } from '@/lib/masks';
@@ -28,6 +28,8 @@ interface OpportunityCompanyCardProps {
   onEditar: () => void;
   onReceita: (receita: ReceitaSnapshot) => void;
   receitaAchada: ReceitaSnapshot | null;
+  /** Salvar e cancelar da edição, dentro da própria seção. */
+  rodape?: ReactNode;
 }
 
 /**
@@ -38,10 +40,21 @@ interface OpportunityCompanyCardProps {
  * entre este cartão e o da Receita: CNPJ, faturamento, abertura e capital social.
  */
 export function OpportunityCompanyCard(props: OpportunityCompanyCardProps) {
-  const { empresa, editando, podeEditar, onEditar } = props;
+  const { empresa, editando, podeEditar, onEditar, rodape } = props;
   return (
-    <CartaoDaFicha titulo="Empresa" acao={podeEditar && !editando && <BotaoEditar onClick={onEditar} />}>
-      {editando ? <EdicaoDaEmpresa {...props} /> : <LeituraDaEmpresa empresa={empresa} podeEditar={podeEditar} onEditar={onEditar} />}
+    <CartaoDaFicha
+      titulo="Empresa"
+      resumo={empresa?.name}
+      acao={podeEditar && !editando && <BotaoEditar onClick={onEditar} />}
+    >
+      {editando ? (
+        <div className="space-y-3">
+          <EdicaoDaEmpresa {...props} />
+          {rodape}
+        </div>
+      ) : (
+        <LeituraDaEmpresa empresa={empresa} podeEditar={podeEditar} onEditar={onEditar} />
+      )}
     </CartaoDaFicha>
   );
 }
@@ -63,26 +76,29 @@ function LeituraDaEmpresa(props: LeituraProps) {
       <NomeDaEmpresa empresa={empresa} />
       <Segmentacao empresa={empresa} />
       <LinksDaEmpresa empresa={empresa} />
-      <Separator />
       <dl className="space-y-2">
         <LinhaDeDado termo="CNPJ">{empresa.cnpj ? formatCNPJ(empresa.cnpj) : convite}</LinhaDeDado>
         <LinhaDeDado termo="Faturamento">{faturamentoDe(empresa) ?? convite}</LinhaDeDado>
         <LinhaDeDado termo="Abertura">{aberturaDe(empresa.data_abertura)}</LinhaDeDado>
-        <LinhaDeDado termo="Capital social">
-          {empresa.capital_social != null ? formatCurrency(empresa.capital_social) : null}
-        </LinhaDeDado>
+        {/* Capital zerado é o padrão da Receita para quem não declarou: não informa nada. */}
+        {!!empresa.capital_social && (
+          <LinhaDeDado termo="Capital social">{formatCurrency(empresa.capital_social)}</LinhaDeDado>
+        )}
       </dl>
     </div>
   );
 }
 
-/** O nome de uso e, quando é outro, a razão social embaixo. */
+/**
+ * O nome de uso e, quando é outro, a razão social embaixo — numa linha só (27/10/2026): a
+ * razão social da Receita vem em caixa alta e ocupava três linhas do painel.
+ */
 function NomeDaEmpresa({ empresa }: { empresa: ProspectCompanyDB }) {
   const razao = empresa.razao_social !== empresa.name ? empresa.razao_social : null;
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-base font-semibold leading-snug">{empresa.name}</p>
-      {razao && <p className="text-xs text-muted-foreground">{razao}</p>}
+      {razao && <p className="truncate text-xs text-muted-foreground" title={razao}>{razao}</p>}
     </div>
   );
 }
@@ -95,15 +111,25 @@ function Convite({ onClick }: { onClick: () => void }) {
   );
 }
 
+/**
+ * O segmento em texto corrido, cortado em duas linhas (o da Receita é a descrição inteira do
+ * CNAE e não cabe num chip); anel e tier, que são curtos, seguem como chips.
+ */
 function Segmentacao({ empresa }: { empresa: ProspectCompanyDB }) {
-  const chips = [empresa.segment, empresa.ring && `Anel ${empresa.ring}`, empresa.tier && `Tier ${empresa.tier}`]
-    .filter(Boolean) as string[];
-  if (chips.length === 0) return null;
+  const chips = [empresa.ring && `Anel ${empresa.ring}`, empresa.tier && `Tier ${empresa.tier}`].filter(Boolean) as string[];
+  if (!empresa.segment && chips.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {chips.map((chip) => (
-        <Badge key={chip} variant="secondary" className="rounded-full font-normal">{chip}</Badge>
-      ))}
+    <div className="space-y-1.5">
+      {empresa.segment && (
+        <p className="line-clamp-2 text-xs text-muted-foreground" title={empresa.segment}>{empresa.segment}</p>
+      )}
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map((chip) => (
+            <Badge key={chip} variant="secondary" className="rounded-full font-normal">{chip}</Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

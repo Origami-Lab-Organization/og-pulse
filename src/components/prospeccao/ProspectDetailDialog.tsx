@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { MessagesSquare } from 'lucide-react';
+import { MessagesSquare, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
@@ -18,20 +17,16 @@ import {
   useUpdateProspectStage,
 } from '@/hooks/useProspects';
 import { useProspectTasks } from '@/hooks/useProspectTasks';
-import { INTERACTION_CHANNELS, getChannelLabel } from '@/lib/interactionChannels';
 import { formatCNPJ } from '@/lib/masks';
 import { juntarArquivos } from '@/lib/prospecting/arquivos';
 import { opportunitiesInProgressByCompany, otherOpportunitiesInProgress } from '@/lib/prospecting/companyStatus';
-import { formatarData } from '@/lib/prospecting/prazos';
 import { cn } from '@/lib/utils';
 import {
   describeOpportunityContacts,
   FATURAMENTO_BASE_PADRAO,
-  getLeverLabel,
   getProspectStageLabel,
   isProspectReadOnly,
   isTaskOverdue,
-  PROSPECT_LEVERS,
   type FaturamentoBase,
   type ProspectActivityWithOwner,
   type ProspectCompanyDB,
@@ -41,7 +36,7 @@ import {
 import type { ReceitaSnapshot } from '@/types/receita';
 import { CompanyFitSection } from './CompanyFitSection';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
-import { BotaoEditar, BotoesDeSalvar, CartaoDaFicha, LinhaDeDado } from './FichaDaOportunidade';
+import { BotoesDeSalvar } from './FichaDaOportunidade';
 import { OpportunityCompanyCard } from './OpportunityCompanyCard';
 import { OpportunityContactsCard } from './OpportunityContactsCard';
 import { OpportunityHeader } from './OpportunityHeader';
@@ -67,8 +62,9 @@ interface ProspectDetailDialogProps {
 }
 
 /**
- * A ficha da oportunidade: quem participa e o negócio à esquerda, o que aconteceu no centro e
- * a empresa à direita (layout de 09/10/2026).
+ * A ficha da oportunidade (27/10/2026): o que aconteceu ocupa o centro, largo; à direita, um
+ * painel só com o Negócio, os Contatos e a Empresa, um embaixo do outro. Substituiu as três
+ * colunas de 09/10/2026, em que a conversa ficava espremida entre contatos e empresa.
  *
  * A separação é o pedido central — quem abre precisa distinguir num relance o que é cadastro
  * do que é histórico. A oportunidade é da empresa e leva o nome dela; as pessoas entram em
@@ -81,7 +77,13 @@ export function ProspectDetailDialog(props: ProspectDetailDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex h-[90vh] max-w-7xl flex-col gap-0 overflow-hidden p-0"
+        className="flex h-[90vh] max-w-6xl flex-col gap-0 overflow-hidden p-0"
+        // O foco vai para a ficha, não para o primeiro botão (o lápis do nome), que abria
+        // destacado como se a pessoa tivesse ido até ele.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement | null)?.focus();
+        }}
         // Esc num campo de edição no lugar (o nome da oportunidade) cancela só a edição.
         onEscapeKeyDown={(e) => {
           if ((e.target as HTMLElement | null)?.closest?.('[data-esc-local]')) e.preventDefault();
@@ -104,6 +106,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
   const { can } = useAuth();
   const [reuniaoAberta, setReuniaoAberta] = useState(false);
   const [projetoAberto, setProjetoAberto] = useState(false);
+  const painel = usePainelLateral();
 
   const somenteLeitura = isProspectReadOnly(prospect);
   const responsavel = diretorio.find((p) => p.id === prospect.owner_id)?.nome ?? null;
@@ -113,6 +116,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
       <OpportunityHeader
         prospect={prospect}
         atividades={atividades}
+        responsavel={responsavel}
         somenteLeitura={somenteLeitura}
         editando={edicao.editando}
         onEditar={edicao.alternar}
@@ -126,44 +130,17 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
           excluir.mutate({ id: prospect.id });
           onOpenChange(false);
         }}
+        onCriarProjeto={() => setProjetoAberto(true)}
       />
 
-      {/* Três colunas: abaixo de lg empilham na mesma ordem, e a ficha inteira rola. */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,290px)_minmax(0,1fr)_minmax(0,310px)] lg:overflow-hidden">
-        <section
-          aria-label="Oportunidade"
-          className="min-h-0 space-y-3 border-b bg-muted/40 p-4 lg:overflow-y-auto lg:border-b-0 lg:border-r"
-        >
-          <OpportunityContactsCard prospect={prospect} podeEditar={!somenteLeitura} />
-          <CartaoDeConducao
-            prospect={prospect}
-            responsavel={responsavel}
-            diretorio={diretorio}
-            editando={edicao.editandoOportunidade}
-            rascunho={edicao.rascunho}
-            definir={edicao.definir}
-            podeEditar={!somenteLeitura}
-            onEditar={edicao.abrirOportunidade}
-          />
-          <ProspectDealCard
-            prospect={prospect}
-            editando={edicao.editandoOportunidade}
-            rascunho={edicao.rascunho}
-            definir={edicao.definir}
-            podeEditar={!somenteLeitura}
-            onEditar={edicao.abrirOportunidade}
-            onCriarProjeto={() => setProjetoAberto(true)}
-          />
-          {edicao.editandoOportunidade && (
-            <BotoesDeSalvar
-              rotulo="Salvar oportunidade"
-              salvando={edicao.salvandoOportunidade}
-              onSalvar={edicao.salvarOportunidade}
-              onCancelar={edicao.cancelarOportunidade}
-            />
-          )}
-        </section>
-
+      {/* Duas colunas: abaixo de lg o painel desce para depois da conversa, e a ficha inteira rola.
+          Recolhido, o painel vira um trilho fino e a conversa ocupa a largura. */}
+      <div
+        className={cn(
+          'grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:overflow-hidden',
+          painel.aberto ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]' : 'lg:grid-cols-[minmax(0,1fr)_auto]',
+        )}
+      >
         <PainelDeAtividade
           prospect={prospect}
           open={open}
@@ -172,42 +149,123 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
           somenteLeitura={somenteLeitura}
         />
 
-        <section
-          aria-label="Empresa"
-          className="min-h-0 space-y-3 border-t bg-muted/40 p-4 lg:overflow-y-auto lg:border-l lg:border-t-0"
-        >
-          <AvisoOutrasOportunidades prospect={prospect} diretorio={diretorio} />
-          <OpportunityCompanyCard
-            empresa={prospect.company}
-            editando={edicao.editandoEmpresa}
-            rascunho={edicao.rascunho}
-            definir={edicao.definir}
-            onReceita={edicao.aplicarReceita}
-            receitaAchada={edicao.receitaDaEdicao}
-            podeEditar={!somenteLeitura}
-            onEditar={edicao.abrirEmpresa}
-          />
-          {edicao.editandoEmpresa && (
-            <BotoesDeSalvar
-              rotulo="Salvar empresa"
-              salvando={edicao.salvandoEmpresa}
-              onSalvar={edicao.salvarEmpresa}
-              onCancelar={edicao.cancelarEmpresa}
+        {!painel.aberto && <TrilhoDoPainel onAbrir={painel.abrir} />}
+        {painel.aberto && (
+          <aside
+            aria-label="Negócio, contatos e empresa"
+            className="min-h-0 border-t bg-card lg:overflow-y-auto lg:border-l lg:border-t-0"
+          >
+            <div className="flex items-center justify-between border-b py-1.5 pl-5 pr-3">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Detalhes</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-label="Recolher o painel de detalhes"
+                title="Recolher painel"
+                onClick={painel.recolher}
+              >
+                <PanelRightClose className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+            <AvisoOutrasOportunidades prospect={prospect} diretorio={diretorio} />
+            <ProspectDealCard
+              prospect={prospect}
+              responsavel={responsavel}
+              diretorio={diretorio}
+              editando={edicao.editandoOportunidade}
+              rascunho={edicao.rascunho}
+              definir={edicao.definir}
+              podeEditar={!somenteLeitura}
+              onEditar={edicao.abrirOportunidade}
+              rodape={
+                <BotoesDeSalvar
+                  rotulo="Salvar negócio"
+                  salvando={edicao.salvandoOportunidade}
+                  onSalvar={edicao.salvarOportunidade}
+                  onCancelar={edicao.cancelarOportunidade}
+                />
+              }
             />
-          )}
-          {prospect.company && (
-            <>
-              <CompanyFitSection empresa={prospect.company} fomento={prospect.company.fomento ?? null} emCartao />
-              <CompanyReceitaCard empresa={prospect.company} podeEditar={can('prospeccao:editar')} compacto />
-            </>
-          )}
-        </section>
+            <OpportunityContactsCard prospect={prospect} podeEditar={!somenteLeitura} />
+            <OpportunityCompanyCard
+              empresa={prospect.company}
+              editando={edicao.editandoEmpresa}
+              rascunho={edicao.rascunho}
+              definir={edicao.definir}
+              onReceita={edicao.aplicarReceita}
+              receitaAchada={edicao.receitaDaEdicao}
+              podeEditar={!somenteLeitura}
+              onEditar={edicao.abrirEmpresa}
+              rodape={
+                <BotoesDeSalvar
+                  rotulo="Salvar empresa"
+                  salvando={edicao.salvandoEmpresa}
+                  onSalvar={edicao.salvarEmpresa}
+                  onCancelar={edicao.cancelarEmpresa}
+                />
+              }
+            />
+            {prospect.company && (
+              <>
+                <CompanyFitSection empresa={prospect.company} fomento={prospect.company.fomento ?? null} emCartao />
+                <CompanyReceitaCard empresa={prospect.company} podeEditar={can('prospeccao:editar')} compacto />
+              </>
+            )}
+          </aside>
+        )}
       </div>
 
       <RegisterMeetingDialog prospect={prospect} open={reuniaoAberta} onOpenChange={setReuniaoAberta} />
       <ProspectProjectDialog prospect={prospect} open={projetoAberto} onOpenChange={setProjetoAberto} />
     </>
   );
+}
+
+/** Recolhido, o painel fica só com o botão de abrir — um trilho na borda da ficha. */
+function TrilhoDoPainel({ onAbrir }: { onAbrir: () => void }) {
+  return (
+    <div className="flex justify-end border-t bg-card p-2 lg:flex-col lg:justify-start lg:border-l lg:border-t-0">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        aria-label="Mostrar o painel de detalhes"
+        title="Mostrar negócio, contatos e empresa"
+        onClick={onAbrir}
+      >
+        <PanelRightOpen className="h-4 w-4" aria-hidden="true" />
+      </Button>
+    </div>
+  );
+}
+
+const CHAVE_DO_PAINEL_RECOLHIDO = 'pulse:ficha-oportunidade:painel-recolhido';
+
+/** Preferência de quem olha, neste navegador: sem armazenamento, o painel abre. */
+function lerPainelRecolhido(): boolean {
+  try {
+    return JSON.parse(localStorage.getItem(CHAVE_DO_PAINEL_RECOLHIDO) ?? 'false') === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * O painel da direita recolhe inteiro (27/10/2026, pedido do Italo) e a escolha fica lembrada
+ * neste navegador — quem prefere ler a conversa larga não precisa recolher a cada ficha.
+ */
+function usePainelLateral() {
+  const [aberto, setAberto] = useState(() => !lerPainelRecolhido());
+  const definir = (valor: boolean) => {
+    setAberto(valor);
+    try {
+      localStorage.setItem(CHAVE_DO_PAINEL_RECOLHIDO, JSON.stringify(!valor));
+    } catch {
+      // Sem armazenamento (aba privada, bloqueio): a escolha vale só enquanto a ficha está aberta.
+    }
+  };
+  return { aberto, abrir: () => definir(true), recolher: () => definir(false) };
 }
 
 /**
@@ -461,7 +519,7 @@ function AvisoOutrasOportunidades({
   const nomeDe = (id: string | null) => diretorio.find((p) => p.id === id)?.nome;
 
   return (
-    <div role="note" className="flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning-subtle p-3">
+    <div role="note" className="m-4 mb-1 flex items-start gap-2.5 rounded-lg border border-warning/20 bg-warning-subtle p-3">
       <MessagesSquare className="mt-0.5 h-4 w-4 shrink-0 text-warning-emphasis" aria-hidden="true" />
       <div className="min-w-0 space-y-1">
         <p className="text-sm font-medium text-warning-emphasis">Empresa com outra oportunidade em andamento</p>
@@ -483,84 +541,6 @@ function AvisoOutrasOportunidades({
           })}
         </ul>
       </div>
-    </div>
-  );
-}
-
-interface CartaoDeConducaoProps {
-  prospect: ProspectWithCompany;
-  responsavel: string | null;
-  diretorio: Array<{ id: string; nome: string }>;
-  editando: boolean;
-  rascunho: Record<string, string>;
-  definir: (campo: string) => (valor: string) => void;
-  podeEditar: boolean;
-  onEditar: () => void;
-}
-
-/**
- * Quem conduz e por onde (09/10/2026): responsável, alavanca, canal principal e o 1º toque.
- * Eram a metade de baixo do antigo cartão "Contato"; as pessoas foram para "Contatos".
- */
-function CartaoDeConducao(props: CartaoDeConducaoProps) {
-  const { prospect, responsavel, editando, podeEditar, onEditar } = props;
-  return (
-    <CartaoDaFicha titulo="Condução" acao={podeEditar && !editando && <BotaoEditar onClick={onEditar} />}>
-      {editando ? (
-        <EdicaoDaConducao {...props} />
-      ) : (
-        <dl className="space-y-2">
-          <LinhaDeDado termo="Responsável">{responsavel}</LinhaDeDado>
-          <LinhaDeDado termo="Alavanca">{getLeverLabel(prospect.lever)}</LinhaDeDado>
-          <LinhaDeDado termo="Canal principal">{getChannelLabel(prospect.primary_channel)}</LinhaDeDado>
-          <LinhaDeDado termo="1º toque">{prospect.first_touch_at ? formatarData(prospect.first_touch_at) : null}</LinhaDeDado>
-        </dl>
-      )}
-    </CartaoDaFicha>
-  );
-}
-
-function EdicaoDaConducao(props: CartaoDeConducaoProps) {
-  const { rascunho, definir, diretorio } = props;
-  return (
-    <div className="space-y-3">
-      <CampoDeEscolha
-        rotulo="Responsável"
-        valor={rascunho.owner_id}
-        onChange={definir('owner_id')}
-        opcoes={diretorio.map((p) => ({ value: p.id, label: p.nome }))}
-      />
-      <CampoDeEscolha rotulo="Alavanca / origem" valor={rascunho.lever} onChange={definir('lever')} opcoes={PROSPECT_LEVERS} />
-      <CampoDeEscolha
-        rotulo="Canal principal"
-        valor={rascunho.primary_channel}
-        onChange={definir('primary_channel')}
-        opcoes={INTERACTION_CHANNELS}
-      />
-    </div>
-  );
-}
-
-interface CampoDeEscolhaProps {
-  rotulo: string;
-  valor?: string;
-  onChange: (valor: string) => void;
-  opcoes: ReadonlyArray<{ value: string; label: string }>;
-}
-
-function CampoDeEscolha(props: CampoDeEscolhaProps) {
-  const { rotulo, valor, onChange, opcoes } = props;
-  return (
-    <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{rotulo}</Label>
-      <Select value={valor} onValueChange={onChange}>
-        <SelectTrigger aria-label={rotulo}><SelectValue placeholder="Selecione" /></SelectTrigger>
-        <SelectContent>
-          {opcoes.map((o) => (
-            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
     </div>
   );
 }

@@ -10,7 +10,6 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -28,13 +27,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProspectBudget } from '@/hooks/useProspectDeal';
 import { useUpdateProspect } from '@/hooks/useProspects';
 import { formatCurrency } from '@/lib/formatters';
-import { iniciaisDe } from '@/lib/prospecting/iniciais';
 import { formatarData } from '@/lib/prospecting/prazos';
 import { prospectValueSource, resolveProspectValue, type ProspectValueSource } from '@/lib/prospecting/value';
 import { cn } from '@/lib/utils';
 import {
   canWin,
-  getDiscardReasonLabel,
   getProspectStageColor,
   getProspectStageLabel,
   hasOwnOpportunityName,
@@ -47,11 +44,14 @@ import {
   type ProspectWithCompany,
 } from '@/types/prospect';
 import { ProspectAdvanceButton } from './ProspectAdvanceButton';
+import { OpportunityOutcomeStrip } from './OpportunityOutcomeStrip';
 import { ProspectStageStepper } from './ProspectStageStepper';
 
 interface OpportunityHeaderProps {
   prospect: ProspectWithCompany;
   atividades: ProspectActivityWithOwner[];
+  /** Nome de quem conduz, já resolvido no diretório. */
+  responsavel: string | null;
   somenteLeitura: boolean;
   editando: boolean;
   onEditar: () => void;
@@ -63,49 +63,57 @@ interface OpportunityHeaderProps {
   onDesfazerGanho: () => void;
   onVoltar: (stage: ProspectStage) => void;
   onExcluir: () => void;
+  onCriarProjeto: () => void;
 }
 
 /**
- * O topo da ficha (09/10/2026): quem é, onde está e o que fazer agora. À direita do nome, os
- * três números que respondem "como vai" sem descer à linha do tempo; embaixo, a régua das
- * etapas e, ao lado dela, os dois movimentos que importam — perder ou avançar.
+ * O topo da ficha: quem é, onde está e o que fazer agora (09/10/2026; refeito em 27/10/2026).
+ *
+ * Primeira linha: o nome e a etapa à esquerda; à direita, perder ou avançar e o menu. Embaixo
+ * do nome, quem conduz e os números em texto corrido. Por último, a régua das etapas com a
+ * largura inteira — dividindo a linha com os botões ela estourava a ficha e quebrava os
+ * rótulos — e, encerrada a oportunidade, a faixa do desfecho no lugar dela.
  *
  * O "x" de fechar é do próprio diálogo, no canto: o `pr-10` da primeira linha guarda o lugar.
  */
 export function OpportunityHeader(props: OpportunityHeaderProps) {
   const { prospect, atividades } = props;
   const { can } = useAuth();
-  const respostas = atividades.filter((a) => a.got_response).length;
+  const encerrada = isProspectClosed(prospect.stage);
 
   return (
-    <DialogHeader className="space-y-4 border-b px-6 pb-4 pt-5 text-left">
-      <div className="flex flex-wrap items-start gap-4 pr-10">
-        <Avatar className="h-12 w-12 shrink-0">
-          <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
-            {iniciaisDe(prospect.company?.name ?? opportunityName(prospect))}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <TituloDaOportunidade prospect={prospect} podeEditar={!props.somenteLeitura && can('prospeccao:editar')} />
+    // `sm:pr-6`: o DialogHeader do shadcn zera o padding direito a partir de `sm`, e a régua
+    // encostava na borda da ficha.
+    <DialogHeader className="space-y-4 border-b px-6 pb-4 pt-5 text-left sm:pr-6">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-3 pr-10">
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <TituloDaOportunidade prospect={prospect} podeEditar={!props.somenteLeitura && can('prospeccao:editar')} />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <Badge variant="secondary" className={cn('rounded-full font-medium', getProspectStageColor(prospect.stage))}>
               {getProspectStageLabel(prospect.stage)}
             </Badge>
             {props.somenteLeitura && <Badge variant="outline">Somente leitura</Badge>}
+            <DialogDescription className="text-sm">{subtitulo(prospect, atividades, props.responsavel)}</DialogDescription>
+            <Indicadores prospect={prospect} atividades={atividades} comValor={!encerrada} />
           </div>
-          <DialogDescription className="text-sm">{subtitulo(prospect, atividades)}</DialogDescription>
-          <DesfechoDaOportunidade prospect={prospect} onGanhar={props.onGanhar} />
         </div>
 
-        <Indicadores prospect={prospect} respostas={respostas} />
-        <MenuDaOportunidade {...props} />
+        <div className="flex shrink-0 items-center gap-2">
+          <AcoesDeEtapa {...props} />
+          <MenuDaOportunidade {...props} />
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-        <ProspectStageStepper stage={prospect.stage} className="min-w-[280px] flex-1" />
-        <AcoesDeEtapa {...props} />
-      </div>
+      {encerrada ? (
+        <OpportunityOutcomeStrip
+          prospect={prospect}
+          onGanhar={props.onGanhar}
+          onReabrir={props.onReabrir}
+          onCriarProjeto={props.onCriarProjeto}
+        />
+      ) : (
+        <ProspectStageStepper stage={prospect.stage} />
+      )}
     </DialogHeader>
   );
 }
@@ -117,14 +125,18 @@ export function OpportunityHeader(props: OpportunityHeaderProps) {
 function TituloDaOportunidade({ prospect, podeEditar }: { prospect: ProspectWithCompany; podeEditar: boolean }) {
   const [editando, setEditando] = useState(false);
   if (editando) return <EdicaoDoTitulo prospect={prospect} onFechar={() => setEditando(false)} />;
+  // O lápis cola no fim do nome e só aparece ao passar o mouse (ou no foco do teclado): fixo,
+  // num nome longo ele ia sozinho para a linha de baixo.
   return (
-    <>
-      <DialogTitle className="text-xl font-semibold leading-tight">{opportunityName(prospect)}</DialogTitle>
+    <div className="group flex min-w-0 items-start gap-1">
+      <DialogTitle className="line-clamp-2 text-lg font-semibold leading-snug" title={opportunityName(prospect)}>
+        {opportunityName(prospect)}
+      </DialogTitle>
       {podeEditar && (
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          className="mt-0.5 h-6 w-6 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
           aria-label="Editar nome da oportunidade"
           title="Editar nome"
           onClick={() => setEditando(true)}
@@ -132,7 +144,7 @@ function TituloDaOportunidade({ prospect, podeEditar }: { prospect: ProspectWith
           <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
         </Button>
       )}
-    </>
+    </div>
   );
 }
 
@@ -176,12 +188,16 @@ function EdicaoDoTitulo({ prospect, onFechar }: { prospect: ProspectWithCompany;
   );
 }
 
-/** "Injepol · Calçados / Injetados · Último contato em 01/10/2026" — a empresa só quando o nome é outro. */
-function subtitulo(prospect: ProspectWithCompany, atividades: ProspectActivityWithOwner[]): string {
+/**
+ * "Injepol · Victor Couto · Último contato em 01/10/2026" — a empresa só quando o nome é outro.
+ * O segmento saiu em 27/10/2026: vindo da Receita, é a descrição inteira do CNAE e empurrava o
+ * resto para a segunda linha. Ele continua no cartão da Empresa.
+ */
+function subtitulo(prospect: ProspectWithCompany, atividades: ProspectActivityWithOwner[], responsavel: string | null): string {
   const ultima = atividades[0]?.activity_date;
   return [
     hasOwnOpportunityName(prospect) ? prospect.company?.name : null,
-    prospect.company?.segment,
+    responsavel,
     ultima ? `Último contato em ${formatarData(ultima)}` : 'Nenhum contato registrado ainda',
   ]
     .filter(Boolean)
@@ -189,31 +205,36 @@ function subtitulo(prospect: ProspectWithCompany, atividades: ProspectActivityWi
 }
 
 const ROTULO_DO_VALOR: Record<ProspectValueSource, string> = {
-  vendido: 'Valor vendido',
-  orcamento: 'Valor orçado',
-  estimado: 'Valor estimado',
+  vendido: 'vendido',
+  orcamento: 'orçado',
+  estimado: 'estimado',
 };
 
+const contagem = (n: number, singular: string, plural: string) => (n === 1 ? singular : plural);
+
 /**
- * O valor diz de onde veio (vendido, orçado ou estimado): quem lê "R$ 48 mil" precisa saber
- * se é fato ou palpite. Regra única em `resolveProspectValue` (ADR-0017).
+ * Os números em texto corrido (27/10/2026; antes, três caixas com rótulo em caixa alta). O
+ * valor diz de onde veio — vendido, orçado ou estimado (`resolveProspectValue`, ADR-0017) — e
+ * sai quando a oportunidade encerra: o ganho já mostra o valor na faixa do desfecho.
  */
-function Indicadores({ prospect, respostas }: { prospect: ProspectWithCompany; respostas: number }) {
+function Indicadores(props: { prospect: ProspectWithCompany; atividades: ProspectActivityWithOwner[]; comValor: boolean }) {
+  const { prospect, atividades, comValor } = props;
   const { data: orcamento } = useProspectBudget(prospect.id);
   const comOrcamento = { ...prospect, budget: orcamento ?? null };
   const valor = resolveProspectValue(comOrcamento);
+  const respostas = atividades.filter((a) => a.got_response).length;
   const itens = [
-    { rotulo: ROTULO_DO_VALOR[prospectValueSource(comOrcamento)], valor: valor > 0 ? formatCurrency(valor) : '—' },
-    { rotulo: 'Atividades', valor: String(prospect.activity_count) },
-    { rotulo: 'Respostas', valor: String(respostas) },
-  ];
+    comValor && valor > 0 && { rotulo: ROTULO_DO_VALOR[prospectValueSource(comOrcamento)], valor: formatCurrency(valor) },
+    { rotulo: contagem(prospect.activity_count, 'atividade', 'atividades'), valor: String(prospect.activity_count) },
+    { rotulo: contagem(respostas, 'resposta', 'respostas'), valor: String(respostas) },
+  ].filter((item): item is { rotulo: string; valor: string } => !!item);
 
   return (
-    <dl className="flex shrink-0 divide-x rounded-lg border bg-card">
+    <dl className="flex shrink-0 items-baseline gap-x-4 text-sm">
       {itens.map((item) => (
-        <div key={item.rotulo} className="px-4 py-2">
-          <dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{item.rotulo}</dt>
-          <dd className="mt-0.5 text-base font-semibold tabular-nums">{item.valor}</dd>
+        <div key={item.rotulo} className="flex items-baseline gap-1">
+          <dt className="order-2 text-muted-foreground">{item.rotulo}</dt>
+          <dd className="order-1 font-semibold tabular-nums">{item.valor}</dd>
         </div>
       ))}
     </dl>
@@ -221,16 +242,17 @@ function Indicadores({ prospect, respostas }: { prospect: ProspectWithCompany; r
 }
 
 /**
- * Perder ou avançar, ao lado da régua. O avanço é sempre o próximo passo da etapa (o mesmo
- * botão de antes, agora como primário): em Qualificada, "Marcar ganho".
+ * Perder ou avançar, no canto da primeira linha. O avanço é sempre o próximo passo da etapa
+ * (o mesmo botão de antes, agora como primário): em Qualificada, "Marcar ganho".
  */
 function AcoesDeEtapa(props: OpportunityHeaderProps) {
   const { prospect, somenteLeitura } = props;
   if (somenteLeitura || isProspectClosed(prospect.stage)) return null;
   return (
-    <div className="flex items-center gap-2 lg:border-l lg:pl-5">
+    <>
       <Button
         variant="outline"
+        size="sm"
         className="border-destructive/30 text-destructive hover:bg-destructive-subtle hover:text-destructive"
         onClick={props.onDescartar}
       >
@@ -241,35 +263,15 @@ function AcoesDeEtapa(props: OpportunityHeaderProps) {
         onPrompt={props.onRegistrarReuniao}
         onWin={props.onGanhar}
         variant="default"
+        size="sm"
       />
-    </div>
+    </>
   );
 }
 
 const ETAPA_GANHO: ProspectStage = 'ganho';
 /** Perda, e o "Sem resposta" das linhas antigas: os dois reabrem em "A abordar". */
 const PERDIDO = new Set<ProspectStage>(['descartado', 'sem_resposta']);
-
-/** O desfecho por extenso: quando e quanto vendemos, ou por que perdemos. */
-function DesfechoDaOportunidade({ prospect, onGanhar }: { prospect: ProspectWithCompany; onGanhar: () => void }) {
-  if (PERDIDO.has(prospect.stage)) {
-    return <p className="text-xs text-muted-foreground">Motivo da perda: {getDiscardReasonLabel(prospect.discard_reason)}</p>;
-  }
-  if (prospect.stage !== ETAPA_GANHO || !prospect.won_on) return null;
-  return (
-    <p className="text-xs text-muted-foreground">
-      Ganho em {formatarData(prospect.won_on)}
-      {' · '}
-      {prospect.won_value === null ? (
-        <button type="button" onClick={onGanhar} className="font-medium text-warning-emphasis underline-offset-2 hover:underline">
-          sem valor — registrar
-        </button>
-      ) : (
-        <span className="font-medium text-foreground">{formatCurrency(prospect.won_value)}</span>
-      )}
-    </p>
-  );
-}
 
 function MenuDaOportunidade(props: OpportunityHeaderProps) {
   const { prospect, somenteLeitura, editando } = props;
