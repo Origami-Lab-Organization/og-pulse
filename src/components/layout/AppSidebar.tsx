@@ -62,29 +62,27 @@ export function AppSidebar() {
   const visibility = { can, isDev: import.meta.env.DEV };
   const visibleItems = NAV_ITEMS.filter((item) => isNavItemVisible(item, visibility));
 
-  // Controlled open state for group collapsibles — initialized from current route, plus the
-  // groups that open by default (Meu Espaço)
-  const [openGroups, setOpenGroups] = useState<string[]>(() =>
-    NAV_ITEMS.filter((item): item is GroupItem => item.kind === 'group')
-      .filter((item) => item.defaultOpen || isGroupActive(item, location.pathname))
-      .map((item) => item.title)
-  );
+  // Um grupo aberto por vez (27/10/2026, pedido do Italo: "se um grupo abre, outro deve
+  // fechar"). Começa no grupo da rota atual; fora de qualquer grupo, no que abre por padrão
+  // (Meu Espaço).
+  const [openGroups, setOpenGroups] = useState<string[]>(() => {
+    const grupos = NAV_ITEMS.filter((item): item is GroupItem => item.kind === 'group');
+    const inicial =
+      grupos.find((item) => isGroupActive(item, location.pathname)) ?? grupos.find((item) => item.defaultOpen);
+    return inicial ? [inicial.title] : [];
+  });
 
-  // When navigating directly to a URL inside a group (e.g. via browser back), open that group
+  // Navegar direto para uma URL dentro de um grupo (voltar do navegador, link) abre esse grupo
+  // e fecha os outros.
   useEffect(() => {
-    const activeGroupTitles = NAV_ITEMS.filter((item): item is GroupItem => item.kind === 'group')
-      .filter((item) => isGroupActive(item, location.pathname))
-      .map((item) => item.title);
-
-    if (activeGroupTitles.length > 0) {
-      setOpenGroups((prev) => [...new Set([...prev, ...activeGroupTitles])]);
-    }
+    const ativo = NAV_ITEMS.filter((item): item is GroupItem => item.kind === 'group').find((item) =>
+      isGroupActive(item, location.pathname),
+    );
+    if (ativo) setOpenGroups([ativo.title]);
   }, [location.pathname]);
 
   const toggleGroup = (title: string, open: boolean) => {
-    setOpenGroups((prev) =>
-      open ? [...new Set([...prev, title])] : prev.filter((g) => g !== title)
-    );
+    setOpenGroups((prev) => (open ? [title] : prev.filter((g) => g !== title)));
   };
 
   return (
