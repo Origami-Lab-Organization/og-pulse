@@ -44,6 +44,8 @@ export function FinancialKpiCards({
 
   const marginAboveTarget = marginActual >= marginTarget;
   const forecastAboveTarget = forecastMargin >= marginTarget;
+  const hasMarginTarget = marginTarget > 0;
+  const forecastBelowTarget = hasMarginTarget && !forecastAboveTarget;
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.25fr]">
@@ -94,26 +96,58 @@ export function FinancialKpiCards({
         </p>
       </div>
 
-      {/* Forecast — superfície de ênfase (petróleo) */}
+      {/* Forecast — superfície de ênfase (petróleo ou destaque negativo) */}
       <div
         className={cn(
           cardBase,
-          'border-transparent bg-[hsl(var(--brand-slate))] text-white',
+          'border-transparent',
+          forecastBelowTarget
+            ? 'bg-destructive text-destructive-foreground'
+            : 'bg-[hsl(var(--brand-slate))] text-white',
         )}
       >
-        <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70">
+        <p
+          className={cn(
+            'truncate text-[10px] font-semibold uppercase tracking-[0.12em]',
+            forecastBelowTarget ? 'text-destructive-foreground/70' : 'text-white/70',
+          )}
+        >
           Forecast · fim do projeto
         </p>
         <div className="mt-1 flex items-baseline gap-3">
-          <span className="font-mono text-[1.625rem] font-semibold leading-none tabular-nums text-[hsl(var(--green-300))]">
+          <span
+            className={cn(
+              'font-mono text-[1.625rem] font-semibold leading-none tabular-nums',
+              forecastBelowTarget
+                ? 'text-destructive-foreground'
+                : 'text-[hsl(var(--green-300))]',
+            )}
+          >
             {formatPercent(forecastMargin)}
           </span>
-          <span className="min-w-0 truncate text-[11.5px] text-white/85">
+          <span
+            className={cn(
+              'min-w-0 truncate text-[11.5px]',
+              forecastBelowTarget ? 'text-destructive-foreground/85' : 'text-white/85',
+            )}
+          >
             margem projetada · EAC custo{' '}
-            <b className="font-mono text-white">{formatCurrency(forecastCost)}</b>
+            <b
+              className={cn(
+                'font-mono',
+                forecastBelowTarget ? 'text-destructive-foreground' : 'text-white',
+              )}
+            >
+              {formatCurrency(forecastCost)}
+            </b>
           </span>
         </div>
-        <p className="mt-0.5 truncate font-mono text-[11.5px] text-white/70">
+        <p
+          className={cn(
+            'mt-0.5 truncate font-mono text-[11.5px]',
+            forecastBelowTarget ? 'text-destructive-foreground/70' : 'text-white/70',
+          )}
+        >
           burn-rate atual + plan restante ·{' '}
           {forecastAboveTarget ? 'acima da meta ✓' : 'abaixo da meta'}
         </p>
