@@ -373,12 +373,14 @@ export function ProjectFinancialTab({
   const pendingCount = (project.installments || []).filter((i) => i.status !== 'received').length;
   const marginGapPp = forecast.forecastMargin - marginTarget;
 
+  // Sem nenhuma base de custo (nem plano, nem realizado), o forecast não pode ser projetado
+  const hasCostPlanned = costData.totalPlanned > 0 || forecast.forecastCost > 0;
+
   const insight = hideValues
     ? 'Projeção de fechamento com base no ritmo atual.'
-    : `No ritmo atual, o projeto fecha com margem de ${forecast.forecastMargin.toFixed(0)}% — ${Math.abs(marginGapPp).toFixed(0)}pp ${marginGapPp >= 0 ? 'acima' : 'abaixo'} da meta. Gap de faturamento: ${formatCurrency(revenueGap)} a emitir (${pendingCount} ${pendingCount === 1 ? 'parcela' : 'parcelas'}).`;
-
-  // Sem custo planejado (totalPlanned = 0), o forecast não pode ser projetado
-  const hasCostPlanned = costData.totalPlanned > 0;
+    : !hasCostPlanned
+      ? `Sem custo planejado — não há base para projetar a margem de fechamento. Gap de faturamento: ${formatCurrency(revenueGap)} a emitir (${pendingCount} ${pendingCount === 1 ? 'parcela' : 'parcelas'}).`
+      : `No ritmo atual, o projeto fecha com margem de ${forecast.forecastMargin.toFixed(0)}% — ${Math.abs(marginGapPp).toFixed(0)}pp ${marginGapPp >= 0 ? 'acima' : 'abaixo'} da meta. Gap de faturamento: ${formatCurrency(revenueGap)} a emitir (${pendingCount} ${pendingCount === 1 ? 'parcela' : 'parcelas'}).`;
 
   return (
     <div className="space-y-3">
