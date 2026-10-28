@@ -1,4 +1,4 @@
-import { addMonths, format, getMonth, getYear, parseISO } from 'date-fns';
+import { addMonths, format, getMonth, getYear, parseISO, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export interface ProjectMonth {
@@ -13,8 +13,9 @@ export interface ProjectMonth {
  * `endDate` for null — projeto sem data de fim definida ainda).
  */
 export function buildProjectMonths(startDate: string, endDate: string | null): ProjectMonth[] {
-  const start = parseISO(startDate);
-  const end = endDate ? parseISO(endDate) : addMonths(start, 12);
+  // Compara por mês calendário: sem isso, início em 18/10 e fim em 10/12 perdia dezembro (18/12 > 10/12).
+  const start = startOfMonth(parseISO(startDate));
+  const end = endDate ? startOfMonth(parseISO(endDate)) : addMonths(start, 12);
   const months: ProjectMonth[] = [];
   let current = start;
   let i = 1;

@@ -6,6 +6,8 @@ import { useEmployees } from '@/hooks/useEmployees';
 import { useProjectBudgetRoles } from '@/hooks/useProjectBudgetRoles';
 import { useAddAllocation, useProjectAllocations } from '@/hooks/useProjectRoles';
 import { useAllocationImpact } from '@/hooks/useAllocationImpact';
+import { useProjectPlannedMargin } from '@/hooks/useProjectPlannedMargin';
+import { alignImpactToPlannedMargin } from '@/lib/allocationMargin';
 import { equipeService } from '@/services/equipeService';
 import { useQueryClient } from '@tanstack/react-query';
 import { AddAllocationPayload, ProjectAllocation, SimulationMonth } from '@/types/equipe.types';
@@ -133,7 +135,7 @@ export function AddAllocationDialog({
   const totalComposed = composedMonths.reduce((s, m) => s + m.hours, 0);
 
   const {
-    data: impact,
+    data: rpcImpact,
     isLoading: impactLoading,
     isError: impactError,
   } = useAllocationImpact({
@@ -142,6 +144,13 @@ export function AddAllocationDialog({
     months: composedMonths,
     enabled: canSeeMargin,
   });
+
+  // A margem "antes → depois" parte da mesma base das telas de Visão Geral/Financeiro.
+  const plannedMargin = useProjectPlannedMargin(project);
+  const impact = useMemo(
+    () => (rpcImpact ? alignImpactToPlannedMargin(rpcImpact, plannedMargin) : rpcImpact),
+    [rpcImpact, plannedMargin],
+  );
 
   // Nota de vaga orçada: papel orçado e horas compostas ≤ horas orçadas.
   const showBudgetedRoleNote = useMemo(() => {
