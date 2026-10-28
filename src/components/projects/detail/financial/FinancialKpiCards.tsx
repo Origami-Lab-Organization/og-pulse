@@ -119,7 +119,7 @@ export function FinancialKpiCards({
             className={cn(
               'font-mono text-[1.625rem] font-semibold leading-none tabular-nums',
               forecastBelowTarget
-                ? 'text-white'
+                ? 'text-destructive-foreground'
                 : 'text-[hsl(var(--green-300))]',
             )}
           >

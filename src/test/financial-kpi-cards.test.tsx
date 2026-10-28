@@ -106,7 +106,7 @@ describe('FinancialKpiCards - Destaque do card Forecast', () => {
     expect(percentSpan).toHaveClass('text-[hsl(var(--green-300))]');
   });
 
-  it('aplica cor branca no percentual quando abaixo da meta', () => {
+  it('aplica cor destructive-foreground no percentual quando abaixo da meta', () => {
     renderWithProviders({
       ...baseProps,
       forecastMargin: 25,
@@ -114,7 +114,7 @@ describe('FinancialKpiCards - Destaque do card Forecast', () => {
     });
 
     const percentSpan = screen.getByText('25%');
-    expect(percentSpan).toHaveClass('text-white');
+    expect(percentSpan).toHaveClass('text-destructive-foreground');
     expect(percentSpan).not.toHaveClass('text-[hsl(var(--green-300))]');
   });
 });
