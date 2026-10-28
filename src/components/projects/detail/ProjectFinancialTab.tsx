@@ -374,7 +374,7 @@ export function ProjectFinancialTab({
   const marginGapPp = forecast.forecastMargin - marginTarget;
 
   // Sem nenhuma base de custo (nem plano, nem realizado), o forecast não pode ser projetado
-  const hasCostPlanned = costData.totalPlanned > 0 || forecast.forecastCost > 0;
+  const hasCostPlanned = costData.totalPlanned > 0 || costData.totalActual > 0;
 
   const insight = hideValues
     ? 'Projeção de fechamento com base no ritmo atual.'
