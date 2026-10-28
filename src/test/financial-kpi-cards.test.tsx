@@ -118,3 +118,89 @@ describe('FinancialKpiCards - Destaque do card Forecast', () => {
     expect(percentSpan).not.toHaveClass('text-[hsl(var(--green-300))]');
   });
 });
+
+describe('FinancialKpiCards - Cenário sem custo planejado', () => {
+  it('exibe "—" quando não há custo planejado (hasCostPlanned=false)', () => {
+    renderWithProviders({
+      ...baseProps,
+      forecastMargin: 100, // seria 100% sem custo
+      hasCostPlanned: false,
+    });
+
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByText('100%')).not.toBeInTheDocument();
+  });
+
+  it('exibe "sem custo planejado" na descrição quando hasCostPlanned=false', () => {
+    renderWithProviders({
+      ...baseProps,
+      forecastMargin: 100,
+      hasCostPlanned: false,
+    });
+
+    expect(screen.getByText('sem custo planejado')).toBeInTheDocument();
+    expect(screen.queryByText(/margem projetada/)).not.toBeInTheDocument();
+  });
+
+  it('exibe "sem dados para projeção" no rodapé quando hasCostPlanned=false', () => {
+    renderWithProviders({
+      ...baseProps,
+      forecastMargin: 100,
+      hasCostPlanned: false,
+    });
+
+    expect(screen.getByText('sem dados para projeção')).toBeInTheDocument();
+    expect(screen.queryByText(/acima da meta/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/abaixo da meta/)).not.toBeInTheDocument();
+  });
+
+  it('mantém fundo petróleo quando não há custo planejado (não mostra vermelho)', () => {
+    renderWithProviders({
+      ...baseProps,
+      forecastMargin: 100,
+      marginTarget: 30, // mesmo com meta definida
+      hasCostPlanned: false,
+    });
+
+    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
+    expect(forecastCard).toHaveClass('bg-[hsl(var(--brand-slate))]');
+    expect(forecastCard).not.toHaveClass('bg-destructive');
+  });
+
+  it('aplica cor opaca (text-white/70) no "—" quando hasCostPlanned=false', () => {
+    renderWithProviders({
+      ...baseProps,
+      forecastMargin: 100,
+      hasCostPlanned: false,
+    });
+
+    const dashSpan = screen.getByText('—');
+    expect(dashSpan).toHaveClass('text-white/70');
+  });
+
+  it('exibe percentual normalmente quando hasCostPlanned=true (comportamento padrão)', () => {
+    renderWithProviders({
+      ...baseProps,
+      forecastMargin: 35,
+      marginTarget: 30,
+      hasCostPlanned: true,
+    });
+
+    expect(screen.getByText('35%')).toBeInTheDocument();
+    expect(screen.queryByText('—')).not.toBeInTheDocument();
+    expect(screen.getByText(/acima da meta ✓/)).toBeInTheDocument();
+  });
+
+  it('aplica fundo vermelho normalmente com custo planejado e margem abaixo da meta', () => {
+    renderWithProviders({
+      ...baseProps,
+      forecastMargin: 25,
+      marginTarget: 30,
+      hasCostPlanned: true,
+    });
+
+    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
+    expect(forecastCard).toHaveClass('bg-destructive');
+    expect(screen.getByText(/abaixo da meta/)).toBeInTheDocument();
+  });
+});
