@@ -14,6 +14,8 @@ interface FinancialKpiCardsProps {
   marginTarget: number;
   forecastMargin: number;
   forecastCost: number;
+  /** Indica se o projeto tem custo planejado (totalPlanned > 0). Sem custo planejado, o forecast não pode ser projetado. */
+  hasCostPlanned?: boolean;
   onNavigateToExpenses?: () => void;
 }
 
@@ -36,6 +38,7 @@ export function FinancialKpiCards({
   marginTarget,
   forecastMargin,
   forecastCost,
+  hasCostPlanned = true,
   onNavigateToExpenses,
 }: FinancialKpiCardsProps) {
   const formatCurrency = useMaskedCurrency();
@@ -45,7 +48,8 @@ export function FinancialKpiCards({
   const marginAboveTarget = marginActual >= marginTarget;
   const forecastAboveTarget = forecastMargin >= marginTarget;
   const hasMarginTarget = marginTarget > 0;
-  const forecastBelowTarget = hasMarginTarget && !forecastAboveTarget;
+  // Sem custo planejado, não há evidência para julgar o forecast — não é "abaixo da meta"
+  const forecastBelowTarget = hasCostPlanned && hasMarginTarget && !forecastAboveTarget;
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.25fr]">
@@ -118,12 +122,14 @@ export function FinancialKpiCards({
           <span
             className={cn(
               'font-mono text-[1.625rem] font-semibold leading-none tabular-nums',
-              forecastBelowTarget
-                ? 'text-destructive-foreground'
-                : 'text-[hsl(var(--green-300))]',
+              !hasCostPlanned
+                ? 'text-white/70'
+                : forecastBelowTarget
+                  ? 'text-destructive-foreground'
+                  : 'text-[hsl(var(--green-300))]',
             )}
           >
-            {formatPercent(forecastMargin)}
+            {hasCostPlanned ? formatPercent(forecastMargin) : '—'}
           </span>
           <span
             className={cn(
@@ -131,15 +137,21 @@ export function FinancialKpiCards({
               forecastBelowTarget ? 'text-destructive-foreground/85' : 'text-white/85',
             )}
           >
-            margem projetada · EAC custo{' '}
-            <b
-              className={cn(
-                'font-mono',
-                forecastBelowTarget ? 'text-destructive-foreground' : 'text-white',
-              )}
-            >
-              {formatCurrency(forecastCost)}
-            </b>
+            {hasCostPlanned ? (
+              <>
+                margem projetada · EAC custo{' '}
+                <b
+                  className={cn(
+                    'font-mono',
+                    forecastBelowTarget ? 'text-destructive-foreground' : 'text-white',
+                  )}
+                >
+                  {formatCurrency(forecastCost)}
+                </b>
+              </>
+            ) : (
+              'sem custo planejado'
+            )}
           </span>
         </div>
         <p
@@ -148,8 +160,14 @@ export function FinancialKpiCards({
             forecastBelowTarget ? 'text-destructive-foreground/70' : 'text-white/70',
           )}
         >
-          burn-rate atual + plan restante ·{' '}
-          {forecastAboveTarget ? 'acima da meta ✓' : 'abaixo da meta'}
+          {hasCostPlanned ? (
+            <>
+              burn-rate atual + plan restante ·{' '}
+              {forecastAboveTarget ? 'acima da meta ✓' : 'abaixo da meta'}
+            </>
+          ) : (
+            'sem dados para projeção'
+          )}
         </p>
       </div>
     </div>

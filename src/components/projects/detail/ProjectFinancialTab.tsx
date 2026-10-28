@@ -377,6 +377,9 @@ export function ProjectFinancialTab({
     ? 'Projeção de fechamento com base no ritmo atual.'
     : `No ritmo atual, o projeto fecha com margem de ${forecast.forecastMargin.toFixed(0)}% — ${Math.abs(marginGapPp).toFixed(0)}pp ${marginGapPp >= 0 ? 'acima' : 'abaixo'} da meta. Gap de faturamento: ${formatCurrency(revenueGap)} a emitir (${pendingCount} ${pendingCount === 1 ? 'parcela' : 'parcelas'}).`;
 
+  // Sem custo planejado (totalPlanned = 0), o forecast não pode ser projetado
+  const hasCostPlanned = costData.totalPlanned > 0;
+
   return (
     <div className="space-y-3">
       <FinancialKpiCards
@@ -391,6 +394,7 @@ export function ProjectFinancialTab({
         marginTarget={marginTarget}
         forecastMargin={forecast.forecastMargin}
         forecastCost={forecast.forecastCost}
+        hasCostPlanned={hasCostPlanned}
         onNavigateToExpenses={onNavigateToTab ? () => onNavigateToTab('costs') : undefined}
       />
 
