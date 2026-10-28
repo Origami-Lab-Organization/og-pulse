@@ -47,9 +47,11 @@ export function FinancialKpiCards({
 
   const marginAboveTarget = marginActual >= marginTarget;
   const forecastAboveTarget = forecastMargin >= marginTarget;
+  const plannedBelowTarget = marginPlanned < marginTarget;
   const hasMarginTarget = marginTarget > 0;
   // Sem custo planejado, não há evidência para julgar o forecast — não é "abaixo da meta"
-  const forecastBelowTarget = hasCostPlanned && hasMarginTarget && !forecastAboveTarget;
+  // Destaque também quando a margem planejada está abaixo da meta (alerta preventivo)
+  const forecastBelowTarget = hasCostPlanned && hasMarginTarget && (!forecastAboveTarget || plannedBelowTarget);
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.25fr]">
