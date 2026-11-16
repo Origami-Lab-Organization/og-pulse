@@ -107,7 +107,7 @@ function LeituraDoNegocio({ prospect, responsavel }: ProspectDealCardProps) {
   const valor = resolveProspectValue(comOrcamento);
   return (
     <div className="space-y-3">
-      <dl className="space-y-2">
+      <dl className="space-y-3.5">
         <LinhaDeDado termo="Valor">
           {valor > 0 && (
             <>
