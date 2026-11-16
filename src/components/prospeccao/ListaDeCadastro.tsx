@@ -12,7 +12,8 @@ interface AbasDaListaProps<T extends string> {
   rotulo: string;
   abas: ReadonlyArray<{ valor: T; rotulo: string }>;
   valor: T;
-  contagem: Record<T, number>;
+  /** Aba sem número fica sem contagem (ex.: "A classificar", cujo total aparece acima da lista). */
+  contagem: Partial<Record<T, number>>;
   onChange: (aba: T) => void;
 }
 
@@ -35,7 +36,7 @@ export function AbasDaLista<T extends string>(props: AbasDaListaProps<T>) {
             )}
           >
             {aba.rotulo}
-            <span className="font-medium text-muted-foreground">{contagem[aba.valor]}</span>
+            {contagem[aba.valor] != null && <span className="font-medium text-muted-foreground">{contagem[aba.valor]}</span>}
           </button>
         );
       })}
