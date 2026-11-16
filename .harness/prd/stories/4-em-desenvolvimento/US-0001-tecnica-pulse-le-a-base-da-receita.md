@@ -56,15 +56,15 @@ sem esperar.
 - As opções de filtro não mostram contagem. Só o total da lista aparece. Isso tira
   da tela a consulta mais cara, que era contar cada opção.
 - A lista aparece em até 2 segundos depois de mudar um filtro.
+- **A base fica na VPS; o Supabase não guarda nada dela** (plano gratuito). A tela lê
+  pela Edge Function `empresas-receita`, que conecta direto no Postgres da VPS, por SSL,
+  com um usuário que só lê (ADR-0053).
 
 ## Pontos em aberto
 
 ### Decisões pendentes
 
-- **Como o Pulse chega à base** (decisão de engenharia, com ADR, a escrever antes
-  do código). Com a meta de 2 segundos, a direção provável é uma cópia periódica do
-  recorte de matrizes ativas para o Supabase, com índices para os filtros. A consulta
-  direta à VPS por Edge Function fica como alternativa a medir.
+- Nenhuma. Ver "Decisões".
 
 ### Hipóteses para validar
 
@@ -104,11 +104,13 @@ sem esperar.
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| 1 | Evidência, 16/11/2026: ensaio da migration num Postgres 16 descartável, com `auth.uid` e `has_capability` substituídos. Com a capacidade, a RPC devolve a página; sem ela, responde 42501 e a leitura direta da tabela volta vazia; `anon` e escrita pelo app são negados. A conexão com a VPS só existe no script, nunca no navegador. |
-| 2 | Evidência, 16/11/2026: base real inteira (3.093.706 empresas) carregada num Postgres 16 local. Primeira página das quatro ordens, nos dois sentidos: de 2 a 6 ms; com 10 mil de deslocamento: até 0,7 s. Página além das 10 mil é recusada (decisão de engenharia, ADR-0053). Falta repetir no Supabase de produção depois da carga. |
-| 3 | **Pendente:** evidência da tela com a RPC fora do ar. O código mostra "A base da Receita está indisponível agora", com "Tentar de novo", separado de "sem permissão" e de "base ainda não carregada". |
+| 1 | Evidência, 16/11/2026: a Edge Function rodou num Deno 2.1 contra um Supabase falso e um Postgres 16 com TLS e a base real. Sem login: 401. Sem `prospeccao:ler`: 403, sem tocar na base. Com a capacidade: 200. Conexão sem o certificado da autoridade: recusada. A conexão com a VPS só existe na função e no script, nunca no navegador. |
+| 2 | Evidência parcial, 16/11/2026: pela Edge Function, contra a base real num Postgres local com TLS, as quatro ordens responderam entre 9 e 55 ms. A página 399 por nome levou 2,1 s com o banco frio, depois de reiniciar, e 0,7 s com ele aquecido. A página além das 10 mil é recusada. **Falta:** medir contra a VPS de verdade, com a latência de rede. |
+| 3 | Evidência parcial, 16/11/2026: com a conexão falhando, a função desistiu em 5 s e respondeu 503 "A base da Receita está indisponível agora", sem expor o erro do banco. A tela mapeia o 503 para essa mensagem, com "Tentar de novo". **Falta:** ver a tela nesse estado. |
 
-- **Decisão de engenharia:** ADR-0053 (cópia periódica no Supabase).
+- **Decisão de engenharia:** ADR-0053 (base na VPS, leitura por Edge Function). A
+  primeira versão copiava para o Supabase e foi refeita antes do merge: o plano do
+  Supabase é gratuito.
 - **Ensaio da carga, 16/11/2026:** banco falso no lugar da VPS, com a amostra real de 70
   empresas, mais uma filial e uma empresa baixada. A simulação não gravou nada; a carga
   gravou 70 empresas, com filiais, sócios, dívida e contato calculados. A baixada ficou de
@@ -116,7 +118,8 @@ sem esperar.
 - **Carga real, 16/11/2026:** 3.093.706 empresas em 15 minutos, 1,9 GB entre dados e
   índices. Fit prévio: 72% das empresas com nota 55 e 98% com a maior nota em Consultoria,
   o que confirma a necessidade da US-0014.
-- **Falta para Pronto:** primeira carga em produção, repetir o cenário 2 lá e trocar a senha
-  do `pulse_leitura`.
+- **Falta para Pronto:** preparar a VPS (SSL, `pg_hba`, porta, usuários), trocar a senha
+  do `pulse_leitura`, publicar a função com o segredo, rodar a carga em `pulse.empresas` e
+  medir o cenário 2 pela função.
 - **Commits / PR:** branch `feat/empresas-base-receita`.
 - **Implantada em:** —

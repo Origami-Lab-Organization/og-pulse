@@ -1,21 +1,19 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { EmpresaReceita, OrdenacaoReceita, PaginaReceita } from '@/lib/prospecting/empresasReceita';
 
 /**
  * Uma página da base da Receita (US-0002, ADR-0053).
  *
- * A autorização é da função `listar_empresas_receita`, que exige `prospeccao:ler` e responde
- * 42501 quando falta. O erro sobe tipado para a tela separar "sem permissão" de "base fora do
- * ar": as duas como lista vazia seriam indistinguíveis de "não há empresas".
+ * A base mora na VPS; o Supabase não guarda nada dela. A Edge Function `empresas-receita`
+ * confere a sessão e `prospeccao:ler` (401/403 quando falta) e só então consulta a VPS. O erro
+ * sobe tipado para a tela separar "sem permissão" de "base fora do ar": as duas como lista
+ * vazia seriam indistinguíveis de "não há empresas".
  */
 
-/** Sem o genérico do schema: a RPC nasceu nesta entrega. */
-const db = supabase as unknown as SupabaseClient;
-
 export const POR_PAGINA_RECEITA = 25;
-/** A navegação vai até aqui; depois, os filtros (limite também na função, ADR-0053). */
+/** A navegação vai até aqui; depois, os filtros (limite também na Edge Function, ADR-0053). */
 export const LIMITE_DE_NAVEGACAO = 10_000;
 
 export type FalhaDaBase = 'sem_permissao' | 'indisponivel';
@@ -32,14 +30,18 @@ interface RespostaDaRpc {
   linhas: EmpresaReceita[] | null;
 }
 
+const STATUS_SEM_PERMISSAO = new Set([401, 403]);
+
+function falhaDe(erro: unknown): FalhaDaBase {
+  const status = erro instanceof FunctionsHttpError ? (erro.context as Response).status : 0;
+  return STATUS_SEM_PERMISSAO.has(status) ? 'sem_permissao' : 'indisponivel';
+}
+
 async function buscarPagina(ordenacao: OrdenacaoReceita, pagina: number): Promise<PaginaReceita> {
-  const { data, error } = await db.rpc('listar_empresas_receita', {
-    p_ordem: ordenacao.ordem,
-    p_crescente: ordenacao.crescente,
-    p_pagina: pagina,
-    p_por_pagina: POR_PAGINA_RECEITA,
+  const { data, error } = await supabase.functions.invoke('empresas-receita', {
+    body: { ordem: ordenacao.ordem, crescente: ordenacao.crescente, pagina },
   });
-  if (error) throw new ErroDaBase(error.code === '42501' ? 'sem_permissao' : 'indisponivel');
+  if (error) throw new ErroDaBase(falhaDe(error));
   const resposta = data as RespostaDaRpc;
   return { total: resposta.total, carregadaEm: resposta.carregada_em, linhas: resposta.linhas ?? [] };
 }

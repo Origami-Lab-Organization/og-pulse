@@ -1,12 +1,13 @@
-// Carga da base da Receita da VPS para o Supabase (ADR-0053, US-0001).
+// Monta, na própria VPS, o recorte que a tela Empresas lê (ADR-0053, US-0001).
 //
-// Uso:
+// Uso (com o túnel SSH aberto: ssh -N -L 5433:localhost:5432 root@<vps>):
 //   npx vite-node scripts/receita/sincronizar-base.ts             só lê, calcula e resume
-//   npx vite-node scripts/receita/sincronizar-base.ts -- --aplicar grava no Supabase
+//   npx vite-node scripts/receita/sincronizar-base.ts -- --aplicar grava em pulse.empresas
 //
-// Origem: ~/.config/og-pulse/receita-db.env (PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD),
-// com o usuário só de leitura `pulse_leitura`, pelo túnel SSH (ssh -N -L 5433:localhost:5432).
-// Destino (só com --aplicar): SUPABASE_DB_URL no ambiente. Nunca vai para log nem para o repo.
+// Origem: ~/.config/og-pulse/receita-db.env — usuário só de leitura `pulse_leitura`.
+// Destino: ~/.config/og-pulse/receita-carga.env — usuário `pulse_carga`, dono do schema pulse.
+// Os dois arquivos ficam fora do repositório (permissão 600) e nunca vão para log.
+// O Supabase não guarda nada da base: a tela lê pela Edge Function `empresas-receita`.
 //
 // Usa o `psql` da máquina; sem ele, o do container `postgres:16-alpine` (Docker).
 // A nota de fit prévio sai do MESMO módulo da tela (src/lib/prospecting/fit.ts, ADR-0042).
@@ -21,8 +22,9 @@ import type { ProspectCompanyDB } from '@/types/prospect';
 
 type Ambiente = Record<string, string>;
 
-// RECEITA_ORIGEM_ENV troca o arquivo (ex.: um banco de ensaio no lugar da VPS).
+// RECEITA_ORIGEM_ENV e RECEITA_DESTINO_ENV trocam os arquivos (ex.: um banco de ensaio).
 const ARQUIVO_ORIGEM = process.env.RECEITA_ORIGEM_ENV ?? join(homedir(), '.config/og-pulse/receita-db.env');
+const ARQUIVO_DESTINO = process.env.RECEITA_DESTINO_ENV ?? join(homedir(), '.config/og-pulse/receita-carga.env');
 const IMAGEM_PSQL = 'postgres:16-alpine';
 const NULO = '\\N';
 const aplicar = process.argv.includes('--aplicar');
@@ -68,24 +70,11 @@ const COL = { cnaePrincipal: 5, cnaesSecundarios: 6, abertura: 9 } as const;
 
 // ---------- conexões ----------
 
-function lerAmbienteDaOrigem(): Ambiente {
-  const texto = readFileSync(ARQUIVO_ORIGEM, 'utf8');
+/** Arquivo de variáveis PG* (PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD). */
+function lerAmbiente(arquivo: string): Ambiente {
+  const texto = readFileSync(arquivo, 'utf8');
   const pares = texto.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
   return Object.fromEntries(pares.map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
-}
-
-function ambienteDoDestino(): Ambiente {
-  const url = process.env.SUPABASE_DB_URL;
-  if (!url) throw new Error('Defina SUPABASE_DB_URL para --aplicar.');
-  const u = new URL(url);
-  return {
-    PGHOST: u.hostname,
-    PGPORT: u.port || '5432',
-    PGUSER: decodeURIComponent(u.username),
-    PGPASSWORD: decodeURIComponent(u.password),
-    PGDATABASE: u.pathname.slice(1) || 'postgres',
-    PGSSLMODE: u.searchParams.get('sslmode') ?? 'require',
-  };
 }
 
 const temPsqlLocal = () => spawnSync('psql', ['--version'], { stdio: 'ignore' }).status === 0;
@@ -166,21 +155,14 @@ function acrescentarFit(hoje: string, resumo: Resumo): Transform {
 
 // ---------- carga ----------
 
-async function copiarTabelaDeApoio(origem: Ambiente, destino: Ambiente, consulta: string, tabela: string) {
-  const leitura = psql(origem, ['-c', `\\copy (${consulta}) TO STDOUT`]);
-  const escrita = psql(destino, ['-1', '-c', `TRUNCATE public.${tabela}`, '-c', `\\copy public.${tabela} FROM pstdin`]);
-  leitura.stdout!.pipe(escrita.stdin!);
-  await Promise.all([terminou(leitura, `leitura de ${tabela}`), terminou(escrita, `carga de ${tabela}`)]);
-}
-
 function comandosDaCarga(): string[] {
   return [
     '-1',
     '-c', 'SET statement_timeout = 0',
-    '-c', 'TRUNCATE public.receita_empresas',
-    '-c', `\\copy public.receita_empresas (${COLUNAS_DESTINO}) FROM pstdin`,
-    '-c', `INSERT INTO public.receita_base (id, carregada_em, total)
-           SELECT true, now(), count(*) FROM public.receita_empresas
+    '-c', 'TRUNCATE pulse.empresas',
+    '-c', `\\copy pulse.empresas (${COLUNAS_DESTINO}) FROM pstdin`,
+    '-c', `INSERT INTO pulse.base (id, carregada_em, total)
+           SELECT true, now(), count(*) FROM pulse.empresas
            ON CONFLICT (id) DO UPDATE SET carregada_em = EXCLUDED.carregada_em, total = EXCLUDED.total`,
   ];
 }
@@ -198,7 +180,7 @@ async function carregarEmpresas(origem: Ambiente, destino: Ambiente | null, resu
   const escrita = psql(destino, comandosDaCarga());
   comFit.pipe(escrita.stdin!);
   await Promise.all([terminou(leitura, 'leitura da base'), terminou(escrita, 'carga da base')]);
-  await terminou(psql(destino, ['-c', 'ANALYZE public.receita_empresas']), 'ANALYZE');
+  await terminou(psql(destino, ['-c', 'ANALYZE pulse.empresas']), 'ANALYZE');
 }
 
 function imprimirResumo(resumo: Resumo, segundos: number) {
@@ -208,13 +190,9 @@ function imprimirResumo(resumo: Resumo, segundos: number) {
 }
 
 async function main() {
-  const origem = lerAmbienteDaOrigem();
-  const destino = aplicar ? ambienteDoDestino() : null;
+  const origem = lerAmbiente(ARQUIVO_ORIGEM);
+  const destino = aplicar ? lerAmbiente(ARQUIVO_DESTINO) : null;
   const inicio = Date.now();
-  if (destino) {
-    await copiarTabelaDeApoio(origem, destino, 'SELECT codigo, descricao FROM cnaes WHERE descricao IS NOT NULL', 'receita_cnaes');
-    await copiarTabelaDeApoio(origem, destino, 'SELECT codigo, descricao FROM naturezas_juridicas WHERE descricao IS NOT NULL', 'receita_naturezas');
-  }
   const resumo: Resumo = { linhas: 0, porFrente: {}, porFaixaDeFit: {} };
   await carregarEmpresas(origem, destino, resumo);
   imprimirResumo(resumo, Math.round((Date.now() - inicio) / 1000));

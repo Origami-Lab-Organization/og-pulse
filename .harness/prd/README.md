@@ -80,8 +80,8 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0013](stories/1-a-fazer/US-0013-comercial-salvar-filtro-para-o-time.md) | Salvar um filtro para o time | Pessoa do comercial | A fazer | Não pronta |
 | [US-0014](stories/1-a-fazer/US-0014-comercial-fit-com-funcionarios-e-divida.md) | Nota de fit considera funcionários e dívida ativa | Pessoa do comercial | A fazer | Não pronta |
 | [US-0015](stories/2-em-refinamento/US-0015-comercial-distancia-de-formiga.md) | Filtrar e ordenar pela distância de Formiga | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
-| [US-0016](stories/2-em-refinamento/US-0016-comercial-tipo-de-conta.md) | Classificar a conta como Âncora, Ponte ou Satélite | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
-| [US-0017](stories/2-em-refinamento/US-0017-comercial-anel-e-tier-saem.md) | Anel e Tier saem da Prospecção | Pessoa do comercial | Em refinamento | Não pronta |
+| [US-0016](stories/2-em-refinamento/US-0016-comercial-tipo-de-conta.md) | Classificar a conta como Âncora, Ponte ou Satélite | Pessoa do comercial | Em refinamento | Pronta |
+| [US-0017](stories/2-em-refinamento/US-0017-comercial-anel-e-tier-saem.md) | Anel e Tier saem da Prospecção | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 
 #### Ordem de implementação proposta
 
@@ -127,6 +127,12 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
   empresa). O filtro de faturamento passa a usar as faixas do tipo de conta.
 - A lista da base navega até as 10 mil primeiras de cada ordem; depois, os filtros
   (medido com a base real, ADR-0053).
+- **A base fica na VPS; o Supabase não guarda nada dela** (plano gratuito). A tela lê
+  pela Edge Function `empresas-receita`, que conecta no Postgres da VPS por SSL, com um
+  usuário só de leitura (ADR-0053).
+- O tipo de conta é obrigatório ao abrir a oportunidade; sem sugestão, o botão rápido
+  abre a ficha para a pessoa escolher.
+- O Tier atual é convertido em tipo de conta onde der.
 - As opções de filtro não mostram contagem; só o total da lista aparece.
 - Ao abrir a oportunidade, o faturamento calculado entra na empresa com a base nova
   "Calculado", que o time pode substituir.
@@ -136,12 +142,14 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 #### Decisões pendentes do épico
 
 1. **Nota de fit:** passa a considerar funcionários e dívida ativa. Ver US-0014.
-2. **Como o Pulse lê a VPS:** ADR de engenharia antes do código. Ver US-0001.
+2. **Preparar a VPS** (SSL, regras de acesso, porta, usuários) e publicar a função.
+   Ver US-0001 e `../integrations/base-receita-vps.md`.
 3. **Tabela de receita por funcionário por setor:** levantar no IBGE e aprovar.
    Ver US-0006.
 4. **Limite de empresas por lote.** Ver US-0009.
-5. **Tipo de conta obrigatório ao abrir a oportunidade?** Ver US-0016.
-6. **Valores de Anel e Tier já preenchidos:** converter, guardar ou apagar. Ver US-0017.
+5. **Tabela de conversão do Tier** em tipo de conta, a partir dos valores de produção.
+   Ver US-0017.
+6. **Tipo de conta no lote.** Ver US-0009.
 
 #### A base mapeada (2026-11-15)
 

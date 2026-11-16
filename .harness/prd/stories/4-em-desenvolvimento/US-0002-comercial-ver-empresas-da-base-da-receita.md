@@ -131,7 +131,7 @@ quando alguém abre oportunidade para ela (US-0008).
 | 4 | **Adiado para a US-0008:** a coluna de classificar nasce com as ações. Sem ação, não há coluna para fixar. |
 | 5 | **Pendente:** evidência do link de uma notificação de gatilho. Código: `?empresa=` abre "Na Prospecção" com a ficha e troca o parâmetro por `?aba=prospeccao`. |
 | 6 | **Pendente:** evidência da tela. Código: a lista atual inteira foi para "Na Prospecção" (`ContasDaProspeccao`), e as abas antigas viraram o filtro "Abordagem". |
-| 7 | Evidência, 16/11/2026: as quatro ordens validadas na RPC (ensaio do cenário 1 da US-0001). Clicar no mesmo cabeçalho inverte (`alternarOrdenacao`). |
+| 7 | Evidência, 16/11/2026: as quatro ordens validadas no banco com a base real (US-0001, cenário 2). Clicar no mesmo cabeçalho inverte (`alternarOrdenacao`). |
 
 - **Verificações:** `tsc` sem erro novo (o único erro, em `JornadaConfiguracoes.tsx`, já
   existia); `eslint` limpo nos arquivos tocados; `npm run build` verde.

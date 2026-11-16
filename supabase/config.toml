@@ -63,6 +63,10 @@ verify_jwt = false
 [functions.company-funding-check]
 verify_jwt = false
 
+# Tela Empresas: lê a base da Receita na VPS (ADR-0053). Sessão e capacidade conferidas dentro.
+[functions.empresas-receita]
+verify_jwt = false
+
 # Gatilhos comerciais: chamada só pelo cron diário. A função confere o Bearer contra a
 # service role key; verify_jwt desligado como nos outros notify-* agendados.
 [functions.company-watch]

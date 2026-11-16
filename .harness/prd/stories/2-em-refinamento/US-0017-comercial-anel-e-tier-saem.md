@@ -2,7 +2,7 @@
 
 - **Status:** Em refinamento
 - **Tipo:** história
-- **Prontidão:** NÃO PRONTA
+- **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Empresas da Receita
 - **Prioridade:** 4
 - **Aprovada por / em:** —
@@ -35,20 +35,33 @@ regra e lista fechada.
 - **Então** nenhuma tela mostra Anel ou Tier;
 - **E** a aba "Na Prospecção" filtra por distância e por tipo de conta no lugar deles.
 
-**Cenário 2: some do chat**
+**Cenário 2: Tier convertido**
+
+- **Dado** uma empresa com Tier que corresponde a Âncora, Ponte ou Satélite;
+- **Quando** a conversão roda;
+- **Então** a empresa passa a ter esse tipo de conta;
+- **E** empresa que já tinha tipo de conta definido não é sobrescrita.
+
+**Cenário 3: some do chat**
 
 - **Então** o MCP da Prospecção deixa de pedir, mostrar e gravar Anel e Tier.
 
 ## Decisões (Victor Couto, 2026-11-16)
 
 - Anel e Tier vão sumir; a segmentação passa a ser a distância de Formiga e o tipo de conta.
+- O Tier é convertido em tipo de conta onde der.
 
 ## Pontos em aberto
 
 ### Decisões pendentes
 
-- **O que fazer com os valores já preenchidos.** Converter o Tier atual em tipo de conta
-  onde der, guardar uma cópia antes de apagar, ou só apagar.
+- **Tabela de conversão do Tier.** Levantar os valores distintos de Tier em produção e
+  aprovar com o Victor qual vira Âncora, Ponte ou Satélite. O resto não converte.
+
+### Hipóteses para validar
+
+- Antes de apagar, Anel e Tier ficam copiados num schema fora da API, como na migração
+  das oportunidades (`legado_oportunidades`, 20260929120000). Origem: padrão do projeto.
 - **Ordem de saída.** Anel e Tier só saem depois que a distância e o tipo de conta estiverem
   no ar, para a aba "Na Prospecção" não ficar sem segmentação no meio do caminho.
 

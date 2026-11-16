@@ -40,11 +40,14 @@ sources:
   - apps/transcription-worker/worker.py
   - supabase/functions/teams-transcripts-sync/index.ts
   - supabase/functions/teams-meeting-register/index.ts
+  - supabase/functions/empresas-receita/index.ts
+  - scripts/receita/sincronizar-base.ts
+  - scripts/receita/vps/preparar-vps.sql
 ---
 
 # Mapa de Integrações
 
-> Derivado do código em 2026-08-31; transcrição de reunião acrescentada em 2026-09-24 e ligada à tela em 2026-10-21; Conta Azul incluído em 2026-10-01.
+> Derivado do código em 2026-08-31; transcrição de reunião acrescentada em 2026-09-24 e ligada à tela em 2026-10-21; Conta Azul incluído em 2026-10-01; base da Receita na VPS em 2026-11-16 (`empresas-receita`, ADR-0053).
 > Quem chama quem, com que credencial.
 
 ## Visão geral
@@ -58,7 +61,7 @@ flowchart LR
 
     subgraph Supabase
         REST[(Postgres + RLS)]
-        EF[Edge Functions x38]
+        EF[Edge Functions x39]
         CRON[pg_cron + pg_net]
         SMTP[Auth SMTP<br/>convites/recovery]
     end
@@ -71,6 +74,11 @@ flowchart LR
     subgraph VM["VM propria (ADR-0039)"]
         WRK["worker de transcricao<br/>WhisperX, Python"]
     end
+
+    subgraph VPSR["VPS da base da Receita (ADR-0053)"]
+        RECEITA[("Postgres 16 cnpj<br/>schema pulse: recorte da tela Empresas")]
+    end
+    DEV["scripts/receita/sincronizar-base.ts<br/>(máquina do time, carga manual)"]
 
     EXT1[Resend<br/>email transacional]
     EXT2[Anthropic<br/>análise de mercado]
@@ -111,6 +119,8 @@ flowchart LR
     MCP -->|"lookup_cnpj"| EXT4
     WRK -->|"puxa da fila, service role<br/>worker.py:pegar_job"| REST
     WRK -->|"URL pre-autenticada, SEM credencial<br/>worker.py:baixar"| GRAPH
+    EF -->|"empresas-receita · TLS com certificado conferido, pulse_api só leitura<br/>depois de conferir sessão e prospeccao:ler"| RECEITA
+    DEV -->|"túnel SSH · lê com pulse_leitura,<br/>grava pulse.empresas com pulse_carga"| RECEITA
 ```
 
 ## Serviços externos
@@ -137,6 +147,7 @@ flowchart LR
 | Amplitude, modo **produto** (autocapture + session replay 100%) | `startProductAnalytics`, chamado por `AuthContext.applyEmployeeResult` **só com funcionário ativo**; cala a vitrine e herda seu device id; `setOptOut(true)` no `signOut` | Gravação de sessão e eventos nomeados da área logada (`AlocacaoPage`/`EmployeeAllocationPanel`). Nunca roda antes do login | idem |
 | Reconhecimento facial | `src/lib/faceRecognition.ts:1-12` | **100% local no browser** (`@vladmandic/face-api`), threshold 0.6; só os pesos vêm da CDN jsDelivr | — |
 | Microsoft Graph — transcrição do Teams (ADR-0052) | Edge Function `teams-transcripts-sync` (cron de 10 em 10 min) | `getAllTranscripts` por organizador e o `/content` em WebVTT de cada transcrição de reunião vinculada ao projeto. Contrato: `.harness/integrations/teams-transcricao.md` | App próprio "Pulse — Transcrições", client credentials: `MICROSOFT_TRANSCRIPTS_CLIENT_ID`/`_SECRET`, permissão de aplicação `OnlineMeetingTranscript.Read.All` limitada por application access policy do Teams |
+| Base da Receita (VPS própria, ADR-0053) | Edge Function `empresas-receita` (leitura) e `scripts/receita/sincronizar-base.ts` (carga, pelo túnel SSH) | Matrizes ativas, médias e grandes, com RAIS e dívida ativa da PGFN, já recortadas em `pulse.empresas` para a tela Empresas. **O Supabase não guarda nada dela** (plano gratuito). Contrato: `.harness/integrations/base-receita-vps.md` | `RECEITA_DB_URL` (usuário `pulse_api`, só leitura, 5 s por consulta) e `RECEITA_DB_CA` (autoridade própria que emitiu o certificado da VPS; TLS conferido, driver `deno-postgres`) na função; `pulse_leitura` e `pulse_carga` só pelo túnel, em arquivos locais fora do repo |
 | Worker de transcrição (VM própria, ADR-0039, plano B) | `apps/transcription-worker/worker.py` | Puxa job pendente de `meeting_transcriptions`, baixa a gravação do OneDrive pela URL pré-autenticada e devolve o texto. **Não expõe porta** (só conexão de saída) e **não recebe credencial do Graph** | `SUPABASE_SERVICE_ROLE_KEY` na VM; `HF_TOKEN` para a separação de vozes (pyannote) |
 | SMTP do Supabase Auth | `create-employee-user`, `resend-employee-invite`, `request-first-access`, `register-tenant` | Convites, recovery links e confirmação de e-mail do autocadastro (`resend` tipo `signup`, redireciona para `/boas-vindas`) | interno Supabase |
 
@@ -215,6 +226,13 @@ sessão de quem pode pedir transcrição no projeto, restrito a ele) traz a
 transcrição pronta do Teams das reuniões vinculadas, com a credencial do app próprio; o token do app só vai
 para URL de `graph.microsoft.com`. Sem os secrets do app, responde `nao_configurado` e não faz nada.
 
+**Empresas da Receita** (ADR-0053) — `empresas-receita`: a tela Comercial > Empresas lê uma
+página da base da Receita, que mora numa VPS. Valida a sessão dentro (`verify_jwt=false`),
+confere `has_capability(..., 'prospeccao:ler')` no tenant da pessoa (401/403) e só então
+consulta o Postgres da VPS com `pulse_api`. A ordem vem de uma lista fechada (nada do
+cliente vira SQL) e a paginação vai até as 10 mil primeiras de cada ordem. Erro do banco
+vira 503, com só o nome do erro no log: a mensagem do driver pode trazer o endereço da VPS.
+
 **Seed** — `seed-admin` (protegido por `SEED_SECRET_TOKEN` — `index.ts:17`),
 `seed-demo-tenant` (ver ponto de atenção 1).
 
@@ -268,7 +286,9 @@ Edge Functions: `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_TENANT_ID`,
 `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`,
 `SEED_*`, `CONTA_AZUL_CLIENT_ID`, `CONTA_AZUL_CLIENT_SECRET`, `CONTA_AZUL_REDIRECT_URI`,
-`CONTA_AZUL_TOKEN_KEY`. A `LOVABLE_API_KEY` deixou de existir com a migração para Supabase
+`CONTA_AZUL_TOKEN_KEY`, `RECEITA_DB_URL` (connection string do `pulse_api` na VPS) e
+`RECEITA_DB_CA` (certificado da autoridade própria que emitiu o da VPS), ADR-0053.
+A `LOVABLE_API_KEY` deixou de existir com a migração para Supabase
 próprio — nenhuma function depende mais do gateway do Lovable.
 pg_cron lê os segredos do Vault via `public.cron_secret()`
 (`20260831120000_realtime_publication_and_cron_via_vault.sql`); o desenho

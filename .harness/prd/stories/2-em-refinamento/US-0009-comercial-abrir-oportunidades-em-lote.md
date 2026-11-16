@@ -47,6 +47,8 @@
 
 ### Decisões pendentes
 
+- **Tipo de conta no lote.** O tipo é obrigatório (US-0016). Hipótese: cada empresa
+  recebe a sua sugestão; as que não têm sugestão ficam fora do lote, com aviso.
 - **Limite de empresas por lote.** Cada abertura consulta o regime na Receita, e a
   reserva CNPJá aceita poucas consultas por minuto.
 

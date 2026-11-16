@@ -2,7 +2,7 @@
 
 - **Status:** Em refinamento
 - **Tipo:** história
-- **Prontidão:** PRONTA COM RESSALVAS
+- **Prontidão:** PRONTA
 - **Épico:** Empresas da Receita
 - **Prioridade:** 3
 - **Aprovada por / em:** —
@@ -51,7 +51,14 @@ O tipo substitui o Tier da empresa (US-0017).
 **Cenário 2: sem faturamento estimado**
 
 - **Dado** uma empresa sem faturamento estimado;
-- **Então** o tipo não vem sugerido e a pessoa escolhe.
+- **Então** o tipo não vem sugerido;
+- **E** "Abrir oportunidade" só fica disponível depois que a pessoa escolhe o tipo.
+
+**Cenário 2b: botão rápido sem sugestão**
+
+- **Dado** uma empresa sem tipo sugerido;
+- **Quando** clico no botão rápido de abrir oportunidade na linha;
+- **Então** a ficha abre para eu escolher o tipo, em vez de abrir a oportunidade direto.
 
 **Cenário 3: abaixo de R$ 10 mi**
 
@@ -76,13 +83,9 @@ O tipo substitui o Tier da empresa (US-0017).
 - O tipo fica na empresa, em campo próprio com lista fechada.
 - O filtro de faturamento usa as faixas do tipo de conta, e não mais as do BNDES.
 - O tipo substitui o Tier.
+- O tipo de conta é obrigatório ao abrir a oportunidade.
 
 ## Pontos em aberto
-
-### Decisões pendentes
-
-- **O tipo é obrigatório ao abrir a oportunidade?** Se for, o botão rápido da linha
-  (US-0008) só abre sem perguntar quando houver sugestão.
 
 ### Provocações para produto
 
