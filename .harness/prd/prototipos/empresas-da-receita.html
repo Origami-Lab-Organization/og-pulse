@@ -1,0 +1,1063 @@
+<title>Empresas da Receita</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: casca do Pulse (sidebar clara + conteúdo), trilho de filtros à esquerda, lista de triagem à direita, ficha em gaveta. Tokens = Origami UI v1.1 (src/index.css). */
+:root {
+  --background: hsl(60 33.3% 97.6%);
+  --foreground: hsl(0 0% 14.5%);
+  --card: hsl(0 0% 100%);
+  --muted: hsl(65 25% 90.6%);
+  --muted-soft: hsl(65 25% 90.6% / .45);
+  --muted-foreground: hsl(75 4.9% 32.2%);
+  --border: hsl(67 20.5% 84.7%);
+  --input: hsl(68 11.9% 73.7%);
+  --primary: hsl(159 82.8% 22.7%);
+  --primary-hover: hsl(160 82.2% 17.6%);
+  --primary-foreground: hsl(0 0% 100%);
+  --accent-subtle: hsl(150 46.7% 94.1%);
+  --success-subtle: hsl(150 46.7% 94.1%);
+  --success-emphasis: hsl(159 82.8% 22.7%);
+  --warning-subtle: hsl(43 87.5% 90.6%);
+  --warning-emphasis: hsl(23 82.5% 31.4%);
+  --destructive: hsl(17 88.3% 40.4%);
+  --destructive-subtle: hsl(12 78.9% 92.5%);
+  --destructive-emphasis: hsl(15 79.1% 33.7%);
+  --info-subtle: hsl(205 45.8% 90.6%);
+  --info-emphasis: hsl(200 71% 28.4%);
+  --sidebar: hsl(0 0% 100%);
+  --sidebar-fg: hsl(75 4.9% 32.2%);
+  --sidebar-active: hsl(150 46.7% 94.1%);
+  --sidebar-active-fg: hsl(159 82.8% 22.7%);
+  --vinco: hsl(159 81.5% 29.6%);
+  --shadow-2: 0 4px 12px hsl(0 0% 14.5% / .10), 0 1px 3px hsl(0 0% 14.5% / .06);
+  --shadow-3: 0 16px 40px hsl(0 0% 14.5% / .18), 0 4px 12px hsl(0 0% 14.5% / .08);
+  --focus: 0 0 0 3px hsl(159 81.5% 29.6% / .35);
+  --overlay: hsl(0 0% 10% / .38);
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: hsl(0 0% 10.2%); --foreground: hsl(65 42.9% 94.5%); --card: hsl(0 0% 14.5%);
+    --muted: hsl(60 2.2% 18%); --muted-soft: hsl(60 2.2% 18% / .6); --muted-foreground: hsl(64 9.2% 70.2%);
+    --border: hsl(60 3.6% 22%); --input: hsl(75 4.9% 32.2%);
+    --primary: hsl(159 80.2% 54.5%); --primary-hover: hsl(159 82.2% 64.7%); --primary-foreground: hsl(0 0% 14.5%);
+    --accent-subtle: hsl(159 45% 14%); --success-subtle: hsl(159 45% 14%); --success-emphasis: hsl(159 80.2% 54.5%);
+    --warning-subtle: hsl(36 50% 16%); --warning-emphasis: hsl(36 89.6% 62.2%);
+    --destructive: hsl(16 84.7% 61.6%); --destructive-subtle: hsl(16 50% 16%); --destructive-emphasis: hsl(16 84.7% 61.6%);
+    --info-subtle: hsl(199 40% 18%); --info-emphasis: hsl(199 52.6% 57.8%);
+    --sidebar: hsl(0 0% 14.5%); --sidebar-fg: hsl(64 9.2% 70.2%); --sidebar-active: hsl(159 45% 14%);
+    --sidebar-active-fg: hsl(159 80.2% 54.5%); --vinco: hsl(159 80.2% 54.5%);
+    --overlay: hsl(0 0% 0% / .55); --focus: 0 0 0 3px hsl(159 80.2% 54.5% / .4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --background: hsl(0 0% 10.2%); --foreground: hsl(65 42.9% 94.5%); --card: hsl(0 0% 14.5%);
+  --muted: hsl(60 2.2% 18%); --muted-soft: hsl(60 2.2% 18% / .6); --muted-foreground: hsl(64 9.2% 70.2%);
+  --border: hsl(60 3.6% 22%); --input: hsl(75 4.9% 32.2%);
+  --primary: hsl(159 80.2% 54.5%); --primary-hover: hsl(159 82.2% 64.7%); --primary-foreground: hsl(0 0% 14.5%);
+  --accent-subtle: hsl(159 45% 14%); --success-subtle: hsl(159 45% 14%); --success-emphasis: hsl(159 80.2% 54.5%);
+  --warning-subtle: hsl(36 50% 16%); --warning-emphasis: hsl(36 89.6% 62.2%);
+  --destructive: hsl(16 84.7% 61.6%); --destructive-subtle: hsl(16 50% 16%); --destructive-emphasis: hsl(16 84.7% 61.6%);
+  --info-subtle: hsl(199 40% 18%); --info-emphasis: hsl(199 52.6% 57.8%);
+  --sidebar: hsl(0 0% 14.5%); --sidebar-fg: hsl(64 9.2% 70.2%); --sidebar-active: hsl(159 45% 14%);
+  --sidebar-active-fg: hsl(159 80.2% 54.5%); --vinco: hsl(159 80.2% 54.5%);
+  --overlay: hsl(0 0% 0% / .55); --focus: 0 0 0 3px hsl(159 80.2% 54.5% / .4);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--background); color: var(--foreground); font: 14px/1.45 var(--font-sans); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 6px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Casca — AppSidebar + AppHeader + AppFooter do Pulse */
+.shell { display: grid; grid-template-columns: 256px minmax(0, 1fr); min-height: 100%; }
+.side { background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow: auto; }
+.brand { height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 15px; flex-shrink: 0; }
+.brand img { width: 28px; height: 28px; }
+.nav { display: flex; flex-direction: column; gap: 2px; padding: 10px 8px; }
+.nav-item { display: flex; align-items: center; gap: 12px; height: 34px; padding: 0 10px; border-radius: 8px; color: var(--foreground); text-decoration: none; font-size: 14px; }
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--sidebar-fg); }
+.nav-item .chev { margin-left: auto; width: 14px; height: 14px; }
+.nav-item:hover { background: var(--muted); }
+.nav-item.group-active { color: var(--sidebar-active-fg); font-weight: 500; }
+.nav-item.group-active svg { color: var(--sidebar-active-fg); }
+.nav-sub { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 6px 22px; }
+.nav-sub a { display: flex; align-items: center; height: 32px; padding: 0 10px; border-radius: 8px; color: var(--sidebar-fg); text-decoration: none; font-size: 14px; }
+.nav-sub a:hover { background: var(--muted); color: var(--foreground); }
+.nav-sub a.active { background: var(--sidebar-active); color: var(--sidebar-active-fg); font-weight: 500; }
+.nav-tag { margin-left: auto; font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 100px; background: var(--info-subtle); color: var(--info-emphasis); }
+
+.main { min-width: 0; display: flex; flex-direction: column; min-height: 100vh; }
+.appheader { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; height: 48px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); background: var(--background); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.page-title { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.page-title h1 { margin: 0; font-size: 15px; font-weight: 600; flex-shrink: 0; }
+.page-title p { margin: 0; font-size: 13.5px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.head-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.hicon { position: relative; width: 34px; height: 34px; border-radius: 8px; border: 0; background: transparent; display: grid; place-items: center; color: var(--muted-foreground); }
+.hicon:hover { background: var(--muted); color: var(--foreground); }
+.hicon svg { width: 17px; height: 17px; }
+.hbadge { position: absolute; top: 1px; right: -2px; min-width: 18px; height: 16px; padding: 0 4px; border-radius: 100px; background: var(--destructive); color: var(--card); font-size: 10px; font-weight: 700; display: grid; place-items: center; }
+.avatar { width: 30px; height: 30px; border-radius: 100px; background: var(--primary); color: var(--primary-foreground); display: grid; place-items: center; font-size: 12px; font-weight: 600; margin-left: 6px; }
+.content { flex: 1; padding-block: 16px 96px; padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.appfooter { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 24px; border-top: 1px solid var(--border); padding-block: 12px; padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); font-size: 12px; color: var(--muted-foreground); }
+.appfooter nav { display: flex; gap: 16px; }
+.appfooter a { color: inherit; text-decoration: none; }
+.appfooter a:hover { color: var(--foreground); text-decoration: underline; }
+
+.proto-note { display: flex; gap: 10px; align-items: center; padding: 5px 6px 5px 12px; border-radius: 8px; background: var(--info-subtle); color: var(--info-emphasis); font-size: 13px; }
+.proto-note strong { font-weight: 600; }
+.proto-note button { margin-left: auto; background: none; border: 0; color: inherit; padding: 2px 6px; font-size: 18px; line-height: 1; }
+
+/* Botões (retangulares, hover escurece) */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--input); background: var(--card); font-size: 13.5px; font-weight: 500; white-space: nowrap; }
+.btn:hover { background: var(--muted); }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
+.btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+.btn-ghost { border-color: transparent; background: transparent; }
+.btn-ghost:hover { background: var(--muted); }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 12.5px; }
+.btn[disabled] { opacity: .55; cursor: not-allowed; }
+.btn svg { width: 15px; height: 15px; }
+
+/* Abas da lista */
+.work { display: grid; grid-template-columns: minmax(0, 1fr) 288px; gap: 16px; align-items: start; }
+.work[data-rail="closed"] { grid-template-columns: minmax(0, 1fr); }
+.work[data-rail="closed"] .rail { display: none; }
+.ftoggle { position: relative; }
+.ftoggle[aria-expanded="true"] { background: var(--accent-subtle); border-color: var(--primary); color: var(--success-emphasis); }
+.fcount { font-family: var(--font-mono); font-size: 11px; font-weight: 600; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 100px; background: var(--primary); color: var(--primary-foreground); display: inline-grid; place-items: center; }
+.fcount[hidden] { display: none; }
+.tabs { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--muted); }
+.tab { border: 0; background: transparent; padding: 5px 11px; border-radius: 7px; font-size: 13px; color: var(--muted-foreground); display: inline-flex; gap: 6px; align-items: center; }
+.tab[aria-selected="true"] { background: var(--card); color: var(--foreground); font-weight: 600; box-shadow: 0 1px 2px hsl(0 0% 14.5% / .07); }
+.tab .count { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted-foreground); }
+
+/* Filtros */
+.rail { background: var(--card); border: 1px solid var(--border); border-radius: 12px; position: sticky; top: calc(60px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 72px); overflow: auto; }
+.rail-head { display: flex; align-items: center; gap: 4px; padding: 8px 8px 8px 14px; border-bottom: 1px solid var(--border); font-weight: 600; position: sticky; top: 0; background: var(--card); z-index: 1; }
+.rail-head > span:first-child { margin-right: auto; }
+.rail-head button { font-size: 12.5px; }
+.fgroup { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.fgroup:last-child { border-bottom: 0; }
+.fgroup h3 { margin: 0; font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted-foreground); display: flex; justify-content: space-between; gap: 8px; }
+.fgroup h3 small { font-size: 11px; letter-spacing: 0; text-transform: none; font-weight: 500; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--input); background: var(--card); border-radius: 100px; padding: 3px 10px; font-size: 12.5px; display: inline-flex; gap: 6px; align-items: center; }
+.chip:hover { background: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--accent-subtle); border-color: var(--primary); color: var(--success-emphasis); font-weight: 600; }
+.chip .n { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); font-weight: 400; }
+.chip.locked { border-style: dashed; color: var(--muted-foreground); cursor: default; }
+.chip.locked:hover { background: var(--card); }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 12.5px; color: var(--muted-foreground); }
+.input, .select { height: 34px; border-radius: 8px; border: 1px solid var(--input); background: var(--card); padding: 0 10px; font-size: 13.5px; width: 100%; min-width: 0; }
+textarea.input { height: 64px; padding: 8px 10px; resize: vertical; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.check input { accent-color: var(--primary); width: 15px; height: 15px; }
+.hint { font-size: 12px; color: var(--muted-foreground); }
+
+/* Lista */
+.listcol { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.search { position: relative; flex: 1 1 260px; min-width: 0; max-width: 380px; margin-left: auto; }
+.search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--muted-foreground); }
+.search .input { padding-left: 32px; }
+.summary { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; font-size: 13px; color: var(--muted-foreground); }
+.summary b { color: var(--foreground); font-weight: 600; }
+.tablebox { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.tablescroll { overflow-x: auto; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1080px; }
+th { text-align: left; font-size: 12.5px; font-weight: 500; color: var(--muted-foreground); background: var(--muted-soft); padding: 0 12px; height: 40px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th button { background: none; border: 0; padding: 0; color: inherit; font: inherit; display: inline-flex; gap: 4px; align-items: center; }
+th button:hover { color: var(--foreground); }
+th.num, td.num { text-align: right; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 13.5px; }
+tr:last-child td { border-bottom: 0; }
+tbody tr { cursor: pointer; }
+td { background-color: var(--card); }
+tbody tr:hover td { background-image: linear-gradient(var(--muted-soft), var(--muted-soft)); }
+th:last-child, td:last-child { position: sticky; right: 0; z-index: 1; box-shadow: inset 1px 0 0 var(--border); }
+th:last-child { background: var(--card); background-image: linear-gradient(var(--muted-soft), var(--muted-soft)); }
+tbody tr.cursor td { background: var(--accent-subtle); }
+tbody tr.cursor td:first-child { box-shadow: inset 3px 0 0 var(--vinco); }
+.co-name { font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 280px; }
+.co-sub { font-size: 12px; color: var(--muted-foreground); display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.act { font-size: 13px; line-height: 1.3; max-width: 240px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ramo { display: inline-block; margin-top: 3px; font-size: 11.5px; color: var(--muted-foreground); }
+.badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 100px; padding: 2px 9px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.b-ok { background: var(--success-subtle); color: var(--success-emphasis); }
+.b-warn { background: var(--warning-subtle); color: var(--warning-emphasis); }
+.b-bad { background: var(--destructive-subtle); color: var(--destructive-emphasis); }
+.b-info { background: var(--info-subtle); color: var(--info-emphasis); }
+.b-mute { background: var(--muted); color: var(--muted-foreground); }
+.fit { display: inline-flex; align-items: center; gap: 8px; }
+.fit-n { font-family: var(--font-mono); font-weight: 600; font-size: 13px; min-width: 24px; text-align: right; }
+.fit-bar { width: 44px; height: 6px; border-radius: 6px; background: var(--muted); overflow: hidden; }
+.fit-bar i { display: block; height: 100%; background: var(--primary); border-radius: 6px; }
+.rowact { display: flex; gap: 4px; justify-content: flex-end; }
+.iconbtn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--input); background: var(--card); display: inline-grid; place-items: center; color: var(--muted-foreground); }
+.iconbtn:hover { background: var(--muted); color: var(--foreground); }
+.iconbtn.go { border-color: var(--primary); color: var(--success-emphasis); }
+.iconbtn.go:hover { background: var(--accent-subtle); }
+.iconbtn svg { width: 15px; height: 15px; }
+.empty { padding: 48px 20px; text-align: center; color: var(--muted-foreground); display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.empty strong { color: var(--foreground); font-size: 15px; }
+.foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--muted-foreground); }
+kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--input); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--card); color: var(--foreground); }
+
+/* Barra de seleção */
+.bulk { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-3); padding: 10px 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; width: min(760px, calc(100% - 32px)); }
+.bulk .select { width: auto; flex: 1 1 180px; }
+.bulk-count { font-weight: 600; white-space: nowrap; }
+
+/* Gaveta */
+.scrim { position: fixed; inset: 0; background: var(--overlay); z-index: 40; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100%); background: var(--card); z-index: 41; box-shadow: var(--shadow-3); display: flex; flex-direction: column; border-left: 1px solid var(--border); padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.dr-head { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: flex-start; }
+.dr-head h2 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.25; text-wrap: balance; }
+.dr-head .co-sub { margin-top: 6px; }
+.dr-body { overflow: auto; padding: 4px 20px 16px; flex: 1; }
+.sec { padding: 14px 0; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.sec:last-child { border-bottom: 0; }
+.sec h3 { margin: 0; font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted-foreground); }
+.kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+.kv div { min-width: 0; }
+.kv dt { font-size: 12px; color: var(--muted-foreground); }
+.kv dd { margin: 2px 0 0; font-weight: 500; overflow-wrap: anywhere; }
+dl { margin: 0; }
+.frente { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.frente-top { display: flex; justify-content: space-between; gap: 10px; align-items: center; font-weight: 600; font-size: 13.5px; }
+.frente ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--muted-foreground); }
+.frente li { display: flex; gap: 8px; }
+.frente li b { font-family: var(--font-mono); color: var(--success-emphasis); font-weight: 600; min-width: 30px; }
+.frente li.falta b { color: var(--muted-foreground); }
+.dr-foot { border-top: 1px solid var(--border); padding: 14px 20px; display: flex; flex-direction: column; gap: 10px; background: var(--card); }
+.dr-foot .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dr-foot .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.dr-foot .btns .btn-primary { flex: 1 1 200px; }
+.notice { padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+
+.toast { position: fixed; right: calc(18px + env(safe-area-inset-right, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 60; background: var(--foreground); color: var(--background); border-radius: 10px; padding: 10px 14px; box-shadow: var(--shadow-2); font-size: 13.5px; max-width: min(420px, calc(100% - 36px)); display: flex; gap: 12px; align-items: center; }
+.toast button { background: none; border: 0; color: inherit; text-decoration: underline; font-weight: 600; padding: 0; }
+
+
+@media (max-width: 1100px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .side { display: none; }
+}
+@media (max-width: 860px) {
+  .work, .work[data-rail="open"] { grid-template-columns: minmax(0, 1fr); }
+  .rail { position: fixed; top: 0; right: 0; bottom: 0; width: min(340px, 100%); max-height: none; border-radius: 0; z-index: 42; box-shadow: var(--shadow-3); padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .content, .appheader, .appfooter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .page-title p { display: none; }
+  .search { max-width: none; margin-left: 0; flex-basis: 100%; }
+  .dr-foot .row, .kv { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .drawer { animation: slide .18s ease-out; }
+  @keyframes slide { from { transform: translateX(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+}
+</style>
+
+<div class="shell">
+  <aside class="side" aria-label="Menu">
+    <div class="brand"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAQKADAAQAAAABAAAAQAAAAABGUUKwAAAKZ0lEQVR4Ae2ZeWwcVx3H35uZ3Z3Z+/CxtjeJQ5P4iOMkQjmAhCMRgTZpJP5E/FEooLQgkJDooUpUAqEqqUTLHwghIf5ACMg/pAlOmpK0AalRoSmiTpyoVY42a3sTe23vMceu95rH773Z2V1vbMfZ9UaozJM91zvm9/38fu83b2YRsopFwCJgEbAIWAQsAhYBi4BFwCJgEbAIWAT+7wjwrVLc3tv1VZdbQhk5k2jmHsG14c0uv28ok1ZuNzPOUn25pSqaud62rvvHdq/nLO9ynwt0dg41OlYoEt5pdznftHml8+29PU80Os5y/VY9AkKR7mednb6XB5/+vC62uYPKrdmDTqf7HxlFmVrOkPo6Kt7mFE+69w90iVvX4FI0ecjpkKa0tPyf+rbNnK8qAEO899jAU3uJr6+T821sJ4jH/vTN+CHJ7Xw7I6t3VmJsaE14h+AUT7n39Xc5d/QSIejGfLubK4zPHXTapRlNVv69knFW0mbVAID455wd3mP9T+8hgY1hrOeLiBCCAwNhwgm8T74xc0h0SW9n7wOBer4ifud6ggo6RjpBQpsHIHgxQHhMsotzGVl5byUC79dmVQAw8Z3eo4NP7dX9m8IcFW8WohPs7+8knE3wMghO8WJW1mJmfe0+FOncJTilk+4vgeep+CKINwuD4MZCp48UxxOPig5HEhLjJbO60X3TAEzx/Uf2EP/GMFcqVMWbRjEIfQDBIXjk67OPO0TnO1lFmTDr6b59bfceQZJec+8bCN8j3mwIEPgQQOiiEJKPSg5R0dLKP83qRvZNAQDxzzvB8wNH9uoB8Pxi4k2jTAi8aHNDJBx2uqR3ISdEaX1bJPwFSHgnXPv7O5YUzwaCgNB1xAddAMFPitHEVySHIwMQ3jHv86D7RgHgjt7Is64u/1FIeLp/YwdXypcQjVf2Tzfl49oDUiLY19dBBMnmSl+PH7Y77Bc9Ht9awe14zbVvoI0mPDbnWaelNjUQegKkFEsfgEjQtJTcUCQ0BMAbiQRtDuG4I+By9uzvQ7xdwODhqlawETMScIkeGztWb0KwOR1O5dbc1zhR+Lpr/2BI+vS6hXO+pg/rWL+hNxA4lP9gCpNsYbugo9/OQ6lvdr/zhhZCejHFgxd1XrKhsV9eILlUBjK9MRTFwFBUDu41Qc+VcM+BftKxe32Q6CjIBZ06Q2YwrHSoOy1fB+E8h0raPEkff48gO/hQFEq6rjekpaFOSAWR4PEN39iB3JEAufLqBTKf1CoQKAFmPHU9lMWEgHAsSAI1nqhnruD5W3Ed2cyALHdksWOMYWwNrxdBfArE820u4jk4bFTJcm3DFR83BoAOTwjiOIw2Pbmb86wJkLFXL6D5hAHBNJ8qrxzXmwT9SbGEbOvbsPOLfUgdGa2BYCCr9qVH8A9RVlKyzPNCu5v4Dm/jOIgGvBjh+vstcd4wAHpP8CKYhfGmJz/DedYFdYBAKARsqw67nG2srqQjadtaDEkQKSOjKHdjWsflSABEFbMxiC+ms3rq+CUidHiIF8RjKLDYWoZypfuSB1VLl2yyfAWdCuAB3PctgLA+RMZeeYtkZ1VY+HCG+VRDVYcxWO05PS6UkATrfVj3Y3nkMspen6qZDlAP4gupjJ7+87tICPuI9/FhDhMQTxMv/asdz7jDirdNAjDuzLwAkdD3TZgOnwohBmFGYRCYJdVYNgyrPTePKYRhgPDlQaychpzw4V2IJMgJ1PNJzRAf8RPvIUN8U6pr8DQJwBwJs6QIsUgjAXs3tAGECyTLIJiJzWy72J5SgP8CTAcK4cAgUs+OoSxAKKayevr4JWRbGyTegyCePmBrPW4CXGzYFVxrDgB9FjNjypEAqzQ4h0gACJs6KASUnZHpy1C5HVhEm1YELGI9LKikLWuw68BmpP7tGkr/8V/Y9kgb8jy2hYU9fTFaWBYZY2GDZc8aB6ATGynqiGZhWgwzaCTACYXwxC4KAXKCAYGFM7V9UXsXUDFywlAEImEz0bN5ZO9tR5wgwOB14jnIM/AkQZAxEPJSMx64NARAVdVUMVs49/Ff3kd5eCxxPM+cyrTBxoBAc8Iu7AMIV37xFsrE04Szl29XhrAoCyqB6oScIA52c+B5pL4+hrPXYqS6ToB6uhjKzBPt/AcI5fKvy6ixhcBKJig1qb7oHod0Vo0rA5nJ1EBguIsIoh2yMnU/LZQC2+LQ9gjSYikyPnIVB4e7kd0rYgKPPvpYS47FUEbNI7G/C7xoercGSwm+A3T5MHY7kPrGVcR5RWTr8rM0QMUrJy/j3I2pP0mE/24qlcob936wbaMAkKZphYDbM6LE0/3aRHowNNxNeIBgCKmKoNYaENJk/K9jOLgFIPgkJqICoA8AVMKb9qUwymMALFt3AHNeiahnr2LeLyHssiHlxCjO3Yz/IT4++W0Qn3sw2dXWDQOgQyiKUsh61RE0rfdlJtKbwcPlSIAkAPZXMMCChULI3JVJ9JQBwQGvtInRSSMCBgAAeNvoQHtVehrHEB02iAQ+4CTa3z/E9AUoP5H4fTw6+R1oUID/hktTANhdZVQECKdxnGzQJlJDDIJkK0dC2S4W3Ri3bY3g7HQaRU9dQaFtMDXGE1hLzyORRgCdAkx3VTyFaLLAkPCwg2dvf4Wp9O/ityeOQG1T4ql1zQOgowCETIcygmOoVxtPbg1u6YF3fnM60AbVAsIBgoIgJyB4NUYFeKEQ+8J1U8BozwBQLmwlqBH1xPu4eCf1m+nbE9+DFvd+eqreZsVHqwOA3i4BSVlWzqB50quOpwBCF4F3/sp3AtOTtGmIRYKMpi9+hG2RAHJs6FwUAG1rrARVorw2ivOTc7+ejk7+AK7Cs291yuoBMOwpwVffMzhL1qnjyW3Boe4qhGpks5ahrT04E0uSefjqK/ZDBCzIAcZg7AVoTmHiC7Hkr+LR2A+hxnzUGI2a3K42AGpOKasAhHkUUaOJ7YHaSDAhQFhz8CFDuTWDNTlHIAdUc0Y57jGsHguzVDwN++Qr09HYj2Bslk2a1LygeysA0Bvo8NX3NEDo0G4nd7Dp4ILpUPEytICFTOIyewpgkT4FKusAqIOXoGJcNsL+burl6fHYM3TQVpRWAaC2EoiEszhH2pWPEzsDQ5AT3HQRZDiRLYSulBdC5lOA9qKej6eRcmoUF6fTR+FR9zy93KrSSgDUZgrhDZxDfvWjxG7/YBjZPCJ7czQBaAqsBMsRQN8XCtMpWOEx8S9B2L/QKuHmuK0GUIHA5bFHvjX72cBgmNi9xkowQSOAAoClMIYpkb+TJCosbwtx+afx8diLppGt3D8MAMx++HX4HJ9HLvnm3OcgEoixEpxANAKkLRGUn5gzPD8rvwjif9ZK0bVjPzQA9KYZRT3Pl3gn/DK0x7+5i6jROZxRC4jzOFi2L80pP4FH3c9rDWz18UMFwCDIypv0FwX4UWSPXiiR7JyGC9fu4MKM/AJ4/qVWC64f/6EDMCHYkSDm0rm9KFuAr72Z52aisWP1xn3izzseWfdM+4Y13//EC7UEWgQsAhYBi4BFwCJgEbAIWAQsAv9zBP4LgmiPnBWfejIAAAAASUVORK5CYII=" alt="">Pulse</div>
+    <nav class="nav" aria-label="Principal">
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Meu Espaço<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+      <a class="nav-item group-active" href="#" aria-expanded="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 5v11M12 5v6M18 5v14"/></svg>Comercial<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></a>
+      <div class="nav-sub">
+        <a href="#">Oportunidades</a>
+        <a href="#" class="active" aria-current="page">Empresas <span class="nav-tag">nova</span></a>
+        <a href="#">Contatos</a>
+        <a href="#">Métricas</a>
+      </div>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 11v5M12 11v3M16 11v4"/></svg>Projetos<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17V11M13 17V7M18 17v-4"/></svg>Análises<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3h-4a2 2 0 0 0 0 4h4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5"/></svg>Financeiro<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/></svg>Clientes</a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 3.1a4 4 0 0 1 0 7.8M22 21a7 7 0 0 0-4-6.3"/></svg>Pessoas<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Configurações<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>Ajuda</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="appheader">
+      <div class="page-title">
+        <h1>Empresas</h1>
+        <p>Base da Receita: filtre as médias e grandes empresas e abra oportunidade para as que valem a conversa</p>
+      </div>
+      <div class="head-tools">
+        <button class="hicon" type="button" aria-label="Notificações, mais de 9 novas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg><span class="hbadge">9+</span></button>
+        <button class="hicon" type="button" aria-label="Notas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4M2 6h4M2 10h4M2 14h4M2 18h4"/><path d="M21.4 5.6a2.1 2.1 0 1 0-3-3L13 8l-1 4 4-1z"/></svg></button>
+        <span class="avatar" aria-label="Victor Couto">VC</span>
+      </div>
+    </header>
+
+    <div class="content">
+    <div class="proto-note" id="proto-note" role="note">
+      <span><strong>Protótipo</strong> com amostra real de 70 empresas da base <span class="mono">cnpj</span>, lida em 15/11/2026. Nada aqui grava no Pulse.</span>
+      <button type="button" aria-label="Fechar aviso" id="close-note">×</button>
+    </div>
+
+    <div class="work" id="work" data-rail="open">
+
+      <section class="listcol" aria-label="Empresas encontradas">
+        <div class="toolbar">
+          <div class="tabs" role="tablist" aria-label="Classificação" id="tabs"></div>
+          <label class="search">
+            <span class="sr">Buscar empresa</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input class="input" id="busca" placeholder="Buscar por nome, CNPJ ou cidade" autocomplete="off">
+          </label>
+          <button class="btn ftoggle" type="button" id="toggle-rail" aria-expanded="true" aria-controls="rail">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M22 3H2l8 9.5V19l4 2v-8.5z"/></svg>
+            Filtros <span class="fcount" id="fcount" hidden></span>
+          </button>
+        </div>
+        <div class="summary" id="summary"></div>
+        <div class="tablebox">
+          <div class="tablescroll">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:36px"><input type="checkbox" id="sel-all" aria-label="Selecionar todas as visíveis" class="check-input"></th>
+                  <th><button type="button" data-sort="nome">Empresa <span aria-hidden="true" data-arrow="nome"></span></button></th>
+                  <th class="num"><button type="button" data-sort="fat" title="Funcionários da RAIS × receita média por funcionário do setor">Faturamento estimado <span aria-hidden="true" data-arrow="fat"></span></button></th>
+                  <th class="num"><button type="button" data-sort="func">Funcionários <span aria-hidden="true" data-arrow="func"></span></button></th>
+                  <th>Atividade</th>
+                  <th class="num"><button type="button" data-sort="idade">Idade <span aria-hidden="true" data-arrow="idade"></span></button></th>
+                  <th>Dívida ativa</th>
+                  <th><button type="button" data-sort="fit" title="Maior nota de fit entre as frentes, só com o que a Receita informa">Fit prévio <span aria-hidden="true" data-arrow="fit"></span></button></th>
+                  <th class="num">Classificar</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <div class="foot"><span id="foot-count"></span><span>Atalhos: <kbd>J</kbd> <kbd>K</kbd> navegar · <kbd>A</kbd> abordar · <kbd>N</kbd> não agora · <kbd>D</kbd> descartar · <kbd>Enter</kbd> abrir</span></div>
+        </div>
+      </section>
+
+      <aside class="rail" id="rail" aria-label="Filtros">
+        <div class="rail-head">
+          <span>Filtros</span>
+          <button class="btn btn-ghost btn-sm" type="button" id="limpar">Limpar</button>
+          <button class="btn btn-ghost btn-sm" type="button" id="salvar-filtro" title="Salvar filtro para o time">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>Salvar
+          </button>
+          <button class="iconbtn" type="button" id="recolher" aria-label="Recolher filtros" title="Recolher filtros">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 17 5-5-5-5M13 17l5-5-5-5"/></svg>
+          </button>
+        </div>
+
+        <div class="fgroup">
+          <h3>Atividade</h3>
+          <div class="chips" id="f-grupo"></div>
+          <div class="field">
+            <label for="f-cnae">CNAE ou descrição</label>
+            <input class="input" id="f-cnae" placeholder="Ex.: 2062 ou limpeza" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="fgroup">
+          <h3>Idade da empresa <small>desde a abertura</small></h3>
+          <div class="chips" id="f-idade"></div>
+        </div>
+
+        <div class="fgroup">
+          <h3>Faturamento estimado <small>por ano</small></h3>
+          <div class="chips" id="f-fat"></div>
+          <span class="hint">Estimativa pelos funcionários e pelo setor. A Receita não informa faturamento.</span>
+        </div>
+
+        <div class="fgroup">
+          <h3>Ramo da indústria</h3>
+          <div class="chips" id="f-ramo"></div>
+        </div>
+
+        <div class="fgroup">
+          <h3>Estado</h3>
+          <div class="chips" id="f-uf"></div>
+        </div>
+
+        <div class="fgroup">
+          <h3>Funcionários <small>RAIS 2025</small></h3>
+          <div class="chips" id="f-func"></div>
+        </div>
+
+        <div class="fgroup">
+          <div class="field">
+            <label for="f-capital">Capital social mínimo</label>
+            <select class="select" id="f-capital">
+              <option value="0">Qualquer</option>
+              <option value="100000">R$ 100 mil</option>
+              <option value="1000000">R$ 1 milhão</option>
+              <option value="10000000">R$ 10 milhões</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="fgroup">
+          <h3>Natureza jurídica</h3>
+          <div class="chips" id="f-nat"></div>
+        </div>
+
+        <div class="fgroup">
+          <h3>Dívida ativa <small>PGFN</small></h3>
+          <div class="field">
+            <label for="f-pgfn" class="sr">Dívida ativa</label>
+            <select class="select" id="f-pgfn">
+              <option value="todas">Qualquer situação</option>
+              <option value="sem">Sem dívida ativa</option>
+              <option value="sem_ajuizada">Sem dívida ajuizada</option>
+              <option value="com">Com dívida ativa</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="fgroup">
+          <h3>Contato público</h3>
+          <label class="check"><input type="checkbox" id="f-email"> Tem e-mail na Receita</label>
+          <label class="check"><input type="checkbox" id="f-tel"> Tem telefone na Receita</label>
+        </div>
+      </aside>
+    </div>
+    </div>
+    <footer class="appfooter"><span>© 2026 Origami Lab. Todos os direitos reservados.</span><nav aria-label="Legal"><a href="#">Termos de uso</a><a href="#">Privacidade</a><a href="#">Ajuda</a></nav></footer>
+  </main>
+</div>
+
+<div class="bulk" id="bulk" hidden>
+  <span class="bulk-count" id="bulk-count"></span>
+  <label class="sr" for="bulk-resp">Responsável</label>
+  <select class="select" id="bulk-resp"></select>
+  <button class="btn btn-ghost btn-sm" type="button" id="bulk-clear">Limpar seleção</button>
+  <button class="btn btn-primary" type="button" id="bulk-go">Abrir oportunidades</button>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dr-title" hidden></aside>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+const DATA = [{"cnpj":"63055537000179","razao_social":"ALUSIL PRODUTOS CERAMICOS LTDA","nome_fantasia":null,"cnae_principal":"2341900","cnae_principal_descricao":"Fabricação de produtos cerâmicos refratários","qtd_cnaes_sec":0,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":30000.0,"data_inicio_atividade":"1990-05-23","municipio":"SANTANA DE PARNAIBA","uf":"SP","bairro":"CHACARA DO SOLAR I (FAZENDINHA)","vinculos_ativos":50,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":1861.07,"divida_em_cobranca":1861.07,"divida_ajuizada":null,"qtd_inscricoes":1,"tem_email":true,"tem_telefone":true},{"cnpj":"26086569000105","razao_social":"VERY TECNOLOGIA S.A.","nome_fantasia":"VERY TECNOLOGIA","cnae_principal":"6203100","cnae_principal_descricao":"Desenvolvimento e licenciamento de programas de computador não-customizáveis","qtd_cnaes_sec":11,"natureza_juridica":"Sociedade Anônima Fechada","capital_social":5000000.0,"data_inicio_atividade":"2016-09-01","municipio":"BRASILIA","uf":"DF","bairro":"ASA NORTE","vinculos_ativos":85,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"62674627000185","razao_social":"SOBEL INDUSTRIA E COMERCIO DE PRODUTOS DE LIMPEZA LTDA","nome_fantasia":"PRODUTOS DE LIMPEZA SOBEL","cnae_principal":"2062200","cnae_principal_descricao":"Fabricação de produtos de limpeza e polimento","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":500000.0,"data_inicio_atividade":"1970-04-16","municipio":"SAO PAULO","uf":"SP","bairro":"JARDIM MODELO","vinculos_ativos":327,"unidades_ativas":3,"filiais_ativas":2,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":false,"tem_telefone":true},{"cnpj":"20165373000120","razao_social":"COSTA MATA ENTREPOSTO DE PESCADOS LTDA","nome_fantasia":"CM PESCADOS","cnae_principal":"1020102","cnae_principal_descricao":"Fabricação de conservas de peixes, crustáceos e moluscos","qtd_cnaes_sec":3,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":300000.0,"data_inicio_atividade":"2014-04-29","municipio":"MACAE","uf":"RJ","bairro":"PARQUE UNIAO","vinculos_ativos":53,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"65541211000187","razao_social":"ABATEDOURO BEIRA RIO LTDA","nome_fantasia":"BAFARI","cnae_principal":"1011201","cnae_principal_descricao":"Frigorífico - abate de bovinos","qtd_cnaes_sec":3,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":40000.0,"data_inicio_atividade":"1991-02-19","municipio":"SANTA CRUZ DO RIO PARDO","uf":"SP","bairro":"VILA DIVINEIA","vinculos_ativos":83,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":3,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"10259645000105","razao_social":"MULTIVAC DO BRASIL SISTEMAS PARA EMBALAGEM LTDA","nome_fantasia":null,"cnae_principal":"3321000","cnae_principal_descricao":"Instalação de máquinas e equipamentos industriais","qtd_cnaes_sec":13,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":53332166.0,"data_inicio_atividade":"2008-06-17","municipio":"CURITIBA","uf":"PR","bairro":"CIDADE INDUSTRIAL","vinculos_ativos":59,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"56481524000104","razao_social":"EQUILIBRIO FERTILIZANTES SAO PAULO LTDA","nome_fantasia":null,"cnae_principal":"2013402","cnae_principal_descricao":"Fabricação de adubos e fertilizantes, exceto organo-minerais","qtd_cnaes_sec":11,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":1150000.0,"data_inicio_atividade":"2024-08-12","municipio":"ITAPETININGA","uf":"SP","bairro":"PONTE ALTA","vinculos_ativos":49,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"03990431000130","razao_social":"FRIGORIFICO RAINHA DA PAZ LTDA. EM RECUPERACAO JUDICIAL","nome_fantasia":"RAINHA DA PAZ","cnae_principal":"1012103","cnae_principal_descricao":"Frigorífico - abate de suínos","qtd_cnaes_sec":19,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":1000000.0,"data_inicio_atividade":"2000-08-15","municipio":"IBIPORA","uf":"PR","bairro":"ZONA RURAL","vinculos_ativos":222,"unidades_ativas":22,"filiais_ativas":21,"qtd_socios":3,"divida_total":168373010.61,"divida_em_cobranca":168373010.61,"divida_ajuizada":84987649.68,"qtd_inscricoes":92,"tem_email":true,"tem_telefone":true},{"cnpj":"29324208000148","razao_social":"DEPOTRANS TANK CONTAINERS LTDA.","nome_fantasia":null,"cnae_principal":"3319800","cnae_principal_descricao":"Manutenção e reparação de equipamentos e produtos não especificados anteriormente","qtd_cnaes_sec":9,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":21000000.0,"data_inicio_atividade":"2017-12-27","municipio":"SANTOS","uf":"SP","bairro":"CHICO DE PAULA","vinculos_ativos":56,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"20022155000136","razao_social":"ALPHA FORMA COMERCIO E CONFECCOES DE ROUPAS INTIMAS LTDA","nome_fantasia":null,"cnae_principal":"1411801","cnae_principal_descricao":"Confecção de roupas íntimas","qtd_cnaes_sec":4,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":72400.0,"data_inicio_atividade":"2014-04-04","municipio":"AMERICANA","uf":"SP","bairro":"JARDIM PAULISTANO","vinculos_ativos":74,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":1,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"05459177000174","razao_social":"PAGRISA PARA PASTORIL E AGRICOLA S/A","nome_fantasia":"USINA PAGRISA","cnae_principal":"1931400","cnae_principal_descricao":"Fabricação de álcool","qtd_cnaes_sec":52,"natureza_juridica":"Sociedade Anônima Fechada","capital_social":188402616.2,"data_inicio_atividade":"1971-02-11","municipio":"ULIANOPOLIS","uf":"PA","bairro":"INTERIOR","vinculos_ativos":1632,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":3,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":false,"tem_telefone":false},{"cnpj":"22392423000137","razao_social":"AKILA CONSTRUCOES PRE-FABRICADAS LTDA","nome_fantasia":null,"cnae_principal":"2330301","cnae_principal_descricao":"Fabricação de estruturas pré-moldadas de concreto armado, em série e sob encomenda","qtd_cnaes_sec":21,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":100000.0,"data_inicio_atividade":"2015-05-06","municipio":"ELIAS FAUSTO","uf":"SP","bairro":"CENTRO (CARDEAL)","vinculos_ativos":84,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":1,"divida_total":9979084.51,"divida_em_cobranca":2813034.2,"divida_ajuizada":2813034.2,"qtd_inscricoes":87,"tem_email":true,"tem_telefone":true},{"cnpj":"31168247000145","razao_social":"USINA ESTIVAS LTDA","nome_fantasia":"ESTIVAS - RN","cnae_principal":"1071600","cnae_principal_descricao":"Fabricação de açúcar em bruto","qtd_cnaes_sec":5,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":221687707.0,"data_inicio_atividade":"2018-08-09","municipio":"GOIANINHA","uf":"RN","bairro":"ZONA RURAL","vinculos_ativos":1995,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":3,"divida_total":681780.24,"divida_em_cobranca":490063.74,"divida_ajuizada":null,"qtd_inscricoes":3,"tem_email":true,"tem_telefone":true},{"cnpj":"47500957000160","razao_social":"RESTAURA RIO DOCE - CONSORCIO DE EMPRESAS","nome_fantasia":"CONSORCIO RESTAURA RIO DOCE","cnae_principal":"7112000","cnae_principal_descricao":"Serviços de engenharia","qtd_cnaes_sec":7,"natureza_juridica":"Consórcio de Sociedades","capital_social":0.0,"data_inicio_atividade":"2022-08-10","municipio":"IPANEMA","uf":"MG","bairro":"RESIDENCIAL FRANCISCO DE ASSIS","vinculos_ativos":66,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":3,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"00814488000190","razao_social":"NORTEFERRO INDUSTRIA E COMERCIO DE FERRO LTDA","nome_fantasia":null,"cnae_principal":"2511000","cnae_principal_descricao":"Fabricação de estruturas metálicas","qtd_cnaes_sec":3,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":2450000.0,"data_inicio_atividade":"1995-09-20","municipio":"MANAUS","uf":"AM","bairro":"LAGO AZUL","vinculos_ativos":82,"unidades_ativas":3,"filiais_ativas":2,"qtd_socios":1,"divida_total":940515.59,"divida_em_cobranca":null,"divida_ajuizada":940515.59,"qtd_inscricoes":2,"tem_email":true,"tem_telefone":true},{"cnpj":"64286503000158","razao_social":"MANSER MANUTENCAO, SERVICOS E ENGENHARIA S.A.","nome_fantasia":null,"cnae_principal":"3313901","cnae_principal_descricao":"Manutenção e reparação de geradores, transformadores e motores elétricos","qtd_cnaes_sec":8,"natureza_juridica":"Sociedade Anônima Fechada","capital_social":7300000.0,"data_inicio_atividade":"1990-09-25","municipio":"CONTAGEM","uf":"MG","bairro":"CINCO","vinculos_ativos":171,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":false,"tem_telefone":false},{"cnpj":"00029865000180","razao_social":"CAPODIFOGLIO & CIA LTDA","nome_fantasia":null,"cnae_principal":"1051100","cnae_principal_descricao":"Preparação do leite","qtd_cnaes_sec":7,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":150000.0,"data_inicio_atividade":"1994-08-09","municipio":"SANTA CRUZ DA CONCEICAO","uf":"SP","bairro":"PARAISO","vinculos_ativos":72,"unidades_ativas":3,"filiais_ativas":2,"qtd_socios":7,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"02964051000169","razao_social":"COOPERATIVA DOS PRODUTORES DE CARNE E DERIVADOS DE GURUPI","nome_fantasia":"COOPERFRIGU","cnae_principal":"1011201","cnae_principal_descricao":"Frigorífico - abate de bovinos","qtd_cnaes_sec":2,"natureza_juridica":"Cooperativa","capital_social":0.0,"data_inicio_atividade":"1999-02-03","municipio":"GURUPI","uf":"TO","bairro":"CIDADE INDUSTRIAL","vinculos_ativos":672,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":3,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":false,"tem_telefone":true},{"cnpj":"71917181000163","razao_social":"NSK BRASIL LTDA","nome_fantasia":null,"cnae_principal":"2815101","cnae_principal_descricao":"Fabricação de rolamentos para fins industriais","qtd_cnaes_sec":16,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":1800001.0,"data_inicio_atividade":"1972-02-10","municipio":"SUZANO","uf":"SP","bairro":"VILA MALUF","vinculos_ativos":540,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":5,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"04031245000137","razao_social":"ROTOLINE EQUIPAMENTOS INDUSTRIAIS LTDA","nome_fantasia":"ROTOLINE","cnae_principal":"2840200","cnae_principal_descricao":"Fabricação de máquinas-ferramenta, peças e acessórios","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":600000.0,"data_inicio_atividade":"2000-09-04","municipio":"CHAPECO","uf":"SC","bairro":"SEMINARIO","vinculos_ativos":92,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":false,"tem_telefone":true},{"cnpj":"61387411000176","razao_social":"BUTUEM INDUSTRIA AUTO PECAS LTDA","nome_fantasia":null,"cnae_principal":"2944100","cnae_principal_descricao":"Fabricação de peças e acessórios para o sistema de direção e suspensão de veículos automotores","qtd_cnaes_sec":0,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":1200000.0,"data_inicio_atividade":"1966-07-27","municipio":"SAO PAULO","uf":"SP","bairro":"SANTANA","vinculos_ativos":26,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":5,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":false,"tem_telefone":false},{"cnpj":"43244052000116","razao_social":"GRAFICA ADONIS LTDA","nome_fantasia":null,"cnae_principal":"1732000","cnae_principal_descricao":"Fabricação de embalagens de cartolina e papel-cartão","qtd_cnaes_sec":8,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":1162000.0,"data_inicio_atividade":"1987-06-09","municipio":"AMERICANA","uf":"SP","bairro":"DIST INDAL PREF ABDO","vinculos_ativos":43,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":6,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":false,"tem_telefone":false},{"cnpj":"08740765000170","razao_social":"DUPLAS - INDUSTRIA DE PECAS PLASTICAS LTDA","nome_fantasia":"DUPLAS-INDUSTRIA DE PECAS PLASTICAS","cnae_principal":"3291400","cnae_principal_descricao":"Fabricação de escovas, pincéis e vassouras","qtd_cnaes_sec":4,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":105000.0,"data_inicio_atividade":"2007-03-06","municipio":"PIRACICABA","uf":"SP","bairro":"JARDIM SAO JORGE","vinculos_ativos":197,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":1,"divida_total":84098.53,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":2,"tem_email":true,"tem_telefone":true},{"cnpj":"37930848000120","razao_social":"GIRASSOLL INDUSTRIA E COMERCIO DE ARTIGOS DO VESTUARIO LTDA","nome_fantasia":null,"cnae_principal":"1412601","cnae_principal_descricao":"Confecção de peças de vestuário, exceto roupas íntimas e as confeccionadas sob medida","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":100000.0,"data_inicio_atividade":"2020-07-31","municipio":"RECIFE","uf":"PE","bairro":"AFOGADOS","vinculos_ativos":33,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":1,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":false,"tem_telefone":true},{"cnpj":"04706416000180","razao_social":"TINTAS HIDRACOR S/A","nome_fantasia":null,"cnae_principal":"2071100","cnae_principal_descricao":"Fabricação de tintas, vernizes, esmaltes e lacas","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Anônima Fechada","capital_social":18993814.22,"data_inicio_atividade":"2001-02-28","municipio":"MARACANAU","uf":"CE","bairro":"DISTRITO INDUSTRIAL I","vinculos_ativos":317,"unidades_ativas":3,"filiais_ativas":2,"qtd_socios":6,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"54947908000136","razao_social":"DEGANI VADUZ INDUSTRIA QUIMICA LTDA","nome_fantasia":"DEGANI QUIMICA","cnae_principal":"2099199","cnae_principal_descricao":"Fabricação de outros produtos químicos não especificados anteriormente","qtd_cnaes_sec":7,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":200000.0,"data_inicio_atividade":"1985-09-27","municipio":"GUARULHOS","uf":"SP","bairro":"CIDADE INDUSTRIAL SATELITE DE SAO PAULO","vinculos_ativos":28,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":1,"divida_total":12515060.83,"divida_em_cobranca":4117799.6,"divida_ajuizada":9608627.36,"qtd_inscricoes":74,"tem_email":true,"tem_telefone":true},{"cnpj":"03196632000160","razao_social":"ITAL PRODUTOS INDUSTRIAIS LTDA..","nome_fantasia":"ITAL PRODUTOS","cnae_principal":"2790299","cnae_principal_descricao":"Fabricação de outros equipamentos e aparelhos elétricos não especificados anteriormente","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":7000000.0,"data_inicio_atividade":"1999-05-31","municipio":"COTIA","uf":"SP","bairro":"PARQUE INDUSTRIAL SAN JOSE","vinculos_ativos":53,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":1240.71,"divida_em_cobranca":1240.71,"divida_ajuizada":null,"qtd_inscricoes":1,"tem_email":true,"tem_telefone":true},{"cnpj":"02748357000188","razao_social":"INDUSTRIA CEARENSE DE COLCHOES E ESPUMAS LTDA","nome_fantasia":null,"cnae_principal":"3104700","cnae_principal_descricao":"Fabricação de colchões","qtd_cnaes_sec":12,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":5956554.0,"data_inicio_atividade":"1998-09-18","municipio":"MARACANAU","uf":"CE","bairro":"DISTRITO INDUSTRIAL I","vinculos_ativos":432,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":5,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"28328465000195","razao_social":"CROMAI TECNOLOGIAS AGRICOLAS S.A.","nome_fantasia":"CROMAI","cnae_principal":"6203100","cnae_principal_descricao":"Desenvolvimento e licenciamento de programas de computador não-customizáveis","qtd_cnaes_sec":8,"natureza_juridica":"Sociedade Anônima Fechada","capital_social":7344862.03,"data_inicio_atividade":"2017-08-02","municipio":"PIRACICABA","uf":"SP","bairro":"LOTEAMENTO SANTA ROSA","vinculos_ativos":28,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":8,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"08850962000141","razao_social":"INSTITUTO D'OR DE GESTAO DE SAUDE PUBLICA","nome_fantasia":"INSTITUTO D'OR","cnae_principal":"7210000","cnae_principal_descricao":"Pesquisa e desenvolvimento experimental em ciências físicas e naturais","qtd_cnaes_sec":3,"natureza_juridica":"Associação Privada","capital_social":0.0,"data_inicio_atividade":"2007-05-14","municipio":"RIO DE JANEIRO","uf":"RJ","bairro":"BOTAFOGO","vinculos_ativos":824,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"04195364000125","razao_social":"VIALAT INDUSTRIA & COMERCIO LTDA","nome_fantasia":"VIALAT","cnae_principal":"1051100","cnae_principal_descricao":"Preparação do leite","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":1815000.0,"data_inicio_atividade":"2000-12-15","municipio":"IGUATAMA","uf":"MG","bairro":"CENTRO","vinculos_ativos":41,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":3,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"39657225000150","razao_social":"PUMP AMERICA INDUSTRIA DE VALVULAS LTDA","nome_fantasia":null,"cnae_principal":"2229301","cnae_principal_descricao":"Fabricação de artefatos de material plástico para uso pessoal e doméstico","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":7000000.0,"data_inicio_atividade":"2020-11-03","municipio":"LINHARES","uf":"ES","bairro":"CANIVETE","vinculos_ativos":115,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":5,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"05462968000153","razao_social":"PEQUI ALIMENTOS LTDA","nome_fantasia":"PEQUI ALIMENTOS","cnae_principal":"1069400","cnae_principal_descricao":"Moagem e fabricação de produtos de origem vegetal não especificados anteriormente","qtd_cnaes_sec":16,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":1002000.0,"data_inicio_atividade":"2003-01-07","municipio":"VARZEA GRANDE","uf":"MT","bairro":"PRIMAVERA","vinculos_ativos":36,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":4,"divida_total":3876.58,"divida_em_cobranca":3876.58,"divida_ajuizada":null,"qtd_inscricoes":2,"tem_email":true,"tem_telefone":true},{"cnpj":"02034743000108","razao_social":"BULK MOLDING COMPOUNDS DO BRASIL INDUSTRIA DE PLASTICOS REFORCADOS LTDA","nome_fantasia":"BMC DO BRASIL","cnae_principal":"2229302","cnae_principal_descricao":"Fabricação de artefatos de material plástico para usos industriais","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":74449333.0,"data_inicio_atividade":"1997-08-11","municipio":"RIO CLARO","uf":"SP","bairro":"DISTRITO INDUSTRIAL","vinculos_ativos":102,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":3,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"92660893000110","razao_social":"SULINA DE METAIS SA EM RECUPERACAO JUDICIAL","nome_fantasia":null,"cnae_principal":"2449199","cnae_principal_descricao":"Metalurgia de outros metais não-ferrosos e suas ligas não especificados anteriormente","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Anônima Fechada","capital_social":38000000.0,"data_inicio_atividade":"1966-08-03","municipio":"CACHOEIRINHA","uf":"RS","bairro":"LOTEAMENTO INDUSTRIAL RITTER","vinculos_ativos":140,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":1,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"62062080000167","razao_social":"ARTIS MATRIZ INDUSTRIA DE PLASTICOS LTDA","nome_fantasia":"ARTIS MATRIZ INJECAO DE PLASTICOS","cnae_principal":"2229301","cnae_principal_descricao":"Fabricação de artefatos de material plástico para uso pessoal e doméstico","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":26000000.0,"data_inicio_atividade":"2025-08-04","municipio":"CAMPO LARGO","uf":"PR","bairro":"OURO VERDE","vinculos_ativos":69,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":4,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"05701847000117","razao_social":"MOMENTIVE PERFORMANCE MATERIALS INDUSTRIA DE SILICONES LTDA","nome_fantasia":null,"cnae_principal":"2093200","cnae_principal_descricao":"Fabricação de aditivos de uso industrial","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":38387586.0,"data_inicio_atividade":"2003-04-11","municipio":"ITATIBA","uf":"SP","bairro":"DO PINHAL","vinculos_ativos":117,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":4,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"07003173000102","razao_social":"ACTIVE SUPORTE E CONSULTORIA EM TECNOLOGIA DA INFORMACAO LTDA","nome_fantasia":"ACTIVE TECNOLOGIA","cnae_principal":"6209100","cnae_principal_descricao":"Suporte técnico, manutenção e outros serviços em tecnologia da informação","qtd_cnaes_sec":6,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":5000.0,"data_inicio_atividade":"2004-09-01","municipio":"SAO VICENTE","uf":"SP","bairro":"CENTRO","vinculos_ativos":112,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":3,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"03135372000113","razao_social":"AMBIENTAL PAULISTA PROJETOS E OBRAS LTDA","nome_fantasia":null,"cnae_principal":"2330399","cnae_principal_descricao":"Fabricação de outros artefatos e produtos de concreto, cimento, fibrocimento, gesso e materiais semelhantes","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":500000.0,"data_inicio_atividade":"1999-04-28","municipio":"PIRACICABA","uf":"SP","bairro":"NOVA POMPEIA","vinculos_ativos":25,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":2,"divida_total":2207604.66,"divida_em_cobranca":null,"divida_ajuizada":1298541.31,"qtd_inscricoes":3,"tem_email":true,"tem_telefone":true},{"cnpj":"08219041000185","razao_social":"CANDEIAS MELO INDUSTRIA E COMERCIO DE PRODUTOS ALIMENTICIOS LTDA","nome_fantasia":"OK ALIMENTOS","cnae_principal":"1099699","cnae_principal_descricao":"Fabricação de outros produtos alimentícios não especificados anteriormente","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":3910000.0,"data_inicio_atividade":"2006-08-14","municipio":"SALVADOR","uf":"BA","bairro":"NOVA BRASILIA DE VALERIA","vinculos_ativos":304,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":11,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"43204189000147","razao_social":"SORVETES SUPLES INDUSTRIA E COMERCIO LTDA","nome_fantasia":"SORVETES KASCAO","cnae_principal":"1053800","cnae_principal_descricao":"Fabricação de sorvetes e outros gelados comestíveis","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":7251982.0,"data_inicio_atividade":"1980-03-26","municipio":"SAO VICENTE","uf":"SP","bairro":"CATIAPOAN","vinculos_ativos":160,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":6,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"32350746000111","razao_social":"COOPERATIVA MISTA DE VALENCA DE RESPONSABILIDADE LTDA","nome_fantasia":null,"cnae_principal":"1052000","cnae_principal_descricao":"Fabricação de laticínios","qtd_cnaes_sec":0,"natureza_juridica":"Cooperativa","capital_social":0.0,"data_inicio_atividade":"1972-05-22","municipio":"VALENCA","uf":"RJ","bairro":"CANTEIRO","vinculos_ativos":84,"unidades_ativas":3,"filiais_ativas":2,"qtd_socios":2,"divida_total":748860.75,"divida_em_cobranca":null,"divida_ajuizada":659163.54,"qtd_inscricoes":12,"tem_email":true,"tem_telefone":true},{"cnpj":"15246339000140","razao_social":"PLASTPAVI DO BRASIL INDUSTRIA DE EMBALAGENS LTDA","nome_fantasia":"PLASTPAVI DO BRASIL","cnae_principal":"2222600","cnae_principal_descricao":"Fabricação de embalagens de material plástico","qtd_cnaes_sec":0,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":120000.0,"data_inicio_atividade":"2012-03-22","municipio":"PARANAVAI","uf":"PR","bairro":"JARDIM SANTOS DUMONT","vinculos_ativos":35,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":6,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"45968162000156","razao_social":"SALTO BOTELHO AGROENERGIA S.A.","nome_fantasia":null,"cnae_principal":"1071600","cnae_principal_descricao":"Fabricação de açúcar em bruto","qtd_cnaes_sec":9,"natureza_juridica":"Sociedade Anônima Fechada","capital_social":404179543.14,"data_inicio_atividade":"2022-04-08","municipio":"LUCELIA","uf":"SP","bairro":"COLONIA PAULISTA","vinculos_ativos":752,"unidades_ativas":13,"filiais_ativas":12,"qtd_socios":13,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"08927702000127","razao_social":"MG PASTORE INDUSTRIA E COMERCIO DE COMPOSTOS DE PVC SOCIEDADE UNIPESSOAL LIMITADA","nome_fantasia":null,"cnae_principal":"2229302","cnae_principal_descricao":"Fabricação de artefatos de material plástico para usos industriais","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":689000.0,"data_inicio_atividade":"2007-06-11","municipio":"BARUERI","uf":"SP","bairro":"JARDIM CALIFORNIA","vinculos_ativos":66,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":1,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"61135414000112","razao_social":"PRODEC PROTECAO E DECORACAO DE METAIS LTDA","nome_fantasia":null,"cnae_principal":"2539001","cnae_principal_descricao":"Serviços de usinagem, tornearia e solda","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":3000000.0,"data_inicio_atividade":"1966-08-01","municipio":"JANDIRA","uf":"SP","bairro":"JARDIM ALVORADA","vinculos_ativos":249,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":4,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":false,"tem_telefone":true},{"cnpj":"03449706000123","razao_social":"ABATEDOURO BELMONTE LTDA","nome_fantasia":null,"cnae_principal":"1011201","cnae_principal_descricao":"Frigorífico - abate de bovinos","qtd_cnaes_sec":4,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":60000.0,"data_inicio_atividade":"1999-10-08","municipio":"NOVA BRESCIA","uf":"RS","bairro":"INTERIOR","vinculos_ativos":111,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":273265.85,"divida_em_cobranca":null,"divida_ajuizada":273265.85,"qtd_inscricoes":2,"tem_email":false,"tem_telefone":false},{"cnpj":"00530341000179","razao_social":"CONECTAA DESENVOLVIMENTO DE SISTEMAS LTDA","nome_fantasia":"CONECTAA SISTEMAS","cnae_principal":"6201501","cnae_principal_descricao":"Desenvolvimento de programas de computador sob encomenda","qtd_cnaes_sec":9,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":7830430.0,"data_inicio_atividade":"1995-04-05","municipio":"FLORIANOPOLIS","uf":"SC","bairro":"CENTRO","vinculos_ativos":22,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"37629263000174","razao_social":"PAPER+CUP INDUSTRIA E COMERCIO DE COPOS E EMBALAGENS LTDA","nome_fantasia":null,"cnae_principal":"1749400","cnae_principal_descricao":"Fabricação de produtos de pastas celulósicas, papel, cartolina, papel-cartão e papelão ondulado não especificados anteriormente","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":4000000.0,"data_inicio_atividade":"2020-07-06","municipio":"ITAPEVI","uf":"SP","bairro":"ESTANCIA SAO FRANCISCO","vinculos_ativos":24,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":3,"divida_total":2837533.79,"divida_em_cobranca":null,"divida_ajuizada":2818997.6,"qtd_inscricoes":87,"tem_email":true,"tem_telefone":true},{"cnpj":"14084715000184","razao_social":"RITZ FERRAMENTAS LTDA.","nome_fantasia":"RITZ FERRAMENTAS E EQUIPAMENTOS","cnae_principal":"2790299","cnae_principal_descricao":"Fabricação de outros equipamentos e aparelhos elétricos não especificados anteriormente","qtd_cnaes_sec":14,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":7122068.21,"data_inicio_atividade":"2011-08-04","municipio":"BETIM","uf":"MG","bairro":"JARDIM TERESOPOLIS","vinculos_ativos":293,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":5,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"57573412000138","razao_social":"JJR MASSETTO MADEIRAS LTDA","nome_fantasia":"SERRARIA JJR","cnae_principal":"1610203","cnae_principal_descricao":"Serrarias com desdobramento de madeira em bruto","qtd_cnaes_sec":8,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":1000000.0,"data_inicio_atividade":"1987-06-24","municipio":"ITAPUI","uf":"SP","bairro":"DISTRITO INDUSTRIAL","vinculos_ativos":38,"unidades_ativas":5,"filiais_ativas":4,"qtd_socios":3,"divida_total":793776.84,"divida_em_cobranca":793776.84,"divida_ajuizada":null,"qtd_inscricoes":15,"tem_email":true,"tem_telefone":true},{"cnpj":"55720908000161","razao_social":"SOLENIS ESPECIALIDADES QUIMICAS LTDA.","nome_fantasia":null,"cnae_principal":"2093200","cnae_principal_descricao":"Fabricação de aditivos de uso industrial","qtd_cnaes_sec":20,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":233709778.0,"data_inicio_atividade":"1986-05-08","municipio":"SAO PAULO","uf":"SP","bairro":"AGUA BRANCA","vinculos_ativos":113,"unidades_ativas":7,"filiais_ativas":6,"qtd_socios":4,"divida_total":21561618.5,"divida_em_cobranca":2107749.84,"divida_ajuizada":19453868.66,"qtd_inscricoes":9,"tem_email":true,"tem_telefone":true},{"cnpj":"89423040000150","razao_social":"CERCENA S/A - INDUSTRIA METALURGICA","nome_fantasia":null,"cnae_principal":"2451200","cnae_principal_descricao":"Fundição de ferro e aço","qtd_cnaes_sec":12,"natureza_juridica":"Sociedade Anônima Fechada","capital_social":12000000.0,"data_inicio_atividade":"1972-05-15","municipio":"ERECHIM","uf":"RS","bairro":"INDUSTRIAL","vinculos_ativos":376,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":5,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"26326713000133","razao_social":"C.C. FREITAS CONCRETO LTDA","nome_fantasia":"CONCRETO FREITAS","cnae_principal":"2330305","cnae_principal_descricao":"Preparação de massa de concreto e argamassa para construção","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":110000.0,"data_inicio_atividade":"2016-10-10","municipio":"JOAQUIM TAVORA","uf":"PR","bairro":"JOAQUIM TAVORA","vinculos_ativos":29,"unidades_ativas":3,"filiais_ativas":2,"qtd_socios":1,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"21706674000186","razao_social":"LZA ENGENHARIA E GERENCIAMENTO LTDA.","nome_fantasia":null,"cnae_principal":"7112000","cnae_principal_descricao":"Serviços de engenharia","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":1500000.0,"data_inicio_atividade":"2015-01-20","municipio":"SAO PAULO","uf":"SP","bairro":"CIDADE MONCOES","vinculos_ativos":65,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":16,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"04834285000117","razao_social":"BIG SAFRA S/A","nome_fantasia":null,"cnae_principal":"1069400","cnae_principal_descricao":"Moagem e fabricação de produtos de origem vegetal não especificados anteriormente","qtd_cnaes_sec":7,"natureza_juridica":"Sociedade Anônima Fechada","capital_social":1500000.0,"data_inicio_atividade":"2001-12-18","municipio":"RIO NEGRO","uf":"PR","bairro":"TIJUCO PRETO","vinculos_ativos":352,"unidades_ativas":31,"filiais_ativas":30,"qtd_socios":5,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"66049685000179","razao_social":"LNR CONECTORES LTDA","nome_fantasia":"LNR CONECTORES","cnae_principal":"2599399","cnae_principal_descricao":"Fabricação de outros produtos de metal não especificados anteriormente","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":200000.0,"data_inicio_atividade":"1991-06-05","municipio":"ATIBAIA","uf":"SP","bairro":"RIBEIRAO DOS PORCOS","vinculos_ativos":85,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"01983946000188","razao_social":"ROCHA & LEITE LTDA","nome_fantasia":"PREMOLDADOS ROCHA","cnae_principal":"2330302","cnae_principal_descricao":"Fabricação de artefatos de cimento para uso na construção","qtd_cnaes_sec":8,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":2100000.0,"data_inicio_atividade":"1997-07-18","municipio":"BRUMADO","uf":"BA","bairro":"SAO JORGE - SEDE","vinculos_ativos":94,"unidades_ativas":4,"filiais_ativas":3,"qtd_socios":2,"divida_total":5372932.83,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":15,"tem_email":true,"tem_telefone":true},{"cnpj":"07663140000199","razao_social":"COTEMINAS S.A.  EM RECUPERACAO JUDICIAL","nome_fantasia":"COTEMINAS","cnae_principal":"1351100","cnae_principal_descricao":"Fabricação de artefatos têxteis para uso doméstico","qtd_cnaes_sec":8,"natureza_juridica":"Sociedade Anônima Fechada","capital_social":1536318188.51,"data_inicio_atividade":"2005-11-03","municipio":"MONTES CLAROS","uf":"MG","bairro":"DISTRITO INDUSTRIAL","vinculos_ativos":1045,"unidades_ativas":21,"filiais_ativas":20,"qtd_socios":1,"divida_total":394694749.01,"divida_em_cobranca":29873768.88,"divida_ajuizada":314068998.48,"qtd_inscricoes":418,"tem_email":true,"tem_telefone":true},{"cnpj":"67846790000100","razao_social":"HOBER ARTEFATOS PLASTICOS LTDA","nome_fantasia":null,"cnae_principal":"2229399","cnae_principal_descricao":"Fabricação de artefatos de material plástico para outros usos não especificados anteriormente","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":2000000.0,"data_inicio_atividade":"1992-06-15","municipio":"JUNDIAI","uf":"SP","bairro":"DO POSTE","vinculos_ativos":134,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"16442872000140","razao_social":"ALPERE METALURGICA E SERVICOS LTDA","nome_fantasia":"ALPERE METALURGICA E SERVICOS","cnae_principal":"3321000","cnae_principal_descricao":"Instalação de máquinas e equipamentos industriais","qtd_cnaes_sec":15,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":300000.0,"data_inicio_atividade":"2012-07-12","municipio":"CAMACARI","uf":"BA","bairro":"POLO DE APOIO","vinculos_ativos":137,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":2330570.54,"divida_em_cobranca":null,"divida_ajuizada":2224242.36,"qtd_inscricoes":2,"tem_email":true,"tem_telefone":true},{"cnpj":"65723538000170","razao_social":"STAMPART PECAS TECNICAS FLEXIVEIS LTDA","nome_fantasia":null,"cnae_principal":"2229399","cnae_principal_descricao":"Fabricação de artefatos de material plástico para outros usos não especificados anteriormente","qtd_cnaes_sec":3,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":100000.0,"data_inicio_atividade":"1991-04-08","municipio":"SAO PAULO","uf":"SP","bairro":"BELENZINHO","vinculos_ativos":33,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":1,"divida_total":1240.71,"divida_em_cobranca":1240.71,"divida_ajuizada":null,"qtd_inscricoes":1,"tem_email":true,"tem_telefone":true},{"cnpj":"50086453001637","razao_social":"EAGLEBURGMANN DO BRASIL VEDACOES INDUSTRIAIS LTDA","nome_fantasia":null,"cnae_principal":"2829199","cnae_principal_descricao":"Fabricação de outras máquinas e equipamentos de uso geral não especificados anteriormente, peças e acessórios","qtd_cnaes_sec":6,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":24721053.0,"data_inicio_atividade":"2022-04-29","municipio":"VALINHOS","uf":"SP","bairro":"MACUCO","vinculos_ativos":129,"unidades_ativas":7,"filiais_ativas":6,"qtd_socios":3,"divida_total":309026.26,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":4,"tem_email":true,"tem_telefone":true},{"cnpj":"00999042000188","razao_social":"QUAKER CHEMICAL INDUSTRIA E COMERCIO LTDA","nome_fantasia":null,"cnae_principal":"2099199","cnae_principal_descricao":"Fabricação de outros produtos químicos não especificados anteriormente","qtd_cnaes_sec":2,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":32673676.0,"data_inicio_atividade":"1996-01-03","municipio":"RIO DE JANEIRO","uf":"RJ","bairro":"CAMPO GRANDE","vinculos_ativos":192,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":4,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"06224036000135","razao_social":"FLADIMER IND. E COM. DE CONFECCOES LTDA.","nome_fantasia":"FLABOM TEXTIL","cnae_principal":"1351100","cnae_principal_descricao":"Fabricação de artefatos têxteis para uso doméstico","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":260000.0,"data_inicio_atividade":"2004-04-27","municipio":"CASCAVEL","uf":"PR","bairro":"PARQUE MORUMBI","vinculos_ativos":38,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":3,"divida_total":61858.85,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":10,"tem_email":false,"tem_telefone":true},{"cnpj":"02530351000130","razao_social":"MOVEIS RELLER LTDA","nome_fantasia":"RELLER MOVEIS","cnae_principal":"3101200","cnae_principal_descricao":"Fabricação de móveis com predominância de madeira","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":120000.0,"data_inicio_atividade":"1998-05-06","municipio":"ITAPUI","uf":"SP","bairro":"DISTRITO INDUSTRIAL","vinculos_ativos":180,"unidades_ativas":2,"filiais_ativas":1,"qtd_socios":1,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"54603238000130","razao_social":"BENEFICIADORA J A CARRERA IMPORTACAO E EXPORTACAO LTDA","nome_fantasia":null,"cnae_principal":"1061901","cnae_principal_descricao":"Beneficiamento de arroz","qtd_cnaes_sec":1,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":120000.0,"data_inicio_atividade":"1985-07-19","municipio":"LEME","uf":"SP","bairro":"VL EROISE","vinculos_ativos":20,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":3,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"09285874000107","razao_social":"ASB BEBIDAS E ALIMENTOS LTDA","nome_fantasia":"ASB BEBIDAS E ALIMENTOS LTDA","cnae_principal":"1121600","cnae_principal_descricao":"Fabricação de águas envasadas","qtd_cnaes_sec":0,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":243127843.0,"data_inicio_atividade":"2007-12-21","municipio":"AGUAS DE SANTA BARBARA","uf":"SP","bairro":"CENTRO","vinculos_ativos":135,"unidades_ativas":5,"filiais_ativas":4,"qtd_socios":5,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"44797975000168","razao_social":"BRUNER INDUSTRIA E COMERCIO LTDA","nome_fantasia":null,"cnae_principal":"3211602","cnae_principal_descricao":"Fabricação de artefatos de joalheria e ourivesaria","qtd_cnaes_sec":3,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":1208000.0,"data_inicio_atividade":"1980-10-15","municipio":"PIRASSUNUNGA","uf":"SP","bairro":"CENTRO","vinculos_ativos":75,"unidades_ativas":3,"filiais_ativas":2,"qtd_socios":2,"divida_total":null,"divida_em_cobranca":null,"divida_ajuizada":null,"qtd_inscricoes":null,"tem_email":true,"tem_telefone":true},{"cnpj":"60696978000161","razao_social":"LAMINACAO DE METAIS CLEMENTE LTDA","nome_fantasia":null,"cnae_principal":"2441502","cnae_principal_descricao":"Produção de laminados de alumínio","qtd_cnaes_sec":0,"natureza_juridica":"Sociedade Empresária Limitada","capital_social":4180000.0,"data_inicio_atividade":"1966-09-15","municipio":"JANDIRA","uf":"SP","bairro":"JARDIM ALVORADA","vinculos_ativos":38,"unidades_ativas":1,"filiais_ativas":0,"qtd_socios":2,"divida_total":532356.75,"divida_em_cobranca":532356.75,"divida_ajuizada":527956.16,"qtd_inscricoes":8,"tem_email":true,"tem_telefone":true}];
+
+const RESPONSAVEIS = ['Victor Couto', 'Guilherme Valadares Pereira', 'Karina Assalin Candido da Silva', 'Pedro Marinho Teixeira Oliveira', 'Rafael Bruno Andrade', 'Mariana Almeida Mendonça'];
+const EU = 'Victor Couto';
+const ALAVANCAS = ['Outbound', 'ABM', 'Rede Origami', 'Indicação de Parceiros', 'Feira', 'Sindicato'];
+const MOTIVOS_DESCARTE = ['Sem fit', 'Já é cliente ou parceiro', 'Concorrente', 'Dados inválidos', 'Outro motivo'];
+const HOJE = new Date('2026-11-15T00:00:00');
+
+const DIVISOES = { '05':'Carvão mineral','06':'Petróleo e gás','07':'Mineração (metálicos)','08':'Mineração (não metálicos)','09':'Apoio à extração mineral','10':'Alimentos','11':'Bebidas','12':'Fumo','13':'Têxtil','14':'Vestuário','15':'Couro e calçados','16':'Madeira','17':'Papel e celulose','18':'Gráfica','19':'Derivados de petróleo','20':'Química','21':'Farmacêutica','22':'Borracha e plástico','23':'Minerais não metálicos','24':'Metalurgia','25':'Produtos de metal','26':'Eletrônicos e informática','27':'Máquinas e materiais elétricos','28':'Máquinas e equipamentos','29':'Automotiva','30':'Outros equipamentos de transporte','31':'Móveis','32':'Produtos diversos','33':'Manutenção e instalação de máquinas' };
+
+/* Totais medidos na base inteira em 15/11/2026 (matrizes ativas). */
+const TOTAIS = { base: 3174425, transformacao: 57378, extrativa: 5098, tecnologia: 27289, industriaRais50: 9474 };
+
+const GRUPOS = [
+  { id: 'transformacao', rotulo: 'Indústria de transformação', test: (d) => d >= '10' && d <= '33' },
+  { id: 'extrativa', rotulo: 'Extrativa', test: (d) => d >= '05' && d <= '09' },
+  { id: 'tecnologia', rotulo: 'Tecnologia', test: (d) => d === '62' || d === '63' },
+  { id: 'engenharia', rotulo: 'Engenharia e P&D', test: (d) => d === '71' || d === '72' },
+];
+const FAIXAS = [
+  { id: 'f20', rotulo: '20 a 49', min: 20, max: 49 },
+  { id: 'f50', rotulo: '50 a 99', min: 50, max: 99 },
+  { id: 'f100', rotulo: '100 a 249', min: 100, max: 249 },
+  { id: 'f250', rotulo: '250 a 499', min: 250, max: 499 },
+  { id: 'f500', rotulo: '500 ou mais', min: 500, max: Infinity },
+];
+const IDADES = [
+  { id: 'i0', rotulo: 'Até 3 anos', min: 0, max: 3 },
+  { id: 'i3', rotulo: '3 a 10', min: 3, max: 10 },
+  { id: 'i10', rotulo: '10 a 20', min: 10, max: 20 },
+  { id: 'i20', rotulo: '20 a 40', min: 20, max: 40 },
+  { id: 'i40', rotulo: 'Mais de 40', min: 40, max: Infinity },
+];
+/* Faixas de receita do BNDES; 78 mi é o teto acima do qual o Lucro Real é obrigatório. */
+const FAT_FAIXAS = [
+  { id: 'r16', rotulo: 'Até R$ 16 mi', min: 0, max: 16e6 },
+  { id: 'r90', rotulo: 'R$ 16 a 90 mi', min: 16e6, max: 90e6 },
+  { id: 'r300', rotulo: 'R$ 90 a 300 mi', min: 90e6, max: 300e6 },
+  { id: 'rmax', rotulo: 'Acima de R$ 300 mi', min: 300e6, max: Infinity },
+];
+const LUCRO_REAL_OBRIGATORIO = 78e6;
+/* Receita média por funcionário, em R$ mil/ano, por divisão do CNAE.
+   PROVISÓRIO: ordem de grandeza para o protótipo, a calibrar com a PIA-Empresa do IBGE. */
+const RECEITA_POR_FUNC = { '05':2000,'06':2000,'07':2000,'08':2000,'09':2000,'10':1100,'11':1300,'12':2500,'13':350,'14':150,'15':200,'16':350,'17':1500,'18':300,'19':15000,'20':2500,'21':1300,'22':550,'23':500,'24':1800,'25':400,'26':1000,'27':800,'28':700,'29':1200,'30':900,'31':300,'32':400,'33':300,'62':300,'63':400,'71':250,'72':300 };
+const RECEITA_PADRAO = 400;
+function faturamentoDe(e) {
+  if (!e.vinculos_ativos) return null;
+  const meio = e.vinculos_ativos * (RECEITA_POR_FUNC[e.div] ?? RECEITA_PADRAO) * 1000;
+  return { meio, min: meio * 0.6, max: meio * 1.4, porFunc: RECEITA_POR_FUNC[e.div] ?? RECEITA_PADRAO };
+}
+const NATUREZAS = [
+  { id: 'ltda', rotulo: 'Limitada', test: (n) => /Limitada/i.test(n) },
+  { id: 'saf', rotulo: 'S.A. fechada', test: (n) => /Anônima Fechada/i.test(n) },
+  { id: 'saa', rotulo: 'S.A. aberta', test: (n) => /Anônima Aberta/i.test(n) },
+  { id: 'outra', rotulo: 'Outras', test: (n) => !/Limitada|Anônima/i.test(n) },
+];
+
+/* ---------- formatação ---------- */
+const MINUSC = new Set(['de','da','do','das','dos','e','em','para','com']);
+const SIGLAS = new Set(['LTDA','S.A.','SA','S/A','EIRELI','ME','EPP','S.A','LTDA.','II','III']);
+function titulo(s) {
+  if (!s) return '';
+  return s.split(/\s+/).map((w, i) => {
+    const up = w.toUpperCase();
+    if (SIGLAS.has(up)) return up.replace(/^LTDA\.?$/, 'Ltda.').replace(/^SA$/, 'S.A.');
+    const low = w.toLowerCase();
+    if (i > 0 && MINUSC.has(low)) return low;
+    return low.charAt(0).toUpperCase() + low.slice(1);
+  }).join(' ');
+}
+const cnpjFmt = (c) => c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+const cnaeFmt = (c) => c.replace(/^(\d{4})(\d)(\d{2})$/, '$1-$2/$3');
+const inteiro = (n) => Math.trunc(n).toLocaleString('pt-BR');
+/* Moeda truncada, nunca arredondada (ADR-0011). */
+function reaisCurto(v) {
+  if (v == null) return '—';
+  const corta = (x, casas) => Math.trunc(x * 10 ** casas) / 10 ** casas;
+  if (v >= 1e9) return 'R$ ' + corta(v / 1e9, 1).toLocaleString('pt-BR') + ' bi';
+  if (v >= 1e6) return 'R$ ' + corta(v / 1e6, 1).toLocaleString('pt-BR') + ' mi';
+  if (v >= 1e3) return 'R$ ' + inteiro(v / 1e3) + ' mil';
+  return 'R$ ' + inteiro(v);
+}
+function reais(v) {
+  if (v == null) return '—';
+  const t = Math.trunc(v * 100) / 100;
+  return t.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+const anosDesde = (d) => d ? (HOJE - new Date(d + 'T00:00:00')) / (365.25 * 864e5) : null;
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+/* ---------- fit prévio: mesmas regras de src/lib/prospecting/fit.ts, só com dados da Receita ---------- */
+function fitDe(e) {
+  const div = e.cnae_principal.slice(0, 2);
+  const ramo = DIVISOES[div];
+  const idade = e.idade;
+  const P = (p, t) => [p, t];
+  const frentes = [
+    { rotulo: 'Indústria · software e integração', pontos: [
+      P(ramo ? 40 : 0, ramo ? `Indústria (${ramo})` : 'Indústria pelo CNAE'),
+      P(25, 'Média ou grande empresa'),
+      P(idade >= 5 ? 10 : 0, 'Mais de 5 anos de operação'),
+      P(0, 'Sistemas citados no site · aparece depois de ler o site'),
+    ]},
+    { rotulo: 'Financiamento de inovação', pontos: [
+      P(15, 'Regime não informado · confirmar na conversa'),
+      P(ramo ? 15 : 0, ramo ? `Indústria (${ramo})` : 'Indústria pelo CNAE'),
+      P(15, 'Média ou grande empresa'),
+      P(idade >= 3 ? 5 : 0, 'Mais de 3 anos de operação'),
+      P(0, 'Lucro Real vale 45 · a base não traz o regime'),
+    ]},
+    { rotulo: 'Consultoria', pontos: [
+      P(40, 'Média ou grande empresa'),
+      P(ramo ? 20 : 0, ramo ? `Indústria (${ramo})` : 'Indústria pelo CNAE'),
+      P(idade >= 5 ? 15 : 0, 'Mais de 5 anos de operação'),
+    ]},
+  ];
+  frentes.forEach((f) => { f.nota = Math.min(100, f.pontos.reduce((t, [p]) => t + p, 0)); });
+  const melhor = frentes.reduce((m, f) => (f.nota > m.nota ? f : m));
+  return { frentes, melhor };
+}
+
+/* ---------- dados ---------- */
+const EMPRESAS = DATA.map((e, i) => {
+  const idade = anosDesde(e.data_inicio_atividade);
+  const row = { ...e, idx: i, idade, div: e.cnae_principal.slice(0, 2) };
+  row.nome = titulo(e.nome_fantasia || e.razao_social);
+  row.razao = titulo(e.razao_social);
+  row.fit = fitDe(row);
+  row.fat = faturamentoDe(row);
+  return row;
+});
+/* Três empresas da amostra simulam contas que já estão no Pipeline: ninguém aborda duas vezes. */
+const NO_PIPELINE = {};
+[[5, 'Em cadência', 'Guilherme Valadares Pereira'], [17, 'Reunião agendada', 'Karina Assalin Candido da Silva'], [31, 'A abordar', 'Pedro Marinho Teixeira Oliveira']]
+  .forEach(([i, etapa, resp]) => { if (EMPRESAS[i]) NO_PIPELINE[EMPRESAS[i].cnpj] = { etapa, resp }; });
+
+/* ---------- estado ---------- */
+const state = {
+  tab: 'classificar',
+  busca: '',
+  grupos: new Set(['transformacao']),
+  cnae: '',
+  ramos: new Set(),
+  ufs: new Set(),
+  faixas: new Set(),
+  idades: new Set(),
+  fats: new Set(),
+  capital: 0,
+  nats: new Set(),
+  pgfn: 'todas',
+  email: false,
+  tel: false,
+  sort: { key: 'fit', dir: -1 },
+  classif: {},          // cnpj -> { status: 'abordar'|'depois'|'descartada', resp, motivo }
+  sel: new Set(),
+  cursor: 0,
+  aberta: null,
+};
+
+function statusDe(e) {
+  if (NO_PIPELINE[e.cnpj]) return 'pipeline';
+  return state.classif[e.cnpj]?.status ?? 'classificar';
+}
+
+function passaFiltros(e, ignorar) {
+  if (ignorar !== 'grupo' && state.grupos.size && !GRUPOS.some((g) => state.grupos.has(g.id) && g.test(e.div))) return false;
+  if (state.cnae) {
+    const q = state.cnae.toLowerCase().replace(/\D/g, '') || null;
+    const t = state.cnae.toLowerCase();
+    if (!(q && e.cnae_principal.startsWith(q)) && !e.cnae_principal_descricao.toLowerCase().includes(t)) return false;
+  }
+  if (ignorar !== 'ramo' && state.ramos.size && !state.ramos.has(e.div)) return false;
+  if (ignorar !== 'uf' && state.ufs.size && !state.ufs.has(e.uf)) return false;
+  if (ignorar !== 'func' && state.faixas.size && !FAIXAS.some((f) => state.faixas.has(f.id) && e.vinculos_ativos >= f.min && e.vinculos_ativos <= f.max)) return false;
+  if (ignorar !== 'idade' && state.idades.size && !IDADES.some((f) => state.idades.has(f.id) && e.idade >= f.min && e.idade < f.max)) return false;
+  if (ignorar !== 'fat' && state.fats.size && !(e.fat && FAT_FAIXAS.some((f) => state.fats.has(f.id) && e.fat.meio >= f.min && e.fat.meio < f.max))) return false;
+  if (state.capital && !(e.capital_social >= state.capital)) return false;
+  if (ignorar !== 'nat' && state.nats.size && !NATUREZAS.some((n) => state.nats.has(n.id) && n.test(e.natureza_juridica))) return false;
+  if (state.pgfn === 'sem' && e.divida_total) return false;
+  if (state.pgfn === 'sem_ajuizada' && e.divida_ajuizada) return false;
+  if (state.pgfn === 'com' && !e.divida_total) return false;
+  if (state.email && !e.tem_email) return false;
+  if (state.tel && !e.tem_telefone) return false;
+  if (state.busca) {
+    const q = state.busca.toLowerCase();
+    const d = q.replace(/\D/g, '');
+    const hay = (e.nome + ' ' + e.razao + ' ' + e.municipio).toLowerCase();
+    if (!hay.includes(q) && !(d.length >= 3 && e.cnpj.includes(d))) return false;
+  }
+  return true;
+}
+
+const filtradas = (ignorar) => EMPRESAS.filter((e) => passaFiltros(e, ignorar));
+
+function ordenar(lista) {
+  const { key, dir } = state.sort;
+  const val = { nome: (e) => e.nome, func: (e) => e.vinculos_ativos ?? -1, fat: (e) => e.fat?.meio ?? -1, idade: (e) => e.idade ?? -1, fit: (e) => e.fit.melhor.nota * 1e5 + (e.vinculos_ativos ?? 0) };
+  return [...lista].sort((a, b) => {
+    const x = val[key](a), y = val[key](b);
+    return (typeof x === 'string' ? x.localeCompare(y, 'pt-BR') : x - y) * dir;
+  });
+}
+
+/* ---------- render: filtros ---------- */
+function chipsDe(el, itens, set, base, ignorar, chaveDe) {
+  const lista = filtradas(ignorar).filter((e) => statusDe(e) === state.tab || state.tab === 'todas');
+  el.innerHTML = itens.map((it) => {
+    const n = lista.filter((e) => chaveDe(e, it)).length;
+    const on = set.has(it.id);
+    return `<button type="button" class="chip" aria-pressed="${on}" data-id="${esc(it.id)}">${esc(it.rotulo)} <span class="n">${n}</span></button>`;
+  }).join('');
+  el.onclick = (ev) => {
+    const b = ev.target.closest('.chip'); if (!b) return;
+    const id = b.dataset.id;
+    set.has(id) ? set.delete(id) : set.add(id);
+    state.cursor = 0; render();
+  };
+}
+
+function renderFiltros() {
+  chipsDe(document.getElementById('f-grupo'), GRUPOS, state.grupos, null, 'grupo', (e, g) => g.test(e.div));
+  const ramos = [...new Set(EMPRESAS.map((e) => e.div).filter((d) => DIVISOES[d]))].sort()
+    .map((d) => ({ id: d, rotulo: DIVISOES[d] }));
+  chipsDe(document.getElementById('f-ramo'), ramos, state.ramos, null, 'ramo', (e, r) => e.div === r.id);
+  const ufs = [...new Set(EMPRESAS.map((e) => e.uf))].sort().map((u) => ({ id: u, rotulo: u }));
+  chipsDe(document.getElementById('f-uf'), ufs, state.ufs, null, 'uf', (e, u) => e.uf === u.id);
+  chipsDe(document.getElementById('f-func'), FAIXAS, state.faixas, null, 'func', (e, f) => e.vinculos_ativos >= f.min && e.vinculos_ativos <= f.max);
+  chipsDe(document.getElementById('f-idade'), IDADES, state.idades, null, 'idade', (e, f) => e.idade >= f.min && e.idade < f.max);
+  chipsDe(document.getElementById('f-fat'), FAT_FAIXAS, state.fats, null, 'fat', (e, f) => e.fat && e.fat.meio >= f.min && e.fat.meio < f.max);
+  chipsDe(document.getElementById('f-nat'), NATUREZAS, state.nats, null, 'nat', (e, n) => n.test(e.natureza_juridica));
+}
+
+/* ---------- render: abas, resumo, linhas ---------- */
+const ABAS = [
+  { id: 'classificar', rotulo: 'A classificar' },
+  { id: 'abordar', rotulo: 'Oportunidades abertas' },
+  { id: 'depois', rotulo: 'Não agora' },
+  { id: 'descartada', rotulo: 'Descartadas' },
+  { id: 'pipeline', rotulo: 'Já no Pipeline' },
+];
+
+function renderAbas() {
+  const base = filtradas();
+  const el = document.getElementById('tabs');
+  el.innerHTML = ABAS.map((a) => {
+    const n = base.filter((e) => statusDe(e) === a.id).length;
+    return `<button type="button" role="tab" class="tab" aria-selected="${state.tab === a.id}" data-tab="${a.id}">${a.rotulo} <span class="count">${n}</span></button>`;
+  }).join('');
+  el.onclick = (ev) => {
+    const b = ev.target.closest('.tab'); if (!b) return;
+    state.tab = b.dataset.tab; state.sel.clear(); state.cursor = 0; render();
+  };
+}
+
+function visiveis() { return ordenar(filtradas().filter((e) => statusDe(e) === state.tab)); }
+
+/* Faixa "R$ 20 a 47 mi": os dois extremos na mesma unidade, truncados (ADR-0011). */
+function faixaReais(min, max) {
+  const [div, un] = max >= 1e9 ? [1e9, 'bi'] : max >= 1e6 ? [1e6, 'mi'] : [1e3, 'mil'];
+  const f = (v) => { const x = v / div; return (x < 10 ? Math.trunc(x * 10) / 10 : Math.trunc(x)).toLocaleString('pt-BR'); };
+  return `R$ ${f(min)} a ${f(max)} ${un}`;
+}
+const lucroRealProvavel = (e) => e.fat && e.fat.min >= LUCRO_REAL_OBRIGATORIO;
+function celulaFat(e) {
+  if (!e.fat) return '<span class="hint">Sem base</span>';
+  const selo = lucroRealProvavel(e) ? '<div style="margin-top:3px"><span class="badge b-info" title="Faturamento acima de R$ 78 mi obriga o Lucro Real">Lucro Real provável</span></div>' : '';
+  return `<span class="mono" style="white-space:nowrap">${faixaReais(e.fat.min, e.fat.max)}</span>${selo}`;
+}
+
+function badgePgfn(e) {
+  if (!e.divida_total) return '<span class="badge b-ok">Sem dívida</span>';
+  if (e.divida_ajuizada) return `<span class="badge b-bad" title="${esc(reais(e.divida_total))} em ${e.qtd_inscricoes} inscrição(ões)">${reaisCurto(e.divida_total)} · ajuizada</span>`;
+  return `<span class="badge b-warn" title="${esc(reais(e.divida_total))} em ${e.qtd_inscricoes} inscrição(ões)">${reaisCurto(e.divida_total)}</span>`;
+}
+
+const ICON = {
+  go: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  later: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></svg>',
+  no: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  undo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>',
+};
+
+function acoesDe(e) {
+  const st = statusDe(e);
+  if (st === 'pipeline') return `<span class="badge b-info">${esc(NO_PIPELINE[e.cnpj].etapa)}</span>`;
+  if (st !== 'classificar') {
+    return `<button type="button" class="btn btn-ghost btn-sm" data-act="desfazer" data-cnpj="${e.cnpj}">${ICON.undo} Desfazer</button>`;
+  }
+  return `<div class="rowact">
+    <button type="button" class="iconbtn go" data-act="abordar" data-cnpj="${e.cnpj}" aria-label="Abrir oportunidade para ${esc(e.nome)}" title="Abrir oportunidade (A)">${ICON.go}</button>
+    <button type="button" class="iconbtn" data-act="depois" data-cnpj="${e.cnpj}" aria-label="Não agora: ${esc(e.nome)}" title="Não agora (N)">${ICON.later}</button>
+    <button type="button" class="iconbtn" data-act="descartar" data-cnpj="${e.cnpj}" aria-label="Descartar ${esc(e.nome)}" title="Descartar (D)">${ICON.no}</button>
+  </div>`;
+}
+
+function subStatus(e) {
+  const c = state.classif[e.cnpj];
+  if (NO_PIPELINE[e.cnpj]) return `<span>No Pipeline com ${esc(NO_PIPELINE[e.cnpj].resp.split(' ')[0])}</span>`;
+  if (c?.status === 'abordar') return `<span>A abordar · ${esc(c.resp.split(' ')[0])}</span>`;
+  if (c?.status === 'descartada') return `<span>${esc(c.motivo)}</span>`;
+  if (c?.status === 'depois') return `<span>Volta para a lista em 90 dias</span>`;
+  return '';
+}
+
+function renderLinhas() {
+  const lista = visiveis();
+  if (state.cursor >= lista.length) state.cursor = Math.max(0, lista.length - 1);
+  const tb = document.getElementById('rows');
+  if (!lista.length) {
+    const msg = state.tab === 'classificar'
+      ? ['Nenhuma empresa com esses filtros', 'Tire um filtro ou troque a atividade para ver mais empresas.']
+      : ['Nada aqui ainda', 'As empresas que você classificar aparecem nesta aba.'];
+    tb.innerHTML = `<tr><td colspan="9"><div class="empty"><strong>${msg[0]}</strong><span>${msg[1]}</span>${state.tab === 'classificar' ? '<button class="btn" type="button" data-act="limpar">Limpar filtros</button>' : ''}</div></td></tr>`;
+  } else {
+    tb.innerHTML = lista.map((e, i) => {
+      const ramo = DIVISOES[e.div];
+      const f = e.fit.melhor;
+      return `<tr data-cnpj="${e.cnpj}" class="${i === state.cursor ? 'cursor' : ''}">
+        <td data-selcell><input type="checkbox" class="check-input" data-selcnpj="${e.cnpj}" aria-label="Selecionar ${esc(e.nome)}" ${state.sel.has(e.cnpj) ? 'checked' : ''} ${statusDe(e) !== 'classificar' ? 'disabled' : ''}></td>
+        <td><div class="co-name" title="${esc(e.razao)}">${esc(e.nome)}</div><div class="co-sub"><span class="mono">${cnpjFmt(e.cnpj)}</span><span>${esc(titulo(e.municipio))} · ${e.uf}</span>${subStatus(e)}</div></td>
+        <td class="num">${celulaFat(e)}</td>
+        <td class="num mono">${e.vinculos_ativos != null ? inteiro(e.vinculos_ativos) : '—'}</td>
+        <td><div class="act" title="${esc(e.cnae_principal_descricao)}">${esc(e.cnae_principal_descricao)}</div>${ramo ? `<span class="ramo">${esc(ramo)}</span>` : ''}</td>
+        <td class="num mono">${e.idade != null ? Math.trunc(e.idade) + ' a' : '—'}</td>
+        <td>${badgePgfn(e)}</td>
+        <td><span class="fit" title="${esc(f.rotulo)}"><span class="fit-n">${f.nota}</span><span class="fit-bar" aria-hidden="true"><i style="width:${f.nota}%"></i></span></span></td>
+        <td class="num">${acoesDe(e)}</td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('foot-count').textContent = `${lista.length} de ${EMPRESAS.length} empresas da amostra`;
+  const all = document.getElementById('sel-all');
+  const selecionaveis = lista.filter((e) => statusDe(e) === 'classificar');
+  all.checked = selecionaveis.length > 0 && selecionaveis.every((e) => state.sel.has(e.cnpj));
+  all.disabled = state.tab !== 'classificar';
+  document.querySelectorAll('[data-arrow]').forEach((s) => {
+    s.textContent = s.dataset.arrow === state.sort.key ? (state.sort.dir === 1 ? '↑' : '↓') : '';
+  });
+}
+
+function renderResumo() {
+  const g = state.grupos;
+  let base = TOTAIS.base, rotulo = 'empresas';
+  if (g.size === 1 && g.has('transformacao')) { base = TOTAIS.transformacao; rotulo = 'indústrias de transformação'; }
+  if (g.size === 1 && g.has('extrativa')) { base = TOTAIS.extrativa; rotulo = 'indústrias extrativas'; }
+  if (g.size === 1 && g.has('tecnologia')) { base = TOTAIS.tecnologia; rotulo = 'empresas de tecnologia'; }
+  const extra = g.size === 1 && g.has('transformacao') && state.faixas.size && [...state.faixas].every((f) => f !== 'f20')
+    ? ` · <b class="mono">${inteiro(TOTAIS.industriaRais50)}</b> delas têm 50 funcionários ou mais` : '';
+  document.getElementById('summary').innerHTML =
+    `<span><b class="mono">${inteiro(base)}</b> ${rotulo}${extra} <span title="Empresas baixadas, inaptas ou suspensas, filiais, ME e EPP não entram nesta tela. As filiais aparecem na ficha da matriz.">· só matrizes ativas, médias e grandes</span></span><span>Fit prévio usa só o que a Receita informa. Regime tributário e site entram ao abrir a oportunidade.</span>`;
+}
+
+function renderBulk() {
+  const n = state.sel.size;
+  const bar = document.getElementById('bulk');
+  bar.hidden = n === 0;
+  document.getElementById('bulk-count').textContent = n === 1 ? '1 empresa selecionada' : `${n} empresas selecionadas`;
+}
+
+function contarFiltros() {
+  return state.grupos.size + state.ramos.size + state.ufs.size + state.faixas.size + state.idades.size + state.fats.size + state.nats.size
+    + (state.cnae ? 1 : 0) + (state.capital ? 1 : 0) + (state.pgfn !== 'todas' ? 1 : 0) + (state.email ? 1 : 0) + (state.tel ? 1 : 0);
+}
+function render() {
+  const n = contarFiltros(); const fc = document.getElementById('fcount');
+  fc.hidden = n === 0; fc.textContent = n;
+  toggleRail.setAttribute('aria-label', n ? `Filtros, ${n} ativo${n > 1 ? 's' : ''}` : 'Filtros');
+  renderFiltros(); renderAbas(); renderResumo(); renderLinhas(); renderBulk();
+  if (state.aberta) renderDrawer();
+}
+
+/* ---------- ações ---------- */
+let toastTimer;
+function toast(html, undo) {
+  const t = document.getElementById('toast');
+  t.innerHTML = `<span>${html}</span>${undo ? '<button type="button" id="toast-undo">Desfazer</button>' : ''}`;
+  t.hidden = false;
+  if (undo) document.getElementById('toast-undo').onclick = () => { undo(); t.hidden = true; };
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 5200);
+}
+
+const porCnpj = (c) => EMPRESAS.find((e) => e.cnpj === c);
+
+function classificar(cnpjs, status, extra = {}) {
+  const antes = cnpjs.map((c) => [c, state.classif[c]]);
+  cnpjs.forEach((c) => { state.classif[c] = { status, ...extra }; state.sel.delete(c); });
+  render();
+  const desfazer = () => { antes.forEach(([c, v]) => { if (v) state.classif[c] = v; else delete state.classif[c]; }); render(); };
+  const nome = cnpjs.length === 1 ? `<b>${esc(porCnpj(cnpjs[0]).nome)}</b>` : `<b>${cnpjs.length} empresas</b>`;
+  const msg = {
+    abordar: `${cnpjs.length === 1 ? 'Oportunidade aberta' : 'Oportunidades abertas'} para ${nome} em A abordar, com ${esc(extra.resp)}.`,
+    depois: `${nome} ${cnpjs.length === 1 ? 'volta' : 'voltam'} para a lista em 90 dias.`,
+    descartada: `${nome} ${cnpjs.length === 1 ? 'saiu' : 'saíram'} da lista: ${esc(extra.motivo)}.`,
+  }[status];
+  toast(msg, desfazer);
+}
+
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-act]');
+  if (b) {
+    ev.stopPropagation();
+    const c = b.dataset.cnpj;
+    const act = b.dataset.act;
+    if (act === 'abordar') classificar([c], 'abordar', { resp: EU, alavanca: 'Outbound' });
+    if (act === 'depois') classificar([c], 'depois');
+    if (act === 'descartar') abrir(c, 'descartar');
+    if (act === 'desfazer') { delete state.classif[c]; render(); }
+    if (act === 'limpar') limparFiltros();
+    return;
+  }
+  if (ev.target.closest('[data-selcell]')) return;
+  const tr = ev.target.closest('tbody tr[data-cnpj]');
+  if (tr) abrir(tr.dataset.cnpj);
+});
+
+document.getElementById('rows').addEventListener('change', (ev) => {
+  const c = ev.target.dataset.selcnpj; if (!c) return;
+  ev.target.checked ? state.sel.add(c) : state.sel.delete(c);
+  renderBulk(); renderLinhas();
+});
+document.getElementById('sel-all').addEventListener('change', (ev) => {
+  visiveis().filter((e) => statusDe(e) === 'classificar').forEach((e) => (ev.target.checked ? state.sel.add(e.cnpj) : state.sel.delete(e.cnpj)));
+  renderBulk(); renderLinhas();
+});
+document.querySelectorAll('th [data-sort]').forEach((b) => b.addEventListener('click', () => {
+  const k = b.dataset.sort;
+  state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: k === 'nome' ? 1 : -1 };
+  render();
+}));
+
+const bulkResp = document.getElementById('bulk-resp');
+bulkResp.innerHTML = RESPONSAVEIS.map((r) => `<option ${r === EU ? 'selected' : ''}>${esc(r)}</option>`).join('');
+document.getElementById('bulk-go').onclick = () => classificar([...state.sel], 'abordar', { resp: bulkResp.value, alavanca: 'Outbound' });
+document.getElementById('bulk-clear').onclick = () => { state.sel.clear(); render(); };
+
+function limparFiltros() {
+  Object.assign(state, { grupos: new Set(), cnae: '', ramos: new Set(), ufs: new Set(), faixas: new Set(), idades: new Set(), fats: new Set(), capital: 0, nats: new Set(), pgfn: 'todas', email: false, tel: false, busca: '' });
+  ['f-cnae', 'busca'].forEach((id) => (document.getElementById(id).value = ''));
+  document.getElementById('f-capital').value = '0'; document.getElementById('f-pgfn').value = 'todas';
+  document.getElementById('f-email').checked = false; document.getElementById('f-tel').checked = false;
+  render();
+}
+document.getElementById('limpar').onclick = limparFiltros;
+document.getElementById('f-cnae').oninput = (e) => { state.cnae = e.target.value.trim(); render(); };
+document.getElementById('busca').oninput = (e) => { state.busca = e.target.value.trim(); render(); };
+document.getElementById('f-capital').onchange = (e) => { state.capital = +e.target.value; render(); };
+document.getElementById('f-pgfn').onchange = (e) => { state.pgfn = e.target.value; render(); };
+document.getElementById('f-email').onchange = (e) => { state.email = e.target.checked; render(); };
+document.getElementById('f-tel').onchange = (e) => { state.tel = e.target.checked; render(); };
+document.getElementById('close-note').onclick = () => { document.getElementById('proto-note').hidden = true; };
+document.getElementById('salvar-filtro').onclick = () => toast('Filtro salvo como <b>Indústria · média e grande</b>. Ele aparece no topo da tela para todo o time.');
+const work = document.getElementById('work');
+const toggleRail = document.getElementById('toggle-rail');
+function definirTrilho(aberto, lembrar = true) {
+  work.dataset.rail = aberto ? 'open' : 'closed';
+  toggleRail.setAttribute('aria-expanded', String(aberto));
+  if (lembrar) { try { localStorage.setItem('empresas.filtros', aberto ? 'open' : 'closed'); } catch (e) {} }
+}
+toggleRail.onclick = () => definirTrilho(work.dataset.rail !== 'open');
+document.getElementById('recolher').onclick = () => { definirTrilho(false); toggleRail.focus(); };
+(() => {
+  let salvo = null;
+  try { salvo = localStorage.getItem('empresas.filtros'); } catch (e) {}
+  const estreita = window.matchMedia('(max-width: 860px)').matches;
+  definirTrilho(estreita ? false : salvo !== 'closed', false);
+})();
+
+/* ---------- ficha ---------- */
+let modoFicha = null, focoAntes = null;
+function abrir(cnpj, modo = null) {
+  focoAntes = document.activeElement;
+  state.aberta = cnpj; modoFicha = modo;
+  document.getElementById('scrim').hidden = false;
+  document.getElementById('drawer').hidden = false;
+  renderDrawer();
+  setTimeout(() => document.querySelector(modo === 'descartar' ? '#d-motivo' : '#dr-close')?.focus(), 0);
+}
+function fechar() {
+  state.aberta = null; modoFicha = null;
+  document.getElementById('scrim').hidden = true;
+  document.getElementById('drawer').hidden = true;
+  focoAntes?.focus?.();
+}
+document.getElementById('scrim').onclick = fechar;
+
+function renderDrawer() {
+  const e = porCnpj(state.aberta); if (!e) return;
+  const st = statusDe(e);
+  const ramo = DIVISOES[e.div];
+  const frentes = e.fit.frentes.map((f) => `<div class="frente">
+      <div class="frente-top"><span>${esc(f.rotulo)}</span><span class="fit"><span class="fit-n">${f.nota}</span><span class="fit-bar" aria-hidden="true"><i style="width:${f.nota}%"></i></span></span></div>
+      <ul>${f.pontos.map(([p, t]) => `<li class="${p ? '' : 'falta'}"><b>${p ? '+' + p : '·'}</b><span>${esc(t)}</span></li>`).join('')}</ul>
+    </div>`).join('');
+  const pgfn = e.divida_total
+    ? `<dl class="kv">
+        <div><dt>Dívida total</dt><dd class="mono">${reais(e.divida_total)}</dd></div>
+        <div><dt>Em cobrança</dt><dd class="mono">${reais(e.divida_em_cobranca)}</dd></div>
+        <div><dt>Ajuizada</dt><dd class="mono">${reais(e.divida_ajuizada)}</dd></div>
+        <div><dt>Inscrições</dt><dd class="mono">${e.qtd_inscricoes}</dd></div>
+      </dl>${e.divida_ajuizada ? '<div class="notice b-bad">Dívida ajuizada costuma travar FINEP e outras linhas de crédito público. Vale perguntar antes de propor financiamento.</div>' : ''}`
+    : '<div class="notice b-ok">Nenhuma inscrição na dívida ativa da União.</div>';
+
+  let rodape;
+  if (st === 'pipeline') {
+    const p = NO_PIPELINE[e.cnpj];
+    rodape = `<div class="notice b-info">Esta empresa já está no Pipeline em <b>${esc(p.etapa)}</b>, com ${esc(p.resp)}. Fale com quem cuida antes de abordar.</div>
+      <div class="btns"><button class="btn" type="button">Ver oportunidade</button></div>`;
+  } else if (st !== 'classificar') {
+    const c = state.classif[e.cnpj];
+    const txt = { abordar: `Oportunidade aberta em A abordar, com ${esc(c.resp)}.`, depois: 'Marcada como não agora. Volta para a lista em 90 dias.', descartada: `Descartada: ${esc(c.motivo)}.` }[c.status];
+    rodape = `<div class="notice b-mute">${txt}</div><div class="btns"><button class="btn" type="button" id="d-undo">${ICON.undo} Desfazer</button>${c.status === 'abordar' ? '<button class="btn btn-primary" type="button">Ver no Pipeline</button>' : ''}</div>`;
+  } else if (modoFicha === 'descartar') {
+    rodape = `<div class="field"><label for="d-motivo">Por que descartar?</label>
+        <select class="select" id="d-motivo">${MOTIVOS_DESCARTE.map((m) => `<option>${esc(m)}</option>`).join('')}</select></div>
+      <span class="hint">Empresa descartada some da lista para todo o time. Dá para desfazer na aba Descartadas.</span>
+      <div class="btns"><button class="btn" type="button" id="d-cancel">Voltar</button><button class="btn btn-primary" type="button" id="d-confirm-desc" style="flex:1 1 160px">Descartar empresa</button></div>`;
+  } else {
+    rodape = `<div class="row">
+        <div class="field"><label for="d-resp">Responsável</label><select class="select" id="d-resp">${RESPONSAVEIS.map((r) => `<option ${r === EU ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></div>
+        <div class="field"><label for="d-alav">Alavanca</label><select class="select" id="d-alav">${ALAVANCAS.map((a) => `<option>${esc(a)}</option>`).join('')}</select></div>
+      </div>
+      <div class="field"><label for="d-obs">Observação <span class="hint">(opcional)</span></label><textarea class="input" id="d-obs" placeholder="Por que esta empresa vale a conversa"></textarea></div>
+      <div class="btns">
+        <button class="btn" type="button" id="d-depois">${ICON.later} Não agora</button>
+        <button class="btn" type="button" id="d-desc">${ICON.no} Descartar</button>
+        <button class="btn btn-primary" type="button" id="d-go">Abrir oportunidade ${ICON.go}</button>
+      </div>`;
+  }
+
+  const dr = document.getElementById('drawer');
+  dr.innerHTML = `
+    <div class="dr-head">
+      <div style="flex:1;min-width:0">
+        <h2 id="dr-title">${esc(e.nome)}</h2>
+        <div class="co-sub"><span class="mono">${cnpjFmt(e.cnpj)}</span><span>${esc(e.razao)}</span></div>
+        <div class="co-sub" style="margin-top:8px"><span class="badge b-ok">Ativa</span><span class="badge b-mute">Matriz</span><span class="badge b-mute">${esc(e.natureza_juridica)}</span></div>
+      </div>
+      <button class="iconbtn" type="button" id="dr-close" aria-label="Fechar ficha">${ICON.no}</button>
+    </div>
+    <div class="dr-body">
+      <section class="sec">
+        <h3>Atividade</h3>
+        <div><b>${esc(e.cnae_principal_descricao)}</b><div class="co-sub"><span class="mono">${cnaeFmt(e.cnae_principal)}</span>${ramo ? `<span>${esc(ramo)}</span>` : ''}<span>${e.qtd_cnaes_sec ? e.qtd_cnaes_sec + ' atividades secundárias' : 'Sem atividade secundária'}</span></div></div>
+      </section>
+      <section class="sec">
+        <h3>Tamanho</h3>
+        <dl class="kv">
+          <div><dt>Funcionários (RAIS 2025)</dt><dd class="mono">${e.vinculos_ativos != null ? inteiro(e.vinculos_ativos) : 'Sem dado'}</dd></div>
+          <div><dt>Unidades com funcionários</dt><dd class="mono">${e.unidades_ativas ?? '—'}</dd></div>
+          <div><dt>Filiais ativas</dt><dd class="mono">${e.filiais_ativas}</dd></div>
+          <div><dt>Faturamento estimado</dt><dd class="mono">${e.fat ? faixaReais(e.fat.min, e.fat.max) + ' por ano' : 'Sem base para estimar'}</dd></div>
+          <div><dt>Capital social</dt><dd class="mono">${reais(e.capital_social)}</dd></div>
+          <div><dt>Abertura</dt><dd class="mono">${new Date(e.data_inicio_atividade + 'T00:00:00').toLocaleDateString('pt-BR')} · ${Math.trunc(e.idade)} anos</dd></div>
+          <div><dt>Local</dt><dd>${esc(titulo(e.municipio))} · ${e.uf}</dd></div>
+        </dl>
+        ${e.fat ? `<span class="hint">Conta: ${inteiro(e.vinculos_ativos)} funcionários × R$ ${inteiro(e.fat.porFunc)} mil por funcionário no setor, com margem de 40% para cima e para baixo. Ao abrir a oportunidade, o valor do meio entra como Faturamento anual com base Estimado, e o time pode corrigir.</span>` : ''}
+        ${lucroRealProvavel(e) ? '<div class="notice b-info">Mesmo no piso da estimativa, o faturamento passa de R$ 78 milhões, faixa em que o Lucro Real é obrigatório. É um bom sinal para a Lei do Bem, a confirmar na consulta do regime.</div>' : ''}
+      </section>
+      <section class="sec">
+        <h3>Fit prévio por frente</h3>
+        ${frentes}
+        <span class="hint">Mesma regra da nota de fit do Pulse. A base não traz regime tributário nem lê o site; esses pontos entram quando a oportunidade é aberta.</span>
+      </section>
+      <section class="sec">
+        <h3>Dívida ativa da União</h3>
+        ${pgfn}
+      </section>
+      <section class="sec">
+        <h3>Rede e contato</h3>
+        <dl class="kv">
+          <div><dt>Sócios e representantes</dt><dd class="mono">${e.qtd_socios}</dd></div>
+          <div><dt>Contato na Receita</dt><dd>${[e.tem_email && 'E-mail', e.tem_telefone && 'Telefone'].filter(Boolean).join(' e ') || 'Nenhum'}</dd></div>
+        </dl>
+        <span class="hint">Nomes dos sócios e o contato aparecem na ficha da empresa depois que ela entra na Prospecção.</span>
+      </section>
+    </div>
+    <div class="dr-foot">${rodape}</div>`;
+
+  document.getElementById('dr-close').onclick = fechar;
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  on('d-go', () => { classificar([e.cnpj], 'abordar', { resp: document.getElementById('d-resp').value, alavanca: document.getElementById('d-alav').value }); fechar(); });
+  on('d-depois', () => { classificar([e.cnpj], 'depois'); fechar(); });
+  on('d-desc', () => { modoFicha = 'descartar'; renderDrawer(); document.getElementById('d-motivo')?.focus(); });
+  on('d-cancel', () => { modoFicha = null; renderDrawer(); });
+  on('d-confirm-desc', () => { classificar([e.cnpj], 'descartada', { motivo: document.getElementById('d-motivo').value }); fechar(); });
+  on('d-undo', () => { delete state.classif[e.cnpj]; renderDrawer(); render(); });
+}
+
+/* ---------- teclado ---------- */
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape' && state.aberta) { fechar(); return; }
+  if (ev.key === 'Escape' && work.dataset.rail === 'open' && window.matchMedia('(max-width: 860px)').matches) { definirTrilho(false); toggleRail.focus(); return; }
+  const tag = document.activeElement?.tagName ?? '';
+  if (state.aberta || /^(INPUT|SELECT|TEXTAREA)$/.test(tag)) return;
+  if (ev.key === 'Enter' && /^(BUTTON|A)$/.test(tag)) return;
+  const lista = visiveis(); if (!lista.length) return;
+  const atual = lista[state.cursor];
+  const k = ev.key.toLowerCase();
+  if (k === 'j' || k === 'arrowdown') { state.cursor = Math.min(lista.length - 1, state.cursor + 1); renderLinhas(); ev.preventDefault(); }
+  else if (k === 'k' || k === 'arrowup') { state.cursor = Math.max(0, state.cursor - 1); renderLinhas(); ev.preventDefault(); }
+  else if (k === 'enter') abrir(atual.cnpj);
+  else if (statusDe(atual) !== 'classificar') return;
+  else if (k === 'a') classificar([atual.cnpj], 'abordar', { resp: EU, alavanca: 'Outbound' });
+  else if (k === 'n') classificar([atual.cnpj], 'depois');
+  else if (k === 'd') abrir(atual.cnpj, 'descartar');
+  document.querySelector('tbody tr.cursor')?.scrollIntoView({ block: 'nearest' });
+});
+
+render();
+</script>
