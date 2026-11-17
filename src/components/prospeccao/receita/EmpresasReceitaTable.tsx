@@ -85,7 +85,12 @@ function Linha({ empresa, comFaturamento }: { empresa: EmpresaReceita; comFatura
         <div className="line-clamp-2 max-w-[240px] text-[13px] leading-snug" title={empresa.cnae_descricao ?? undefined}>
           {empresa.cnae_descricao ?? empresa.cnae_principal}
         </div>
-        {ramo && <div className="mt-0.5 text-xs text-muted-foreground">{ramo}</div>}
+        {ramo && (
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {ramo}
+            {empresa.pela_secundaria && ' · entrou pela atividade secundária'}
+          </div>
+        )}
       </td>
       <td className="px-3 py-2 text-right font-mono tabular-nums">{anos != null ? `${anos} a` : '—'}</td>
       <td className="px-3 py-2"><DividaBadge empresa={empresa} /></td>

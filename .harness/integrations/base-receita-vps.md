@@ -28,11 +28,13 @@ do `pulse_api` só existe no segredo `RECEITA_DB_URL` da Edge Function.
 
 ## Contrato
 
-O script grava o recorte abaixo em `pulse.empresas`, numa transação só.
+O script grava o recorte abaixo em `pulse.empresas`, numa transação só. Antes, aplica
+`scripts/receita/vps/esquema.sql` como `pulse_carga`: a tabela e os índices são criados ou
+completados pela carga, sem acesso de root.
 
 | `pulse.empresas` | Base original | Observação |
 |---|---|---|
-| `cnpj`, `cnpj_basico` | `estabelecimentos` | só `situacao_codigo = '02'` (Ativa), `matriz_filial = 'Matriz'`, `uf <> 'EX'` |
+| `cnpj`, `cnpj_basico` | `estabelecimentos` | só `situacao_codigo = '02'` (Ativa), `matriz_filial = 'Matriz'`, `uf <> 'EX'`; fora administração pública (natureza 1xxx), condomínio, organização religiosa, partido político e candidato (US-0003) |
 | `razao_social`, `natureza_juridica`, `capital_social` | `empresas` (`capital_social_valido`) | a base só tem porte "Demais" |
 | `nome_fantasia`, `nome_exibicao` | `estabelecimentos.nome_fantasia` | exibição = fantasia, senão razão social |
 | `cnae_principal`, `cnaes_secundarios` | `estabelecimentos` | a descrição vem de `public.cnaes` na consulta |
@@ -44,10 +46,17 @@ O script grava o recorte abaixo em `pulse.empresas`, numa transação só.
 | `tem_email`, `tem_telefone` | `estabelecimentos.email`, `telefone_1` | só se existe; o contato em si não é copiado |
 | `fit_previo`, `fit_frente` | calculado pelo script | `src/lib/prospecting/fit.ts`, sem regime nem site (ADR-0042) |
 | `faturamento_estimado` | — | US-0006, ainda vazio |
+| `secao`, `divisao`, `secoes_sec`, `divisoes_sec` | calculado pelo script | setor e ramo da CNAE do principal e dos secundários (`src/lib/prospecting/cnae.ts`, US-0003) |
 
-A Edge Function recebe `{ ordem, crescente, pagina }` e devolve
-`{ total, carregada_em, linhas[] }`. Ordens: `fit`, `nome`, `funcionarios`, `idade`.
-Páginas de 25, até a 400ª (10 mil empresas). Sem sessão: 401. Sem `prospeccao:ler`: 403.
+A Edge Function tem três modos (US-0003):
+
+- **página** (padrão): `{ ordem, crescente, pagina, filtros }` → `{ carregada_em, total_da_base, linhas[] }`.
+  Ordens: `fit`, `nome`, `funcionarios`, `idade`. Páginas de 25, até a 400ª (10 mil empresas).
+- **total**: `{ modo: 'total', filtros }` → `{ total, limitado }`. Conta até 100 mil; `limitado` = há mais.
+- **cnaes**: `{ modo: 'cnaes', termo }` → `{ cnaes: [{ codigo, descricao }] }`, por código ou descrição, até 20.
+
+Os filtros seguem `src/types/filtrosReceita.ts`; cada valor vem de lista fechada e vira
+parâmetro. Valor fora da lista: 400. Sem sessão: 401. Sem `prospeccao:ler`: 403.
 Base fora do ar ou lenta: 503.
 
 ## Preparação da VPS (uma vez)

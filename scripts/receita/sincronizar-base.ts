@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { Transform, type TransformCallback } from 'node:stream';
+import { divisaoDoCnae, setorDoCnae, setoresERamos } from '@/lib/prospecting/cnae';
 import { bestFit, companyFit } from '@/lib/prospecting/fit';
 import type { ProspectCompanyDB } from '@/types/prospect';
 
@@ -29,8 +30,14 @@ const IMAGEM_PSQL = 'postgres:16-alpine';
 const NULO = '\\N';
 const aplicar = process.argv.includes('--aplicar');
 
+// Fora do recorte (US-0003, 17/11/2026): quem não é cliente possível. Administração pública
+// (1xxx), condomínio edilício, organização religiosa, órgãos e comitê de partido político,
+// frente plebiscitária e candidato a cargo eletivo. A simulação imprime o nome de cada código,
+// para conferir contra a tabela da Receita.
+const NATUREZAS_FORA = ['3085', '3220', '3255', '3263', '3271', '3280', '3298', '4090'];
+
 // Recorte: matrizes ativas, fora do exterior. A ordem das colunas é a de COLUNAS_DESTINO
-// sem as duas últimas (fit), que o script acrescenta.
+// sem as seis últimas (fit, setor e ramo), que o script acrescenta.
 const RECORTE = `
 WITH filiais AS (
   SELECT cnpj_basico, count(*) AS n FROM estabelecimentos
@@ -56,14 +63,16 @@ LEFT JOIN pgfn_resumo p USING (cnpj_basico)
 LEFT JOIN filiais fi USING (cnpj_basico)
 LEFT JOIN socios_n so USING (cnpj_basico)
 WHERE s.situacao_codigo = '02' AND s.matriz_filial = 'Matriz' AND s.uf <> 'EX'
-  AND s.cnae_principal IS NOT NULL`.replace(/\s+/g, ' ');
+  AND s.cnae_principal IS NOT NULL
+  AND coalesce(e.natureza_juridica_codigo, '') NOT LIKE '1%'
+  AND coalesce(e.natureza_juridica_codigo, '') NOT IN (${NATUREZAS_FORA.map((c) => `'${c}'`).join(', ')})`.replace(/\s+/g, ' ');
 
 const COLUNAS_DESTINO = [
   'cnpj', 'cnpj_basico', 'razao_social', 'nome_fantasia', 'nome_exibicao', 'cnae_principal',
   'cnaes_secundarios', 'natureza_juridica', 'capital_social', 'data_inicio_atividade', 'municipio',
   'uf', 'funcionarios', 'unidades_com_funcionarios', 'filiais_ativas', 'socios', 'divida_total',
   'divida_em_cobranca', 'divida_ajuizada', 'inscricoes_divida', 'tem_email', 'tem_telefone',
-  'fit_previo', 'fit_frente',
+  'fit_previo', 'fit_frente', 'secao', 'divisao', 'secoes_sec', 'divisoes_sec',
 ].join(', ');
 
 const COL = { cnaePrincipal: 5, cnaesSecundarios: 6, abertura: 9 } as const;
@@ -135,10 +144,16 @@ function linhaComFit(linha: string, hoje: string, resumo: Resumo): string {
   resumo.porFrente[frente] = (resumo.porFrente[frente] ?? 0) + 1;
   const faixa = `${Math.floor(nota / 10) * 10}`;
   resumo.porFaixaDeFit[faixa] = (resumo.porFaixaDeFit[faixa] ?? 0) + 1;
-  return `${linha}\t${nota}\t${frente}\n`;
+  return `${linha}\t${nota}\t${frente}\t${colunasDeAtividade(campos[COL.cnaePrincipal], secundarios)}\n`;
 }
 
-/** Lê o COPY em texto (uma linha por registro) e acrescenta fit_previo e fit_frente. */
+/** Setor e ramo do principal e dos secundários (US-0003), no formato do COPY em texto. */
+function colunasDeAtividade(principal: string, secundarios: string[]): string {
+  const { setores, ramos } = setoresERamos(secundarios);
+  return [setorDoCnae(principal) ?? NULO, divisaoDoCnae(principal), `{${setores.join(',')}}`, `{${ramos.join(',')}}`].join('\t');
+}
+
+/** Lê o COPY em texto (uma linha por registro) e acrescenta fit, setor e ramo. */
 function acrescentarFit(hoje: string, resumo: Resumo): Transform {
   let sobra = '';
   return new Transform({
@@ -155,10 +170,16 @@ function acrescentarFit(hoje: string, resumo: Resumo): Transform {
 
 // ---------- carga ----------
 
+// Tabela e índices (reexecutável). Roda dentro da transação da carga: na primeira vez depois
+// de uma coluna nova, o índice é criado sobre a carga anterior — leva alguns minutos, uma vez.
+const ESQUEMA = readFileSync(new URL('./vps/esquema.sql', import.meta.url), 'utf8');
+
 function comandosDaCarga(): string[] {
   return [
     '-1',
     '-c', 'SET statement_timeout = 0',
+    '-c', 'SET client_min_messages = warning', // sem um aviso por índice que já existe
+    '-c', ESQUEMA,
     '-c', 'TRUNCATE pulse.empresas',
     '-c', `\\copy pulse.empresas (${COLUNAS_DESTINO}) FROM pstdin`,
     '-c', `INSERT INTO pulse.base (id, carregada_em, total)
@@ -180,7 +201,10 @@ async function carregarEmpresas(origem: Ambiente, destino: Ambiente | null, resu
   const escrita = psql(destino, comandosDaCarga());
   comFit.pipe(escrita.stdin!);
   await Promise.all([terminou(leitura, 'leitura da base'), terminou(escrita, 'carga da base')]);
-  await terminou(psql(destino, ['-c', 'ANALYZE pulse.empresas']), 'ANALYZE');
+  // VACUUM, não só ANALYZE: grava de uma vez as marcas de visibilidade que a primeira leitura
+  // de cada página gravaria (medido em 17/11/2026: a 1ª contagem do setor levou 4,5 s, perto
+  // do limite de 5 s; depois, 0,14 s) e deixa a contagem usar só o índice.
+  await terminou(psql(destino, ['-c', 'SET statement_timeout = 0', '-c', 'VACUUM (ANALYZE) pulse.empresas']), 'VACUUM');
 }
 
 function imprimirResumo(resumo: Resumo, segundos: number) {
@@ -189,8 +213,20 @@ function imprimirResumo(resumo: Resumo, segundos: number) {
   console.log('Por faixa de fit prévio:', resumo.porFaixaDeFit);
 }
 
+/** O nome de cada natureza fora do recorte, lido da base: um código errado aparece aqui. */
+async function conferirNaturezas(origem: Ambiente) {
+  const codigos = NATUREZAS_FORA.map((c) => `'${c}'`).join(', ');
+  const consulta = psql(origem, ['-tA', '-c', `SELECT codigo || ' ' || descricao FROM naturezas_juridicas WHERE codigo IN (${codigos}) ORDER BY 1`]);
+  let saida = '';
+  consulta.stdout!.on('data', (d: Buffer) => { saida += d.toString('utf8'); });
+  await terminou(consulta, 'leitura das naturezas');
+  console.log('Fora do recorte, além da administração pública (1xxx):');
+  saida.trim().split('\n').forEach((l) => console.log(`  ${l}`));
+}
+
 async function main() {
   const origem = lerAmbiente(ARQUIVO_ORIGEM);
+  await conferirNaturezas(origem);
   const destino = aplicar ? lerAmbiente(ARQUIVO_DESTINO) : null;
   const inicio = Date.now();
   const resumo: Resumo = { linhas: 0, porFrente: {}, porFaixaDeFit: {} };
