@@ -54,6 +54,11 @@ Base fora do ar ou lenta: 503.
 
 Feita pelo Victor, que tem acesso de root. Nada disso roda pelo Pulse.
 
+**Atalho:** `bash scripts/receita/vps/configurar-vps.sh` faz os passos 1 a 6 e a carga, do
+Mac, a partir do pacote em `~/.config/og-pulse` (certificados, verificadores SCRAM das
+senhas e arquivos `.env`). Pergunta antes de recriar o container e antes da carga. Foi
+assim que a VPS foi preparada em 17/11/2026. Os passos abaixo são o que ele faz.
+
 ```bash
 # 0. Nome do container e portas publicadas
 docker ps --format '{{.Names}}\t{{.Image}}\t{{.Ports}}'

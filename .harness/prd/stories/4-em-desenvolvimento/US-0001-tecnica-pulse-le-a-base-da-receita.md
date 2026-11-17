@@ -105,7 +105,7 @@ sem esperar.
 | Cenário | Prova (teste ou evidência) |
 |---|---|
 | 1 | Evidência, 16/11/2026: a Edge Function rodou num Deno 2.1 contra um Supabase falso e um Postgres 16 com TLS e a base real. Sem login: 401. Sem `prospeccao:ler`: 403, sem tocar na base. Com a capacidade: 200. Conexão sem o certificado da autoridade: recusada. A conexão com a VPS só existe na função e no script, nunca no navegador. |
-| 2 | Evidência parcial, 16/11/2026: pela Edge Function, contra a base real num Postgres local com TLS, as quatro ordens responderam entre 9 e 55 ms. A página 399 por nome levou 2,1 s com o banco frio, depois de reiniciar, e 0,7 s com ele aquecido. A página além das 10 mil é recusada. **Falta:** medir contra a VPS de verdade, com a latência de rede. |
+| 2 | Evidência parcial, 16/11/2026: pela Edge Function, contra a base real num Postgres local com TLS, as quatro ordens responderam entre 9 e 55 ms. A página 399 por nome levou 2,1 s com o banco frio, depois de reiniciar, e 0,7 s com ele aquecido. A página além das 10 mil é recusada. Contra a VPS real, 17/11/2026, do Mac como `pulse_api` por TLS conferido: primeira página nas quatro ordens entre 23 e 56 ms, página 400 entre 22 e 24 ms, total 43 ms. Tela validada pelo Victor em 17/11/2026, com a sessão dele, contra a função publicada e a VPS. |
 | 3 | Evidência parcial, 16/11/2026: com a conexão falhando, a função desistiu em 5 s e respondeu 503 "A base da Receita está indisponível agora", sem expor o erro do banco. A tela mapeia o 503 para essa mensagem, com "Tentar de novo". **Falta:** ver a tela nesse estado. |
 
 - **Decisão de engenharia:** ADR-0053 (base na VPS, leitura por Edge Function). A
@@ -118,8 +118,13 @@ sem esperar.
 - **Carga real, 16/11/2026:** 3.093.706 empresas em 15 minutos, 1,9 GB entre dados e
   índices. Fit prévio: 72% das empresas com nota 55 e 98% com a maior nota em Consultoria,
   o que confirma a necessidade da US-0014.
-- **Falta para Pronto:** preparar a VPS (SSL, `pg_hba`, porta, usuários), trocar a senha
-  do `pulse_leitura`, publicar a função com o segredo, rodar a carga em `pulse.empresas` e
-  medir o cenário 2 pela função.
+- **VPS preparada, 17/11/2026,** por `scripts/receita/vps/configurar-vps.sh`: usuários
+  `pulse_carga` e `pulse_api`, TLS com autoridade própria, `pg_hba` e porta 5432. Senha do
+  `pulse_leitura` trocada. Conferido de fora: `pulse_api` sem cifra, `postgres` e
+  `pulse_leitura` são recusados; `pulse_api` não consegue gravar. Carga em `pulse.empresas`:
+  3.093.706 empresas em 613 s.
+- **Função publicada, 17/11/2026,** no projeto de produção, com `RECEITA_DB_URL` e
+  `RECEITA_DB_CA`. Sem sessão: 401 em 0,28 s.
+- **Falta para Pronto:** ver a tela no estado indisponível e fazer o merge.
 - **Commits / PR:** branch `feat/empresas-base-receita`.
 - **Implantada em:** —
