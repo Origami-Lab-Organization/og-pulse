@@ -167,6 +167,28 @@ export function guardarFiltros(f: FiltrosReceita): void {
   }
 }
 
+// Painel de filtros no computador (US-0004): recolhido na primeira visita; depois, o último
+// estado. No celular ele sempre começa fechado e não passa por aqui.
+const CHAVE_DO_PAINEL = 'pulse:empresas-receita:painel:v1';
+const PAINEL_ABERTO = 'aberto';
+
+export function painelDoNavegador(): boolean {
+  try {
+    return window.localStorage.getItem(CHAVE_DO_PAINEL) === PAINEL_ABERTO;
+  } catch {
+    return false;
+  }
+}
+
+export function guardarPainel(aberto: boolean): void {
+  try {
+    if (aberto) window.localStorage.setItem(CHAVE_DO_PAINEL, PAINEL_ABERTO);
+    else window.localStorage.removeItem(CHAVE_DO_PAINEL);
+  } catch {
+    // Sem armazenamento, o painel só volta recolhido na próxima visita.
+  }
+}
+
 /** "2062200" → "2062-2/00"; começo de código → "2062…". */
 export function rotuloDoCnae(codigo: string): string {
   if (codigo.length !== 7) return `${codigo}…`;
