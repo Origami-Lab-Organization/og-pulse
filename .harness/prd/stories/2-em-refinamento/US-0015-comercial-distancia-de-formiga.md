@@ -76,7 +76,7 @@ calculada para toda empresa e substitui o Anel (US-0017).
   Receita (código TOM do Tesouro; Formiga = 4521), sem coordenadas. A tabela `municipios`
   tem 5.572 códigos.
 - **Superfícies conhecidas:** carga em `scripts/receita/sincronizar-base.ts`; tabela
-  `receita_empresas`; contas da Prospecção em `prospect_companies.receita` (endereço com
+  `pulse.empresas` na VPS (ADR-0053); contas da Prospecção em `prospect_companies.receita` (endereço com
   município e UF).
 - **Riscos para investigar:** fonte pública que liga o código TOM ao código do IBGE e às
   coordenadas da sede do município, com a fonte citada no contrato

@@ -1,11 +1,11 @@
 import { valuesAreHidden } from '@/lib/hideValuesStore';
 import { HIDDEN_VALUE_MASK } from '@/lib/formatters';
-import { industrySignal } from '@/lib/prospecting/industria';
+import { divisaoDoCnae, nomeDoRamo } from '@/lib/prospecting/cnae';
 import type { FitFront } from '@/types/receita';
 
 /**
  * Empresas da base da Receita (US-0002, ADR-0053) — o que a tela Empresas lista em
- * "A classificar". Vem da RPC `listar_empresas_receita`; aqui só há regra de exibição.
+ * "A classificar". Vem da Edge Function `empresas-receita`; aqui só há regra de exibição.
  */
 
 export type OrdemReceita = 'fit' | 'nome' | 'funcionarios' | 'idade';
@@ -33,13 +33,21 @@ export interface EmpresaReceita {
   fit_previo: number;
   fit_frente: FitFront;
   faturamento_estimado: number | null;
+  /** Entrou na lista só por uma atividade secundária (filtro com "Incluir atividade secundária"). */
+  pela_secundaria?: boolean;
 }
 
 export interface PaginaReceita {
-  /** Nulo quando a base ainda não foi carregada. */
-  total: number | null;
+  /** Tamanho da base inteira; nulo quando ela ainda não foi carregada. */
+  totalDaBase: number | null;
   carregadaEm: string | null;
   linhas: EmpresaReceita[];
+}
+
+/** Total da lista filtrada (US-0003). A contagem para em 100 mil: `limitado` = há mais. */
+export interface TotalReceita {
+  total: number | null;
+  limitado: boolean;
 }
 
 /** Clicar na mesma coluna inverte; coluna nova começa pelo que mais interessa. */
@@ -76,9 +84,9 @@ export function anosDeOperacao(abertura: string | null, hoje: Date = new Date())
   return hoje.getFullYear() - ano - (passouAniversario ? 0 : 1);
 }
 
-/** O ramo da indústria pelo CNAE principal (mesma tabela da nota de fit). */
+/** O ramo (divisão da CNAE) pelo CNAE principal, de qualquer setor (US-0003). */
 export function ramoDaEmpresa(cnaePrincipal: string): string | null {
-  return industrySignal({ cnaePrincipal: { codigo: cnaePrincipal, descricao: '' }, cnaesSecundarios: [] }).ramo;
+  return nomeDoRamo(divisaoDoCnae(cnaePrincipal));
 }
 
 export type SituacaoDaDivida = { tipo: 'sem' } | { tipo: 'cobranca' | 'ajuizada'; valor: number };

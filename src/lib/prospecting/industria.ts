@@ -1,4 +1,5 @@
 import type { IndustrySignal, ReceitaCnae, ReceitaDetails } from '@/types/receita';
+import { divisaoDoCnae, RAMOS, ramosDosSetores } from './cnae';
 
 /**
  * Indústria pelo CNAE (29/09/2026) — o mercado-alvo da Origami.
@@ -10,50 +11,17 @@ import type { IndustrySignal, ReceitaCnae, ReceitaDetails } from '@/types/receit
  *
  * Módulo puro: o MCP da Prospecção importa o mesmo arquivo.
  */
-const DIVISOES: Record<string, string> = {
-  '05': 'Carvão mineral',
-  '06': 'Petróleo e gás',
-  '07': 'Mineração (metálicos)',
-  '08': 'Mineração (não metálicos)',
-  '09': 'Apoio à extração mineral',
-  '10': 'Alimentos',
-  '11': 'Bebidas',
-  '12': 'Fumo',
-  '13': 'Têxtil',
-  '14': 'Vestuário',
-  '15': 'Couro e calçados',
-  '16': 'Madeira',
-  '17': 'Papel e celulose',
-  '18': 'Gráfica',
-  '19': 'Derivados de petróleo e biocombustíveis',
-  '20': 'Química',
-  '21': 'Farmacêutica',
-  '22': 'Borracha e plástico',
-  '23': 'Minerais não metálicos',
-  '24': 'Metalurgia',
-  '25': 'Produtos de metal',
-  '26': 'Eletrônicos e informática',
-  '27': 'Máquinas e materiais elétricos',
-  '28': 'Máquinas e equipamentos',
-  '29': 'Automotiva',
-  '30': 'Outros equipamentos de transporte',
-  '31': 'Móveis',
-  '32': 'Produtos diversos',
-  '33': 'Manutenção e instalação de máquinas',
-};
+
+// Os nomes dos ramos vêm da CNAE inteira (cnae.ts); aqui só interessam os da indústria.
+const INDUSTRIAIS = new Set(ramosDosSetores(['B', 'C']));
 
 const EXTRATIVA = new Set(['05', '06', '07', '08', '09']);
 const FONTE_SECUNDARIA: IndustrySignal['fonte'] = 'secundaria';
 
-/** A divisão (2 dígitos) do CNAE; a BrasilAPI manda número e perde o zero à esquerda. */
-export function divisaoDoCnae(codigo: string): string {
-  return codigo.replace(/\D/g, '').padStart(7, '0').slice(0, 2);
-}
-
 function sinalDe(cnae: ReceitaCnae, fonte: IndustrySignal['fonte']): IndustrySignal | null {
   const divisao = divisaoDoCnae(cnae.codigo);
-  const ramo = DIVISOES[divisao];
-  if (!ramo) return null;
+  if (!INDUSTRIAIS.has(divisao)) return null;
+  const ramo = RAMOS[divisao];
   return { industrial: true, ramo, tipo: EXTRATIVA.has(divisao) ? 'extrativa' : 'transformacao', fonte };
 }
 

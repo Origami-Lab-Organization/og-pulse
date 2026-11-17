@@ -67,7 +67,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 |---|---|---|---|---|
 | [US-0001](stories/4-em-desenvolvimento/US-0001-tecnica-pulse-le-a-base-da-receita.md) | O Pulse lê a base da Receita com segurança e rapidez | Técnica | Em desenvolvimento | Pronta com ressalvas |
 | [US-0002](stories/4-em-desenvolvimento/US-0002-comercial-ver-empresas-da-base-da-receita.md) | Ver as empresas da base da Receita na tela Empresas | Pessoa do comercial | Em desenvolvimento | Pronta |
-| [US-0003](stories/2-em-refinamento/US-0003-comercial-filtrar-empresas.md) | Filtrar as empresas pelo que importa para a Origami | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
+| [US-0003](stories/4-em-desenvolvimento/US-0003-comercial-filtrar-empresas.md) | Filtrar as empresas pelo que importa para a Origami | Pessoa do comercial | Em desenvolvimento | Pronta |
 | [US-0004](stories/2-em-refinamento/US-0004-comercial-recolher-os-filtros.md) | Recolher os filtros para ver mais da lista | Pessoa do comercial | Em refinamento | Pronta |
 | [US-0005](stories/2-em-refinamento/US-0005-comercial-buscar-empresa.md) | Buscar empresa por nome, CNPJ ou cidade | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0006](stories/2-em-refinamento/US-0006-comercial-faturamento-estimado.md) | Ver o faturamento estimado de cada empresa | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
@@ -138,6 +138,14 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
   "Calculado", que o time pode substituir.
 - A tela abre com o último filtro usado; no primeiro acesso, com "Indústria de
   transformação".
+- (17/11) Saem do recorte órgãos públicos, condomínios, igrejas, partidos e candidatos.
+  Associações e produtor rural ficam e podem ser tirados pelo filtro de natureza.
+- (17/11) Atividade segue a CNAE do IBGE em três níveis (setor, ramo, CNAE), para todos os
+  tipos de atividade. Olha o CNAE principal, e a caixa "Incluir atividade secundária"
+  amplia.
+- (17/11) Funcionários vai de "até 19" a "500 ou mais", com a opção "Sem informação na
+  RAIS".
+- (17/11) Os filtros de faturamento e de distância entram na US-0006 e na US-0015.
 
 #### Decisões pendentes do épico
 
