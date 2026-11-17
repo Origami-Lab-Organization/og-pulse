@@ -42,3 +42,13 @@ export interface Opcao<T extends string | number> {
   valor: T;
   rotulo: string;
 }
+
+/**
+ * O que a caixa de busca da base da Receita pede (US-0005): nada, texto curto demais (com o
+ * aviso do que falta), o começo de um CNPJ (5 a 14 números) ou um texto de nome ou cidade.
+ */
+export type BuscaReceita =
+  | { tipo: 'vazia' }
+  | { tipo: 'curta'; aviso: string }
+  | { tipo: 'cnpj'; digitos: string }
+  | { tipo: 'texto'; termo: string };

@@ -30,6 +30,10 @@ CREATE SCHEMA IF NOT EXISTS pulse AUTHORIZATION pulse_carga;
 REVOKE ALL ON SCHEMA pulse FROM PUBLIC;
 GRANT USAGE ON SCHEMA pulse TO pulse_api;
 
+-- Busca por nome (US-0005): índice de trechos de 3 letras. Extensão só o administrador cria;
+-- o resto da busca (função e índices) fica em esquema.sql.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- A tabela e os índices de pulse.* ficam em esquema.sql, que a carga aplica como pulse_carga
 -- (dono do schema) a cada --aplicar: mudar o recorte não exige entrar como root na VPS.
 

@@ -13,6 +13,7 @@ import type { CnaeEncontrado, FiltrosReceita } from '@/types/filtrosReceita';
  * vazia seriam indistinguíveis de "não há empresas".
  *
  * A página e o total são consultas separadas: a lista aparece sem esperar a contagem.
+ * `busca` (US-0005) é o CNPJ ou o texto já validado por `buscaDoPedido`; sem busca, só filtros.
  */
 
 export const POR_PAGINA_RECEITA = 25;
@@ -57,11 +58,11 @@ interface RespostaDaPagina {
   linhas: EmpresaReceita[] | null;
 }
 
-export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: OrdenacaoReceita, pagina: number) {
+export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: OrdenacaoReceita, pagina: number, busca?: string) {
   return useQuery({
-    queryKey: ['receita-empresas', filtros, ordenacao.ordem, ordenacao.crescente, pagina],
+    queryKey: ['receita-empresas', filtros, busca ?? '', ordenacao.ordem, ordenacao.crescente, pagina],
     queryFn: async (): Promise<PaginaReceita> => {
-      const r = await chamar<RespostaDaPagina>({ ordem: ordenacao.ordem, crescente: ordenacao.crescente, pagina, filtros });
+      const r = await chamar<RespostaDaPagina>({ ordem: ordenacao.ordem, crescente: ordenacao.crescente, pagina, filtros, busca });
       return { totalDaBase: r.total_da_base, carregadaEm: r.carregada_em, linhas: r.linhas ?? [] };
     },
     // Trocar de página, ordem ou filtro mantém a lista anterior na tela até a nova chegar.
@@ -70,10 +71,10 @@ export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: Ordenacao
   });
 }
 
-export function useTotalReceita(filtros: FiltrosReceita) {
+export function useTotalReceita(filtros: FiltrosReceita, busca?: string) {
   return useQuery({
-    queryKey: ['receita-empresas-total', filtros],
-    queryFn: () => chamar<TotalReceita>({ modo: 'total', filtros }),
+    queryKey: ['receita-empresas-total', filtros, busca ?? ''],
+    queryFn: () => chamar<TotalReceita>({ modo: 'total', filtros, busca }),
     ...DA_BASE,
   });
 }

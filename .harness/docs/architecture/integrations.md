@@ -48,7 +48,7 @@ sources:
 
 # Mapa de Integrações
 
-> Derivado do código em 2026-08-31; transcrição de reunião acrescentada em 2026-09-24 e ligada à tela em 2026-10-21; Conta Azul incluído em 2026-10-01; base da Receita na VPS em 2026-11-16 e filtros em 2026-11-17 (`empresas-receita`, ADR-0053).
+> Derivado do código em 2026-08-31; transcrição de reunião acrescentada em 2026-09-24 e ligada à tela em 2026-10-21; Conta Azul incluído em 2026-10-01; base da Receita na VPS em 2026-11-16, filtros e busca em 2026-11-17 (`empresas-receita`, ADR-0053).
 > Quem chama quem, com que credencial.
 
 ## Visão geral
@@ -232,7 +232,8 @@ base da Receita, que mora numa VPS. Valida a sessão dentro (`verify_jwt=false`)
 `has_capability(..., 'prospeccao:ler')` no tenant da pessoa (401/403) e só então consulta o
 Postgres da VPS com `pulse_api`. Três modos: a página filtrada (até as 10 mil primeiras de
 cada ordem), o total filtrado (conta até 100 mil) e a busca de CNAE por código ou descrição
-(US-0003). Ordem e filtros vêm de listas fechadas e viram parâmetros, nunca texto de SQL;
+(US-0003); página e total aceitam a busca por nome, CNPJ ou cidade (US-0005), com o
+termo sempre como parâmetro. Ordem e filtros vêm de listas fechadas e viram parâmetros, nunca texto de SQL;
 valor fora da lista é 400. Erro do banco vira 503, com só o nome do erro no log: a mensagem
 do driver pode trazer o endereço da VPS.
 
