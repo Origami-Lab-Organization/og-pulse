@@ -23,6 +23,8 @@ interface PainelDeFiltrosProps {
   onChange: (filtros: FiltrosReceita) => void;
   onLimpar: () => void;
   onRecolher: () => void;
+  /** Dentro da gaveta do celular (US-0004): sem borda própria, rolando dentro dela. */
+  emGaveta?: boolean;
 }
 
 const OPCOES_DE_SETOR: ReadonlyArray<Opcao<string>> = SETORES.map((s) => ({ valor: s.letra, rotulo: s.nome }));
@@ -34,11 +36,17 @@ const OPCOES_DE_UF: ReadonlyArray<Opcao<string>> = UFS.map((uf) => ({ valor: uf,
  * grupos, valem todas juntas.
  */
 export function PainelDeFiltros(props: PainelDeFiltrosProps) {
-  const { filtros: f, onChange, onLimpar, onRecolher } = props;
+  const { filtros: f, onChange, onLimpar, onRecolher, emGaveta = false } = props;
   const mudar = (parcial: Partial<FiltrosReceita>) => onChange({ ...f, ...parcial });
 
   return (
-    <aside aria-label="Filtros" className="overflow-hidden rounded-xl border bg-card lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+    <aside
+      aria-label="Filtros"
+      className={cn(
+        'bg-card',
+        emGaveta ? 'min-h-0 flex-1 overflow-y-auto' : 'sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border',
+      )}
+    >
       <div className="sticky top-0 z-[1] flex items-center gap-1 border-b bg-card py-1.5 pl-3.5 pr-1.5">
         <span className="mr-auto text-sm font-semibold">Filtros</span>
         <Button variant="ghost" size="sm" className="h-7 text-[12.5px]" onClick={onLimpar}>Limpar</Button>
