@@ -69,7 +69,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0002](stories/4-em-desenvolvimento/US-0002-comercial-ver-empresas-da-base-da-receita.md) | Ver as empresas da base da Receita na tela Empresas | Pessoa do comercial | Em desenvolvimento | Pronta |
 | [US-0003](stories/4-em-desenvolvimento/US-0003-comercial-filtrar-empresas.md) | Filtrar as empresas pelo que importa para a Origami | Pessoa do comercial | Em desenvolvimento | Pronta |
 | [US-0004](stories/2-em-refinamento/US-0004-comercial-recolher-os-filtros.md) | Recolher os filtros para ver mais da lista | Pessoa do comercial | Em refinamento | Pronta |
-| [US-0005](stories/2-em-refinamento/US-0005-comercial-buscar-empresa.md) | Buscar empresa por nome, CNPJ ou cidade | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
+| [US-0005](stories/4-em-desenvolvimento/US-0005-comercial-buscar-empresa.md) | Buscar empresa por nome, CNPJ ou cidade | Pessoa do comercial | Em desenvolvimento | Pronta |
 | [US-0006](stories/2-em-refinamento/US-0006-comercial-faturamento-estimado.md) | Ver o faturamento estimado de cada empresa | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0007](stories/2-em-refinamento/US-0007-comercial-ficha-da-empresa.md) | Avaliar a empresa pela ficha antes de decidir | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0008](stories/2-em-refinamento/US-0008-comercial-abrir-oportunidade.md) | Abrir oportunidade a partir da empresa | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
@@ -120,6 +120,8 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
   Victor; a faixa é de 40% para cada lado e o valor gravado é o do meio.
 - O último filtro fica guardado no navegador.
 - CNPJ completo na busca ignora os filtros.
+- A busca procura nome, CNPJ e cidade na mesma caixa; CNPJ de filial leva à matriz; a
+  busca segue a ordenação da tabela e usa índice de texto na VPS (17/11, US-0005).
 - Todas as abas mostram contagem, menos "A classificar".
 - Anel e Tier saem. No lugar deles entram a distância de Formiga (em linha reta, por
   cidade, com coordenadas do IBGE, filtro de 50 a 500 km) e o tipo de conta Âncora, Ponte

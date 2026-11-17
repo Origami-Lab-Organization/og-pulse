@@ -9,11 +9,14 @@
 // Driver nativo do Deno (deno-postgres): o `npm:postgres` não abre TLS com o Postgres no
 // Deno — testado em 16/11/2026, estoura o tempo de conexão.
 //
-// Corpo (US-0003), por modo:
-//   pagina (padrão): { ordem, crescente, pagina, filtros } → { carregada_em, total_da_base, linhas[] }
-//   total:           { modo: 'total', filtros }            → { total, limitado }  (conta até 100 mil)
-//   cnaes:           { modo: 'cnaes', termo }              → { cnaes: [{ codigo, descricao }] }
+// Corpo (US-0003, US-0005), por modo:
+//   pagina (padrão): { ordem, crescente, pagina, filtros, busca? } → { carregada_em, total_da_base, linhas[] }
+//   total:           { modo: 'total', filtros, busca? }            → { total, limitado }  (conta até 100 mil)
+//   cnaes:           { modo: 'cnaes', termo }                      → { cnaes: [{ codigo, descricao }] }
 // A página e o total vêm separados: a lista aparece sem esperar a contagem.
+// `busca` (US-0005): só números, a partir de 5, procura o começo do CNPJ e ignora os filtros
+// (os 14 de uma filial acham a matriz); outro texto, a partir de 3 letras, procura no nome e
+// no nome inteiro da cidade.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
@@ -247,8 +250,9 @@ function atividade(f: Filtros, c: Condicoes): { principal: string[]; completa: s
   return { principal, completa };
 }
 
-function condicoes(f: Filtros, inicio: number) {
+function condicoes(f: Filtros, inicio: number, extra?: (c: Condicoes) => string) {
   const c = new Condicoes(inicio);
+  if (extra) c.e(extra(c));
   const { principal, completa } = atividade(f, c);
   completa.forEach((parte) => c.e(parte));
   c.e(ou(IDADES, f.idades));
@@ -264,21 +268,85 @@ function condicoes(f: Filtros, inicio: number) {
   return { where: c.where(), valores: c.valores, pelaSecundaria };
 }
 
+// ---------- busca (US-0005) ----------
+// A mesma regra está em src/lib/prospecting/buscaReceita.ts, que decide o que a tela manda.
+
+const BUSCA_MINIMA = 3;
+const CNPJ_MINIMO = 5;
+const BUSCA_MAXIMA = 100;
+
+type Busca = { tipo: "cnpj"; digitos: string } | { tipo: "texto"; termo: string };
+
+function lerBusca(valor: unknown): Busca | null {
+  if (valor === undefined || valor === null || valor === "") return null;
+  if (typeof valor !== "string" || valor.length > BUSCA_MAXIMA) throw new Recusa("Busca inválida.", 400);
+  const texto = valor.trim().replace(/\s+/g, " ");
+  const digitos = texto.replace(/[\s./-]/g, "");
+  if (/^\d+$/.test(digitos)) {
+    if (digitos.length < CNPJ_MINIMO || digitos.length > 14) throw new Recusa(`Digite de ${CNPJ_MINIMO} a 14 números do CNPJ.`, 400);
+    return { tipo: "cnpj", digitos };
+  }
+  if (texto.length < BUSCA_MINIMA) throw new Recusa(`Digite ao menos ${BUSCA_MINIMA} letras.`, 400);
+  return { tipo: "texto", termo: texto };
+}
+
+/** O próximo número com a mesma quantidade de dígitos ("17469" → "17470"); nulo se for só 9. */
+function seguinte(digitos: string): string | null {
+  const proximo = (BigInt(digitos) + 1n).toString().padStart(digitos.length, "0");
+  return proximo.length > digitos.length ? null : proximo;
+}
+
+/**
+ * Começo do CNPJ por intervalo, não por LIKE: com a collation da base (en_US), o LIKE não usa a
+ * chave primária (3,3 s medidos); o intervalo usa (26 ms). Os 14 dígitos procuram a raiz:
+ * filial e matriz têm a mesma, e a base só tem matrizes.
+ */
+function porCnpj(digitos: string, c: Condicoes): string {
+  if (digitos.length === 14) return `e.cnpj_basico = ${c.param(digitos.slice(0, 8))}`;
+  const ate = seguinte(digitos);
+  const desde = `e.cnpj >= ${c.param(digitos)}::bpchar`;
+  return ate ? `${desde} AND e.cnpj < ${c.param(ate)}::bpchar` : desde;
+}
+
+// Mesma expressão dos índices de scripts/receita/vps/esquema.sql: se mudar lá, muda aqui.
+const NOME_NORMALIZADO = "pulse.normalizar(coalesce(e.nome_fantasia, '') || ' ' || e.razao_social)";
+const CIDADE_NORMALIZADA = "pulse.normalizar(e.municipio)";
+
+/** `%` e `_` digitados valem como texto, não como curinga do LIKE. */
+const literalDoLike = (termo: string) => termo.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+/** Parte do nome, ou o nome inteiro da cidade ("sao" não traz São Paulo inteira). */
+function porTexto(termo: string, c: Condicoes): string {
+  const t = c.param(termo);
+  const like = c.param(`%${literalDoLike(termo)}%`);
+  return `${NOME_NORMALIZADO} LIKE pulse.normalizar(${like}) OR ${CIDADE_NORMALIZADA} = pulse.normalizar(${t})`;
+}
+
+/** CNPJ ignora os filtros; nome e cidade somam aos filtros. */
+function condicoesDaBusca(filtros: Filtros, busca: Busca | null, inicio: number) {
+  if (busca?.tipo === "cnpj") {
+    const c = new Condicoes(inicio);
+    c.e(porCnpj(busca.digitos, c));
+    return { where: c.where(), valores: c.valores, pelaSecundaria: "false" };
+  }
+  return condicoes(filtros, inicio, busca ? (c) => porTexto(busca.termo, c) : undefined);
+}
+
 // ---------- pedidos ----------
 
 type Pedido =
-  | { modo: "pagina"; ordem: string; pagina: number; filtros: Filtros }
-  | { modo: "total"; filtros: Filtros }
+  | { modo: "pagina"; ordem: string; pagina: number; filtros: Filtros; busca: Busca | null }
+  | { modo: "total"; filtros: Filtros; busca: Busca | null }
   | { modo: "cnaes"; termo: string };
 
-function lerPagina(corpo: Record<string, unknown>, filtros: Filtros): Pedido {
+function lerPagina(corpo: Record<string, unknown>, filtros: Filtros, busca: Busca | null): Pedido {
   const ordem = `${corpo.ordem ?? "fit"}:${corpo.crescente === true ? "asc" : "desc"}`;
   const pagina = Number(corpo.pagina ?? 0);
   if (!ORDENS[ordem]) throw new Recusa("Ordem desconhecida.", 400);
   if (!Number.isInteger(pagina) || pagina < 0 || pagina > ULTIMA_PAGINA) {
     throw new Recusa("A lista vai até as 10 mil primeiras empresas. Use os filtros.", 400);
   }
-  return { modo: "pagina", ordem: ORDENS[ordem], pagina, filtros };
+  return { modo: "pagina", ordem: ORDENS[ordem], pagina, filtros, busca };
 }
 
 function lerTermo(corpo: Record<string, unknown>): Pedido {
@@ -291,8 +359,9 @@ async function lerPedido(req: Request): Promise<Pedido> {
   const corpo = await req.json().catch(() => ({})) as Record<string, unknown>;
   if (corpo.modo === "cnaes") return lerTermo(corpo);
   const filtros = lerFiltros(corpo.filtros);
-  if (corpo.modo === "total") return { modo: "total", filtros };
-  return lerPagina(corpo, filtros);
+  const busca = lerBusca(corpo.busca);
+  if (corpo.modo === "total") return { modo: "total", filtros, busca };
+  return lerPagina(corpo, filtros, busca);
 }
 
 // ---------- consultas ----------
@@ -304,8 +373,8 @@ async function lerBase(cliente: Cliente) {
   return base.rows[0] ?? null;
 }
 
-async function pagina(cliente: Cliente, { ordem, pagina, filtros }: Extract<Pedido, { modo: "pagina" }>) {
-  const { where, valores, pelaSecundaria } = condicoes(filtros, 3);
+async function pagina(cliente: Cliente, { ordem, pagina, filtros, busca }: Extract<Pedido, { modo: "pagina" }>) {
+  const { where, valores, pelaSecundaria } = condicoesDaBusca(filtros, busca, 3);
   const linhas = await cliente.queryObject(
     `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, c.descricao AS cnae_descricao,
           e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.funcionarios,
@@ -324,8 +393,8 @@ async function pagina(cliente: Cliente, { ordem, pagina, filtros }: Extract<Pedi
 // A contagem para em 100 mil: a lista navega só até 10 mil, e contar 2 milhões passaria de 2 s.
 const TETO_DA_CONTAGEM = 100_000;
 
-async function total(cliente: Cliente, { filtros }: Extract<Pedido, { modo: "total" }>) {
-  const { where, valores } = condicoes(filtros, 2);
+async function total(cliente: Cliente, { filtros, busca }: Extract<Pedido, { modo: "total" }>) {
+  const { where, valores } = condicoesDaBusca(filtros, busca, 2);
   if (!where) {
     const base = await lerBase(cliente);
     return { total: base?.total ?? null, limitado: false };

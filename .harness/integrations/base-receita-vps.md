@@ -48,15 +48,30 @@ completados pela carga, sem acesso de root.
 | `faturamento_estimado` | — | US-0006, ainda vazio |
 | `secao`, `divisao`, `secoes_sec`, `divisoes_sec` | calculado pelo script | setor e ramo da CNAE do principal e dos secundários (`src/lib/prospecting/cnae.ts`, US-0003) |
 
-A Edge Function tem três modos (US-0003):
+Busca (US-0005): sem coluna nova. `pulse.normalizar(text)` tira acentos e passa para
+minúsculas; dois índices usam a função, um de trechos de 3 letras (`gin_trgm_ops`, extensão
+`pg_trgm`) sobre `nome_fantasia + razao_social` e um comum sobre `municipio`. A Edge Function
+repete a mesma expressão para usar os índices. A extensão é a única peça que exige o
+administrador do banco (`preparar-vps.sql`); a função e os índices ficam em `esquema.sql`.
+Medido em 17/11/2026: índice de nome com 183 MB, criado em 93 s; buscas entre 16 e 500 ms,
+total de termo muito comum ("comercio", 69 mil) em 1,2 s.
 
-- **página** (padrão): `{ ordem, crescente, pagina, filtros }` → `{ carregada_em, total_da_base, linhas[] }`.
+A Edge Function tem três modos (US-0003, US-0005):
+
+- **página** (padrão): `{ ordem, crescente, pagina, filtros, busca? }` → `{ carregada_em, total_da_base, linhas[] }`.
   Ordens: `fit`, `nome`, `funcionarios`, `idade`. Páginas de 25, até a 400ª (10 mil empresas).
-- **total**: `{ modo: 'total', filtros }` → `{ total, limitado }`. Conta até 100 mil; `limitado` = há mais.
+- **total**: `{ modo: 'total', filtros, busca? }` → `{ total, limitado }`. Conta até 100 mil; `limitado` = há mais.
 - **cnaes**: `{ modo: 'cnaes', termo }` → `{ cnaes: [{ codigo, descricao }] }`, por código ou descrição, até 20.
 
+`busca` (até 100 caracteres): só números, com ou sem pontuação, de 5 a 14, é CNPJ e ignora
+os filtros; 14 procuram `cnpj_basico` (CNPJ de filial acha a matriz), menos que isso procuram
+o começo por intervalo na chave primária (o `LIKE` não usa índice com a collation `en_US`).
+Outro texto, a partir de 3 letras, procura parte do nome ou o nome inteiro da cidade e soma
+aos filtros.
+`%` e `_` valem como texto. Mesma regra em `src/lib/prospecting/buscaReceita.ts`.
+
 Os filtros seguem `src/types/filtrosReceita.ts`; cada valor vem de lista fechada e vira
-parâmetro. Valor fora da lista: 400. Sem sessão: 401. Sem `prospeccao:ler`: 403.
+parâmetro. Valor fora da lista ou busca inválida: 400. Sem sessão: 401. Sem `prospeccao:ler`: 403.
 Base fora do ar ou lenta: 503.
 
 ## Preparação da VPS (uma vez)

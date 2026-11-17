@@ -63,3 +63,22 @@ CREATE INDEX IF NOT EXISTS empresas_cnaes_sec_idx ON pulse.empresas USING gin (c
 CREATE INDEX IF NOT EXISTS empresas_uf_idx ON pulse.empresas (uf);
 
 GRANT SELECT ON pulse.empresas, pulse.base TO pulse_api;
+
+-- US-0005: busca por nome e cidade. Uma só normalização (sem acento e em minúsculas), usada
+-- pelos índices e pela Edge Function: o termo e o nome passam pela mesma função. Os acentos
+-- saem antes do lower, que não mexe em letra acentuada quando a base usa a collation C.
+-- O índice de trechos de 3 letras (gin_trgm_ops) exige a extensão pg_trgm, que só o
+-- administrador do banco cria (preparar-vps.sql).
+CREATE OR REPLACE FUNCTION pulse.normalizar(texto text) RETURNS text
+  LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+  RETURN lower(translate(texto,
+    'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑáàâãäéèêëíìîïóòôõöúùûüçñ',
+    'AAAAAEEEEIIIIOOOOOUUUUCNaaaaaeeeeiiiiooooouuuucn'));
+
+-- Nome: fantasia e razão social juntos, num índice só. A Edge Function repete esta expressão.
+CREATE INDEX IF NOT EXISTS empresas_nome_busca_idx ON pulse.empresas
+  USING gin (pulse.normalizar(coalesce(nome_fantasia, '') || ' ' || razao_social) gin_trgm_ops);
+-- Cidade: só o nome inteiro, por igualdade.
+CREATE INDEX IF NOT EXISTS empresas_municipio_busca_idx ON pulse.empresas (pulse.normalizar(municipio));
+
+GRANT EXECUTE ON FUNCTION pulse.normalizar(text) TO pulse_api;
