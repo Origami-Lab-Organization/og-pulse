@@ -22,12 +22,15 @@ import {
 } from '@/lib/prospecting/faturamentoEstimado';
 import { fitDaBase } from '@/lib/prospecting/fitDaBase';
 import { rotuloDoCnae } from '@/lib/prospecting/filtrosReceita';
-import { getProspectStageLabel } from '@/types/prospect';
+import { getDiscardReasonLabel } from '@/types/prospect';
+import { etapaDaOportunidade, statusDoProjeto } from '@/lib/prospecting/relacao';
+import type { OportunidadeDaRelacao, ProjetoDaRelacao } from '@/types/relacao';
 import { nomeDaQualificacao } from '@/lib/prospecting/qualificacoesDeSocio';
-import type { ContatoDaFicha, EmpresaDaFicha, OportunidadeDaFicha, SocioDaFicha } from '@/types/fichaReceita';
+import type { ContatoDaFicha, EmpresaDaFicha, FichaReceita, SocioDaFicha } from '@/types/fichaReceita';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { ColocarParaAbordarDialog } from './ColocarParaAbordarDialog';
+import { SeloDeRelacao } from './SeloDeRelacao';
 
 interface FichaDaEmpresaReceitaProps {
   /** CNPJ da empresa aberta; nulo = ficha fechada. */
@@ -42,7 +45,7 @@ const PENDENTES = 'Regime tributário, site, fomento público e contratos com o 
 /**
  * Ficha de uma empresa da base da Receita (US-0007): tudo que a base sabe, para decidir sem
  * sair da lista. Gaveta à direita; Esc, o "x" ou um clique fora fecham e devolvem o foco à
- * linha. No rodapé, "Colocar para abordar" (US-0008).
+ * linha. No rodapé, "Mover para abordar" (US-0008).
  */
 export function FichaDaEmpresaReceita({ cnpj, onFechar }: FichaDaEmpresaReceitaProps) {
   const ficha = useFichaReceita(cnpj);
@@ -68,11 +71,12 @@ function Conteudo({ ficha }: { ficha: ReturnType<typeof useFichaReceita> }) {
     );
   }
   const { empresa, contato, socios, oportunidades } = ficha.data;
+  const comRelacao = { ...empresa, relacao: ficha.data.relacao ?? null };
   return (
     <>
       <Cabecalho empresa={empresa} />
       <div className="flex-1 overflow-y-auto">
-        {oportunidades.length > 0 && <NaProspeccao oportunidades={oportunidades} />}
+        <RelacaoComAOrigami ficha={ficha.data} />
         <Identificacao empresa={empresa} />
         <Atividade empresa={empresa} />
         <Tamanho empresa={empresa} />
@@ -81,19 +85,19 @@ function Conteudo({ ficha }: { ficha: ReturnType<typeof useFichaReceita> }) {
         <Contato contato={contato} />
         <RedeEContato empresa={empresa} socios={socios} />
       </div>
-      <Rodape empresa={empresa} emAndamento={oportunidades.length > 0} />
+      <Rodape empresa={comRelacao} emAndamento={oportunidades.length > 0} />
     </>
   );
 }
 
-/** Colocar para abordar (US-0008): só com `prospeccao:editar` e sem oportunidade em andamento. */
+/** Mover para abordar (US-0008): só com `prospeccao:editar` e sem oportunidade em andamento. */
 function Rodape({ empresa, emAndamento }: { empresa: EmpresaDaFicha; emAndamento: boolean }) {
   const { can } = useAuth();
   const [colocando, setColocando] = useState(false);
   if (emAndamento || !can('prospeccao:editar')) return null;
   return (
     <div className="border-t bg-card px-5 py-4">
-      <Button className="w-full" onClick={() => setColocando(true)}>Colocar para abordar</Button>
+      <Button className="w-full" onClick={() => setColocando(true)}>Mover para abordar</Button>
       <ColocarParaAbordarDialog empresas={[empresa]} aberta={colocando} onAbertaChange={setColocando} />
     </div>
   );
@@ -158,22 +162,66 @@ function Aviso({ children, alerta = false }: { children: ReactNode; alerta?: boo
 
 const traco = <span className="text-muted-foreground">—</span>;
 
-function NaProspeccao({ oportunidades }: { oportunidades: OportunidadeDaFicha[] }) {
-  const { byId } = useEmployeeDirectoryMap();
+/** Relação com a Origami e o histórico resumido (US-0019, cenário 7). */
+function RelacaoComAOrigami({ ficha }: { ficha: FichaReceita }) {
+  if (ficha.relacao_indisponivel) {
+    return (
+      <Secao titulo="Relação com a Origami">
+        <p className="text-[13px] text-muted-foreground">A relação com a Origami não carregou agora.</p>
+      </Secao>
+    );
+  }
+  const historico = ficha.historico;
+  const oportunidades = [...(historico?.oportunidades ?? [])].sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''));
+  const projetos = historico?.projetos ?? [];
   return (
-    <Secao titulo="Já no Pipeline">
-      <ul className="space-y-1.5">
-        {oportunidades.map((o) => (
-          <li key={o.id}>
-            <Link to={`/comercial/prospeccao?oportunidade=${encodeURIComponent(o.id)}`} className="flex items-center gap-2 rounded-md border px-3 py-2 text-[13px] hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <span className="font-medium">{getProspectStageLabel(o.stage)}</span>
-              <span className="text-muted-foreground">· {o.owner_id ? byId.get(o.owner_id)?.nome ?? 'responsável' : 'sem responsável'}</span>
-              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            </Link>
-          </li>
-        ))}
-      </ul>
+    <Secao titulo="Relação com a Origami">
+      <div className="space-y-2.5">
+        {ficha.relacao ? <SeloDeRelacao relacao={ficha.relacao} /> : <p className="text-[13px] text-muted-foreground">Sem relação com a Origami.</p>}
+        {projetos.length > 0 && <ListaDoHistorico titulo="Projetos">{projetos.map((p) => <ItemDeProjeto key={p.id} projeto={p} />)}</ListaDoHistorico>}
+        {oportunidades.length > 0 && (
+          <ListaDoHistorico titulo="Oportunidades">{oportunidades.map((o) => <ItemDeOportunidade key={o.id} oportunidade={o} />)}</ListaDoHistorico>
+        )}
+      </div>
     </Secao>
+  );
+}
+
+function ListaDoHistorico({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</p>
+      <ul className="space-y-1.5">{children}</ul>
+    </div>
+  );
+}
+
+const LINK_DO_HISTORICO = 'flex items-center gap-2 rounded-md border px-3 py-2 text-[13px] hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+function ItemDeProjeto({ projeto }: { projeto: ProjetoDaRelacao }) {
+  return (
+    <li>
+      <Link to={`/projects/${encodeURIComponent(projeto.id)}`} className={LINK_DO_HISTORICO}>
+        <span className="min-w-0 truncate font-medium">{projeto.name}</span>
+        <span className="shrink-0 text-muted-foreground">· {statusDoProjeto(projeto.status)}</span>
+        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </Link>
+    </li>
+  );
+}
+
+function ItemDeOportunidade({ oportunidade: o }: { oportunidade: OportunidadeDaRelacao }) {
+  const { byId } = useEmployeeDirectoryMap();
+  const quem = o.owner_id ? byId.get(o.owner_id)?.nome ?? 'responsável' : 'sem responsável';
+  const detalhe = [o.discard_reason && getDiscardReasonLabel(o.discard_reason), o.data && formatDate(o.data), quem].filter(Boolean).join(' · ');
+  return (
+    <li>
+      <Link to={`/comercial/prospeccao?oportunidade=${encodeURIComponent(o.id)}`} className={LINK_DO_HISTORICO}>
+        <span className="shrink-0 font-medium">{etapaDaOportunidade(o.stage)}</span>
+        <span className="min-w-0 truncate text-muted-foreground">· {detalhe}</span>
+        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </Link>
+    </li>
   );
 }
 

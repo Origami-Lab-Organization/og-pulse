@@ -8,6 +8,7 @@ import { useColocarParaAbordar } from '@/hooks/useColocarParaAbordar';
 import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
 import { useHideValues } from '@/contexts/HideValuesContext';
 import { formatCNPJ } from '@/lib/masks';
+import { formatarData } from '@/lib/prospecting/prazos';
 import { nomeDaEmpresa, reaisCurtos, type EmpresaReceita } from '@/lib/prospecting/empresasReceita';
 import { itemParaAbordar, tiposSugeridos } from '@/lib/prospecting/paraAbordar';
 import { faturamentoDaSugestao, motivoSemSugestao } from '@/lib/prospecting/tipoDeConta';
@@ -19,12 +20,12 @@ interface ColocarParaAbordarDialogProps {
   empresas: EmpresaReceita[];
   aberta: boolean;
   onAbertaChange: (aberta: boolean) => void;
-  /** Depois de colocar: a lista limpa a seleção. */
+  /** Depois de mover: a lista limpa a seleção. */
   onConcluido?: () => void;
 }
 
 /**
- * Confirmação de "Colocar para abordar" (US-0008): o responsável (padrão: quem coloca) e o tipo
+ * Confirmação de "Mover para abordar" (US-0008): o responsável (padrão: quem move) e o tipo
  * de conta de cada empresa, sugerido pelo faturamento. Sem tipo, "Confirmar" fica indisponível
  * e a empresa aparece destacada. Com várias, a janela mostra o andamento.
  */
@@ -113,7 +114,7 @@ function Cabecalho({ empresas }: { empresas: EmpresaReceita[] }) {
   const uma = empresas.length === 1;
   return (
     <DialogHeader>
-      <DialogTitle>{uma ? `Colocar ${nomeDaEmpresa(empresas[0])} para abordar` : `Colocar ${empresas.length} empresas para abordar`}</DialogTitle>
+      <DialogTitle>{uma ? `Mover ${nomeDaEmpresa(empresas[0])} para abordar` : `Mover ${empresas.length} empresas para abordar`}</DialogTitle>
       <DialogDescription>
         {uma ? 'A empresa entra' : 'As empresas entram'} em A abordar, com os dados da Receita. Confirme o tipo de conta de cada uma.
       </DialogDescription>
@@ -138,7 +139,7 @@ function Rodape(props: RodapeProps) {
       </p>
       <div className="flex gap-2">
         <Button variant="outline" onClick={onCancelar} disabled={colocando}>Cancelar</Button>
-        <Button onClick={onConfirmar} disabled={!pronto || colocando}>{colocando ? 'Colocando…' : 'Confirmar'}</Button>
+        <Button onClick={onConfirmar} disabled={!pronto || colocando}>{colocando ? 'Movendo…' : 'Confirmar'}</Button>
       </div>
     </DialogFooter>
   );
@@ -168,6 +169,7 @@ function LinhaDaEmpresa(props: LinhaDaEmpresaProps) {
           {faturamento != null && <span> · ≈ {reaisCurtos(faturamento)}</span>}
         </p>
         {!sugerido && <p className="mt-0.5 text-xs text-warning-emphasis">{motivoSemSugestao(empresa)}</p>}
+        {empresa.relacao?.pediuParaParar && <AvisoPediuParaParar data={empresa.relacao.oportunidade?.data ?? null} />}
       </div>
       <label htmlFor={idTipo} className="sr-only">Tipo de conta de {nome}</label>
       <Select value={tipo ?? ''} onValueChange={(v) => onTipo(v as TipoDeConta)} disabled={desabilitada}>
@@ -183,6 +185,15 @@ function LinhaDaEmpresa(props: LinhaDaEmpresaProps) {
         </SelectContent>
       </Select>
     </li>
+  );
+}
+
+/** US-0019, cenário 5: avisa, sem impedir. */
+function AvisoPediuParaParar({ data }: { data: string | null }) {
+  return (
+    <p className="mt-0.5 text-xs font-medium text-destructive-emphasis" role="note">
+      Pediu para parar{data ? ` em ${formatarData(data)}` : ''}. Confirme antes de abordar de novo.
+    </p>
   );
 }
 

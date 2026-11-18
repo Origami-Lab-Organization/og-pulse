@@ -6,7 +6,7 @@ interface BarraDeSelecaoProps {
   onLimpar: () => void;
 }
 
-/** Barra da seleção da lista (US-0008): quantas, "Colocar para abordar" e "Limpar seleção". */
+/** Barra da seleção da lista (US-0008): quantas, "Mover para abordar" e "Limpar seleção". */
 export function BarraDeSelecao(props: BarraDeSelecaoProps) {
   const { quantidade, onColocar, onLimpar } = props;
   if (!quantidade) return null;
@@ -18,7 +18,7 @@ export function BarraDeSelecao(props: BarraDeSelecaoProps) {
       </p>
       <div className="ml-auto flex gap-2">
         <Button variant="ghost" size="sm" onClick={onLimpar}>Limpar seleção</Button>
-        <Button size="sm" onClick={onColocar}>Colocar para abordar</Button>
+        <Button size="sm" onClick={onColocar}>Mover para abordar</Button>
       </div>
     </div>
   );

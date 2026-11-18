@@ -95,6 +95,8 @@ sources:
 # 18/11/2026: 20261118160000 — prospect_companies.tipo_conta (ancora|ponte|satelite, nula =
 #  sem tipo) e a alavanca base_receita sai de prospects.lever (US-0008 revista), conferidos
 #  contra ProspectCompanyDB, TIPOS_DE_CONTA e PROSPECT_LEVERS.
+# 18/11/2026: src/types/prospect.ts só trocou um comentário ("mover para abordar", US-0019);
+#  a relação com a Origami é calculada, sem tabela nem coluna nova — diagrama conferido, nada muda.
 # 01/10/2026: src/types/prospect.ts ganhou só regra de tela (previousStagesOf/isBackwardMove,
 #  voltar o card de etapa); sem migration — diagrama conferido, nada muda.
 # 02/10/2026: 20261002120000 — une cards duplicados por erro e cria trigger + índice único

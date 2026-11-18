@@ -8,14 +8,15 @@ interface GavetaDeFiltrosProps {
   onAbertaChange: (aberta: boolean) => void;
   contagem: TotalReceita | undefined;
   contando: boolean;
-  /** O botão "Filtros", que recebe o foco quando a gaveta fecha. */
+  /** O ícone de filtros, que recebe o foco quando a gaveta fecha. */
   botao: RefObject<HTMLButtonElement>;
   children: ReactNode;
 }
 
 /**
- * Filtros no celular e no tablet (US-0004): por cima da lista, pela direita. Esc, tocar fora,
- * o botão de recolher do painel e "Ver N empresas" fecham. A lista atrás muda a cada filtro.
+ * Filtros da tela Empresas, em qualquer tamanho de tela (US-0004; desde 18/11/2026 também no
+ * computador): por cima da lista, pela direita. Esc, clicar fora, o botão de fechar do painel e
+ * "Ver N empresas" fecham. A lista atrás muda a cada filtro.
  */
 export function GavetaDeFiltros(props: GavetaDeFiltrosProps) {
   const { aberta, onAbertaChange, contagem, contando, botao, children } = props;
@@ -24,7 +25,7 @@ export function GavetaDeFiltros(props: GavetaDeFiltrosProps) {
       <SheetContent
         side="right"
         hideClose
-        className="flex w-[min(92vw,360px)] flex-col p-0 sm:max-w-none"
+        className="flex w-[min(92vw,380px)] flex-col p-0 sm:max-w-none"
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           botao.current?.focus();

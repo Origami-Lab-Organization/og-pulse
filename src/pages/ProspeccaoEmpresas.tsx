@@ -27,12 +27,13 @@ export default function ProspeccaoEmpresas() {
   return (
     <AppLayout
       title="Empresas"
-      description="As médias e grandes empresas do país: filtre, escolha e coloque para abordar"
+      description="As médias e grandes empresas do país: filtre, escolha e mova para abordar"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Empresas' }]}
       actions={
         can('prospeccao:editar') && (
-          <Button onClick={() => setImportando(true)}>
-            <FileUp className="mr-2 h-4 w-4" aria-hidden="true" />
+          // Uso raro (empresa fora da base): botão discreto, de contorno (18/11/2026).
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-[13px]" onClick={() => setImportando(true)}>
+            <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
             Importar CNPJs
           </Button>
         )

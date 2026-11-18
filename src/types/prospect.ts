@@ -672,7 +672,7 @@ export function toISODate(date: Date): string {
   return `${date.getFullYear()}-${mes}-${dia}`;
 }
 
-/** Uma empresa da base a colocar para abordar (US-0008). */
+/** Uma empresa da base a mover para abordar (US-0008). */
 export interface ItemParaAbordar {
   cnpj: string;
   nome: string;

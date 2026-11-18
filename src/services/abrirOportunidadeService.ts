@@ -15,7 +15,7 @@ import {
 } from '@/types/prospect';
 
 /**
- * Colocar empresas da base da Receita para abordar (US-0008).
+ * Mover empresas da base da Receita para abordar (US-0008).
  *
  * A empresa é cadastrada pelo mesmo caminho da importação por CNPJ (ADR-0041): consulta
  * a Receita, cria a empresa e grava o retrato e a rede de sócios. Se ela já existe no tenant, é
