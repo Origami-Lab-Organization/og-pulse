@@ -70,7 +70,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0003](stories/4-em-desenvolvimento/US-0003-comercial-filtrar-empresas.md) | Filtrar as empresas pelo que importa para a Origami | Pessoa do comercial | Em desenvolvimento | Pronta |
 | [US-0004](stories/4-em-desenvolvimento/US-0004-comercial-recolher-os-filtros.md) | Recolher os filtros para ver mais da lista | Pessoa do comercial | Em desenvolvimento | Pronta |
 | [US-0005](stories/4-em-desenvolvimento/US-0005-comercial-buscar-empresa.md) | Buscar empresa por nome, CNPJ ou cidade | Pessoa do comercial | Em desenvolvimento | Pronta |
-| [US-0006](stories/2-em-refinamento/US-0006-comercial-faturamento-estimado.md) | Ver o faturamento estimado de cada empresa | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
+| [US-0006](stories/4-em-desenvolvimento/US-0006-comercial-faturamento-estimado.md) | Ver o faturamento estimado de cada empresa | Pessoa do comercial | Em desenvolvimento | Pronta |
 | [US-0007](stories/2-em-refinamento/US-0007-comercial-ficha-da-empresa.md) | Avaliar a empresa pela ficha antes de decidir | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0008](stories/2-em-refinamento/US-0008-comercial-abrir-oportunidade.md) | Abrir oportunidade a partir da empresa | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0009](stories/2-em-refinamento/US-0009-comercial-abrir-oportunidades-em-lote.md) | Abrir oportunidades em lote | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
@@ -82,6 +82,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0015](stories/2-em-refinamento/US-0015-comercial-distancia-de-formiga.md) | Filtrar e ordenar pela distância de Formiga | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0016](stories/2-em-refinamento/US-0016-comercial-tipo-de-conta.md) | Classificar a conta como Âncora, Ponte ou Satélite | Pessoa do comercial | Em refinamento | Pronta |
 | [US-0017](stories/2-em-refinamento/US-0017-comercial-anel-e-tier-saem.md) | Anel e Tier saem da Prospecção | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
+| [US-0018](stories/1-a-fazer/US-0018-comercial-refinar-faturamento-estimado.md) | Refinar o faturamento estimado | Pessoa do comercial | A fazer | Não pronta |
 
 #### Ordem de implementação proposta
 
@@ -91,7 +92,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | 2 | Encontrar empresas | US-0003, US-0004, US-0005, US-0006, US-0015 |
 | 3 | Decidir e abrir oportunidade | US-0007, US-0008, US-0009, US-0016 |
 | 4 | Triagem completa | US-0010, US-0011, US-0012, US-0017 |
-| Depois | — | US-0013, US-0014 |
+| Depois | — | US-0013, US-0014, US-0018 |
 
 #### Decisões do Victor Couto (2026-11-15 e 2026-11-16)
 
@@ -124,6 +125,11 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
   busca segue a ordenação da tabela e usa índice de texto na VPS (17/11, US-0005).
 - O painel de filtros começa recolhido na primeira visita e a tela lembra a escolha; no
   celular e no tablet ele abre por cima da lista, com "Ver N empresas" (17/11, US-0004).
+- Faturamento estimado: um valor só ("≈ R$ 723 mi") com a base; pela RAIS × receita por
+  pessoa do ramo (IBGE: pesquisas anuais 2024 e, sem pesquisa, Contas Nacionais 2021 × 1,62);
+  sem RAIS, modelo de empresas parecidas quando passa do piso, senão "acima de R$ 4,8 mi";
+  selo de Lucro Real só pela RAIS; a ficha, o "Calculado" e a sugestão do tipo ficam na
+  US-0007, US-0008 e US-0016 (17/11).
 - Todas as abas mostram contagem, menos "A classificar".
 - Anel e Tier saem. No lugar deles entram a distância de Formiga (em linha reta, por
   cidade, com coordenadas do IBGE, filtro de 50 a 500 km) e o tipo de conta Âncora, Ponte

@@ -1,0 +1,215 @@
+import { HIDDEN_VALUE_MASK } from '@/lib/formatters';
+import { valuesAreHidden } from '@/lib/hideValuesStore';
+import type { BaseDoFaturamento, EmpresaParaModelo, Faturamento } from '@/types/filtrosReceita';
+import type { FaturamentoBase } from '@/types/prospect';
+import MODELO from './modeloDeFaturamento.json';
+import CAPITAL from './calibracaoCapital.json';
+import { receitaPorPessoa } from './receitaPorPessoa';
+
+/**
+ * Faturamento estimado das empresas da base da Receita (US-0006). Três bases, nesta ordem:
+ *
+ * 1. **RAIS:** funcionários × receita por pessoa da classe da CNAE e do porte
+ *    (receitaPorPessoa.ts).
+ * 2. **Modelo:** sem funcionário na RAIS, o modelo de empresas parecidas
+ *    (modeloDeFaturamento.json, calibrado por scripts/receita/calibrar-faturamento.ts) prevê
+ *    os funcionários pelas características da empresa; vale só quando passa do piso.
+ * 3. **Piso:** R$ 4,8 mi, o que a Receita garante para quem não é ME nem EPP.
+ *
+ * A carga (scripts/receita/sincronizar-base.ts) grava o valor e a base; a tela mostra
+ * "≈ valor" com a base, e a conta no tooltip. Moeda truncada, nunca arredondada (ADR-0011).
+ * Não entra na nota de fit (ADR-0042).
+ */
+
+export const BASE_RAIS: BaseDoFaturamento = 'rais';
+export const BASE_MODELO: BaseDoFaturamento = 'modelo';
+export const BASE_PISO: BaseDoFaturamento = 'piso';
+
+/** Quem não é ME nem EPP fatura acima disso (porte "Demais" da Receita). */
+export const PISO_DO_PORTE = 4_800_000;
+/** Acima disso, no ano anterior, a empresa é obrigada ao Lucro Real (Lei 9.718/1998, art. 14; sinal da Lei do Bem, ADR-0041). */
+export const LIMITE_DO_LUCRO_REAL = 78_000_000;
+
+// ---------- modelo de empresas parecidas ----------
+
+const SECOES = 'ABCDEFGHIJKLMNOPQRSTU'.split('');
+const UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'];
+const NATUREZAS = ['limitada', 'sa_fechada', 'sa_aberta', 'outras_empresas', 'associacoes', 'pessoa_fisica'];
+
+/** Os nomes, na ordem dos coeficientes: a primeira categoria de cada grupo é a referência. */
+export const CARACTERISTICAS: readonly string[] = [
+  'const', 'log_capital', 'tem_capital', 'log_idade', 'log_filiais', 'log_socios', 'log_divida', 'email', 'telefone',
+  ...SECOES.slice(1).map((s) => `secao_${s}`),
+  ...NATUREZAS.slice(1).map((n) => `nat_${n}`),
+  ...UFS.slice(1).map((u) => `uf_${u}`),
+];
+
+// Natureza jurídica da Receita: os mesmos grupos do filtro (US-0003).
+const NATUREZA_POR_CODIGO: Record<string, string> = { '2062': 'limitada', '2054': 'sa_fechada', '2046': 'sa_aberta' };
+const NATUREZA_POR_INICIO: Record<string, string> = { '3': 'associacoes', '4': 'pessoa_fisica' };
+
+function grupoDaNatureza(codigo: string | null): string {
+  const c = codigo ?? '';
+  return NATUREZA_POR_CODIGO[c] ?? NATUREZA_POR_INICIO[c.slice(0, 1)] ?? 'outras_empresas';
+}
+
+function anosCompletos(abertura: string | null, hoje: string): number {
+  if (!abertura) return 0;
+  const [a, m, d] = abertura.split('-').map(Number);
+  const [ha, hm, hd] = hoje.split('-').map(Number);
+  const anos = ha - a - (hm < m || (hm === m && hd < d) ? 1 : 0);
+  return Math.max(anos, 0);
+}
+
+const um = (sim: boolean) => (sim ? 1 : 0);
+
+/** As características na ordem de CARACTERISTICAS. A calibração e a carga usam esta mesma função. */
+export function caracteristicasDoModelo(e: EmpresaParaModelo, hoje: string): number[] {
+  const capital = e.capital ?? 0;
+  const natureza = grupoDaNatureza(e.natureza);
+  return [
+    1,
+    Math.log1p(capital),
+    um(capital > 0),
+    Math.log1p(anosCompletos(e.abertura, hoje)),
+    Math.log1p(e.filiais),
+    Math.log1p(e.socios),
+    Math.log1p(e.divida ?? 0),
+    um(e.email),
+    um(e.telefone),
+    ...SECOES.slice(1).map((s) => um(e.secao === s)),
+    ...NATUREZAS.slice(1).map((n) => um(natureza === n)),
+    ...UFS.slice(1).map((u) => um(e.uf === u)),
+  ];
+}
+
+interface Modelo {
+  nomes: string[];
+  coeficientes: number[];
+}
+
+function coeficientes(): number[] {
+  const m = MODELO as Modelo;
+  if (m.nomes.join() !== CARACTERISTICAS.join()) {
+    throw new Error('modeloDeFaturamento.json não bate com as características: rode a calibração de novo.');
+  }
+  return m.coeficientes;
+}
+
+/** Funcionários previstos para uma empresa sem RAIS. */
+function funcionariosPrevistos(e: EmpresaParaModelo, hoje: string): number {
+  const beta = coeficientes();
+  const x = caracteristicasDoModelo(e, hoje);
+  return Math.exp(x.reduce((soma, v, i) => soma + v * beta[i], 0));
+}
+
+// ---------- estimativa ----------
+
+const NATUREZAS_SA = new Set(['2046', '2054', '2038']);
+
+/**
+ * Capital social a partir de R$ 10 mi, com RAIS e fora de holdings e imobiliárias: a
+ * estimativa pela RAIS é combinada com o capital (calibracaoCapital.json, US-0006, 18/11/2026).
+ * Nas empresas que o time conhece, o erro mediano caiu de 4,4 para 2 vezes; abaixo de R$ 10 mi
+ * não há dado para calibrar, e vale só a RAIS.
+ */
+export function usaCapital(cnae: string, capital: number | null): boolean {
+  return (capital ?? 0) >= CAPITAL.capital_minimo && !CAPITAL.divisoes_fora.includes(cnae.slice(0, 2));
+}
+
+function comCapital(pelaRais: number, capital: number, natureza: string | null): number {
+  const sa = NATUREZAS_SA.has(natureza ?? '') ? 1 : 0;
+  const ln = CAPITAL.constante + CAPITAL.peso_estimativa * Math.log(pelaRais) + CAPITAL.peso_capital * Math.log(capital) + CAPITAL.ajuste_sa * sa;
+  return Math.trunc(Math.exp(ln));
+}
+
+/**
+ * O faturamento estimado de uma empresa, em reais, truncado. Com RAIS, pela conta (com o
+ * capital, quando ele entra); sem RAIS, pelo modelo quando passa do piso; senão, o piso.
+ */
+export function estimarFaturamento(cnae: string, funcionarios: number | null, empresa: EmpresaParaModelo, hoje: string): Faturamento {
+  if (funcionarios && funcionarios > 0) {
+    const r = receitaPorPessoa(cnae, funcionarios);
+    if (r) {
+      const pelaRais = funcionarios * r.mil * 1000;
+      const valor = usaCapital(cnae, empresa.capital) ? comCapital(pelaRais, empresa.capital!, empresa.natureza) : pelaRais;
+      return { valor, base: BASE_RAIS };
+    }
+  }
+  const previstos = funcionariosPrevistos(empresa, hoje);
+  const r = receitaPorPessoa(cnae, Math.max(1, Math.round(previstos)));
+  const previsto = r ? Math.trunc(previstos * r.mil * 1000) : 0;
+  return previsto > PISO_DO_PORTE ? { valor: previsto, base: BASE_MODELO } : { valor: PISO_DO_PORTE, base: BASE_PISO };
+}
+
+/**
+ * Acima de R$ 78 mi de receita no ano anterior, o Lucro Real é obrigatório (Lei 9.718/1998,
+ * art. 14). Só a estimativa pela RAIS sustenta o aviso; o modelo erra demais para isso.
+ */
+export function lucroRealProvavel(valor: number, base: BaseDoFaturamento): boolean {
+  return base === BASE_RAIS && valor > LIMITE_DO_LUCRO_REAL;
+}
+
+// ---------- exibição ----------
+
+const ESCALAS: ReadonlyArray<[number, string]> = [[1e9, 'bi'], [1e6, 'mi'], [1e3, 'mil'], [1, '']];
+
+/** Abaixo de 10 na unidade, uma casa; acima, só o inteiro. Sempre truncado. */
+function emReais(valor: number): string {
+  const [limite, unidade] = ESCALAS.find(([l]) => valor >= l) ?? ESCALAS[ESCALAS.length - 1];
+  // Multiplica antes de dividir: 2.300.000 / 1e6 × 10 dá 22,99… em ponto flutuante.
+  const casas = valor < 10 * limite ? 10 : 1;
+  const numero = (Math.trunc((valor * casas) / limite) / casas).toLocaleString('pt-BR');
+  return `R$ ${numero}${unidade ? ` ${unidade}` : ''}`;
+}
+
+/** "≈ R$ 723 mi", ou "acima de R$ 4,8 mi" quando só há o piso. */
+export function textoDoFaturamento(valor: number, base: BaseDoFaturamento): string {
+  if (valuesAreHidden()) return HIDDEN_VALUE_MASK;
+  return base === BASE_PISO ? `acima de ${emReais(PISO_DO_PORTE)}` : `≈ ${emReais(valor)}`;
+}
+
+export const ROTULO_DA_BASE: Record<BaseDoFaturamento, string> = {
+  rais: 'pela RAIS',
+  modelo: 'aproximado',
+  piso: 'pelo porte',
+};
+
+const ERRO_DO_MODELO = ((MODELO as { erro_mediano?: number }).erro_mediano ?? 0).toLocaleString('pt-BR');
+
+const PELO_PISO =
+  'Sem funcionários na RAIS. A Receita classifica a empresa como média ou grande (nem ME nem EPP), o que significa faturamento acima de R$ 4,8 mi por ano.';
+
+const detalhe = (r: { nivel: string; porte: string | null; fonte: string }) =>
+  `${r.nivel} da CNAE${r.porte ? `, empresas de ${r.porte}` : ''}; ${r.fonte}`;
+
+/** A explicação do valor, para o tooltip (US-0006, cenário 5). */
+export function contaDoFaturamento(cnae: string, funcionarios: number | null, base: BaseDoFaturamento, capital: number | null = null): string {
+  if (base === BASE_PISO) return PELO_PISO;
+  if (base === BASE_MODELO) {
+    return `Sem funcionários na RAIS. Estimado por empresas parecidas (setor, capital social, idade, filiais, sócios, natureza jurídica e estado) × a receita por pessoa do IBGE. Erro típico de ${ERRO_DO_MODELO} vezes, para mais ou para menos.`;
+  }
+  const r = receitaPorPessoa(cnae, funcionarios ?? 0);
+  if (!r) return PELO_PISO;
+  const pessoas = (funcionarios ?? 0).toLocaleString('pt-BR');
+  const conta = `${pessoas} funcionários (RAIS) × R$ ${r.mil.toLocaleString('pt-BR')} mil por pessoa (${detalhe(r)})`;
+  if (usaCapital(cnae, capital)) {
+    return `${conta} = ${emReais((funcionarios ?? 0) * r.mil * 1000)}, combinado com o capital social de ${emReais(capital!)}: empresas com capital alto costumam faturar acima da média do ramo (calibrado com companhias abertas e casos conhecidos pelo time; erro típico de 2 vezes).`;
+  }
+  return `${conta}. É uma média: empresas do mesmo ramo e porte variam bastante em torno dela.`;
+}
+
+// ---------- informado pelo time ----------
+
+/** O valor que o time informou na Prospecção, sem "≈": não é estimativa da base. */
+export function textoDoInformado(valor: number): string {
+  return valuesAreHidden() ? HIDDEN_VALUE_MASK : emReais(valor);
+}
+
+export const ROTULO_DO_INFORMADO: Record<FaturamentoBase, string> = {
+  estimado: 'estimado pelo time',
+  apurado: 'apurado pelo time',
+};
+
+/** Com o valor do time, sem margem: passou de R$ 78 mi, o selo aparece. */
+export const lucroRealPeloTime = (valor: number): boolean => valor > LIMITE_DO_LUCRO_REAL;
