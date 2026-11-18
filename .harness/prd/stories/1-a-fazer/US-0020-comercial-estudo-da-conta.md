@@ -59,7 +59,7 @@ no LinkedIn e no Instagram).
 - **Comportamento atual:** PROVADO — a rede da empresa guarda sócios com LinkedIn, Instagram e
   telefone preenchidos à mão, e "Virar contato" cria a pessoa (ADR-0041); não há nível de
   influência nem número de funcionários informado pelo time.
-- **Fora do escopo:** colocar para abordar (US-0008); relacionamento (US-0019).
+- **Fora do escopo:** mover para abordar (US-0008); relacionamento (US-0019).
 
 ## Implementação
 

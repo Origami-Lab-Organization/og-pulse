@@ -1,5 +1,6 @@
 import type { EmpresaReceita } from '@/lib/prospecting/empresasReceita';
 import type { ProspectStage } from '@/types/prospect';
+import type { DadosDaRelacao, RelacaoDaEmpresa } from '@/types/relacao';
 
 /** Atividade secundária com a descrição da CNAE. */
 export interface AtividadeSecundaria {
@@ -52,4 +53,8 @@ export interface FichaReceita {
   contato: ContatoDaFicha | null;
   socios: SocioDaFicha[];
   oportunidades: OportunidadeDaFicha[];
+  /** Relação da Origami com a empresa e o histórico dela (US-0019). */
+  relacao?: RelacaoDaEmpresa | null;
+  historico?: DadosDaRelacao | null;
+  relacao_indisponivel?: boolean;
 }

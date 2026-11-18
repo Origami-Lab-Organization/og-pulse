@@ -1,0 +1,63 @@
+/**
+ * Relação da Origami com uma empresa (US-0019), calculada pelos clientes, projetos e
+ * oportunidades do tenant. Mora aqui porque a Edge Function `empresas-receita` calcula e a tela
+ * só mostra; a tela importa os tipos e os rótulos daqui.
+ *
+ * Quando mais de uma vale, vence a primeira desta ordem (decisão de 18/11/2026):
+ * Cliente ativo → Sendo abordada → Já foi cliente → Abordada sem sucesso.
+ */
+
+import type { DadosDaRelacao, OportunidadeDaRelacao, Relacao, RelacaoDaEmpresa } from "./relacaoTipos.ts";
+
+export const RELACOES: ReadonlyArray<{ valor: Relacao; rotulo: string }> = [
+  { valor: "cliente_ativo", rotulo: "Cliente ativo" },
+  { valor: "sendo_abordada", rotulo: "Sendo abordada" },
+  { valor: "ja_foi_cliente", rotulo: "Já foi cliente" },
+  { valor: "sem_sucesso", rotulo: "Abordada sem sucesso" },
+];
+
+const PROJETO_ABERTO = new Set(["planning", "active", "paused"]);
+const GANHO = new Set(["ganho", "convertido"]);
+const PERDA = new Set(["descartado", "sem_resposta"]);
+const ENCERRADA = new Set([...GANHO, ...PERDA]);
+const PEDIU_PARA_PARAR = "pediu_para_parar";
+const MESES_DA_PERDA = 12;
+
+const maisRecente = <T extends { data: string | null }>(itens: T[]): T | null =>
+  [...itens].sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""))[0] ?? null;
+
+/** Data de corte da Perda: 12 meses antes de hoje (AAAA-MM-DD). */
+export function corteDaPerda(hoje: Date): string {
+  const corte = new Date(hoje);
+  corte.setMonth(corte.getMonth() - MESES_DA_PERDA);
+  return corte.toISOString().slice(0, 10);
+}
+
+function semSucesso(oportunidades: OportunidadeDaRelacao[], hoje: Date): RelacaoDaEmpresa | null {
+  const ultima = maisRecente(oportunidades.filter((o) => ENCERRADA.has(o.stage)));
+  if (!ultima || !PERDA.has(ultima.stage)) return null;
+  const pediuParaParar = ultima.discard_reason === PEDIU_PARA_PARAR;
+  // "Pediu para parar" é pedido da empresa: avisa mesmo depois dos 12 meses (hipótese da US-0019).
+  const recente = (ultima.data ?? "") >= corteDaPerda(hoje);
+  if (!pediuParaParar && !recente) return null;
+  return { relacao: "sem_sucesso", pediuParaParar, projeto: null, oportunidade: ultima };
+}
+
+export function relacaoDaEmpresa(dados: DadosDaRelacao, hoje: Date): RelacaoDaEmpresa | null {
+  const { projetos, oportunidades } = dados;
+  const emAndamento = oportunidades.find((o) => !ENCERRADA.has(o.stage)) ?? null;
+  const aberto = projetos.find((p) => PROJETO_ABERTO.has(p.status));
+  if (aberto) return { relacao: "cliente_ativo", pediuParaParar: false, projeto: aberto, oportunidade: emAndamento };
+  if (emAndamento) return { relacao: "sendo_abordada", pediuParaParar: false, projeto: null, oportunidade: emAndamento };
+  const ganho = maisRecente(oportunidades.filter((o) => GANHO.has(o.stage)));
+  if (projetos.length || ganho || dados.cliente) {
+    return { relacao: "ja_foi_cliente", pediuParaParar: false, projeto: maisRecente(projetos), oportunidade: ganho };
+  }
+  return semSucesso(oportunidades, hoje);
+}
+
+/** Raiz do CNPJ (8 dígitos), com ou sem máscara; nulo se não der. */
+export function raizDoCnpj(cnpj: string | null | undefined): string | null {
+  const digitos = (cnpj ?? "").replace(/\D/g, "");
+  return digitos.length === 14 ? digitos.slice(0, 8) : null;
+}

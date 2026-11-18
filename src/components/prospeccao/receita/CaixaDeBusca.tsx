@@ -22,7 +22,7 @@ export function CaixaDeBusca(props: CaixaDeBuscaProps) {
   const { valor, aviso, onChange } = props;
   const dica = useId();
   return (
-    <div className="relative min-w-0 flex-1 basis-full sm:basis-[260px] sm:max-w-[380px]">
+    <div className="relative min-w-0 flex-1 basis-[calc(100%-7rem)] sm:basis-[320px] sm:max-w-[440px]">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
       <Input
         type="search"

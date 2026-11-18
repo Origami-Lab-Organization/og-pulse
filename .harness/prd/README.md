@@ -72,7 +72,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0005](stories/4-em-desenvolvimento/US-0005-comercial-buscar-empresa.md) | Buscar empresa por nome, CNPJ ou cidade | Pessoa do comercial | Em desenvolvimento | Pronta |
 | [US-0006](stories/4-em-desenvolvimento/US-0006-comercial-faturamento-estimado.md) | Ver o faturamento estimado de cada empresa | Pessoa do comercial | Em desenvolvimento | Pronta |
 | [US-0007](stories/4-em-desenvolvimento/US-0007-comercial-ficha-da-empresa.md) | Avaliar a empresa pela ficha antes de decidir | Pessoa do comercial | Em desenvolvimento | Pronta |
-| [US-0008](stories/4-em-desenvolvimento/US-0008-comercial-colocar-para-abordar.md) | Colocar empresas para abordar | Pessoa do comercial | Em desenvolvimento | Pronta |
+| [US-0008](stories/4-em-desenvolvimento/US-0008-comercial-colocar-para-abordar.md) | Mover empresas para abordar | Pessoa do comercial | Em desenvolvimento | Pronta |
 | [US-0009](stories/9-arquivadas/US-0009-comercial-abrir-oportunidades-em-lote.md) | Abrir oportunidades em lote | Pessoa do comercial | Arquivada (na US-0008) | — |
 | [US-0010](stories/2-em-refinamento/US-0010-comercial-nao-agora-e-descartar.md) | Marcar "Não agora" ou descartar a empresa | Pessoa do comercial | Em refinamento | Pronta |
 | [US-0011](stories/9-arquivadas/US-0011-comercial-abas-da-classificacao.md) | Acompanhar a classificação pelas abas e desfazer | Pessoa do comercial | Arquivada (tela sem abas) | — |
@@ -83,7 +83,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0016](stories/9-arquivadas/US-0016-comercial-tipo-de-conta.md) | Classificar a conta como Âncora, Ponte ou Satélite | Pessoa do comercial | Arquivada (na US-0008) | — |
 | [US-0017](stories/2-em-refinamento/US-0017-comercial-anel-e-tier-saem.md) | Anel e Tier saem da Prospecção | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0018](stories/1-a-fazer/US-0018-comercial-refinar-faturamento-estimado.md) | Refinar o faturamento estimado | Pessoa do comercial | A fazer | Não pronta |
-| [US-0019](stories/1-a-fazer/US-0019-comercial-marca-de-relacionamento.md) | Ver a relação da Origami com cada empresa | Pessoa do comercial | A fazer | Não pronta |
+| [US-0019](stories/4-em-desenvolvimento/US-0019-comercial-marca-de-relacionamento.md) | Ver a relação da Origami com cada empresa | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
 | [US-0020](stories/1-a-fazer/US-0020-comercial-estudo-da-conta.md) | Estudar a conta antes de abordar | Pessoa do comercial | A fazer | Não pronta |
 | [US-0021](stories/1-a-fazer/US-0021-comercial-metricas-do-novo-fluxo.md) | Ajustar as Métricas ao novo fluxo de abordagem | Pessoa do comercial | A fazer | Não pronta |
 
@@ -133,11 +133,18 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
   sem RAIS, modelo de empresas parecidas quando passa do piso, senão "acima de R$ 4,8 mi";
   selo de Lucro Real só pela RAIS; a ficha, o "Calculado" e a sugestão do tipo ficam na
   US-0007, US-0008 e US-0016 (17/11).
-- Fluxo de abordagem (18/11): selecionar na lista → colocar para abordar com o tipo de conta
+- Fluxo de abordagem (18/11): selecionar na lista → mover para abordar com o tipo de conta
   (US-0008, que absorve a US-0009 e a US-0016) → ver a relação da Origami com a empresa
   (US-0019) → estudar a conta, com pessoas, influência e desk research por IA (US-0020, ADR
   novo revisando o 0042). Alavanca é o canal de chegada: definida ao abordar.
-- Tela Empresas sem abas (18/11): é só um filtro da base; a empresa colocada para abordar vai
+- Filtros da tela Empresas (18/11, revisão da US-0004): só o ícone, com selo da quantidade de
+  filtros ativos, abre os filtros numa gaveta por cima da lista em qualquer tela; o painel ao
+  lado da lista saiu.
+- Relação com a Origami (18/11, US-0019): coluna própria com filtro; ordem Cliente ativo
+  (projeto em planejamento, andamento ou pausado) → Sendo abordada → Já foi cliente →
+  Abordada sem sucesso (Perda nos últimos 12 meses); "Pediu para parar" só avisa; a ficha
+  mostra o histórico resumido.
+- Tela Empresas sem abas (18/11): é só um filtro da base; a empresa movida para abordar vai
   direto para A abordar no Pipeline de Oportunidades, já com o tipo de conta (obrigatório).
   A lista de contas sai; a ficha completa da empresa abre de dentro da oportunidade. A US-0011
   foi arquivada. "Importar CNPJs" fica, para empresa fora da base (uso raro). O "Ver contas"

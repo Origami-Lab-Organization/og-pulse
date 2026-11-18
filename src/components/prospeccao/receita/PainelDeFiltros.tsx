@@ -19,6 +19,7 @@ import {
   UFS,
 } from '@/lib/prospecting/filtrosReceita';
 import type { FiltrosReceita, Opcao } from '@/types/filtrosReceita';
+import { RELACOES_DA_ORIGAMI } from '@/lib/prospecting/relacao';
 import { cn } from '@/lib/utils';
 import { CampoCnae } from './CampoCnae';
 
@@ -77,11 +78,18 @@ export function PainelDeFiltros(props: PainelDeFiltrosProps) {
       <div className="sticky top-0 z-[1] flex items-center gap-1 border-b bg-card py-1.5 pl-3.5 pr-1.5">
         <span className="mr-auto text-sm font-semibold">Filtros</span>
         <Button variant="ghost" size="sm" className="h-7 text-[12.5px]" onClick={onLimpar}>Limpar</Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRecolher} aria-label="Recolher filtros" title="Recolher filtros">
-          <ChevronsRight className="h-4 w-4" aria-hidden="true" />
-        </Button>
+        {/* No computador, quem abre e recolhe é o ícone de filtros da barra (18/11/2026); na gaveta do
+            celular o ícone fica por baixo, então o painel tem o próprio botão de fechar. */}
+        {emGaveta && (
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onRecolher} aria-label="Fechar filtros" title="Fechar filtros">
+            <ChevronsRight className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        )}
       </div>
 
+      <Grupo titulo="Relação com a Origami" resumo={resumo(rotulosDe(RELACOES_DA_ORIGAMI, f.relacoes))}>
+        <Lista rotulo="Relação com a Origami" opcoes={RELACOES_DA_ORIGAMI} marcados={f.relacoes} onAlternar={(v) => mudar({ relacoes: alternar(f.relacoes, v) })} />
+      </Grupo>
       <Grupo titulo="Setor" resumo={resumo(rotulosDe(OPCOES_DE_SETOR, f.setores))}>
         <Lista rotulo="Setor" opcoes={OPCOES_DE_SETOR} marcados={f.setores} onAlternar={(v) => onChange(comSetores(f, alternar(f.setores, v)))} />
       </Grupo>

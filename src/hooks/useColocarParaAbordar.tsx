@@ -27,7 +27,9 @@ export function useColocarParaAbordar() {
 
   const atualizar = () => {
     qc.invalidateQueries({ queryKey: ['receita-ficha'] });
+    // A relação com a Origami (US-0019) muda: a lista e o total com filtro de relação também.
     qc.invalidateQueries({ queryKey: ['receita-empresas'] });
+    qc.invalidateQueries({ queryKey: ['receita-empresas-total'] });
     qc.invalidateQueries({ queryKey: ['prospects'] });
     qc.invalidateQueries({ queryKey: ['prospect-companies'] });
   };
@@ -55,7 +57,7 @@ export function useColocarParaAbordar() {
       }
     },
     onError: (erro) =>
-      toast({ title: 'Não deu para colocar para abordar', description: mensagemParaUsuario(erro), variant: 'destructive' }),
+      toast({ title: 'Não deu para mover para abordar', description: mensagemParaUsuario(erro), variant: 'destructive' }),
   });
 
   return { ...mutation, feitas };
@@ -109,7 +111,7 @@ function avisarFalhas(resumo: ResumoParaAbordar, tentarDeNovo: () => void) {
     title: nomes.length === 1 ? `${nomes[0]} não entrou` : `${nomes.length} empresas não entraram`,
     description: `Não deu para consultar a Receita agora: ${listaDeNomes(nomes)}.`,
     variant: 'destructive',
-    action: <ToastAction altText="Tentar colocar de novo as que faltaram" onClick={tentarDeNovo}>Tentar de novo</ToastAction>,
+    action: <ToastAction altText="Tentar mover de novo as que faltaram" onClick={tentarDeNovo}>Tentar de novo</ToastAction>,
   });
 }
 

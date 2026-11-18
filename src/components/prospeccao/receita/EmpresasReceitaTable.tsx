@@ -28,12 +28,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import type { SelecaoDaLista } from '@/types/filtrosReceita';
+import { CelulaDeRelacao } from './SeloDeRelacao';
 
 interface EmpresasReceitaTableProps {
   /** Abre a ficha da empresa (US-0007): clique na linha, ou Enter com ela em foco. */
   onAbrir: (cnpj: string) => void;
-  /** Seleção para colocar para abordar (US-0008); ausente sem `prospeccao:editar`. */
+  /** Seleção para mover para abordar (US-0008); ausente sem `prospeccao:editar`. */
   selecao?: SelecaoDaLista;
+  /** A relação com a Origami não carregou (US-0019, cenário 9). */
+  relacaoIndisponivel?: boolean;
   /** Com o painel de filtros aberto: menos respiro e nome e atividade mais estreitos, para caber sem rolar. */
   compacta?: boolean;
   linhas: EmpresaReceita[];
@@ -47,7 +50,7 @@ interface EmpresasReceitaTableProps {
  * conta no tooltip (US-0006).
  */
 export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
-  const { linhas, ordenacao, onOrdenar, onAbrir, selecao, compacta = false } = props;
+  const { linhas, ordenacao, onOrdenar, onAbrir, selecao, relacaoIndisponivel = false, compacta = false } = props;
   useHideValues(); // re-renderiza quando o olho de ocultar valores muda
   const ordenavel = (ordem: OrdemReceita, rotulo: string, numerica = false) => (
     <CabecalhoOrdenavel ordem={ordem} ordenacao={ordenacao} onOrdenar={onOrdenar} numerica={numerica}>
@@ -56,14 +59,15 @@ export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
   );
 
   return (
-    <table className={cn('w-full border-collapse', compacta ? 'min-w-[1030px] text-[13px] [&_td]:px-2 [&_th]:px-2' : 'min-w-[1240px] text-[13.5px]')}>
+    <table className={cn('w-full border-collapse', compacta ? 'min-w-[1160px] text-[13px] [&_td]:px-2 [&_th]:px-2' : 'min-w-[1380px] text-[13.5px]')}>
       <caption className="sr-only">Empresas da base da Receita</caption>
       <thead>
         <tr className="h-10 border-b bg-muted/40 text-left text-[12.5px] font-medium text-muted-foreground">
           {selecao && <th scope="col" className="w-10 pl-4"><MarcarPagina linhas={linhas} selecao={selecao} /></th>}
           {ordenavel('nome', 'Empresa')}
+          {ordenavel('relacao', 'Relação')}
           {ordenavel('distancia', 'Distância', true)}
-          <th scope="col" className="whitespace-nowrap px-3 text-center font-medium">Capital social</th>
+          {ordenavel('capital', 'Capital social', true)}
           {ordenavel('funcionarios', 'Funcionários', true)}
           <th scope="col" className="whitespace-nowrap px-3 font-medium">Atividade</th>
           {ordenavel('idade', 'Idade', true)}
@@ -74,7 +78,7 @@ export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
       </thead>
       <tbody>
         {linhas.map((empresa) => (
-          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} selecao={selecao} />
+          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} selecao={selecao} relacaoIndisponivel={relacaoIndisponivel} />
         ))}
       </tbody>
     </table>
@@ -88,10 +92,11 @@ interface LinhaProps {
   compacta: boolean;
   onAbrir: (cnpj: string) => void;
   selecao?: SelecaoDaLista;
+  relacaoIndisponivel: boolean;
 }
 
 function Linha(props: LinhaProps) {
-  const { empresa, compacta, onAbrir, selecao } = props;
+  const { empresa, compacta, onAbrir, selecao, relacaoIndisponivel } = props;
   const largura = compacta ? 'max-w-[170px]' : 'max-w-[260px]';
   const nome = nomeDaEmpresa(empresa);
   const ramo = ramoDaEmpresa(empresa.cnae_principal);
@@ -123,6 +128,7 @@ function Linha(props: LinhaProps) {
           {local && <span>{local}</span>}
         </div>
       </td>
+      <td className="whitespace-nowrap px-3 py-2"><CelulaDeRelacao relacao={empresa.relacao} indisponivel={relacaoIndisponivel} /></td>
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
         {empresa.distancia_km != null ? `${empresa.distancia_km.toLocaleString('pt-BR')} km` : <span title="Município não reconhecido">—</span>}
       </td>
