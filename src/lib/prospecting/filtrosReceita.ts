@@ -1,4 +1,5 @@
 import type {
+  FaixaDeFaturamento,
   FaixaDeFuncionarios,
   FaixaDeIdade,
   FiltroDeDivida,
@@ -32,6 +33,13 @@ export const FUNCIONARIOS: ReadonlyArray<Opcao<FaixaDeFuncionarios>> = [
   { valor: '250a499', rotulo: '250 a 499' },
   { valor: '500mais', rotulo: '500 ou mais' },
   { valor: 'sem', rotulo: 'Sem informação na RAIS' },
+];
+
+export const FATURAMENTOS: ReadonlyArray<Opcao<FaixaDeFaturamento>> = [
+  { valor: 'ate10', rotulo: 'Abaixo de R$ 10 mi' },
+  { valor: 'satelite', rotulo: 'R$ 10 a 100 mi (Satélite)' },
+  { valor: 'ponte', rotulo: 'R$ 100 a 300 mi (Ponte)' },
+  { valor: 'ancora', rotulo: 'Acima de R$ 300 mi (Âncora)' },
 ];
 
 export const CAPITAIS: ReadonlyArray<Opcao<number>> = [
@@ -71,6 +79,7 @@ export const FILTROS_VAZIOS: FiltrosReceita = {
   idades: [],
   ufs: [],
   funcionarios: [],
+  faturamentos: [],
   capitalMinimo: 0,
   naturezas: [],
   divida: DIVIDA_QUALQUER,
@@ -90,6 +99,7 @@ export function contarFiltros(f: FiltrosReceita): number {
     f.idades.length > 0,
     f.ufs.length > 0,
     f.funcionarios.length > 0,
+    f.faturamentos.length > 0,
     f.capitalMinimo > 0,
     f.naturezas.length > 0,
     f.divida !== DIVIDA_QUALQUER,
@@ -143,6 +153,7 @@ export function lerFiltrosSalvos(texto: string | null): FiltrosReceita {
     idades: lista(salvo.idades, conjunto(IDADES)),
     ufs: lista<string>(salvo.ufs, new Set(UFS)),
     funcionarios: lista(salvo.funcionarios, conjunto(FUNCIONARIOS)),
+    faturamentos: lista(salvo.faturamentos, conjunto(FATURAMENTOS)),
     capitalMinimo: capital,
     naturezas: lista(salvo.naturezas, conjunto(NATUREZAS)),
     divida,

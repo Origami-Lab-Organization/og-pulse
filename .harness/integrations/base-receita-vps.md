@@ -39,13 +39,13 @@ completados pela carga, sem acesso de root.
 | `nome_fantasia`, `nome_exibicao` | `estabelecimentos.nome_fantasia` | exibição = fantasia, senão razão social |
 | `cnae_principal`, `cnaes_secundarios` | `estabelecimentos` | a descrição vem de `public.cnaes` na consulta |
 | `data_inicio_atividade`, `municipio`, `uf` | `estabelecimentos` | |
-| `funcionarios`, `unidades_com_funcionarios` | `empresas_funcionarios_total` | nulo = sem RAIS (cerca de 80% da base) |
+| `funcionarios`, `unidades_com_funcionarios` | `empresas_funcionarios` e `rais_estabelecimentos` | vínculos da RAIS 2025 somados por empresa. A RAIS pública não traz CNPJ: vale o cruzamento da base (CEP + CNAE + natureza) e, no estabelecimento que ele não cruzou, o par único por CEP + CNAE (um só na RAIS e um só ativo na Receita; US-0006). Nulo = sem RAIS. Obras em consórcio (outro CNPJ) não entram |
 | `filiais_ativas` | contagem em `estabelecimentos` | filiais com situação Ativa |
 | `socios` | contagem em `socios` | **só a quantidade**: nada de nome, CPF ou faixa etária (ADR-0041) |
 | `divida_total`, `divida_em_cobranca`, `divida_ajuizada`, `inscricoes_divida` | `pgfn_resumo` | nulo = sem inscrição |
 | `tem_email`, `tem_telefone` | `estabelecimentos.email`, `telefone_1` | só se existe; o contato em si não é copiado |
 | `fit_previo`, `fit_frente` | calculado pelo script | `src/lib/prospecting/fit.ts`, sem regime nem site (ADR-0042) |
-| `faturamento_estimado` | — | US-0006, ainda vazio |
+| `faturamento_estimado`, `faturamento_base` | calculado pelo script | `rais`: funcionários × receita por pessoa da classe da CNAE e do porte (IBGE), combinada com o capital social quando ele passa de R$ 10 mi (`calibracaoCapital.json`); `modelo`: sem RAIS, empresas parecidas (`modeloDeFaturamento.json`, recalibrado por `scripts/receita/calibrar-faturamento.ts`) quando passa de R$ 4,8 mi; `piso`: R$ 4,8 mi (`src/lib/prospecting/faturamentoEstimado.ts`, US-0006) |
 | `secao`, `divisao`, `secoes_sec`, `divisoes_sec` | calculado pelo script | setor e ramo da CNAE do principal e dos secundários (`src/lib/prospecting/cnae.ts`, US-0003) |
 
 Busca (US-0005): sem coluna nova. `pulse.normalizar(text)` tira acentos e passa para
@@ -59,7 +59,7 @@ total de termo muito comum ("comercio", 69 mil) em 1,2 s.
 A Edge Function tem três modos (US-0003, US-0005):
 
 - **página** (padrão): `{ ordem, crescente, pagina, filtros, busca? }` → `{ carregada_em, total_da_base, linhas[] }`.
-  Ordens: `fit`, `nome`, `funcionarios`, `idade`. Páginas de 25, até a 400ª (10 mil empresas).
+  Ordens: `fit`, `nome`, `faturamento`, `funcionarios`, `idade`. Páginas de 25, até a 400ª (10 mil empresas).
 - **total**: `{ modo: 'total', filtros, busca? }` → `{ total, limitado }`. Conta até 100 mil; `limitado` = há mais.
 - **cnaes**: `{ modo: 'cnaes', termo }` → `{ cnaes: [{ codigo, descricao }] }`, por código ou descrição, até 20.
 
@@ -163,7 +163,7 @@ npx supabase functions deploy empresas-receita
 ssh -N -L 5433:localhost:5432 root@<vps>
 # simulação: lê e resume, não grava
 npx vite-node scripts/receita/sincronizar-base.ts
-# carga em pulse.empresas (fora do horário comercial; levou 15 minutos)
+# carga em pulse.empresas (fora do horário comercial; 11 minutos em 17/11/2026, com o índice de nome)
 npx vite-node scripts/receita/sincronizar-base.ts -- --aplicar
 ```
 

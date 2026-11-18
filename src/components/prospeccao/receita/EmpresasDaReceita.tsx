@@ -93,7 +93,7 @@ export function EmpresasDaReceita() {
         </div>
         <div className="overflow-hidden rounded-xl border bg-card">
           <AvisosDaBusca busca={busca} ativos={ativos} primeira={consulta.data?.linhas[0]?.cnpj} />
-          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} />
+          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} compacta={painel.larga && painel.aberto} />
           <Rodape contagem={contagem.data} pagina={pagina} onPagina={setPagina} vazia={!consulta.data?.linhas.length} />
         </div>
       </section>
@@ -172,8 +172,9 @@ function Conteudo(props: {
   ordenacao: typeof ORDENACAO_PADRAO;
   onOrdenar: (ordem: OrdemReceita) => void;
   onLimpar: () => void;
+  compacta: boolean;
 }) {
-  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar } = props;
+  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar, compacta } = props;
   if (consulta.isLoading) return <Carregando />;
   if (consulta.error) return <Falha erro={consulta.error} onTentar={() => consulta.refetch()} />;
   if (!consulta.data || consulta.data.totalDaBase == null) {
@@ -188,7 +189,7 @@ function Conteudo(props: {
   const trocando = consulta.isPlaceholderData;
   return (
     <div className={cn('overflow-x-auto transition-opacity', trocando && 'opacity-60')} aria-busy={trocando}>
-      <EmpresasReceitaTable linhas={consulta.data.linhas} ordenacao={ordenacao} onOrdenar={onOrdenar} />
+      <EmpresasReceitaTable linhas={consulta.data.linhas} ordenacao={ordenacao} onOrdenar={onOrdenar} compacta={compacta} />
     </div>
   );
 }

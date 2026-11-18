@@ -18,7 +18,7 @@
 // (os 14 de uma filial acham a matriz); outro texto, a partir de 3 letras, procura no nome e
 // no nome inteiro da cidade.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 
 const corsHeaders = {
@@ -41,6 +41,9 @@ const ORDENS: Record<string, string> = {
   "fit:asc": "e.fit_previo ASC, e.funcionarios ASC NULLS FIRST, e.cnpj ASC",
   "nome:asc": "e.nome_exibicao ASC, e.cnpj ASC",
   "nome:desc": "e.nome_exibicao DESC, e.cnpj DESC",
+  // Sem estimativa fica por último nos dois sentidos (US-0006).
+  "faturamento:desc": "e.faturamento_estimado DESC NULLS LAST, e.cnpj DESC",
+  "faturamento:asc": "e.faturamento_estimado ASC NULLS LAST, e.cnpj ASC",
   "funcionarios:desc": "e.funcionarios DESC NULLS LAST, e.cnpj DESC",
   "funcionarios:asc": "e.funcionarios ASC NULLS LAST, e.cnpj ASC",
   "idade:desc": "e.data_inicio_atividade ASC NULLS LAST, e.cnpj ASC",
@@ -88,7 +91,8 @@ function comPrazo<T>(promessa: Promise<T>): Promise<T> {
   return Promise.race([promessa, prazo]).finally(() => clearTimeout(relogio));
 }
 
-async function exigirLeitura(req: Request): Promise<void> {
+/** Confere sessão e capacidade; devolve o cliente da sessão, que lê com a RLS da pessoa. */
+async function exigirLeitura(req: Request): Promise<SupabaseClient> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) throw new Recusa("Não autenticado.", 401);
   const url = Deno.env.get("SUPABASE_URL")!;
@@ -101,6 +105,7 @@ async function exigirLeitura(req: Request): Promise<void> {
   const { data: pode, error } = await admin.rpc("has_capability", { _user_id: sessao.user.id, _tenant_id: tenant, _capability: CAPACIDADE });
   if (error) throw new Recusa("Não foi possível conferir sua permissão.", 500);
   if (pode !== true) throw new Recusa("Sem permissão para ver a base da Receita.", 403);
+  return daSessao;
 }
 
 // ---------- filtros (US-0003) ----------
@@ -141,6 +146,20 @@ const NATUREZAS: Record<string, string> = {
   pessoa_fisica: "e.natureza_juridica LIKE '4%'",
 };
 
+// Faixas do tipo de conta (US-0006, US-0016), pelo valor estimado; o piso conta como R$ 4,8 mi.
+// Acima de R$ 10 mi nunca há piso: dizer isso deixa o banco usar o índice parcial das
+// estimadas (Âncora: de 1,6 s para menos de 0,1 s).
+const SO_ESTIMADAS = "e.faturamento_base IS DISTINCT FROM 'piso'";
+const FATURAMENTOS: Record<string, string> = {
+  ate10: "e.faturamento_estimado < 10000000",
+  satelite: `${SO_ESTIMADAS} AND e.faturamento_estimado >= 10000000 AND e.faturamento_estimado < 100000000`,
+  ponte: `${SO_ESTIMADAS} AND e.faturamento_estimado >= 100000000 AND e.faturamento_estimado < 300000000`,
+  ancora: `${SO_ESTIMADAS} AND e.faturamento_estimado >= 300000000`,
+};
+
+/** A faixa em que cai o piso do porte (R$ 4,8 mi). */
+const FAIXA_DO_PISO = "ate10";
+
 const DIVIDAS: Record<string, string | null> = {
   qualquer: null,
   sem: "e.divida_total IS NULL",
@@ -156,6 +175,7 @@ interface Filtros {
   idades: string[];
   ufs: string[];
   funcionarios: string[];
+  faturamentos: string[];
   capitalMinimo: number;
   naturezas: string[];
   divida: string;
@@ -195,6 +215,7 @@ function lerFiltros(valor: unknown): Filtros {
     idades: listaDe(f.idades, chaveDe(IDADES), "idade"),
     ufs: listaDe(f.ufs, (v) => UFS.has(v), "estado"),
     funcionarios: listaDe(f.funcionarios, chaveDe(FUNCIONARIOS), "funcionários"),
+    faturamentos: listaDe(f.faturamentos, chaveDe(FATURAMENTOS), "faturamento estimado"),
     capitalMinimo,
     naturezas: listaDe(f.naturezas, chaveDe(NATUREZAS), "natureza jurídica"),
     divida,
@@ -258,6 +279,7 @@ function condicoes(f: Filtros, inicio: number, extra?: (c: Condicoes) => string)
   c.e(ou(IDADES, f.idades));
   if (f.ufs.length) c.e(`e.uf = ANY(${c.param(f.ufs)}::bpchar[])`);
   c.e(ou(FUNCIONARIOS, f.funcionarios));
+  c.e(ou(FATURAMENTOS, f.faturamentos));
   if (f.capitalMinimo > 0) c.e(`e.capital_social >= ${c.param(f.capitalMinimo)}`);
   c.e(ou(NATUREZAS, f.naturezas));
   c.e(DIVIDAS[f.divida]);
@@ -335,7 +357,7 @@ function condicoesDaBusca(filtros: Filtros, busca: Busca | null, inicio: number)
 // ---------- pedidos ----------
 
 type Pedido =
-  | { modo: "pagina"; ordem: string; pagina: number; filtros: Filtros; busca: Busca | null }
+  | { modo: "pagina"; ordem: string; porFaturamento: boolean; crescente: boolean; pagina: number; filtros: Filtros; busca: Busca | null }
   | { modo: "total"; filtros: Filtros; busca: Busca | null }
   | { modo: "cnaes"; termo: string };
 
@@ -346,7 +368,8 @@ function lerPagina(corpo: Record<string, unknown>, filtros: Filtros, busca: Busc
   if (!Number.isInteger(pagina) || pagina < 0 || pagina > ULTIMA_PAGINA) {
     throw new Recusa("A lista vai até as 10 mil primeiras empresas. Use os filtros.", 400);
   }
-  return { modo: "pagina", ordem: ORDENS[ordem], pagina, filtros, busca };
+  const porFaturamento = corpo.ordem === "faturamento";
+  return { modo: "pagina", ordem: ORDENS[ordem], porFaturamento, crescente: corpo.crescente === true, pagina, filtros, busca };
 }
 
 function lerTermo(corpo: Record<string, unknown>): Pedido {
@@ -373,21 +396,67 @@ async function lerBase(cliente: Cliente) {
   return base.rows[0] ?? null;
 }
 
-async function pagina(cliente: Cliente, { ordem, pagina, filtros, busca }: Extract<Pedido, { modo: "pagina" }>) {
+const e_ = (where: string, condicao: string) => (where ? `${where} AND ${condicao}` : `WHERE ${condicao}`);
+
+/**
+ * As empresas da página, já ordenadas. Por faturamento (US-0006), em duas partes: 9 em cada
+ * 10 empresas têm só o piso do porte (todas com o mesmo valor), e um filtro cujas empresas
+ * são quase todas de piso fazia o índice de faturamento ser lido inteiro antes de achar a
+ * primeira (5 s, medido em 17/11/2026). Primeiro as estimadas, pelo índice; depois as de
+ * piso, pelo CNPJ — o mesmo desempate da ordem. Se a faixa marcada não inclui o piso, a
+ * segunda parte não roda.
+ */
+function empresasDaPagina(p: Extract<Pedido, { modo: "pagina" }>, where: string, pelaSecundaria: string): string {
+  const colunas = `e.*, ${pelaSecundaria} AS pela_secundaria`;
+  if (!p.porFaturamento) {
+    return `SELECT ${colunas} FROM pulse.empresas e ${where} ORDER BY ${p.ordem} LIMIT $1 OFFSET $2`;
+  }
+  const ate = "($1::int + $2::int)";
+  const estimadas = `SELECT ${colunas} FROM pulse.empresas e ${e_(where, SO_ESTIMADAS)} ORDER BY ${p.ordem} LIMIT ${ate}`;
+  const piso = `SELECT ${colunas} FROM pulse.empresas e ${e_(where, "e.faturamento_base = 'piso'")} ORDER BY e.cnpj ${p.crescente ? "ASC" : "DESC"} LIMIT ${ate}`;
+  const comPiso = !p.filtros.faturamentos.length || p.filtros.faturamentos.includes(FAIXA_DO_PISO);
+  const partes = comPiso ? `(${estimadas}) UNION ALL (${piso})` : `(${estimadas})`;
+  return `SELECT * FROM (${partes}) e ORDER BY ${p.ordem} LIMIT $1 OFFSET $2`;
+}
+
+type LinhaDaPagina = Record<string, unknown> & { cnpj: string };
+
+/**
+ * O faturamento que o time informou na Prospecção prevalece sobre a estimativa (US-0006): é o
+ * único jeito de acertar quem fatura muito acima da média do ramo. Lido com a sessão da
+ * pessoa, então a RLS só deixa ver as empresas do tenant dela. Falha aqui não derruba a lista.
+ */
+async function comFaturamentoDoTime(sessao: SupabaseClient, linhas: LinhaDaPagina[]): Promise<LinhaDaPagina[]> {
+  if (!linhas.length) return linhas;
+  const { data, error } = await sessao
+    .from("prospect_companies")
+    .select("cnpj, faturamento_anual, faturamento_anual_base")
+    .in("cnpj", linhas.map((l) => l.cnpj.trim()))
+    .not("faturamento_anual", "is", null);
+  if (error || !data) return linhas;
+  const doTime = new Map(data.map((r) => [r.cnpj as string, r]));
+  return linhas.map((l) => {
+    const t = doTime.get(l.cnpj.trim());
+    return t ? { ...l, faturamento_informado: Number(t.faturamento_anual), faturamento_informado_base: t.faturamento_anual_base } : l;
+  });
+}
+
+async function pagina(cliente: Cliente, pedido: Extract<Pedido, { modo: "pagina" }>, sessao: SupabaseClient) {
+  const { ordem, pagina, filtros, busca } = pedido;
   const { where, valores, pelaSecundaria } = condicoesDaBusca(filtros, busca, 3);
   const linhas = await cliente.queryObject(
     `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, c.descricao AS cnae_descricao,
-          e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.funcionarios,
+          e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.capital_social::float8 AS capital_social, e.funcionarios,
           e.divida_total::float8 AS divida_total, e.divida_ajuizada::float8 AS divida_ajuizada,
-          e.fit_previo, e.fit_frente, e.faturamento_estimado::float8 AS faturamento_estimado, e.pela_secundaria
-     FROM (SELECT e.*, ${pelaSecundaria} AS pela_secundaria FROM pulse.empresas e ${where}
-           ORDER BY ${ordem} LIMIT $1 OFFSET $2) e
+          e.fit_previo, e.fit_frente, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base, e.pela_secundaria
+     FROM (${empresasDaPagina(pedido, where, pelaSecundaria)}) e
      LEFT JOIN public.cnaes c ON c.codigo = e.cnae_principal
     ORDER BY ${ordem}`,
     [POR_PAGINA, pagina * POR_PAGINA, ...valores],
   );
   const base = await lerBase(cliente);
-  return { carregada_em: base?.carregada_em ?? null, total_da_base: base?.total ?? null, linhas: linhas.rows };
+  const comDoTime = await comFaturamentoDoTime(sessao, linhas.rows as LinhaDaPagina[]);
+  return { carregada_em: base?.carregada_em ?? null, total_da_base: base?.total ?? null, linhas: comDoTime };
 }
 
 // A contagem para em 100 mil: a lista navega só até 10 mil, e contar 2 milhões passaria de 2 s.
@@ -422,12 +491,12 @@ async function cnaes(cliente: Cliente, { termo }: Extract<Pedido, { modo: "cnaes
   return { cnaes: r.rows };
 }
 
-async function responder(pedido: Pedido) {
+async function responder(pedido: Pedido, sessao: SupabaseClient) {
   const cliente = await baseDaReceita().connect();
   try {
     if (pedido.modo === "total") return await total(cliente, pedido);
     if (pedido.modo === "cnaes") return await cnaes(cliente, pedido);
-    return await pagina(cliente, pedido);
+    return await pagina(cliente, pedido, sessao);
   } finally {
     cliente.release();
   }
@@ -436,8 +505,8 @@ async function responder(pedido: Pedido) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    await exigirLeitura(req);
-    return json(await comPrazo(responder(await lerPedido(req))), 200);
+    const sessao = await exigirLeitura(req);
+    return json(await comPrazo(responder(await lerPedido(req), sessao)), 200);
   } catch (erro) {
     if (erro instanceof Recusa) return json({ error: erro.message }, erro.status);
     // Só o nome do erro: a mensagem do driver pode trazer o endereço da VPS.
