@@ -46,6 +46,7 @@ completados pela carga, sem acesso de root.
 | `tem_email`, `tem_telefone` | `estabelecimentos.email`, `telefone_1` | só se existe; o contato em si não é copiado |
 | `fit_previo`, `fit_frente` | calculado pelo script | `src/lib/prospecting/fit.ts`, sem regime nem site (ADR-0042) |
 | `faturamento_estimado`, `faturamento_base` | calculado pelo script | `rais`: funcionários × receita por pessoa da classe da CNAE e do porte (IBGE), combinada com o capital social quando ele passa de R$ 10 mi (`calibracaoCapital.json`); `modelo`: sem RAIS, empresas parecidas (`modeloDeFaturamento.json`, recalibrado por `scripts/receita/calibrar-faturamento.ts`) quando passa de R$ 4,8 mi; `piso`: R$ 4,8 mi (`src/lib/prospecting/faturamentoEstimado.ts`, US-0006) |
+| `distancia_km` | calculado pelo script | km em linha reta (haversine, truncado) da sede de Formiga à sede do município; coordenadas das sedes do IBGE, Localidades do Brasil 2022 (`scripts/receita/sedes-municipais.json`, montado por `montar-sedes.ts`, com 17 nomes antigos da Receita); nulo sem município reconhecido (US-0015) |
 | `secao`, `divisao`, `secoes_sec`, `divisoes_sec` | calculado pelo script | setor e ramo da CNAE do principal e dos secundários (`src/lib/prospecting/cnae.ts`, US-0003) |
 
 Busca (US-0005): sem coluna nova. `pulse.normalizar(text)` tira acentos e passa para
@@ -59,9 +60,10 @@ total de termo muito comum ("comercio", 69 mil) em 1,2 s.
 A Edge Function tem três modos (US-0003, US-0005):
 
 - **página** (padrão): `{ ordem, crescente, pagina, filtros, busca? }` → `{ carregada_em, total_da_base, linhas[] }`.
-  Ordens: `fit`, `nome`, `faturamento`, `funcionarios`, `idade`. Páginas de 25, até a 400ª (10 mil empresas).
+  Ordens: `fit`, `nome`, `distancia`, `faturamento`, `funcionarios`, `idade`. Páginas de 25, até a 400ª (10 mil empresas).
 - **total**: `{ modo: 'total', filtros, busca? }` → `{ total, limitado }`. Conta até 100 mil; `limitado` = há mais.
 - **cnaes**: `{ modo: 'cnaes', termo }` → `{ cnaes: [{ codigo, descricao }] }`, por código ou descrição, até 20.
+- **ficha** (US-0007): `{ modo: 'ficha', cnpj }` → `{ empresa, contato, socios[], oportunidades[] }`. O contato (e-mail e telefones do estabelecimento) vem da visão `pulse.contatos`; os sócios, da visão `pulse.socios` (só nome, qualificação, entrada, tipo e raiz do CNPJ de sócio empresa; ADR-0041); as oportunidades em andamento, do Supabase com a sessão da pessoa.
 
 `busca` (até 100 caracteres): só números, com ou sem pontuação, de 5 a 14, é CNPJ e ignora
 os filtros; 14 procuram `cnpj_basico` (CNPJ de filial acha a matriz), menos que isso procuram

@@ -70,6 +70,8 @@ export interface FiltrosReceita {
   faturamentos: FaixaDeFaturamento[];
   /** Capital social mínimo, em reais; 0 = qualquer. */
   capitalMinimo: number;
+  /** Distância máxima de Formiga, em km (US-0015); 0 = qualquer. */
+  distanciaMaxima: number;
   naturezas: GrupoDeNatureza[];
   divida: FiltroDeDivida;
   comEmail: boolean;

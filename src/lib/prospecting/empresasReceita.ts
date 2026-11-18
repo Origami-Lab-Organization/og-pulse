@@ -10,7 +10,7 @@ import type { FaturamentoBase } from '@/types/prospect';
  * "A classificar". Vem da Edge Function `empresas-receita`; aqui só há regra de exibição.
  */
 
-export type OrdemReceita = 'fit' | 'nome' | 'faturamento' | 'funcionarios' | 'idade';
+export type OrdemReceita = 'fit' | 'nome' | 'distancia' | 'faturamento' | 'funcionarios' | 'idade';
 
 export interface OrdenacaoReceita {
   ordem: OrdemReceita;
@@ -31,6 +31,8 @@ export interface EmpresaReceita {
   data_inicio_atividade: string | null;
   /** Capital social declarado na Receita, em reais; nulo ou zero quando não informado. */
   capital_social: number | null;
+  /** Km em linha reta da sede de Formiga à sede do município (US-0015); nulo sem município reconhecido. */
+  distancia_km: number | null;
   funcionarios: number | null;
   divida_total: number | null;
   divida_ajuizada: number | null;
@@ -59,10 +61,13 @@ export interface TotalReceita {
   limitado: boolean;
 }
 
+/** Começam do menor: nome de A a Z e as empresas mais perto de Formiga. */
+const COMECAM_CRESCENTES: ReadonlySet<OrdemReceita> = new Set<OrdemReceita>(['nome', 'distancia']);
+
 /** Clicar na mesma coluna inverte; coluna nova começa pelo que mais interessa. */
 export function alternarOrdenacao(atual: OrdenacaoReceita, ordem: OrdemReceita): OrdenacaoReceita {
   if (atual.ordem === ordem) return { ordem, crescente: !atual.crescente };
-  return { ordem, crescente: ordem === 'nome' };
+  return { ordem, crescente: COMECAM_CRESCENTES.has(ordem) };
 }
 
 const MINUSCULAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'em', 'para', 'com']);

@@ -50,6 +50,16 @@ export const CAPITAIS: ReadonlyArray<Opcao<number>> = [
   { valor: 100_000_000, rotulo: 'R$ 100 mi' },
 ];
 
+/** Distância de Formiga em linha reta (US-0015), escolha única. */
+export const DISTANCIAS: ReadonlyArray<Opcao<number>> = [
+  { valor: 0, rotulo: 'Qualquer' },
+  { valor: 50, rotulo: 'até 50 km' },
+  { valor: 100, rotulo: 'até 100 km' },
+  { valor: 200, rotulo: 'até 200 km' },
+  { valor: 300, rotulo: 'até 300 km' },
+  { valor: 500, rotulo: 'até 500 km' },
+];
+
 export const NATUREZAS: ReadonlyArray<Opcao<GrupoDeNatureza>> = [
   { valor: 'limitada', rotulo: 'Limitada' },
   { valor: 'sa_fechada', rotulo: 'S.A. fechada' },
@@ -81,6 +91,7 @@ export const FILTROS_VAZIOS: FiltrosReceita = {
   funcionarios: [],
   faturamentos: [],
   capitalMinimo: 0,
+  distanciaMaxima: 0,
   naturezas: [],
   divida: DIVIDA_QUALQUER,
   comEmail: false,
@@ -101,6 +112,7 @@ export function contarFiltros(f: FiltrosReceita): number {
     f.funcionarios.length > 0,
     f.faturamentos.length > 0,
     f.capitalMinimo > 0,
+    f.distanciaMaxima > 0,
     f.naturezas.length > 0,
     f.divida !== DIVIDA_QUALQUER,
     f.comEmail || f.comTelefone,
@@ -144,6 +156,7 @@ export function lerFiltrosSalvos(texto: string | null): FiltrosReceita {
   }
   const setores = lista<string>(salvo.setores, new Set('ABCDEFGHIJKLMNOPQRSTU'.split('')));
   const capital = CAPITAIS.find((c) => c.valor === salvo.capitalMinimo)?.valor ?? 0;
+  const distancia = DISTANCIAS.find((d) => d.valor === salvo.distanciaMaxima)?.valor ?? 0;
   const divida = DIVIDAS.find((d) => d.valor === salvo.divida)?.valor ?? DIVIDA_QUALQUER;
   return {
     setores,
@@ -155,6 +168,7 @@ export function lerFiltrosSalvos(texto: string | null): FiltrosReceita {
     funcionarios: lista(salvo.funcionarios, conjunto(FUNCIONARIOS)),
     faturamentos: lista(salvo.faturamentos, conjunto(FATURAMENTOS)),
     capitalMinimo: capital,
+    distanciaMaxima: distancia,
     naturezas: lista(salvo.naturezas, conjunto(NATUREZAS)),
     divida,
     comEmail: salvo.comEmail === true,
