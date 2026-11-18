@@ -7,6 +7,7 @@ import {
   alternar,
   CAPITAIS,
   comSetores,
+  DISTANCIAS,
   DIVIDA_QUALQUER,
   DIVIDAS,
   FATURAMENTOS,
@@ -62,6 +63,7 @@ export function PainelDeFiltros(props: PainelDeFiltrosProps) {
   const { filtros: f, onChange, onLimpar, onRecolher, emGaveta = false } = props;
   const mudar = (parcial: Partial<FiltrosReceita>) => onChange({ ...f, ...parcial });
   const capital = f.capitalMinimo > 0 ? rotulosDe(CAPITAIS, [f.capitalMinimo]) : [];
+  const distancia = f.distanciaMaxima > 0 ? rotulosDe(DISTANCIAS, [f.distanciaMaxima]) : [];
   const divida = f.divida !== DIVIDA_QUALQUER ? rotulosDe(DIVIDAS, [f.divida]) : [];
 
   return (
@@ -97,6 +99,9 @@ export function PainelDeFiltros(props: PainelDeFiltrosProps) {
       </Grupo>
       <Grupo titulo="Estado" resumo={resumo(f.ufs)}>
         <Chips rotulo="Estado" opcoes={OPCOES_DE_UF} marcados={f.ufs} onAlternar={(v) => mudar({ ufs: alternar(f.ufs, v) })} />
+      </Grupo>
+      <Grupo titulo="Distância de Formiga" resumo={resumo(distancia)}>
+        <EscolhaUnica rotulo="Distância de Formiga" opcoes={DISTANCIAS} valor={f.distanciaMaxima} onEscolher={(distanciaMaxima) => mudar({ distanciaMaxima })} />
       </Grupo>
       <Grupo titulo="Funcionários (RAIS)" resumo={resumo(rotulosDe(FUNCIONARIOS, f.funcionarios))}>
         <Chips rotulo="Funcionários" opcoes={FUNCIONARIOS} marcados={f.funcionarios} onAlternar={(v) => mudar({ funcionarios: alternar(f.funcionarios, v) })} />

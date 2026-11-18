@@ -97,3 +97,9 @@ CREATE INDEX IF NOT EXISTS empresas_fat_estimado_desc_idx ON pulse.empresas (fat
   WHERE faturamento_base IS DISTINCT FROM 'piso';
 CREATE INDEX IF NOT EXISTS empresas_fat_estimado_asc_idx ON pulse.empresas (faturamento_estimado ASC NULLS LAST, cnpj ASC)
   WHERE faturamento_base IS DISTINCT FROM 'piso';
+
+-- US-0015: distância em linha reta da sede de Formiga à sede do município (km inteiros; nulo
+-- sem município reconhecido), gravada pela carga. Ordem nos dois sentidos, sem município no fim.
+ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS distancia_km integer;
+CREATE INDEX IF NOT EXISTS empresas_distancia_asc_idx ON pulse.empresas (distancia_km ASC NULLS LAST, cnpj ASC);
+CREATE INDEX IF NOT EXISTS empresas_distancia_desc_idx ON pulse.empresas (distancia_km DESC NULLS LAST, cnpj DESC);

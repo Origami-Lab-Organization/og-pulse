@@ -13,6 +13,7 @@
 //   pagina (padrão): { ordem, crescente, pagina, filtros, busca? } → { carregada_em, total_da_base, linhas[] }
 //   total:           { modo: 'total', filtros, busca? }            → { total, limitado }  (conta até 100 mil)
 //   cnaes:           { modo: 'cnaes', termo }                      → { cnaes: [{ codigo, descricao }] }
+//   ficha:           { modo: 'ficha', cnpj }                       → { empresa, contato, socios[], oportunidades[] }  (US-0007)
 // A página e o total vêm separados: a lista aparece sem esperar a contagem.
 // `busca` (US-0005): só números, a partir de 5, procura o começo do CNPJ e ignora os filtros
 // (os 14 de uma filial acham a matriz); outro texto, a partir de 3 letras, procura no nome e
@@ -44,6 +45,9 @@ const ORDENS: Record<string, string> = {
   // Sem estimativa fica por último nos dois sentidos (US-0006).
   "faturamento:desc": "e.faturamento_estimado DESC NULLS LAST, e.cnpj DESC",
   "faturamento:asc": "e.faturamento_estimado ASC NULLS LAST, e.cnpj ASC",
+  // Distância de Formiga (US-0015): sem município reconhecido no fim, nos dois sentidos.
+  "distancia:asc": "e.distancia_km ASC NULLS LAST, e.cnpj ASC",
+  "distancia:desc": "e.distancia_km DESC NULLS LAST, e.cnpj DESC",
   "funcionarios:desc": "e.funcionarios DESC NULLS LAST, e.cnpj DESC",
   "funcionarios:asc": "e.funcionarios ASC NULLS LAST, e.cnpj ASC",
   "idade:desc": "e.data_inicio_atividade ASC NULLS LAST, e.cnpj ASC",
@@ -115,6 +119,8 @@ async function exigirLeitura(req: Request): Promise<SupabaseClient> {
 const SETORES = new Set("ABCDEFGHIJKLMNOPQRSTU".split(""));
 const UFS = new Set(["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"]);
 const CAPITAIS = new Set([0, 1_000_000, 10_000_000, 50_000_000, 100_000_000]);
+/** Faixas da distância de Formiga, em km (US-0015); 0 = qualquer. */
+const DISTANCIAS = new Set([0, 50, 100, 200, 300, 500]);
 const MAX_CNAES = 20;
 
 const IDADES: Record<string, string> = {
@@ -177,6 +183,7 @@ interface Filtros {
   funcionarios: string[];
   faturamentos: string[];
   capitalMinimo: number;
+  distanciaMaxima: number;
   naturezas: string[];
   divida: string;
   comEmail: boolean;
@@ -207,8 +214,10 @@ function lerAtividade(f: Record<string, unknown>) {
 function lerFiltros(valor: unknown): Filtros {
   const f = (valor && typeof valor === "object" ? valor : {}) as Record<string, unknown>;
   const capitalMinimo = Number(f.capitalMinimo ?? 0);
+  const distanciaMaxima = Number(f.distanciaMaxima ?? 0);
   const divida = String(f.divida ?? "qualquer");
   if (!CAPITAIS.has(capitalMinimo)) throw new Recusa("Filtro inválido: capital social.", 400);
+  if (!DISTANCIAS.has(distanciaMaxima)) throw new Recusa("Filtro inválido: distância de Formiga.", 400);
   if (!Object.hasOwn(DIVIDAS, divida)) throw new Recusa("Filtro inválido: dívida ativa.", 400);
   return {
     ...lerAtividade(f),
@@ -217,6 +226,7 @@ function lerFiltros(valor: unknown): Filtros {
     funcionarios: listaDe(f.funcionarios, chaveDe(FUNCIONARIOS), "funcionários"),
     faturamentos: listaDe(f.faturamentos, chaveDe(FATURAMENTOS), "faturamento estimado"),
     capitalMinimo,
+    distanciaMaxima,
     naturezas: listaDe(f.naturezas, chaveDe(NATUREZAS), "natureza jurídica"),
     divida,
     comEmail: f.comEmail === true,
@@ -281,6 +291,7 @@ function condicoes(f: Filtros, inicio: number, extra?: (c: Condicoes) => string)
   c.e(ou(FUNCIONARIOS, f.funcionarios));
   c.e(ou(FATURAMENTOS, f.faturamentos));
   if (f.capitalMinimo > 0) c.e(`e.capital_social >= ${c.param(f.capitalMinimo)}`);
+  if (f.distanciaMaxima > 0) c.e(`e.distancia_km <= ${c.param(f.distanciaMaxima)}`);
   c.e(ou(NATUREZAS, f.naturezas));
   c.e(DIVIDAS[f.divida]);
   if (f.comEmail) c.e("e.tem_email");
@@ -359,7 +370,8 @@ function condicoesDaBusca(filtros: Filtros, busca: Busca | null, inicio: number)
 type Pedido =
   | { modo: "pagina"; ordem: string; porFaturamento: boolean; crescente: boolean; pagina: number; filtros: Filtros; busca: Busca | null }
   | { modo: "total"; filtros: Filtros; busca: Busca | null }
-  | { modo: "cnaes"; termo: string };
+  | { modo: "cnaes"; termo: string }
+  | { modo: "ficha"; cnpj: string };
 
 function lerPagina(corpo: Record<string, unknown>, filtros: Filtros, busca: Busca | null): Pedido {
   const ordem = `${corpo.ordem ?? "fit"}:${corpo.crescente === true ? "asc" : "desc"}`;
@@ -378,9 +390,16 @@ function lerTermo(corpo: Record<string, unknown>): Pedido {
   return { modo: "cnaes", termo };
 }
 
+function lerCnpjDaFicha(corpo: Record<string, unknown>): Pedido {
+  const cnpj = String(corpo.cnpj ?? "");
+  if (!/^\d{14}$/.test(cnpj)) throw new Recusa("CNPJ inválido.", 400);
+  return { modo: "ficha", cnpj };
+}
+
 async function lerPedido(req: Request): Promise<Pedido> {
   const corpo = await req.json().catch(() => ({})) as Record<string, unknown>;
   if (corpo.modo === "cnaes") return lerTermo(corpo);
+  if (corpo.modo === "ficha") return lerCnpjDaFicha(corpo);
   const filtros = lerFiltros(corpo.filtros);
   const busca = lerBusca(corpo.busca);
   if (corpo.modo === "total") return { modo: "total", filtros, busca };
@@ -406,8 +425,12 @@ const e_ = (where: string, condicao: string) => (where ? `${where} AND ${condica
  * piso, pelo CNPJ — o mesmo desempate da ordem. Se a faixa marcada não inclui o piso, a
  * segunda parte não roda.
  */
-function empresasDaPagina(p: Extract<Pedido, { modo: "pagina" }>, where: string, pelaSecundaria: string): string {
+function empresasDaPagina(p: Extract<Pedido, { modo: "pagina" }>, where: string, pelaSecundaria: string, poucas: boolean): string {
   const colunas = `e.*, ${pelaSecundaria} AS pela_secundaria`;
+  if (poucas) {
+    return `WITH filtradas AS MATERIALIZED (SELECT ${colunas} FROM pulse.empresas e ${where})
+            SELECT * FROM filtradas e ORDER BY ${p.ordem} LIMIT $1 OFFSET $2`;
+  }
   if (!p.porFaturamento) {
     return `SELECT ${colunas} FROM pulse.empresas e ${where} ORDER BY ${p.ordem} LIMIT $1 OFFSET $2`;
   }
@@ -441,15 +464,35 @@ async function comFaturamentoDoTime(sessao: SupabaseClient, linhas: LinhaDaPagin
   });
 }
 
+// Até aqui, a página separa as empresas filtradas antes de ordenar.
+const POUCAS = 20_000;
+
+/**
+ * Com um filtro ou busca que pega poucas empresas, ordenar pelo índice faz o banco percorrer
+ * a tabela inteira até achá-las (busca "belo horizonte" por distância: 5 s; até 100 km por
+ * faturamento: 3 s, medido em 18/11/2026). Contar até 20 mil é rápido (36 ms) e decide o
+ * caminho: poucas, separa e ordena só elas; muitas, o índice acha as primeiras logo.
+ */
+async function saoPoucas(cliente: Cliente, pedido: Extract<Pedido, { modo: "pagina" }>): Promise<boolean> {
+  const { where, valores } = condicoesDaBusca(pedido.filtros, pedido.busca, 1);
+  if (!where) return false;
+  const r = await cliente.queryObject<{ n: bigint }>(
+    `SELECT count(*) AS n FROM (SELECT 1 FROM pulse.empresas e ${where} LIMIT ${POUCAS + 1}) x`,
+    valores,
+  );
+  return Number(r.rows[0]?.n ?? 0) <= POUCAS;
+}
+
 async function pagina(cliente: Cliente, pedido: Extract<Pedido, { modo: "pagina" }>, sessao: SupabaseClient) {
   const { ordem, pagina, filtros, busca } = pedido;
   const { where, valores, pelaSecundaria } = condicoesDaBusca(filtros, busca, 3);
+  const poucas = await saoPoucas(cliente, pedido);
   const linhas = await cliente.queryObject(
     `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, c.descricao AS cnae_descricao,
-          e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.capital_social::float8 AS capital_social, e.funcionarios,
+          e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.capital_social::float8 AS capital_social, e.distancia_km, e.funcionarios,
           e.divida_total::float8 AS divida_total, e.divida_ajuizada::float8 AS divida_ajuizada,
           e.fit_previo, e.fit_frente, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base, e.pela_secundaria
-     FROM (${empresasDaPagina(pedido, where, pelaSecundaria)}) e
+     FROM (${empresasDaPagina(pedido, where, pelaSecundaria, poucas)}) e
      LEFT JOIN public.cnaes c ON c.codigo = e.cnae_principal
     ORDER BY ${ordem}`,
     [POR_PAGINA, pagina * POR_PAGINA, ...valores],
@@ -491,11 +534,61 @@ async function cnaes(cliente: Cliente, { termo }: Extract<Pedido, { modo: "cnaes
   return { cnaes: r.rows };
 }
 
+// ---------- ficha (US-0007) ----------
+
+const FICHA = `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, c.descricao AS cnae_descricao,
+    e.cnaes_secundarios::text[] AS cnaes_secundarios,
+    coalesce((SELECT json_agg(json_build_object('codigo', s, 'descricao', cs.descricao) ORDER BY s)
+              FROM unnest(e.cnaes_secundarios) s LEFT JOIN public.cnaes cs ON cs.codigo = s), '[]') AS secundarias,
+    e.natureza_juridica, n.descricao AS natureza_descricao,
+    e.capital_social::float8 AS capital_social, e.data_inicio_atividade::text AS data_inicio_atividade,
+    e.municipio, e.uf, e.distancia_km, e.funcionarios, e.unidades_com_funcionarios, e.filiais_ativas, e.socios,
+    e.divida_total::float8 AS divida_total, e.divida_em_cobranca::float8 AS divida_em_cobranca,
+    e.divida_ajuizada::float8 AS divida_ajuizada, e.inscricoes_divida, e.tem_email, e.tem_telefone,
+    e.fit_previo, e.fit_frente, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base
+  FROM pulse.empresas e
+  LEFT JOIN public.cnaes c ON c.codigo = e.cnae_principal
+  LEFT JOIN public.naturezas_juridicas n ON n.codigo = e.natureza_juridica
+  WHERE e.cnpj = $1`;
+
+// Sócios pela visão pulse.socios (só nome, qualificação, entrada, tipo e CNPJ de sócio
+// empresa; ADR-0041). Quem administra vem primeiro.
+const ADMINISTRAM = ["49", "05", "10", "16", "28", "65", "50"];
+const SOCIOS = `SELECT nome, qualificacao_codigo, entrada::text AS entrada, tipo, cnpj
+  FROM pulse.socios WHERE cnpj_basico = $1
+  ORDER BY array_position($2::text[], qualificacao_codigo::text) NULLS LAST, entrada NULLS LAST, nome
+  LIMIT 50`;
+
+// Etapas que encerram a oportunidade: a ficha só mostra as que estão em andamento.
+const ETAPAS_ENCERRADAS = "(ganho,descartado,sem_resposta,convertido)";
+
+/** Oportunidades em andamento da empresa na Prospecção, lidas com a RLS da pessoa. */
+async function oportunidadesDaEmpresa(sessao: SupabaseClient, cnpj: string) {
+  const { data: empresas, error } = await sessao.from("prospect_companies").select("id").eq("cnpj", cnpj);
+  if (error || !empresas?.length) return [];
+  const { data } = await sessao
+    .from("prospects")
+    .select("id, title, stage, owner_id")
+    .in("company_id", empresas.map((e) => e.id))
+    .not("stage", "in", ETAPAS_ENCERRADAS);
+  return data ?? [];
+}
+
+async function ficha(cliente: Cliente, { cnpj }: Extract<Pedido, { modo: "ficha" }>, sessao: SupabaseClient) {
+  const r = await cliente.queryObject<LinhaDaPagina>(FICHA, [cnpj]);
+  if (!r.rows.length) throw new Recusa("Empresa não encontrada na base.", 404);
+  const [empresa] = await comFaturamentoDoTime(sessao, r.rows);
+  const socios = await cliente.queryObject(SOCIOS, [cnpj.slice(0, 8), ADMINISTRAM]);
+  const contato = await cliente.queryObject("SELECT email, telefone_1, telefone_2 FROM pulse.contatos WHERE cnpj = $1", [cnpj]);
+  return { empresa, contato: contato.rows[0] ?? null, socios: socios.rows, oportunidades: await oportunidadesDaEmpresa(sessao, cnpj) };
+}
+
 async function responder(pedido: Pedido, sessao: SupabaseClient) {
   const cliente = await baseDaReceita().connect();
   try {
     if (pedido.modo === "total") return await total(cliente, pedido);
     if (pedido.modo === "cnaes") return await cnaes(cliente, pedido);
+    if (pedido.modo === "ficha") return await ficha(cliente, pedido, sessao);
     return await pagina(cliente, pedido, sessao);
   } finally {
     cliente.release();

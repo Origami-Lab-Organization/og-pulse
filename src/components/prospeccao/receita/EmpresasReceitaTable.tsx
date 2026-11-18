@@ -28,6 +28,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 
 interface EmpresasReceitaTableProps {
+  /** Abre a ficha da empresa (US-0007): clique na linha, ou Enter com ela em foco. */
+  onAbrir: (cnpj: string) => void;
   /** Com o painel de filtros aberto: menos respiro e nome e atividade mais estreitos, para caber sem rolar. */
   compacta?: boolean;
   linhas: EmpresaReceita[];
@@ -40,7 +42,7 @@ interface EmpresasReceitaTableProps {
  * inteiro ao passar o mouse; números não quebram. O faturamento estimado vem antes da dívida ativa, com a
  * conta no tooltip (US-0006).
  */
-export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, compacta = false }: EmpresasReceitaTableProps) {
+export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, onAbrir, compacta = false }: EmpresasReceitaTableProps) {
   useHideValues(); // re-renderiza quando o olho de ocultar valores muda
   const ordenavel = (ordem: OrdemReceita, rotulo: string, numerica = false) => (
     <CabecalhoOrdenavel ordem={ordem} ordenacao={ordenacao} onOrdenar={onOrdenar} numerica={numerica}>
@@ -49,11 +51,12 @@ export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, compacta = 
   );
 
   return (
-    <table className={cn('w-full border-collapse', compacta ? 'min-w-[900px] text-[13px] [&_td]:px-2 [&_th]:px-2' : 'min-w-[1080px] text-[13.5px]')}>
+    <table className={cn('w-full border-collapse', compacta ? 'min-w-[960px] text-[13px] [&_td]:px-2 [&_th]:px-2' : 'min-w-[1160px] text-[13.5px]')}>
       <caption className="sr-only">Empresas da base da Receita</caption>
       <thead>
         <tr className="h-10 border-b bg-muted/40 text-left text-[12.5px] font-medium text-muted-foreground">
           {ordenavel('nome', 'Empresa')}
+          {ordenavel('distancia', 'Distância', true)}
           <th scope="col" className="whitespace-nowrap px-3 text-center font-medium">Capital social</th>
           {ordenavel('funcionarios', 'Funcionários', true)}
           <th scope="col" className="whitespace-nowrap px-3 font-medium">Atividade</th>
@@ -65,14 +68,16 @@ export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, compacta = 
       </thead>
       <tbody>
         {linhas.map((empresa) => (
-          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} />
+          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} />
         ))}
       </tbody>
     </table>
   );
 }
 
-function Linha({ empresa, compacta }: { empresa: EmpresaReceita; compacta: boolean }) {
+const TECLA_QUE_ABRE = 'Enter';
+
+function Linha({ empresa, compacta, onAbrir }: { empresa: EmpresaReceita; compacta: boolean; onAbrir: (cnpj: string) => void }) {
   const largura = compacta ? 'max-w-[170px]' : 'max-w-[260px]';
   const nome = nomeDaEmpresa(empresa);
   const ramo = ramoDaEmpresa(empresa.cnae_principal);
@@ -81,13 +86,22 @@ function Linha({ empresa, compacta }: { empresa: EmpresaReceita; compacta: boole
   const razao = emTitulo(empresa.razao_social);
   const nomeCompleto = razao && razao !== nome ? `${nome} — ${razao}` : nome;
   return (
-    <tr className="border-b last:border-b-0 hover:bg-muted/40">
+    <tr
+      tabIndex={0}
+      onClick={() => onAbrir(empresa.cnpj)}
+      onKeyDown={(e) => e.key === TECLA_QUE_ABRE && e.target === e.currentTarget && onAbrir(empresa.cnpj)}
+      title="Abrir a ficha"
+      className="cursor-pointer border-b last:border-b-0 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+    >
       <td className="px-3 py-2 pl-5">
         <div className={cn(compacta ? 'max-w-[190px]' : 'max-w-[280px]', 'truncate font-semibold leading-snug')} title={nomeCompleto}>{nome}</div>
         <div className="mt-0.5 flex gap-x-2 whitespace-nowrap text-xs text-muted-foreground">
           <span className="font-mono tabular-nums">{formatCNPJ(empresa.cnpj)}</span>
           {local && <span>{local}</span>}
         </div>
+      </td>
+      <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
+        {empresa.distancia_km != null ? `${empresa.distancia_km.toLocaleString('pt-BR')} km` : <span title="Município não reconhecido">—</span>}
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
         {empresa.capital_social ? reaisCurtos(Number(empresa.capital_social)) : <span title="Capital social não informado na Receita">—</span>}

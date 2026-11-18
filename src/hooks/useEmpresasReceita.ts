@@ -3,6 +3,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { EmpresaReceita, OrdenacaoReceita, PaginaReceita, TotalReceita } from '@/lib/prospecting/empresasReceita';
 import type { CnaeEncontrado, FiltrosReceita } from '@/types/filtrosReceita';
+import type { FichaReceita } from '@/types/fichaReceita';
 
 /**
  * A base da Receita na tela Empresas (US-0002, US-0003, ADR-0053).
@@ -87,6 +88,16 @@ export function useCnaesReceita(termo: string) {
     queryFn: async () => (await chamar<{ cnaes: CnaeEncontrado[] }>({ modo: 'cnaes', termo: limpo })).cnaes,
     enabled: limpo.length >= 2,
     placeholderData: keepPreviousData,
+    ...DA_BASE,
+  });
+}
+
+/** A ficha de uma empresa da base (US-0007); só busca com um CNPJ escolhido. */
+export function useFichaReceita(cnpj: string | null) {
+  return useQuery({
+    queryKey: ['receita-ficha', cnpj],
+    queryFn: () => chamar<FichaReceita>({ modo: 'ficha', cnpj }),
+    enabled: !!cnpj,
     ...DA_BASE,
   });
 }
