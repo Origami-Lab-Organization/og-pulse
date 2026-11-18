@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DiscardProspectDialog } from '@/components/prospeccao/DiscardProspectDialog';
+import { FichaDaEmpresaNoPipeline } from '@/components/prospeccao/FichaDaEmpresaNoPipeline';
 import { ProspectDetailDialog } from '@/components/prospeccao/ProspectDetailDialog';
 import { ProspectFilterButton } from '@/components/prospeccao/ProspectFilterButton';
 import { OpportunityFormDialog } from '@/components/prospeccao/OpportunityFormDialog';
@@ -36,6 +37,7 @@ export default function Prospeccao() {
   const [selecionado, setSelecionado] = useState<ProspectWithCompany | null>(null);
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
+  const [empresaAberta, setEmpresaAberta] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<ProspectFilter>(FILTRO_VAZIO);
   // `?oportunidade=<id>`: o link que vem de Clientes, Projetos e das Métricas. `?contato=` é o
   // nome de antes de 09/10/2026 e continua valendo para link salvo — o id é o mesmo.
@@ -121,7 +123,10 @@ export default function Prospeccao() {
         onOpenChange={(aberto) => !aberto && setSelecionado(null)}
         onDiscard={setDescartando}
         onWin={setGanhando}
+        onOpenCompany={setEmpresaAberta}
       />
+
+      <FichaDaEmpresaNoPipeline empresaId={empresaAberta} onEmpresaId={setEmpresaAberta} onAbrirOportunidade={setSelecionado} />
 
       <DiscardProspectDialog
         prospect={descartando}

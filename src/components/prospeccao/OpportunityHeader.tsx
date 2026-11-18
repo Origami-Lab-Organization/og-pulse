@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   BadgeDollarSign,
   Check,
+  CornerUpLeft,
   MoreVertical,
   Pencil,
   RotateCcw,
@@ -63,6 +64,8 @@ interface OpportunityHeaderProps {
   onDesfazerGanho: () => void;
   onVoltar: (stage: ProspectStage) => void;
   onExcluir: () => void;
+  /** Devolver para a lista (US-0008): tira de A abordar, sem apagar o cadastro da empresa. */
+  onDevolver: () => void;
   onCriarProjeto: () => void;
 }
 
@@ -270,6 +273,7 @@ function AcoesDeEtapa(props: OpportunityHeaderProps) {
 }
 
 const ETAPA_GANHO: ProspectStage = 'ganho';
+const ETAPA_A_ABORDAR: ProspectStage = 'a_abordar';
 /** Perda, e o "Sem resposta" das linhas antigas: os dois reabrem em "A abordar". */
 const PERDIDO = new Set<ProspectStage>(['descartado', 'sem_resposta']);
 
@@ -292,6 +296,12 @@ function MenuDaOportunidade(props: OpportunityHeaderProps) {
         <ItensDeGanho {...props} />
         <ItensDePerda {...props} />
         {!somenteLeitura && <ItensDeVolta stage={prospect.stage} onVoltar={props.onVoltar} />}
+        {!somenteLeitura && prospect.stage === ETAPA_A_ABORDAR && (
+          <DropdownMenuItem onSelect={props.onDevolver}>
+            <CornerUpLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+            Devolver para a lista
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={props.onExcluir}>
           <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
           Excluir oportunidade

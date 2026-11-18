@@ -60,6 +60,9 @@ avalia de novo o que já foi descartado.
 
 ## Pontos em aberto
 
+- 18/11/2026: a tela Empresas ficou sem abas (US-0008; US-0011 arquivada). Rever onde aparecem
+  as empresas marcadas como "Não agora" ou descartadas, e se esta história ainda faz sentido.
+
 ### Provocações para produto
 
 - Empresa descartada que muda de situação na Receita (entra no Lucro Real, troca de

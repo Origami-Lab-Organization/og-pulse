@@ -13,6 +13,7 @@ import {
   getDiscardReasonLabel,
   getLeverLabel,
   getProspectStageLabel,
+  getTipoDeContaLabel,
   isTaskOverdue,
   type ProspectActivityDB,
   type ProspectCompanyDB,
@@ -65,6 +66,7 @@ export function empresaResumo(e: ProspectCompanyDB, contatos?: number): string {
     e.segment,
     prefixado('Anel', e.ring),
     prefixado('Tier', e.tier),
+    getTipoDeContaLabel(e.tipo_conta),
     contatos === undefined ? null : `${contatos} contato(s)`,
   ]);
   return `- **${e.name}**${detalhes ? ` — ${detalhes}` : ''}\n  ID: \`${e.id}\``;
@@ -78,6 +80,7 @@ export function empresaCompleta(e: ProspectCompanyDB): string {
       ['Segmento', e.segment],
       ['Anel', e.ring],
       ['Tier', e.tier],
+      ['Tipo de conta', getTipoDeContaLabel(e.tipo_conta)],
       ['Site', e.website],
       ['LinkedIn', e.linkedin_url],
       ['Instagram', e.instagram_url],

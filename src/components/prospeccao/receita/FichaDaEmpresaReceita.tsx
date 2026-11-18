@@ -26,6 +26,8 @@ import { getProspectStageLabel } from '@/types/prospect';
 import { nomeDaQualificacao } from '@/lib/prospecting/qualificacoesDeSocio';
 import type { ContatoDaFicha, EmpresaDaFicha, OportunidadeDaFicha, SocioDaFicha } from '@/types/fichaReceita';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { ColocarParaAbordarDialog } from './ColocarParaAbordarDialog';
 
 interface FichaDaEmpresaReceitaProps {
   /** CNPJ da empresa aberta; nulo = ficha fechada. */
@@ -40,7 +42,7 @@ const PENDENTES = 'Regime tributário, site, fomento público e contratos com o 
 /**
  * Ficha de uma empresa da base da Receita (US-0007): tudo que a base sabe, para decidir sem
  * sair da lista. Gaveta à direita; Esc, o "x" ou um clique fora fecham e devolvem o foco à
- * linha. Sem ações no rodapé até a US-0008 e a US-0010.
+ * linha. No rodapé, "Colocar para abordar" (US-0008).
  */
 export function FichaDaEmpresaReceita({ cnpj, onFechar }: FichaDaEmpresaReceitaProps) {
   const ficha = useFichaReceita(cnpj);
@@ -79,7 +81,21 @@ function Conteudo({ ficha }: { ficha: ReturnType<typeof useFichaReceita> }) {
         <Contato contato={contato} />
         <RedeEContato empresa={empresa} socios={socios} />
       </div>
+      <Rodape empresa={empresa} emAndamento={oportunidades.length > 0} />
     </>
+  );
+}
+
+/** Colocar para abordar (US-0008): só com `prospeccao:editar` e sem oportunidade em andamento. */
+function Rodape({ empresa, emAndamento }: { empresa: EmpresaDaFicha; emAndamento: boolean }) {
+  const { can } = useAuth();
+  const [colocando, setColocando] = useState(false);
+  if (emAndamento || !can('prospeccao:editar')) return null;
+  return (
+    <div className="border-t bg-card px-5 py-4">
+      <Button className="w-full" onClick={() => setColocando(true)}>Colocar para abordar</Button>
+      <ColocarParaAbordarDialog empresas={[empresa]} aberta={colocando} onAbertaChange={setColocando} />
+    </div>
   );
 }
 
@@ -145,7 +161,7 @@ const traco = <span className="text-muted-foreground">—</span>;
 function NaProspeccao({ oportunidades }: { oportunidades: OportunidadeDaFicha[] }) {
   const { byId } = useEmployeeDirectoryMap();
   return (
-    <Secao titulo="Na Prospecção">
+    <Secao titulo="Já no Pipeline">
       <ul className="space-y-1.5">
         {oportunidades.map((o) => (
           <li key={o.id}>
@@ -226,7 +242,7 @@ function Faturamento({ empresa }: { empresa: EmpresaDaFicha }) {
     return (
       <div className="mt-3 rounded-md border px-3 py-2.5">
         <p className="text-[13px]"><span className="font-mono text-[15px] font-semibold">{textoDoInformado(valor)}</span> · {rotulo}</p>
-        <p className="mt-1 text-[12.5px] text-muted-foreground">Valor informado na Prospecção.</p>
+        <p className="mt-1 text-[12.5px] text-muted-foreground">Valor informado pelo time.</p>
         {lucroRealPeloTime(valor) && <Aviso>{AVISO_LUCRO_REAL}</Aviso>}
       </div>
     );
@@ -291,7 +307,7 @@ function telefoneFormatado(numero: string): string {
 
 const LINK = 'text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm';
 
-/** E-mail e telefones da empresa na Receita, antes mesmo da Prospecção (18/11/2026). */
+/** E-mail e telefones da empresa na Receita, antes mesmo da oportunidade (18/11/2026). */
 function Contato({ contato }: { contato: ContatoDaFicha | null }) {
   const telefones = [contato?.telefone_1, contato?.telefone_2].filter((t): t is string => !!t);
   return (

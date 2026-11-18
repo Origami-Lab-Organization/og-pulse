@@ -5,6 +5,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
+import { useDevolverParaALista } from '@/hooks/useDevolverParaALista';
 import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
 import { useProspectActivities } from '@/hooks/useProspectActivities';
 import { useSaveCardCompany } from '@/hooks/useProspectCompanies';
@@ -32,6 +33,7 @@ import {
   type ProspectCompanyDB,
   type ProspectTaskDB,
   type ProspectWithCompany,
+  type TipoDeConta,
 } from '@/types/prospect';
 import type { ReceitaSnapshot } from '@/types/receita';
 import { CompanyFitSection } from './CompanyFitSection';
@@ -59,6 +61,8 @@ interface ProspectDetailDialogProps {
   onDiscard: (prospect: ProspectWithCompany) => void;
   /** Registrar ou corrigir o ganho — abre o diálogo de data e valor. */
   onWin: (prospect: ProspectWithCompany) => void;
+  /** Abre a ficha completa da empresa (sócios, fomento, site, outras oportunidades e contatos). */
+  onOpenCompany?: (companyId: string) => void;
 }
 
 /**
@@ -103,6 +107,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
   const reabrir = useReopenProspect();
   const moverEtapa = useUpdateProspectStage();
   const excluir = useDeleteProspect();
+  const devolver = useDevolverParaALista();
   const { can } = useAuth();
   const [reuniaoAberta, setReuniaoAberta] = useState(false);
   const [projetoAberto, setProjetoAberto] = useState(false);
@@ -130,6 +135,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
           excluir.mutate({ id: prospect.id });
           onOpenChange(false);
         }}
+        onDevolver={() => devolver.mutate(prospect, { onSuccess: () => onOpenChange(false) })}
         onCriarProjeto={() => setProjetoAberto(true)}
       />
 
@@ -197,6 +203,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
               receitaAchada={edicao.receitaDaEdicao}
               podeEditar={!somenteLeitura}
               onEditar={edicao.abrirEmpresa}
+              onVerFicha={props.onOpenCompany && prospect.company_id ? () => props.onOpenCompany?.(prospect.company_id) : undefined}
               rodape={
                 <BotoesDeSalvar
                   rotulo="Salvar empresa"
@@ -568,6 +575,7 @@ function rascunhoInicial(prospect: ProspectWithCompany): Record<string, string> 
     company_segment: comoTexto(empresa?.segment),
     company_ring: comoTexto(empresa?.ring),
     company_tier: comoTexto(empresa?.tier),
+    company_tipo_conta: comoTexto(empresa?.tipo_conta),
     company_faturamento: numeroComoTexto(empresa?.faturamento_anual),
     company_faturamento_base: empresa?.faturamento_anual_base ?? FATURAMENTO_BASE_PADRAO,
     primary_channel: prospect.primary_channel,
@@ -588,6 +596,7 @@ function empresaDoRascunho(rascunho: Record<string, string>, empresa: ProspectCo
     segment: ouNulo(rascunho.company_segment),
     ring: ouNulo(rascunho.company_ring),
     tier: ouNulo(rascunho.company_tier),
+    tipo_conta: (ouNulo(rascunho.company_tipo_conta) as TipoDeConta | null),
     client_id: empresa.client_id,
     notes: empresa.notes,
     faturamento_anual: Number(rascunho.company_faturamento) || null,

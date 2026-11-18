@@ -1,49 +1,33 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { FileUp } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { BulkCompanyImportDialog } from '@/components/prospeccao/BulkCompanyImportDialog';
-import { ContasDaProspeccao } from '@/components/prospeccao/ContasDaProspeccao';
-import { AbasDaLista } from '@/components/prospeccao/ListaDeCadastro';
 import { EmpresasDaReceita } from '@/components/prospeccao/receita/EmpresasDaReceita';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProspectCompanies } from '@/hooks/useProspectCompanies';
-
-type AbaDeEmpresas = 'classificar' | 'prospeccao';
-
-const ABA_PROSPECCAO: AbaDeEmpresas = 'prospeccao';
-
-const ABAS: ReadonlyArray<{ valor: AbaDeEmpresas; rotulo: string }> = [
-  { valor: 'classificar', rotulo: 'A classificar' },
-  { valor: ABA_PROSPECCAO, rotulo: 'Na Prospecção' },
-];
 
 /**
- * Empresas (16/11/2026, US-0002, ADR-0053): a base da Receita para achar contas novas, e as
- * contas que já estão na Prospecção.
+ * Empresas (16/11/2026, US-0002, ADR-0053): a base da Receita com filtros, para achar contas
+ * novas. Desde 18/11/2026 a tela é só esse filtro, sem abas: a empresa escolhida é classificada
+ * (tipo de conta) e vai direto para A abordar no Pipeline de Oportunidades (US-0008). A ficha
+ * completa de uma empresa cadastrada abre de dentro da oportunidade.
  *
- * A aba fica na URL (`?aba=prospeccao`) para o voltar do navegador e o link das notificações
- * de gatilho (`?empresa=<id>`) caírem no lugar certo.
+ * Link antigo das notificações de gatilho (`?empresa=<id>`) segue para o Pipeline, que abre a
+ * ficha da empresa.
  */
 export default function ProspeccaoEmpresas() {
   const { can } = useAuth();
   const [importando, setImportando] = useState(false);
-  const [params, setParams] = useSearchParams();
-  const { data: contas = [] } = useProspectCompanies();
+  const [params] = useSearchParams();
+  const empresaDoLink = params.get('empresa');
 
-  const aba: AbaDeEmpresas = params.get('aba') === ABA_PROSPECCAO || params.has('empresa') ? ABA_PROSPECCAO : 'classificar';
-  const trocarDeAba = (nova: AbaDeEmpresas) =>
-    setParams((atual) => {
-      if (nova === ABA_PROSPECCAO) atual.set('aba', nova);
-      else atual.delete('aba');
-      return atual;
-    });
+  if (empresaDoLink) return <Navigate to={`/comercial/prospeccao?empresa=${encodeURIComponent(empresaDoLink)}`} replace />;
 
   return (
     <AppLayout
       title="Empresas"
-      description="As médias e grandes empresas do país e as contas que já estão na Prospecção"
+      description="As médias e grandes empresas do país: filtre, escolha e coloque para abordar"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Empresas' }]}
       actions={
         can('prospeccao:editar') && (
@@ -55,18 +39,7 @@ export default function ProspeccaoEmpresas() {
       }
     >
       <BulkCompanyImportDialog open={importando} onOpenChange={setImportando} />
-      <div className="space-y-3.5">
-        <AbasDaLista
-          rotulo="Empresas"
-          abas={ABAS}
-          valor={aba}
-          contagem={{ prospeccao: contas.length }}
-          onChange={trocarDeAba}
-        />
-        <div role="tabpanel" aria-label={ABAS.find((a) => a.valor === aba)?.rotulo}>
-          {aba === ABA_PROSPECCAO ? <ContasDaProspeccao /> : <EmpresasDaReceita />}
-        </div>
-      </div>
+      <EmpresasDaReceita />
     </AppLayout>
   );
 }

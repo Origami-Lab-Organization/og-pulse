@@ -1,6 +1,4 @@
 import { useState, type CSSProperties } from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { formatRate, formatRatio, type AccountCoverage } from '@/lib/prospecting/metrics';
 import { GRAIN_OPTIONS, formatDay } from '@/lib/prospecting/periods';
@@ -311,15 +309,11 @@ function Cobertura({ coverage }: { coverage: AccountCoverage }) {
       </div>
       <Progress value={percentual} className="h-2.5" aria-label={`Cobertura da lista: ${formatRate(coverage.taxa)}`} />
       {nunca > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <span>
-            <span className="font-mono font-medium tabular-nums">{nunca}</span>{' '}
-            {nunca === 1 ? 'conta nunca foi abordada' : 'contas nunca foram abordadas'}
-          </span>
-          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-            <Link to="/comercial/empresas">Ver contas</Link>
-          </Button>
-        </div>
+        // Sem "Ver contas" desde 18/11/2026: a lista de contas saiu da tela Empresas (US-0021).
+        <p className="text-sm">
+          <span className="font-mono font-medium tabular-nums">{nunca}</span>{' '}
+          {nunca === 1 ? 'conta nunca foi abordada' : 'contas nunca foram abordadas'}
+        </p>
       )}
     </Painel>
   );

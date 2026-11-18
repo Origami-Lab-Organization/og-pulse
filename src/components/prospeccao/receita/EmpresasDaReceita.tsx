@@ -22,9 +22,13 @@ import { contarFiltros, FILTROS_VAZIOS, filtrosDoNavegador, guardarFiltros } fro
 import { avisoDaBusca, buscaDoNavegador, buscaDoPedido, buscouFilial, cnpjCompleto, guardarBusca, lerBusca } from '@/lib/prospecting/buscaReceita';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePainelDeFiltros } from '@/hooks/usePainelDeFiltros';
-import type { BuscaReceita, FiltrosReceita } from '@/types/filtrosReceita';
+import { useSelecaoDeEmpresas } from '@/hooks/useSelecaoDeEmpresas';
+import { useAuth } from '@/contexts/AuthContext';
+import type { BuscaReceita, FiltrosReceita, SelecaoDaLista } from '@/types/filtrosReceita';
 import { cn } from '@/lib/utils';
+import { BarraDeSelecao } from './BarraDeSelecao';
 import { CaixaDeBusca } from './CaixaDeBusca';
+import { ColocarParaAbordarDialog } from './ColocarParaAbordarDialog';
 import { EmpresasReceitaTable } from './EmpresasReceitaTable';
 import { FichaDaEmpresaReceita } from './FichaDaEmpresaReceita';
 import { GavetaDeFiltros } from './GavetaDeFiltros';
@@ -46,6 +50,10 @@ export function EmpresasDaReceita() {
   const [filtros, setFiltros] = useState<FiltrosReceita>(filtrosDoNavegador);
   const painel = usePainelDeFiltros();
   const [ficha, setFicha] = useState<string | null>(null);
+  const { can } = useAuth();
+  const podeColocar = can('prospeccao:editar');
+  const marcadas = useSelecaoDeEmpresas();
+  const [colocando, setColocando] = useState(false);
   const [ordenacao, setOrdenacao] = useState(ORDENACAO_PADRAO);
   const [pagina, setPagina] = useState(0);
   const [texto, setTexto] = useState(buscaDoNavegador);
@@ -94,13 +102,15 @@ export function EmpresasDaReceita() {
           </Button>
         </div>
         <div className="overflow-hidden rounded-xl border bg-card">
+          <BarraDeSelecao quantidade={marcadas.empresas.length} onColocar={() => setColocando(true)} onLimpar={marcadas.limpar} />
           <AvisosDaBusca busca={busca} ativos={ativos} primeira={consulta.data?.linhas[0]?.cnpj} />
-          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={setFicha} compacta={painel.larga && painel.aberto} />
+          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={setFicha} selecao={podeColocar ? marcadas.selecao : undefined} compacta={painel.larga && painel.aberto} />
           <Rodape contagem={contagem.data} pagina={pagina} onPagina={setPagina} vazia={!consulta.data?.linhas.length} />
         </div>
       </section>
       {painel.larga && painel.aberto && filtrosDoPainel(false)}
       <FichaDaEmpresaReceita cnpj={ficha} onFechar={() => setFicha(null)} />
+      <ColocarParaAbordarDialog empresas={marcadas.empresas} aberta={colocando} onAbertaChange={setColocando} onConcluido={marcadas.limpar} />
       {!painel.larga && (
         <GavetaDeFiltros aberta={painel.aberto} onAbertaChange={painel.definirGaveta} contagem={contagem.data} contando={contagem.isFetching} botao={painel.botao}>
           {filtrosDoPainel(true)}
@@ -176,9 +186,10 @@ function Conteudo(props: {
   onOrdenar: (ordem: OrdemReceita) => void;
   onLimpar: () => void;
   onAbrir: (cnpj: string) => void;
+  selecao?: SelecaoDaLista;
   compacta: boolean;
 }) {
-  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar, onAbrir, compacta } = props;
+  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar, onAbrir, selecao, compacta } = props;
   if (consulta.isLoading) return <Carregando />;
   if (consulta.error) return <Falha erro={consulta.error} onTentar={() => consulta.refetch()} />;
   if (!consulta.data || consulta.data.totalDaBase == null) {
@@ -193,7 +204,7 @@ function Conteudo(props: {
   const trocando = consulta.isPlaceholderData;
   return (
     <div className={cn('overflow-x-auto transition-opacity', trocando && 'opacity-60')} aria-busy={trocando}>
-      <EmpresasReceitaTable linhas={consulta.data.linhas} ordenacao={ordenacao} onOrdenar={onOrdenar} onAbrir={onAbrir} compacta={compacta} />
+      <EmpresasReceitaTable linhas={consulta.data.linhas} ordenacao={ordenacao} onOrdenar={onOrdenar} onAbrir={onAbrir} selecao={selecao} compacta={compacta} />
     </div>
   );
 }
@@ -224,7 +235,7 @@ function Falha({ erro, onTentar }: { erro: Error; onTentar: () => void }) {
     return (
       <EstadoVazio
         titulo="Você não tem acesso à base da Receita"
-        texto="Peça a quem administra o Pulse a permissão de ver a Prospecção."
+        texto="Peça a quem administra o Pulse a permissão de ver o Comercial."
       />
     );
   }

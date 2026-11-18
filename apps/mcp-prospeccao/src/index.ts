@@ -34,6 +34,7 @@ import {
   PROSPECT_MANUAL_STAGES,
   PROSPECT_STAGE_META,
   PROSPECT_TERMINAL_STAGES,
+  TIPOS_DE_CONTA,
   canWin,
   getDiscardReasonLabel,
   getProspectStageLabel,
@@ -60,6 +61,7 @@ const descrever = (lista: ReadonlyArray<{ value: string; label: string }>) =>
 
 const CANAIS = valores(INTERACTION_CHANNELS);
 const ALAVANCAS = valores(PROSPECT_LEVERS);
+const TIPOS = valores(TIPOS_DE_CONTA);
 const MOTIVOS = valores(PROSPECT_DISCARD_REASONS);
 const ETAPAS = Object.keys(PROSPECT_STAGE_META) as Tupla;
 const ETAPAS_MANUAIS = [...PROSPECT_MANUAL_STAGES] as Tupla;
@@ -140,6 +142,11 @@ const camposDeEmpresa = {
   segment: textoOpcional('Segmento de mercado.'),
   ring: z.string().max(60).optional().describe('Anel — segmentação de proximidade (texto livre).'),
   tier: z.string().max(60).optional().describe('Tier — porte/prioridade (texto livre).'),
+  tipo_conta: z
+    .enum(TIPOS)
+    .nullable()
+    .optional()
+    .describe(`Tipo de conta pelo faturamento: ${TIPOS_DE_CONTA.map((t) => `${t.value} (${t.label}, ${t.faixa})`).join(', ')}. null apaga.`),
   notes: z.string().max(4000).optional().describe('Observações sobre a empresa.'),
   client_id: uuid('client_id')
     .optional()
