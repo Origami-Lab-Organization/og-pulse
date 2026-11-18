@@ -25,11 +25,15 @@ import {
   textoDoInformado,
 } from '@/lib/prospecting/faturamentoEstimado';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import type { SelecaoDaLista } from '@/types/filtrosReceita';
 
 interface EmpresasReceitaTableProps {
   /** Abre a ficha da empresa (US-0007): clique na linha, ou Enter com ela em foco. */
   onAbrir: (cnpj: string) => void;
+  /** Seleção para colocar para abordar (US-0008); ausente sem `prospeccao:editar`. */
+  selecao?: SelecaoDaLista;
   /** Com o painel de filtros aberto: menos respiro e nome e atividade mais estreitos, para caber sem rolar. */
   compacta?: boolean;
   linhas: EmpresaReceita[];
@@ -42,7 +46,8 @@ interface EmpresasReceitaTableProps {
  * inteiro ao passar o mouse; números não quebram. O faturamento estimado vem antes da dívida ativa, com a
  * conta no tooltip (US-0006).
  */
-export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, onAbrir, compacta = false }: EmpresasReceitaTableProps) {
+export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
+  const { linhas, ordenacao, onOrdenar, onAbrir, selecao, compacta = false } = props;
   useHideValues(); // re-renderiza quando o olho de ocultar valores muda
   const ordenavel = (ordem: OrdemReceita, rotulo: string, numerica = false) => (
     <CabecalhoOrdenavel ordem={ordem} ordenacao={ordenacao} onOrdenar={onOrdenar} numerica={numerica}>
@@ -51,10 +56,11 @@ export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, onAbrir, co
   );
 
   return (
-    <table className={cn('w-full border-collapse', compacta ? 'min-w-[960px] text-[13px] [&_td]:px-2 [&_th]:px-2' : 'min-w-[1160px] text-[13.5px]')}>
+    <table className={cn('w-full border-collapse', compacta ? 'min-w-[1030px] text-[13px] [&_td]:px-2 [&_th]:px-2' : 'min-w-[1240px] text-[13.5px]')}>
       <caption className="sr-only">Empresas da base da Receita</caption>
       <thead>
         <tr className="h-10 border-b bg-muted/40 text-left text-[12.5px] font-medium text-muted-foreground">
+          {selecao && <th scope="col" className="w-10 pl-4"><MarcarPagina linhas={linhas} selecao={selecao} /></th>}
           {ordenavel('nome', 'Empresa')}
           {ordenavel('distancia', 'Distância', true)}
           <th scope="col" className="whitespace-nowrap px-3 text-center font-medium">Capital social</th>
@@ -68,7 +74,7 @@ export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, onAbrir, co
       </thead>
       <tbody>
         {linhas.map((empresa) => (
-          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} />
+          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} selecao={selecao} />
         ))}
       </tbody>
     </table>
@@ -77,7 +83,15 @@ export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, onAbrir, co
 
 const TECLA_QUE_ABRE = 'Enter';
 
-function Linha({ empresa, compacta, onAbrir }: { empresa: EmpresaReceita; compacta: boolean; onAbrir: (cnpj: string) => void }) {
+interface LinhaProps {
+  empresa: EmpresaReceita;
+  compacta: boolean;
+  onAbrir: (cnpj: string) => void;
+  selecao?: SelecaoDaLista;
+}
+
+function Linha(props: LinhaProps) {
+  const { empresa, compacta, onAbrir, selecao } = props;
   const largura = compacta ? 'max-w-[170px]' : 'max-w-[260px]';
   const nome = nomeDaEmpresa(empresa);
   const ramo = ramoDaEmpresa(empresa.cnae_principal);
@@ -93,7 +107,16 @@ function Linha({ empresa, compacta, onAbrir }: { empresa: EmpresaReceita; compac
       title="Abrir a ficha"
       className="cursor-pointer border-b last:border-b-0 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
-      <td className="px-3 py-2 pl-5">
+      {selecao && (
+        <td className="w-10 pl-4" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selecao.marcadas.has(empresa.cnpj)}
+            onCheckedChange={(marcada) => selecao.onMarcar([empresa], marcada === true)}
+            aria-label={`Selecionar ${nome}`}
+          />
+        </td>
+      )}
+      <td className={cn('px-3 py-2', !selecao && 'pl-5')}>
         <div className={cn(compacta ? 'max-w-[190px]' : 'max-w-[280px]', 'truncate font-semibold leading-snug')} title={nomeCompleto}>{nome}</div>
         <div className="mt-0.5 flex gap-x-2 whitespace-nowrap text-xs text-muted-foreground">
           <span className="font-mono tabular-nums">{formatCNPJ(empresa.cnpj)}</span>
@@ -128,12 +151,26 @@ function Linha({ empresa, compacta, onAbrir }: { empresa: EmpresaReceita; compac
   );
 }
 
+/** "Selecionar todas desta página": marca as da página, ou desmarca se já estão todas. */
+function MarcarPagina({ linhas, selecao }: { linhas: EmpresaReceita[]; selecao: SelecaoDaLista }) {
+  const marcadas = linhas.filter((e) => selecao.marcadas.has(e.cnpj)).length;
+  const todas = marcadas === linhas.length;
+  const estado = todas ? true : marcadas > 0 ? 'indeterminate' : false;
+  return (
+    <Checkbox
+      checked={estado}
+      onCheckedChange={() => selecao.onMarcar(linhas, !todas)}
+      aria-label="Selecionar todas desta página"
+    />
+  );
+}
+
 const GATILHO = 'inline-flex flex-col items-center gap-1 rounded-sm text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 const AVISO_LUCRO_REAL =
   'Lucro Real provável: acima de R$ 78 mi por ano, o regime é obrigatório (Lei 9.718/1998, art. 14). Confirme na consulta da Receita.';
 
 /**
- * Faturamento da linha (US-0006): o que o time informou na Prospecção, quando há; senão a
+ * Faturamento da linha (US-0006): o que o time informou, quando há; senão a
  * estimativa da base ("≈ valor" com a base, ou o piso do porte). A conta vai no tooltip.
  */
 function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
@@ -176,7 +213,7 @@ function FaturamentoDoTime({ empresa }: { empresa: EmpresaReceita }) {
       </TooltipTrigger>
       <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
         <p className="font-medium">Faturamento {rotulo}</p>
-        <p className="mt-0.5">Valor informado na Prospecção.{estimado && ` A estimativa pela base seria ${estimado}.`}</p>
+        <p className="mt-0.5">Valor informado pelo time.{estimado && ` A estimativa pela base seria ${estimado}.`}</p>
         {lucroReal && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}
       </TooltipContent>
     </Tooltip>

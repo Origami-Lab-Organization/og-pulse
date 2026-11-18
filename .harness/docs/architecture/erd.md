@@ -13,6 +13,8 @@ sources:
   - supabase/migrations/20260917115000_prospect_reuniao_feita.sql
   - supabase/migrations/20260917180000_prospect_activity_attachments.sql
   - supabase/migrations/20260917190000_prospect_lever_closed_list.sql
+  - supabase/migrations/20261118120000_base_da_receita_na_prospeccao.sql
+  - supabase/migrations/20261118160000_tipo_de_conta.sql
   - supabase/migrations/20260923120000_prospect_instagram.sql
   - supabase/migrations/20260924120000_prospect_tasks.sql
   - supabase/migrations/20260928120000_prospect_stage_changes.sql
@@ -88,6 +90,11 @@ sources:
 #  num Postgres local (PGlite).
 # 01/10/2026: 20261001200000 — prospect_companies.faturamento_anual e faturamento_anual_base
 #  (estimado|apurado, obrigatória junto), conferidos contra ProspectCompanyDB e ensaiados.
+# 18/11/2026: 20261118120000 — base "calculado" no faturamento e alavanca base_receita em
+#  prospects.lever (US-0008), conferidos contra ProspectCompanyDB e PROSPECT_LEVERS.
+# 18/11/2026: 20261118160000 — prospect_companies.tipo_conta (ancora|ponte|satelite, nula =
+#  sem tipo) e a alavanca base_receita sai de prospects.lever (US-0008 revista), conferidos
+#  contra ProspectCompanyDB, TIPOS_DE_CONTA e PROSPECT_LEVERS.
 # 01/10/2026: src/types/prospect.ts ganhou só regra de tela (previousStagesOf/isBackwardMove,
 #  voltar o card de etapa); sem migration — diagrama conferido, nada muda.
 # 02/10/2026: 20261002120000 — une cards duplicados por erro e cria trigger + índice único
@@ -190,8 +197,9 @@ erDiagram
         text instagram_url "livre — fora da deduplicação"
         text ring "Anel — livre, editável no card"
         text tier "Tier — livre, editável no card"
+        text tipo_conta "ancora | ponte | satelite — NULL = sem tipo (US-0008)"
         numeric faturamento_anual "informado pelo time — NULL = não informado"
-        text faturamento_anual_base "estimado | apurado — obrigatória junto com o valor"
+        text faturamento_anual_base "estimado | apurado | calculado — obrigatória junto com o valor"
         text regime_tributario "ano mais recente — filtro da Lei do Bem; retrato sem regime não apaga"
         text porte "MICRO EMPRESA | EMPRESA DE PEQUENO PORTE | DEMAIS"
         text situacao_cadastral "alerta quando não ATIVA"

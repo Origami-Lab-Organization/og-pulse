@@ -2,7 +2,7 @@ import { todasAsPaginas } from '@/lib/paginacao';
 import { tabela } from '@/services/prospectingTables';
 import { supabase } from '@/integrations/supabase/client';
 import type { ClientOption } from '@/types/cnpjLookup';
-import { FATURAMENTO_BASE_PADRAO, type FaturamentoBase, type ProspectCompanyDB } from '@/types/prospect';
+import { FATURAMENTO_BASE_PADRAO, type FaturamentoBase, type ProspectCompanyDB, type TipoDeConta } from '@/types/prospect';
 
 export interface ProspectCompanyInput {
   name: string;
@@ -18,6 +18,8 @@ export interface ProspectCompanyInput {
   /** Ausente = não mexe: quem edita a empresa sem esse campo não apaga o que já existe. */
   faturamento_anual?: number | null;
   faturamento_anual_base?: FaturamentoBase | null;
+  /** Ausente = não mexe (US-0008). */
+  tipo_conta?: TipoDeConta | null;
 }
 
 function normalize(input: ProspectCompanyInput) {
@@ -33,6 +35,7 @@ function normalize(input: ProspectCompanyInput) {
     client_id: input.client_id || null,
     notes: input.notes?.trim() || null,
     ...faturamentoDe(input),
+    ...(input.tipo_conta !== undefined ? { tipo_conta: input.tipo_conta } : {}),
   };
 }
 
@@ -155,6 +158,18 @@ export const prospectCompanyService = {
    */
   async linkClient(id: string, clientId: string): Promise<void> {
     const { error } = await tabela('prospect_companies').update({ client_id: clientId }).eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Só o tipo de conta (US-0008), sem regravar o resto da empresa. */
+  async setTipoDeConta(id: string, tipo: TipoDeConta): Promise<void> {
+    const { error } = await tabela('prospect_companies').update({ tipo_conta: tipo }).eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Só o faturamento (US-0008): grava o calculado pela base sem regravar o resto da empresa. */
+  async setFaturamento(id: string, valor: number, base: FaturamentoBase): Promise<void> {
+    const { error } = await tabela('prospect_companies').update({ faturamento_anual: valor, faturamento_anual_base: base }).eq('id', id);
     if (error) throw error;
   },
 

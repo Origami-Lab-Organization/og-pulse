@@ -209,6 +209,7 @@ export function textoDoInformado(valor: number): string {
 export const ROTULO_DO_INFORMADO: Record<FaturamentoBase, string> = {
   estimado: 'estimado pelo time',
   apurado: 'apurado pelo time',
+  calculado: 'calculado pela base',
 };
 
 /** Com o valor do time, sem margem: passou de R$ 78 mi, o selo aparece. */

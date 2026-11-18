@@ -1,3 +1,5 @@
+import type { EmpresaReceita } from '@/lib/prospecting/empresasReceita';
+
 /**
  * Filtros da base da Receita (US-0003). O mesmo formato vai no corpo da Edge Function
  * `empresas-receita`, que aceita só os valores destas listas fechadas.
@@ -99,3 +101,10 @@ export type BuscaReceita =
   | { tipo: 'curta'; aviso: string }
   | { tipo: 'cnpj'; digitos: string }
   | { tipo: 'texto'; termo: string };
+
+/** Seleção da lista para colocar para abordar (US-0008): vale entre páginas e filtros. */
+export interface SelecaoDaLista {
+  marcadas: ReadonlySet<string>;
+  /** Marca ou desmarca estas empresas (uma linha, ou a página inteira). */
+  onMarcar: (empresas: EmpresaReceita[], marcar: boolean) => void;
+}

@@ -3,6 +3,7 @@ import { Globe, Instagram, Linkedin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProspectCompanyByCnpj } from '@/hooks/useProspectCompanies';
 import { formatCurrency } from '@/lib/formatters';
 import { formatCNPJ } from '@/lib/masks';
@@ -11,6 +12,8 @@ import { comProtocolo, urlCurta, urlDoInstagram } from '@/lib/prospecting/links'
 import { anosDesde, formatarData } from '@/lib/prospecting/prazos';
 import {
   getFaturamentoBaseLabel,
+  getTipoDeContaLabel,
+  TIPOS_DE_CONTA,
   type FaturamentoBase,
   type ProspectCompanyDB,
 } from '@/types/prospect';
@@ -28,6 +31,8 @@ interface OpportunityCompanyCardProps {
   onEditar: () => void;
   onReceita: (receita: ReceitaSnapshot) => void;
   receitaAchada: ReceitaSnapshot | null;
+  /** Abre a ficha completa da empresa; ausente, o link não aparece. */
+  onVerFicha?: () => void;
   /** Salvar e cancelar da edição, dentro da própria seção. */
   rodape?: ReactNode;
 }
@@ -40,7 +45,7 @@ interface OpportunityCompanyCardProps {
  * entre este cartão e o da Receita: CNPJ, faturamento, abertura e capital social.
  */
 export function OpportunityCompanyCard(props: OpportunityCompanyCardProps) {
-  const { empresa, editando, podeEditar, onEditar, rodape } = props;
+  const { empresa, editando, podeEditar, onEditar, onVerFicha, rodape } = props;
   return (
     <CartaoDaFicha
       titulo="Empresa"
@@ -53,7 +58,7 @@ export function OpportunityCompanyCard(props: OpportunityCompanyCardProps) {
           {rodape}
         </div>
       ) : (
-        <LeituraDaEmpresa empresa={empresa} podeEditar={podeEditar} onEditar={onEditar} />
+        <LeituraDaEmpresa empresa={empresa} podeEditar={podeEditar} onEditar={onEditar} onVerFicha={onVerFicha} />
       )}
     </CartaoDaFicha>
   );
@@ -63,10 +68,11 @@ interface LeituraProps {
   empresa?: ProspectCompanyDB | null;
   podeEditar: boolean;
   onEditar: () => void;
+  onVerFicha?: () => void;
 }
 
 function LeituraDaEmpresa(props: LeituraProps) {
-  const { empresa, podeEditar, onEditar } = props;
+  const { empresa, podeEditar, onEditar, onVerFicha } = props;
   if (!empresa) return <p className="text-sm text-muted-foreground">Empresa não informada.</p>;
 
   // Campo vazio não vira traço mudo: vira o convite para preencher, que abre a mesma edição.
@@ -85,6 +91,11 @@ function LeituraDaEmpresa(props: LeituraProps) {
           <LinhaDeDado termo="Capital social">{formatCurrency(empresa.capital_social)}</LinhaDeDado>
         )}
       </dl>
+      {onVerFicha && (
+        <Button variant="link" size="sm" className="h-auto px-0 text-xs" onClick={onVerFicha}>
+          Ver ficha completa da empresa
+        </Button>
+      )}
     </div>
   );
 }
@@ -113,10 +124,14 @@ function Convite({ onClick }: { onClick: () => void }) {
 
 /**
  * O segmento em texto corrido, cortado em duas linhas (o da Receita é a descrição inteira do
- * CNAE e não cabe num chip); anel e tier, que são curtos, seguem como chips.
+ * CNAE e não cabe num chip); tipo de conta (US-0008), anel e tier, que são curtos, seguem como chips.
  */
 function Segmentacao({ empresa }: { empresa: ProspectCompanyDB }) {
-  const chips = [empresa.ring && `Anel ${empresa.ring}`, empresa.tier && `Tier ${empresa.tier}`].filter(Boolean) as string[];
+  const chips = [
+    getTipoDeContaLabel(empresa.tipo_conta),
+    empresa.ring && `Anel ${empresa.ring}`,
+    empresa.tier && `Tier ${empresa.tier}`,
+  ].filter(Boolean) as string[];
   if (!empresa.segment && chips.length === 0) return null;
   return (
     <div className="space-y-1.5">
@@ -220,6 +235,7 @@ function EdicaoDaEmpresa(props: OpportunityCompanyCardProps) {
       <Campo label="Instagram" draft={rascunho.company_instagram} onChange={definir('company_instagram')} />
       <Campo label="Site" draft={rascunho.company_website} onChange={definir('company_website')} />
       <Campo label="Segmento" draft={rascunho.company_segment} onChange={definir('company_segment')} />
+      <CampoTipoDeConta valor={rascunho.company_tipo_conta ?? ''} onChange={definir('company_tipo_conta')} />
       <Campo label="Anel" draft={rascunho.company_ring} onChange={definir('company_ring')} />
       <Campo label="Tier" draft={rascunho.company_tier} onChange={definir('company_tier')} />
       <div className="space-y-1">
@@ -233,6 +249,28 @@ function EdicaoDaEmpresa(props: OpportunityCompanyCardProps) {
         />
       </div>
       <p className="text-xs text-muted-foreground">Os campos da empresa valem para todas as oportunidades e contatos dela.</p>
+    </div>
+  );
+}
+
+const SEM_TIPO = 'sem';
+
+/** Tipo de conta (US-0008): lista fechada; "Sem tipo" volta a vazio. */
+function CampoTipoDeConta({ valor, onChange }: { valor: string; onChange: (valor: string) => void }) {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor="ficha-empresa-tipo-conta" className="text-xs text-muted-foreground">Tipo de conta</Label>
+      <Select value={valor || SEM_TIPO} onValueChange={(v) => onChange(v === SEM_TIPO ? '' : v)}>
+        <SelectTrigger id="ficha-empresa-tipo-conta" className="h-9 text-[13px]"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={SEM_TIPO}>Sem tipo</SelectItem>
+          {TIPOS_DE_CONTA.map((t) => (
+            <SelectItem key={t.value} value={t.value}>
+              {t.label} <span className="text-muted-foreground">· {t.faixa}</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

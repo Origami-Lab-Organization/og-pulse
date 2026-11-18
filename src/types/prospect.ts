@@ -278,15 +278,29 @@ export const PROSPECT_DISCARD_REASON_LABELS: Record<string, string> = Object.fro
 // Tipos de dado
 // --------------------------------------------------------------------------
 
-/** De onde vem o faturamento anual da empresa (01/10/2026). */
-export type FaturamentoBase = 'estimado' | 'apurado';
+/** De onde vem o faturamento anual da empresa (01/10/2026; "calculado" pela base da Receita, US-0008). */
+export type FaturamentoBase = 'estimado' | 'apurado' | 'calculado';
 
 export const FATURAMENTO_BASES: ReadonlyArray<{ value: FaturamentoBase; label: string; hint: string }> = [
   { value: 'estimado', label: 'Estimado', hint: 'Inferido pelo time: porte, conversa, mercado' },
   { value: 'apurado', label: 'Apurado', hint: 'Veio de fonte confiável: a própria empresa, balanço publicado' },
+  { value: 'calculado', label: 'Calculado', hint: 'Estimado pela base da Receita (funcionários, ramo e capital); troque pelo valor do time quando souber' },
 ];
 
 export const FATURAMENTO_BASE_PADRAO: FaturamentoBase = 'estimado';
+
+/** Tipo de conta da Origami (US-0008): substitui o Tier. */
+export type TipoDeConta = 'ancora' | 'ponte' | 'satelite';
+
+export const TIPOS_DE_CONTA: ReadonlyArray<{ value: TipoDeConta; label: string; faixa: string }> = [
+  { value: 'ancora', label: 'Âncora', faixa: 'acima de R$ 300 mi' },
+  { value: 'ponte', label: 'Ponte', faixa: 'R$ 100 a 300 mi' },
+  { value: 'satelite', label: 'Satélite', faixa: 'R$ 10 a 100 mi' },
+];
+
+export function getTipoDeContaLabel(tipo?: string | null): string | null {
+  return TIPOS_DE_CONTA.find((t) => t.value === tipo)?.label ?? null;
+}
 
 export function getFaturamentoBaseLabel(base?: string | null): string | null {
   return FATURAMENTO_BASES.find((b) => b.value === base)?.label ?? null;
@@ -305,6 +319,8 @@ export interface ProspectCompanyDB {
   ring: string | null;
   /** "Tier" — segmentação de porte/prioridade. Texto livre, editável no card. */
   tier: string | null;
+  /** Âncora, Ponte ou Satélite (US-0008); nulo = ainda não classificada. */
+  tipo_conta?: TipoDeConta | null;
   client_id: string | null;
   notes: string | null;
   /** Faturamento anual em reais, informado pelo time (01/10/2026). A Receita não informa. */
@@ -654,4 +670,48 @@ export function toISODate(date: Date): string {
   const mes = String(date.getMonth() + 1).padStart(2, '0');
   const dia = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${mes}-${dia}`;
+}
+
+/** Uma empresa da base a colocar para abordar (US-0008). */
+export interface ItemParaAbordar {
+  cnpj: string;
+  nome: string;
+  tipoConta: TipoDeConta;
+  /** Faturamento estimado da base; entra como "Calculado" se a empresa não tem o do time. */
+  faturamentoEstimado: number | null;
+}
+
+/** Pedido para abrir uma oportunidade pela base da Receita (US-0008). */
+export interface AbrirOportunidadeInput extends ItemParaAbordar {
+  tenantId: string;
+  /** Quem está colocando (fica como autor). */
+  employeeId: string;
+  ownerId: string;
+}
+
+export type OportunidadeEmAndamento = Pick<ProspectDB, 'id' | 'stage' | 'owner_id'>;
+
+/** Resultado de abrir oportunidade pela base da Receita (US-0008). */
+export type AberturaDaBase =
+  | { aberta: true; prospect: ProspectWithCompany; empresaCriada: boolean }
+  | { aberta: false; emAndamento: OportunidadeEmAndamento; empresa: ProspectCompanyDB };
+
+/** Resultado de cada empresa ao colocar várias para abordar. */
+export interface ResultadoParaAbordar {
+  item: ItemParaAbordar;
+  resultado?: AberturaDaBase;
+  erro?: unknown;
+}
+
+/** Várias empresas com o mesmo responsável (US-0008). */
+export interface PedidoParaAbordar {
+  itens: ItemParaAbordar[];
+  ownerId: string;
+}
+
+/** O lote separado para a mensagem: o que entrou, o que já estava em andamento e o que falhou. */
+export interface ResumoParaAbordar {
+  abertas: Array<{ item: ItemParaAbordar; prospect: ProspectWithCompany }>;
+  emAndamento: Array<{ item: ItemParaAbordar; oportunidade: OportunidadeEmAndamento }>;
+  falhas: ItemParaAbordar[];
 }

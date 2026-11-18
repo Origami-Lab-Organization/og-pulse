@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import { ArrowDown, ArrowUp, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useHideValues } from '@/contexts/HideValuesContext';
@@ -407,11 +406,8 @@ function acoesDe(props: PrecisaDeAcaoProps): Acao[] {
       count: nunca,
       text: `${nunca === 1 ? 'conta cadastrada nunca abordada' : 'contas cadastradas nunca abordadas'}${daLista}`,
       alert: false,
-      cta: (
-        <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-          <Link to="/comercial/empresas">Ver contas</Link>
-        </Button>
-      ),
+      // Sem link desde 18/11/2026: a lista de contas saiu da tela Empresas (US-0021 revê as Métricas).
+      cta: null,
     },
   ].filter((a) => a.count > 0);
 }

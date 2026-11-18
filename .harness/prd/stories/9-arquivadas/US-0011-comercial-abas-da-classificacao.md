@@ -1,12 +1,17 @@
 # US-0011 — Acompanhar a classificação pelas abas e desfazer
 
-- **Status:** Em refinamento
+- **Status:** Arquivada (18/11/2026)
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Empresas da Receita
 - **Prioridade:** 4
 - **Aprovada por / em:** —
 - **Relacionadas:** US-0008, US-0010
+
+- **Motivo do arquivamento:** decisão do Victor em 18/11/2026: a tela Empresas é só um filtro da
+  base da Receita, sem abas; a classificação (tipo de conta) é feita ao colocar para abordar, e
+  a empresa vai direto para A abordar no Pipeline (US-0008). A ficha completa da empresa abre
+  de dentro da oportunidade.
 
 ## Descrição
 
@@ -60,6 +65,8 @@
 - O Victor indicou em 18/11/2026 (refino da US-0015) que a aba "Na Prospecção" vai sair: a
   tela fica com "A classificar" e depois "A abordar". Rever as abas, os cenários 1 a 3 e a
   relação com o Pipeline no refinamento desta história.
+- No refino da US-0008 (18/11/2026): a empresa não some da lista depois de aberta; cada
+  linha ganha uma marca de relacionamento (US-0019). Rever se as abas ainda são necessárias.
 
 
 ### Hipóteses para validar
