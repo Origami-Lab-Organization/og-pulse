@@ -48,7 +48,7 @@ sources:
 
 # Mapa de Integrações
 
-> Derivado do código em 2026-08-31; transcrição de reunião acrescentada em 2026-09-24 e ligada à tela em 2026-10-21; Conta Azul incluído em 2026-10-01; base da Receita na VPS em 2026-11-16, filtros, busca e faturamento estimado em 2026-11-17, distância de Formiga em 2026-11-18 e relação com a Origami em 2026-11-18 (`empresas-receita` lê também clientes, empresas da Prospecção, oportunidades e projetos do tenant com a sessão da pessoa, US-0019; ADR-0053); conferido de novo em 2026-11-18 depois do campo `tipo_conta` no `mcp-prospeccao` (US-0008), sem mudança de integração, credencial ou fluxo.
+> Derivado do código em 2026-08-31; transcrição de reunião acrescentada em 2026-09-24 e ligada à tela em 2026-10-21; Conta Azul incluído em 2026-10-01; base da Receita na VPS em 2026-11-16, filtros, busca e faturamento estimado em 2026-11-17, distância de Formiga em 2026-11-18 e relação com a Origami em 2026-11-18 (`empresas-receita` lê também clientes, empresas da Prospecção, oportunidades e projetos do tenant com a sessão da pessoa, US-0019) e funcionários confirmados pelo time em 2026-11-18 (lidos da empresa da Prospecção, US-0020; ADR-0053); conferido de novo em 2026-11-18 depois do campo `tipo_conta` no `mcp-prospeccao` (US-0008), sem mudança de integração, credencial ou fluxo.
 > Quem chama quem, com que credencial.
 
 ## Visão geral

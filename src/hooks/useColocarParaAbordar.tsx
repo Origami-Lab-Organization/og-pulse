@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ToastAction } from '@/components/ui/toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
@@ -22,6 +22,10 @@ export function useColocarParaAbordar() {
   const { employee } = useAuth();
   const { byId } = useEmployeeDirectoryMap();
   const qc = useQueryClient();
+  // A mensagem fica fora do roteador (Toaster em App.tsx): um <Link> nela derrubava a tela
+  // (18/11/2026). O botão navega com a função do roteador, obtida aqui dentro dele.
+  const navigate = useNavigate();
+  const abrirOportunidade = (id: string) => navigate(linkDaOportunidade(id));
   const [feitas, setFeitas] = useState(0);
   const nomeDe = (id: string | null) => (id ? byId.get(id)?.nome ?? 'responsável' : 'sem responsável');
 
@@ -51,7 +55,7 @@ export function useColocarParaAbordar() {
     onSuccess: (resultados, pedido) => {
       atualizar();
       const resumo = resumirParaAbordar(resultados);
-      avisarColocadas(resumo, nomeDe, desfazer);
+      avisarColocadas(resumo, { nomeDe, desfazer, abrirOportunidade });
       if (resumo.falhas.length) {
         avisarFalhas(resumo, () => mutation.mutate({ itens: resumo.falhas, ownerId: pedido.ownerId }));
       }
@@ -79,7 +83,14 @@ function tituloDasColocadas({ abertas }: ResumoParaAbordar): string {
 }
 
 /** Cenários 1, 2 e 5: quantas entraram, com quem, e quais ficaram de fora por já estarem em andamento. */
-function avisarColocadas(resumo: ResumoParaAbordar, nomeDe: NomeDe, desfazer: (ids: string[]) => void) {
+interface AcoesDaMensagem {
+  nomeDe: NomeDe;
+  desfazer: (ids: string[]) => void;
+  abrirOportunidade: (id: string) => void;
+}
+
+function avisarColocadas(resumo: ResumoParaAbordar, acoes: AcoesDaMensagem) {
+  const { nomeDe, desfazer, abrirOportunidade } = acoes;
   const { abertas } = resumo;
   const andamento = linhasEmAndamento(resumo, nomeDe);
   if (!abertas.length && !andamento.length) return;
@@ -95,7 +106,11 @@ function avisarColocadas(resumo: ResumoParaAbordar, nomeDe: NomeDe, desfazer: (i
       <span className="block space-y-1">
         <span className="block">
           Com {nomeDe(abertas[0].prospect.owner_id)}.{' '}
-          {unica && <Link to={linkDaOportunidade(unica)} className="underline">Ver oportunidade</Link>}
+          {unica && (
+            <button type="button" className="underline underline-offset-2" onClick={() => abrirOportunidade(unica)}>
+              Ver oportunidade
+            </button>
+          )}
         </span>
         {andamento.map((l) => <span key={l} className="block">{l}</span>)}
       </span>

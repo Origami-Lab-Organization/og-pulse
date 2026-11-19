@@ -20,6 +20,8 @@ export interface ProspectCompanyInput {
   faturamento_anual_base?: FaturamentoBase | null;
   /** Ausente = não mexe (US-0008). */
   tipo_conta?: TipoDeConta | null;
+  /** Ausente = não mexe (US-0020). */
+  funcionarios_informados?: number | null;
 }
 
 function normalize(input: ProspectCompanyInput) {
@@ -36,6 +38,7 @@ function normalize(input: ProspectCompanyInput) {
     notes: input.notes?.trim() || null,
     ...faturamentoDe(input),
     ...(input.tipo_conta !== undefined ? { tipo_conta: input.tipo_conta } : {}),
+    ...(input.funcionarios_informados !== undefined ? { funcionarios_informados: input.funcionarios_informados } : {}),
   };
 }
 
@@ -164,6 +167,12 @@ export const prospectCompanyService = {
   /** Só o tipo de conta (US-0008), sem regravar o resto da empresa. */
   async setTipoDeConta(id: string, tipo: TipoDeConta): Promise<void> {
     const { error } = await tabela('prospect_companies').update({ tipo_conta: tipo }).eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Só os funcionários confirmados pelo time (US-0020); nulo volta a valer a RAIS. */
+  async setFuncionarios(id: string, funcionarios: number | null): Promise<void> {
+    const { error } = await tabela('prospect_companies').update({ funcionarios_informados: funcionarios }).eq('id', id);
     if (error) throw error;
   },
 

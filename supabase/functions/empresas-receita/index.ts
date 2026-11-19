@@ -519,24 +519,37 @@ function porRelacaoEmDuasPartes(p: Extract<Pedido, { modo: "pagina" }>, where: s
 
 type LinhaDaPagina = Record<string, unknown> & { cnpj: string };
 
+interface DoTimeNaEmpresa {
+  cnpj: string;
+  faturamento_anual: number | null;
+  faturamento_anual_base: string | null;
+  funcionarios_informados: number | null;
+}
+
+function comODoTime(l: LinhaDaPagina, t: DoTimeNaEmpresa | undefined): LinhaDaPagina {
+  if (!t) return l;
+  const faturamento = t.faturamento_anual == null
+    ? {}
+    : { faturamento_informado: Number(t.faturamento_anual), faturamento_informado_base: t.faturamento_anual_base };
+  return { ...l, ...faturamento, funcionarios_informados: t.funcionarios_informados };
+}
+
 /**
- * O faturamento que o time informou na Prospecção prevalece sobre a estimativa (US-0006): é o
- * único jeito de acertar quem fatura muito acima da média do ramo. Lido com a sessão da
+ * O que o time informou na Prospecção prevalece sobre a base: o faturamento (US-0006), o único
+ * jeito de acertar quem fatura muito acima da média do ramo, e os funcionários confirmados
+ * (US-0020), que a tela usa no lugar da RAIS e no faturamento estimado. Lido com a sessão da
  * pessoa, então a RLS só deixa ver as empresas do tenant dela. Falha aqui não derruba a lista.
  */
 async function comFaturamentoDoTime(sessao: SupabaseClient, linhas: LinhaDaPagina[]): Promise<LinhaDaPagina[]> {
   if (!linhas.length) return linhas;
   const { data, error } = await sessao
     .from("prospect_companies")
-    .select("cnpj, faturamento_anual, faturamento_anual_base")
+    .select("cnpj, faturamento_anual, faturamento_anual_base, funcionarios_informados")
     .in("cnpj", linhas.map((l) => l.cnpj.trim()))
-    .not("faturamento_anual", "is", null);
+    .or("faturamento_anual.not.is.null,funcionarios_informados.not.is.null");
   if (error || !data) return linhas;
-  const doTime = new Map(data.map((r) => [r.cnpj as string, r]));
-  return linhas.map((l) => {
-    const t = doTime.get(l.cnpj.trim());
-    return t ? { ...l, faturamento_informado: Number(t.faturamento_anual), faturamento_informado_base: t.faturamento_anual_base } : l;
-  });
+  const doTime = new Map((data as DoTimeNaEmpresa[]).map((r) => [r.cnpj, r]));
+  return linhas.map((l) => comODoTime(l, doTime.get(l.cnpj.trim())));
 }
 
 // ---------- relação com a Origami (US-0019) ----------
@@ -731,7 +744,8 @@ async function pagina(cliente: Cliente, pedidoOriginal: Extract<Pedido, { modo: 
     `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, c.descricao AS cnae_descricao,
           e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.capital_social::float8 AS capital_social, e.distancia_km, e.funcionarios,
           e.divida_total::float8 AS divida_total, e.divida_ajuizada::float8 AS divida_ajuizada,
-          e.fit_previo, e.fit_frente, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base, e.pela_secundaria
+          e.fit_previo, e.fit_frente, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base, e.pela_secundaria,
+          e.natureza_juridica
      FROM (${empresasDaPagina(pedido, where, pelaSecundaria, poucas, rel)}) e
      LEFT JOIN public.cnaes c ON c.codigo = e.cnae_principal
     ORDER BY ${ordem}`,

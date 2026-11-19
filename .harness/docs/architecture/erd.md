@@ -15,6 +15,7 @@ sources:
   - supabase/migrations/20260917190000_prospect_lever_closed_list.sql
   - supabase/migrations/20261118120000_base_da_receita_na_prospeccao.sql
   - supabase/migrations/20261118160000_tipo_de_conta.sql
+  - supabase/migrations/20261118200000_funcionarios_do_time.sql
   - supabase/migrations/20260923120000_prospect_instagram.sql
   - supabase/migrations/20260924120000_prospect_tasks.sql
   - supabase/migrations/20260928120000_prospect_stage_changes.sql
@@ -95,6 +96,8 @@ sources:
 # 18/11/2026: 20261118160000 — prospect_companies.tipo_conta (ancora|ponte|satelite, nula =
 #  sem tipo) e a alavanca base_receita sai de prospects.lever (US-0008 revista), conferidos
 #  contra ProspectCompanyDB, TIPOS_DE_CONTA e PROSPECT_LEVERS.
+# 18/11/2026: 20261118200000 — prospect_companies.funcionarios_informados (inteiro >= 0, nulo =
+#  vale a RAIS; US-0020), conferido contra ProspectCompanyDB.
 # 18/11/2026: src/types/prospect.ts só trocou um comentário ("mover para abordar", US-0019);
 #  a relação com a Origami é calculada, sem tabela nem coluna nova — diagrama conferido, nada muda.
 # 01/10/2026: src/types/prospect.ts ganhou só regra de tela (previousStagesOf/isBackwardMove,
@@ -200,6 +203,7 @@ erDiagram
         text ring "Anel — livre, editável no card"
         text tier "Tier — livre, editável no card"
         text tipo_conta "ancora | ponte | satelite — NULL = sem tipo (US-0008)"
+        int funcionarios_informados "confirmados pelo time — NULL = vale a RAIS (US-0020)"
         numeric faturamento_anual "informado pelo time — NULL = não informado"
         text faturamento_anual_base "estimado | apurado | calculado — obrigatória junto com o valor"
         text regime_tributario "ano mais recente — filtro da Lei do Bem; retrato sem regime não apaga"

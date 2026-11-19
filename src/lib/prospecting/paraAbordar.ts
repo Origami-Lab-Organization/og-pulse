@@ -3,9 +3,14 @@ import { BASE_PISO } from '@/lib/prospecting/faturamentoEstimado';
 import { faturamentoDaSugestao, sugerirTipoDeConta } from '@/lib/prospecting/tipoDeConta';
 import type { ItemParaAbordar, ResultadoParaAbordar, ResumoParaAbordar, TipoDeConta } from '@/types/prospect';
 
-/** O tipo sugerido de cada empresa, para abrir a janela já preenchida (US-0008, cenário 3). */
+/** O tipo sugerido pelo faturamento da empresa (US-0008, cenário 3). */
+export function tipoSugerido(empresa: EmpresaReceita): TipoDeConta | null {
+  return sugerirTipoDeConta(faturamentoDaSugestao(empresa));
+}
+
+/** O tipo sugerido de cada empresa, para abrir a janela já preenchida. */
 export function tiposSugeridos(empresas: EmpresaReceita[]): Record<string, TipoDeConta | null> {
-  return Object.fromEntries(empresas.map((e) => [e.cnpj, sugerirTipoDeConta(faturamentoDaSugestao(e))]));
+  return Object.fromEntries(empresas.map((e) => [e.cnpj, tipoSugerido(e)]));
 }
 
 /** A empresa da lista como item do lote; o piso do porte não vira faturamento "Calculado". */

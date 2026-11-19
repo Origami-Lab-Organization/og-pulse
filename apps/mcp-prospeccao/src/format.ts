@@ -81,6 +81,7 @@ export function empresaCompleta(e: ProspectCompanyDB): string {
       ['Anel', e.ring],
       ['Tier', e.tier],
       ['Tipo de conta', getTipoDeContaLabel(e.tipo_conta)],
+      ['Funcionários confirmados pelo time', e.funcionarios_informados == null ? null : e.funcionarios_informados.toLocaleString('pt-BR')],
       ['Site', e.website],
       ['LinkedIn', e.linkedin_url],
       ['Instagram', e.instagram_url],

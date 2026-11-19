@@ -3,6 +3,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { EmpresaReceita, OrdenacaoReceita, PaginaReceita, TotalReceita } from '@/lib/prospecting/empresasReceita';
 import type { CnaeEncontrado, FiltrosReceita } from '@/types/filtrosReceita';
+import { comFuncionariosDoTime } from '@/lib/prospecting/funcionariosDoTime';
 import type { FichaReceita } from '@/types/fichaReceita';
 
 /**
@@ -68,7 +69,7 @@ export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: Ordenacao
       return {
         totalDaBase: r.total_da_base,
         carregadaEm: r.carregada_em,
-        linhas: r.linhas ?? [],
+        linhas: (r.linhas ?? []).map(comFuncionariosDoTime),
         relacaoIndisponivel: r.relacao_indisponivel === true,
       };
     },
@@ -102,7 +103,10 @@ export function useCnaesReceita(termo: string) {
 export function useFichaReceita(cnpj: string | null) {
   return useQuery({
     queryKey: ['receita-ficha', cnpj],
-    queryFn: () => chamar<FichaReceita>({ modo: 'ficha', cnpj }),
+    queryFn: async () => {
+      const ficha = await chamar<FichaReceita>({ modo: 'ficha', cnpj });
+      return { ...ficha, empresa: comFuncionariosDoTime(ficha.empresa) };
+    },
     enabled: !!cnpj,
     ...DA_BASE,
   });

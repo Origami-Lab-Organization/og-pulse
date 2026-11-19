@@ -84,7 +84,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0017](stories/2-em-refinamento/US-0017-comercial-anel-e-tier-saem.md) | Anel e Tier saem da Prospecção | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0018](stories/1-a-fazer/US-0018-comercial-refinar-faturamento-estimado.md) | Refinar o faturamento estimado | Pessoa do comercial | A fazer | Não pronta |
 | [US-0019](stories/4-em-desenvolvimento/US-0019-comercial-marca-de-relacionamento.md) | Ver a relação da Origami com cada empresa | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
-| [US-0020](stories/1-a-fazer/US-0020-comercial-estudo-da-conta.md) | Estudar a conta antes de abordar | Pessoa do comercial | A fazer | Não pronta |
+| [US-0020](stories/4-em-desenvolvimento/US-0020-comercial-estudo-da-conta.md) | Estudar a conta antes de abordar | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
 | [US-0021](stories/1-a-fazer/US-0021-comercial-metricas-do-novo-fluxo.md) | Ajustar as Métricas ao novo fluxo de abordagem | Pessoa do comercial | A fazer | Não pronta |
 
 #### Ordem de implementação proposta

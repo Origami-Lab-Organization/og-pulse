@@ -160,10 +160,15 @@ export async function empresasComMesmoNome(nome: string): Promise<ProspectCompan
 }
 
 /** Mesma normalização de `prospectCompanyService.normalize`: vazio vira NULL, CNPJ só dígitos. */
-function normalizarEmpresa(campos: CompanyFields): Record<string, string | null> {
-  const saida: Record<string, string | null> = {};
+function normalizarEmpresa(campos: CompanyFields): Record<string, string | number | null> {
+  const saida: Record<string, string | number | null> = {};
   for (const [chave, valor] of Object.entries(campos)) {
     if (valor === undefined) continue;
+    // Número (funcionários do time) passa como veio: zero é um valor, não "vazio".
+    if (typeof valor === 'number') {
+      saida[chave] = valor;
+      continue;
+    }
     const limpo = typeof valor === 'string' ? valor.trim() : valor;
     saida[chave] = chave === 'cnpj' && limpo ? String(limpo).replace(/\D/g, '') : limpo || null;
   }

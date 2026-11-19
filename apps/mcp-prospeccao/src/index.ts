@@ -147,6 +147,13 @@ const camposDeEmpresa = {
     .nullable()
     .optional()
     .describe(`Tipo de conta pelo faturamento: ${TIPOS_DE_CONTA.map((t) => `${t.value} (${t.label}, ${t.faixa})`).join(', ')}. null apaga.`),
+  funcionarios_informados: z
+    .number()
+    .int()
+    .min(0)
+    .nullable()
+    .optional()
+    .describe('Funcionários confirmados pelo time (ex.: LinkedIn); prevalece sobre a RAIS na tela Empresas. null volta a valer a RAIS.'),
   notes: z.string().max(4000).optional().describe('Observações sobre a empresa.'),
   client_id: uuid('client_id')
     .optional()
