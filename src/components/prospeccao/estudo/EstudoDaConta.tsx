@@ -24,12 +24,15 @@ import {
 } from '@/types/prospect';
 import type { ItemDoEstudo } from '@/types/estudoDaConta';
 import type { ProspectCompanyPartnerDB } from '@/types/receita';
+import { BantNaOportunidade } from '../bant/BantNaOportunidade';
 import { MeiosDeContato } from '../OpportunityContactsCard';
 import { OpportunityContactRoleSelect } from '../OpportunityContactRoleSelect';
 
 interface EstudoDaContaProps {
   prospect: ProspectWithCompany;
   somenteLeitura: boolean;
+  /** "Não atende" no BANT sugere a Perda com o motivo (US-0022). */
+  onSugerirPerda?: (motivo: string | null) => void;
 }
 
 /**
@@ -37,12 +40,13 @@ interface EstudoDaContaProps {
  * os sócios da Receita ainda não trazidos, os funcionários confirmados e a alavanca. Só orienta:
  * a oportunidade avança sem o estudo. O desk research entra depois do ADR de IA.
  */
-export function EstudoDaConta({ prospect, somenteLeitura }: EstudoDaContaProps) {
+export function EstudoDaConta({ prospect, somenteLeitura, onSugerirPerda }: EstudoDaContaProps) {
   const { can } = useAuth();
   const podeEditar = !somenteLeitura && can('prospeccao:editar');
   const empresa = prospect.company ?? null;
   return (
     <div className="space-y-6">
+      <BantNaOportunidade prospect={prospect} podeEditar={podeEditar} onSugerirPerda={onSugerirPerda} />
       <OQueFalta itens={oQueFalta(prospect, empresa)} />
       <Pessoas prospect={prospect} podeEditar={podeEditar} />
       {empresa && <Socios prospectId={prospect.id} empresa={empresa} podeEditar={podeEditar} />}

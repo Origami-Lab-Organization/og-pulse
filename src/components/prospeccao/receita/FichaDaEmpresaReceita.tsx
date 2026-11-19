@@ -45,7 +45,7 @@ const PENDENTES = 'Regime tributário, site, fomento público e contratos com o 
 /**
  * Ficha de uma empresa da base da Receita (US-0007): tudo que a base sabe, para decidir sem
  * sair da lista. Gaveta à direita; Esc, o "x" ou um clique fora fecham e devolvem o foco à
- * linha. No rodapé, "Mover para abordar" (US-0008).
+ * linha. No rodapé, "Mover para qualificação" (US-0008, US-0023).
  */
 export function FichaDaEmpresaReceita({ cnpj, onFechar }: FichaDaEmpresaReceitaProps) {
   const ficha = useFichaReceita(cnpj);
@@ -90,14 +90,14 @@ function Conteudo({ ficha }: { ficha: ReturnType<typeof useFichaReceita> }) {
   );
 }
 
-/** Mover para abordar (US-0008): só com `prospeccao:editar` e sem oportunidade em andamento. */
+/** Mover para qualificação (US-0008, US-0023): só com `prospeccao:editar` e sem oportunidade em andamento. */
 function Rodape({ empresa, emAndamento }: { empresa: EmpresaDaFicha; emAndamento: boolean }) {
   const { can } = useAuth();
   const [colocando, setColocando] = useState(false);
   if (emAndamento || !can('prospeccao:editar')) return null;
   return (
     <div className="border-t bg-card px-5 py-4">
-      <Button className="w-full" onClick={() => setColocando(true)}>Mover para abordar</Button>
+      <Button className="w-full" onClick={() => setColocando(true)}>Mover para qualificação</Button>
       <ColocarParaAbordarDialog empresas={[empresa]} aberta={colocando} onAbertaChange={setColocando} />
     </div>
   );

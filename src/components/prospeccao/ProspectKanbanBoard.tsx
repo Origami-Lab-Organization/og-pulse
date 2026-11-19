@@ -31,6 +31,7 @@ import { DiscardProspectDialog } from './DiscardProspectDialog';
 import { ProspectKanbanCard } from './ProspectKanbanCard';
 import { ProspectKanbanColumn } from './ProspectKanbanColumn';
 import { ProspectWonDialog } from './ProspectWonDialog';
+import { useBantDoQuadro } from '@/hooks/useBant';
 import { RegisterMeetingDialog } from './RegisterMeetingDialog';
 
 /**
@@ -60,6 +61,7 @@ interface ProspectKanbanBoardProps {
 export function ProspectKanbanBoard({ prospects, emAndamentoPorEmpresa, onOpen }: ProspectKanbanBoardProps) {
   const atualizarEtapa = useUpdateProspectStage();
   const { porContato: proximaTarefa } = usePendingProspectTasks();
+  const bantPorOportunidade = useBantDoQuadro(prospects);
   const [arrastando, setArrastando] = useState<ProspectWithCompany | null>(null);
   const [dialogo, setDialogo] = useState<{ tipo: Dialogo; prospect: ProspectWithCompany } | null>(null);
   const [expandidas, setExpandidas] = useState<Set<ProspectStage>>(new Set());
@@ -140,6 +142,7 @@ export function ProspectKanbanBoard({ prospects, emAndamentoPorEmpresa, onOpen }
               recorte={recorte}
               emAndamentoPorEmpresa={emAndamentoPorEmpresa}
               proximaTarefaPorOportunidade={proximaTarefa}
+              bantPorOportunidade={bantPorOportunidade}
               onOpen={onOpen}
             />
           );
@@ -156,6 +159,7 @@ export function ProspectKanbanBoard({ prospects, emAndamentoPorEmpresa, onOpen }
             prospect={arrastando}
             currentStage={arrastando.stage}
             emAndamentoPorEmpresa={emAndamentoPorEmpresa}
+            bant={bantPorOportunidade.get(arrastando.id)}
             onOpen={() => undefined}
             isOverlay
           />

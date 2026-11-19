@@ -17,6 +17,8 @@ interface DiscardProspectDialogProps {
   prospect: ProspectWithCompany | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Motivo já marcado ao abrir (vem do BANT "Não atende", US-0022); a pessoa pode trocar. */
+  motivoSugerido?: string | null;
 }
 
 /**
@@ -26,13 +28,13 @@ interface DiscardProspectDialogProps {
  * viram três linhas diferentes do mesmo fato e ninguém consegue somar. O banco também
  * recusa perda sem motivo (prospects_discarded_has_reason).
  */
-export function DiscardProspectDialog({ prospect, open, onOpenChange }: DiscardProspectDialogProps) {
+export function DiscardProspectDialog({ prospect, open, onOpenChange, motivoSugerido = null }: DiscardProspectDialogProps) {
   const descartar = useDiscardProspect();
   const [motivo, setMotivo] = useState<string>('');
 
   useEffect(() => {
-    if (open) setMotivo('');
-  }, [open]);
+    if (open) setMotivo(motivoSugerido ?? '');
+  }, [open, motivoSugerido]);
 
   if (!prospect) return null;
 

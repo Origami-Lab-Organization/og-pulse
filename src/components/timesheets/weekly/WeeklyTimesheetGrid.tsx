@@ -53,6 +53,7 @@ import { useHolidays, isHoliday } from '@/hooks/useHolidays';
 import { useTimesheetPrefill } from '@/hooks/useTimesheetPrefill';
 import { computeAdaptiveHints, AdaptiveRow } from '@/lib/timesheetDistribution';
 import { diasTravadosPelaSaida, linhaDeProjetoVisivelNaSemana } from '@/lib/saidaDeEquipe';
+import { ehDiaDeEnvio, ultimoDiaUtilDaSemana } from '@/lib/workingDays';
 import type { SaveStatusInfo } from '@/hooks/useCellAutosave';
 import { toast } from 'sonner';
 
@@ -146,8 +147,6 @@ export function WeeklyTimesheetGrid({
   const today = startOfDay(new Date());
   const currentWeekStart = getWeekStart(new Date());
   const isFutureWeek = weekStart > currentWeekStart;
-  const allWeekDaysReady = weekEnd <= today;
-  const isFriday = new Date().getDay() === 5;
   const isCurrentWeek = !isFutureWeek && weekStart <= today;
 
   const { data: allProjects = [], isLoading: loadingProjects } = useMyProjectMemberships(
@@ -169,6 +168,12 @@ export function WeeklyTimesheetGrid({
     endDate
   );
   const { data: holidays = [] } = useHolidays();
+
+  // O envio abre no último dia útil da semana, não na sexta: com feriado na sexta, abre na
+  // quinta. O lembrete segue o dia de envio da semana corrente, pelo mesmo critério.
+  const ehFeriado = (dia: Date) => !!isHoliday(dia, holidays);
+  const allWeekDaysReady = ultimoDiaUtilDaSemana(weekStart, ehFeriado) <= today;
+  const isDiaDeEnvio = ehDiaDeEnvio(today, currentWeekStart, ehFeriado);
 
   // Projeto do qual a pessoa saiu: a regra de visibilidade mora em `@/lib/saidaDeEquipe`,
   // compartilhada com a timesheet que o gestor abre pela alocação.
@@ -664,7 +669,7 @@ export function WeeklyTimesheetGrid({
               </div>
             )}
 
-            {isFriday && isCurrentWeek && !allProjectsLocked && (
+            {isDiaDeEnvio && isCurrentWeek && !allProjectsLocked && (
               <div className="mx-1 mt-3 flex items-start gap-2.5 rounded-md border-l-4 border-[hsl(var(--warning))] bg-[hsl(var(--warning-subtle))] px-3 py-2.5">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--warning-emphasis))]" />
                 <p className="text-sm text-foreground">

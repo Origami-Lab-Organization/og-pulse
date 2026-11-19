@@ -22,7 +22,7 @@ export function useDevolverParaALista() {
       qc.invalidateQueries({ queryKey: ['receita-empresas-total'] });
       toast({
         title: `${opportunityName(prospect)} voltou para a lista`,
-        description: 'Saiu de A abordar. Para mover de novo, use a tela Empresas.',
+        description: 'Saiu do Pipeline. Para mover de novo, use a tela Empresas.',
       });
     },
     onError: (erro) =>
