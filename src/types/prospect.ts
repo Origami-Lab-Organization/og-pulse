@@ -321,6 +321,8 @@ export interface ProspectCompanyDB {
   tier: string | null;
   /** Âncora, Ponte ou Satélite (US-0008); nulo = ainda não classificada. */
   tipo_conta?: TipoDeConta | null;
+  /** Funcionários confirmados pelo time; prevalece sobre a RAIS (US-0020). Nulo = não informado. */
+  funcionarios_informados?: number | null;
   client_id: string | null;
   notes: string | null;
   /** Faturamento anual em reais, informado pelo time (01/10/2026). A Receita não informa. */

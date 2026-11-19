@@ -273,7 +273,10 @@ function Tamanho({ empresa }: { empresa: EmpresaDaFicha }) {
   return (
     <Secao titulo="Tamanho">
       <Itens>
-        <Item rotulo="Funcionários">{empresa.funcionarios != null ? empresa.funcionarios.toLocaleString('pt-BR') : traco}</Item>
+        <Item rotulo="Funcionários">
+          {empresa.funcionarios != null ? empresa.funcionarios.toLocaleString('pt-BR') : traco}
+          {empresa.funcionarios_do_time && <span className="text-muted-foreground"> · confirmados pelo time</span>}
+        </Item>
         <Item rotulo="Unidades com funcionários">{empresa.unidades_com_funcionarios ?? traco}</Item>
         <Item rotulo="Filiais ativas">{empresa.filiais_ativas.toLocaleString('pt-BR')}</Item>
         <Item rotulo="Capital social">{empresa.capital_social ? reaisCurtos(Number(empresa.capital_social)) : traco}</Item>
@@ -300,7 +303,7 @@ function Faturamento({ empresa }: { empresa: EmpresaDaFicha }) {
   return (
     <div className="mt-3 rounded-md border px-3 py-2.5">
       <p className="text-[13px]"><span className="font-mono text-[15px] font-semibold">{textoDoFaturamento(Number(valor), base)}</span> · faturamento {ROTULO_DA_BASE[base]}</p>
-      <p className="mt-1 text-[12.5px] leading-snug text-muted-foreground">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social)}</p>
+      <p className="mt-1 text-[12.5px] leading-snug text-muted-foreground">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social, empresa.funcionarios_do_time)}</p>
       {lucroRealProvavel(Number(valor), base) && <Aviso>{AVISO_LUCRO_REAL}</Aviso>}
     </div>
   );

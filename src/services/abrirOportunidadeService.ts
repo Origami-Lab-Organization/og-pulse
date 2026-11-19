@@ -60,7 +60,13 @@ async function criarEmpresa(input: AbrirOportunidadeInput): Promise<ProspectComp
   const receita = await consultarReceita(input.cnpj);
   const faturamento = input.faturamentoEstimado ? { faturamento_anual: input.faturamentoEstimado, faturamento_anual_base: CALCULADO } : {};
   const empresa = await prospectCompanyService.create(
-    { name: receita.nomeFantasia ?? receita.razaoSocial, cnpj: input.cnpj, segment: receita.segmento, tipo_conta: input.tipoConta, ...faturamento },
+    {
+      name: receita.nomeFantasia ?? receita.razaoSocial,
+      cnpj: input.cnpj,
+      segment: receita.segmento,
+      tipo_conta: input.tipoConta,
+      ...faturamento,
+    },
     input.tenantId,
     input.employeeId,
   );

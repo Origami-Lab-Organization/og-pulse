@@ -39,6 +39,7 @@ import type { ReceitaSnapshot } from '@/types/receita';
 import { CompanyFitSection } from './CompanyFitSection';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
 import { BotoesDeSalvar } from './FichaDaOportunidade';
+import { EstudoDaConta } from './estudo/EstudoDaConta';
 import { OpportunityCompanyCard } from './OpportunityCompanyCard';
 import { OpportunityContactsCard } from './OpportunityContactsCard';
 import { OpportunityHeader } from './OpportunityHeader';
@@ -52,7 +53,7 @@ import { ProspectTaskComposer } from './ProspectTaskComposer';
 import { ProspectTaskTimeline } from './ProspectTaskTimeline';
 import { RegisterMeetingDialog } from './RegisterMeetingDialog';
 
-type Aba = 'registros' | 'tarefas' | 'arquivos';
+type Aba = 'registros' | 'tarefas' | 'arquivos' | 'estudo';
 
 interface ProspectDetailDialogProps {
   prospect: ProspectWithCompany | null;
@@ -425,6 +426,9 @@ function PainelDeAtividade(props: PainelDeAtividadeProps) {
           <TabsTrigger value="arquivos" className={GATILHO_DA_ABA}>
             Arquivos <Contagem n={arquivos.itens.length} />
           </TabsTrigger>
+          <TabsTrigger value="estudo" className={GATILHO_DA_ABA}>
+            Estudo da conta
+          </TabsTrigger>
         </TabsList>
       </div>
 
@@ -464,6 +468,12 @@ function PainelDeAtividade(props: PainelDeAtividadeProps) {
             <ProspectFilesUploader prospectId={prospect.id} />
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent value="estudo" className={CONTEUDO_DA_ABA}>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <EstudoDaConta prospect={prospect} somenteLeitura={somenteLeitura} />
+        </div>
       </TabsContent>
     </Tabs>
   );

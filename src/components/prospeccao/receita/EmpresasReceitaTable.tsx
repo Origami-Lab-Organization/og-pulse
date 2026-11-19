@@ -136,7 +136,9 @@ function Linha(props: LinhaProps) {
         {empresa.capital_social ? reaisCurtos(Number(empresa.capital_social)) : <span title="Capital social não informado na Receita">—</span>}
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
-        {empresa.funcionarios != null ? empresa.funcionarios.toLocaleString('pt-BR') : <span title="Sem dado na RAIS">—</span>}
+        {empresa.funcionarios != null
+          ? <span title={empresa.funcionarios_do_time ? 'Confirmados pelo time' : undefined}>{empresa.funcionarios.toLocaleString('pt-BR')}{empresa.funcionarios_do_time && '*'}</span>
+          : <span title="Sem dado na RAIS">—</span>}
       </td>
       <td className="px-3 py-2">
         <div className={cn(largura, 'truncate leading-snug')} title={empresa.cnae_descricao ?? undefined}>
@@ -196,7 +198,7 @@ function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
       </TooltipTrigger>
       <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
         <p className="font-medium">Faturamento {ROTULO_DA_BASE[base]}</p>
-        <p className="mt-0.5">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social)}</p>
+        <p className="mt-0.5">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social, empresa.funcionarios_do_time)}</p>
         {lucroReal && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}
       </TooltipContent>
     </Tooltip>
