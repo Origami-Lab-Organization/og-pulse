@@ -130,6 +130,8 @@ num lugar, o número de funcionários do time e o desk research.
   estimado.
 - O estudo só orienta: não impede a oportunidade de sair de A abordar.
 - O estudo fica numa aba da oportunidade.
+- 19/11/2026: o estudo é o trabalho da etapa Qualificação (US-0023) e traz o BANT no topo
+  (US-0022). O desk research da parte 2 começa pela fase 1 do ADR-0054 (IA pelo MCP, US-0024).
 - Responsável de oportunidade (18/11, "por enquanto"): só funcionários **ativos** com
   `prospeccao:editar` — hoje Admin e Gerente. A regra é a capacidade (ADR-0027), não o nome do
   papel; desligados e cadastros por confirmar ficam de fora.

@@ -27,6 +27,7 @@ import {
 } from '@/types/prospect';
 import type { ProspectCompanyPartnerDB, ReceitaSnapshot } from '@/types/receita';
 import { currentEmployee, getSupabase } from './supabase.js';
+import type { EvidenciaBantDB, NovaEvidenciaBant } from '@/types/bant';
 import type {
   ActivityInput,
   ClientLite,
@@ -720,4 +721,34 @@ export async function atualizarTarefa(id: string, mudancas: TaskChanges): Promis
   if (error) throw explicar(error);
   if (!data) throw new ProspeccaoError('Tarefa não encontrada (ou sem permissão para editá-la).');
   return data as ProspectTaskDB;
+}
+
+// --------------------------------------------------------------------------
+// BANT (US-0022, US-0024): a IA lê e PROPÕE; a pessoa aceita ou recusa na tela.
+// --------------------------------------------------------------------------
+
+export async function evidenciasBant(prospectId: string): Promise<EvidenciaBantDB[]> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('prospect_bant_evidencias')
+    .select('*')
+    .eq('prospect_id', prospectId)
+    .order('created_at', { ascending: false });
+  if (error) throw explicar(error);
+  return (data ?? []) as EvidenciaBantDB[];
+}
+
+/**
+ * Evidência proposta pela IA: o banco a grava como "proposta" (trigger), com o tenant da
+ * oportunidade e a pessoa da sessão como autora. Só conta no BANT depois do aceite na tela.
+ */
+export async function proporEvidenciaBant(nova: NovaEvidenciaBant): Promise<EvidenciaBantDB> {
+  const supabase = await getSupabase();
+  const { data, error } = await supabase
+    .from('prospect_bant_evidencias')
+    .insert({ ...nova, texto: nova.texto.trim(), fonte: nova.fonte?.trim() || null, origem: 'ia' })
+    .select()
+    .single();
+  if (error) throw explicar(error);
+  return data as EvidenciaBantDB;
 }

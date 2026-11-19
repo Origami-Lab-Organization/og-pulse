@@ -29,10 +29,11 @@ interface ColocarParaAbordarDialogProps {
 }
 
 /**
- * "Mover para abordar" (US-0008; redesenhada em 18/11/2026). Só o que decide a entrada: o tipo
+ * "Mover para qualificação" (US-0008, US-0023; redesenhada em 18/11/2026). A empresa entra
+ * na etapa Qualificação, onde é estudada antes de virar abordagem (19/11/2026). Só o que decide a entrada: o tipo
  * de conta, sugerido pelo faturamento estimado (que aparece para apoiar a escolha), e o
  * responsável. Faturamento e funcionários são confirmados depois, no estudo da conta, com a
- * oportunidade já em A abordar (decisão do Victor, 18/11/2026).
+ * oportunidade já no Pipeline (decisão do Victor, 18/11/2026).
  */
 export function ColocarParaAbordarDialog(props: ColocarParaAbordarDialogProps) {
   const { empresas, aberta, onAbertaChange, onConcluido } = props;
@@ -110,7 +111,7 @@ function Cabecalho({ empresas }: { empresas: EmpresaReceita[] }) {
   const local = uma ? [emTitulo(uma.municipio), uma.uf].filter(Boolean).join(' · ') : '';
   return (
     <DialogHeader className="space-y-0.5 px-6 pb-5 pt-5 text-left">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mover para abordar</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mover para qualificação</p>
       <DialogTitle className="text-xl leading-snug">{uma ? nomeDaEmpresa(uma) : `${empresas.length} empresas`}</DialogTitle>
       <DialogDescription className="text-[13px]">
         {uma ? (
@@ -119,7 +120,7 @@ function Cabecalho({ empresas }: { empresas: EmpresaReceita[] }) {
             {local && ` · ${local}`}
           </>
         ) : (
-          'Confirme o tipo de conta de cada uma. Elas entram em A abordar no Pipeline.'
+          'Confirme o tipo de conta de cada uma. Elas entram em Qualificação no Pipeline.'
         )}
       </DialogDescription>
     </DialogHeader>
@@ -303,7 +304,7 @@ function Rodape(props: RodapeProps) {
   return (
     <DialogFooter className="flex-row items-center gap-3 border-t bg-muted/30 px-6 py-3.5 sm:space-x-0">
       {responsavel}
-      <Button className="shrink-0" onClick={onConfirmar} disabled={!pronto || colocando}>{colocando ? 'Movendo…' : 'Mover para abordar'}</Button>
+      <Button className="shrink-0" onClick={onConfirmar} disabled={!pronto || colocando}>{colocando ? 'Movendo…' : 'Mover para qualificação'}</Button>
     </DialogFooter>
   );
 }

@@ -10,7 +10,8 @@ import { listaDeNomes, resumirParaAbordar } from '@/lib/prospecting/paraAbordar'
 import { colocarParaAbordar, desfazerAberturas } from '@/services/abrirOportunidadeService';
 import { getProspectStageLabel, type PedidoParaAbordar, type ResumoParaAbordar } from '@/types/prospect';
 
-const linkDaOportunidade = (id: string) => `/comercial/prospeccao?oportunidade=${encodeURIComponent(id)}`;
+// A empresa entra em Qualificação, que mora na tela Empresas (19/11/2026, US-0023).
+const linkDaOportunidade = (id: string) => `/comercial/empresas?aba=qualificacao&oportunidade=${encodeURIComponent(id)}`;
 const EM_ANDAMENTO_VISIVEIS = 3;
 
 /**
@@ -61,7 +62,7 @@ export function useColocarParaAbordar() {
       }
     },
     onError: (erro) =>
-      toast({ title: 'Não deu para mover para abordar', description: mensagemParaUsuario(erro), variant: 'destructive' }),
+      toast({ title: 'Não deu para mover para qualificação', description: mensagemParaUsuario(erro), variant: 'destructive' }),
   });
 
   return { ...mutation, feitas };
@@ -78,8 +79,8 @@ function linhasEmAndamento(resumo: ResumoParaAbordar, nomeDe: NomeDe): string[] 
 }
 
 function tituloDasColocadas({ abertas }: ResumoParaAbordar): string {
-  if (abertas.length === 1) return `${abertas[0].item.nome} em A abordar`;
-  return `${abertas.length} empresas em A abordar`;
+  if (abertas.length === 1) return `${abertas[0].item.nome} em Qualificação`;
+  return `${abertas.length} empresas em Qualificação`;
 }
 
 /** Cenários 1, 2 e 5: quantas entraram, com quem, e quais ficaram de fora por já estarem em andamento. */
@@ -115,7 +116,7 @@ function avisarColocadas(resumo: ResumoParaAbordar, acoes: AcoesDaMensagem) {
         {andamento.map((l) => <span key={l} className="block">{l}</span>)}
       </span>
     ),
-    action: <ToastAction altText="Desfazer: tirar de A abordar" onClick={() => desfazer(ids)}>Desfazer</ToastAction>,
+    action: <ToastAction altText="Desfazer: tirar da Qualificação" onClick={() => desfazer(ids)}>Desfazer</ToastAction>,
   });
 }
 
@@ -134,7 +135,7 @@ function avisarFalhas(resumo: ResumoParaAbordar, tentarDeNovo: () => void) {
 function avisarDesfeitas(total: number, ficaram: number) {
   if (!ficaram) {
     const titulo = total === 1 ? 'Oportunidade desfeita' : `${total} oportunidades desfeitas`;
-    toast({ title: titulo, description: 'Saíram de A abordar. O cadastro das empresas, com os dados da Receita e o tipo de conta, continua no Pulse.' });
+    toast({ title: titulo, description: 'Saíram do Pipeline. O cadastro das empresas, com os dados da Receita e o tipo de conta, continua no Pulse.' });
     return;
   }
   toast({

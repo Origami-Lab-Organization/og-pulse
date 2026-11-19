@@ -25,6 +25,8 @@ import { LEI_DO_BEM_LABEL, isSituacaoAtiva, leiDoBemSignal, porteLabel } from '@
 import { industryLabel, industrySignal } from '@/lib/prospecting/industria';
 import { companyFit } from '@/lib/prospecting/fit';
 import type { ProspectCompanyPartnerDB, ReceitaSnapshot } from '@/types/receita';
+import { LETRAS_BANT, oQueFaltaParaQualificar, rotuloDoEstado } from '@/lib/prospecting/bant';
+import type { BantDaOportunidade, EvidenciaBantDB, LetraDoBant } from '@/types/bant';
 import type { ClientLite, ContactDeal } from './types.js';
 
 type Valor = string | number | null | undefined;
@@ -329,4 +331,33 @@ export function fomentoDaEmpresa(e: ProspectCompanyDB): string | null {
   const ops = f.fomentos.slice(0, 5).map((o) => `- ${o.fonte}${o.ano ? ` ${o.ano}` : ''}${o.valor ? ` · ${reais(o.valor)}` : ''}${o.instrumento ? ` · ${o.instrumento}` : ''}`);
   const governo = f.governo ? `${f.governo.contratos} contrato(s) com o governo federal` : 'contratos com o governo: fonte não configurada';
   return [`**Fomento público:** Lei do Bem ${lei}${f.leiDoBemAno ? ` (ano-base ${f.leiDoBemAno})` : ''} · ${governo}`, ...ops].join('\n');
+}
+
+// ── BANT (US-0022, US-0024) ──────────────────────────────────────────────────
+
+const ROTULO_DA_ORIGEM: Record<string, string> = { pessoa: 'pessoa', ia: 'IA' };
+
+function linhaDaLetra(l: LetraDoBant): string {
+  const meta = LETRAS_BANT.find((x) => x.letra === l.letra);
+  const base = `- **${l.letra} · ${meta?.nome}** — ${rotuloDoEstado(l.estado)}`;
+  if (l.evidencia) return `${base}: ${l.evidencia.texto}${l.evidencia.fonte ? ` (fonte: ${l.evidencia.fonte})` : ''}`;
+  if (l.indicio) return `${base} (do Pulse): ${l.indicio.texto}`;
+  return `${base}. ${meta?.pergunta}`;
+}
+
+/** O BANT para a IA ler antes de propor: letras, nota, meta e o que já foi proposto. */
+export function bantDaOportunidadeTexto(bant: BantDaOportunidade, evidencias: EvidenciaBantDB[]): string {
+  const propostas = bant.propostas.map((p) => `- ${p.letra} → ${rotuloDoEstado(p.estado)}: ${p.texto} (esperando decisão)`);
+  const recusadas = evidencias
+    .filter((e) => e.situacao === 'recusada')
+    .slice(0, 10)
+    .map((e) => `- ${e.letra} → ${rotuloDoEstado(e.estado)}: ${e.texto} (${ROTULO_DA_ORIGEM[e.origem] ?? e.origem}, recusada)`);
+  const falta = oQueFaltaParaQualificar(bant);
+  return [
+    `**BANT ${bant.nota}${bant.meta != null ? ` · meta da etapa ${bant.meta}` : ''}**`,
+    ...LETRAS_BANT.map(({ letra }) => linhaDaLetra(bant.letras[letra])),
+    falta ? `\nPara "Oportunidade qualificada": ${falta}` : '\nPronta para "Oportunidade qualificada".',
+    ...(propostas.length ? ['', '**Propostas esperando a pessoa decidir:**', ...propostas] : []),
+    ...(recusadas.length ? ['', '**Recusadas (não repita):**', ...recusadas] : []),
+  ].join('\n');
 }

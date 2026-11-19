@@ -60,6 +60,9 @@ avalia de novo o que já foi descartado.
 
 ## Pontos em aberto
 
+- 19/11/2026: o "arquiva" da etapa Qualificação (US-0023) hoje é a Perda com motivo ou o
+  "Devolver para a lista". Esta história pode virar o "Não agora" com data para voltar, como
+  saída da Qualificação.
 - 18/11/2026: a tela Empresas ficou sem abas (US-0008; US-0011 arquivada). Rever onde aparecem
   as empresas marcadas como "Não agora" ou descartadas, e se esta história ainda faz sentido.
 
