@@ -1,6 +1,6 @@
 # US-0031 — O forecast e a curva da aba Financeiro usam todos os meses do projeto
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** bug
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
@@ -94,6 +94,24 @@ R$ 4.755,27.
 
 ## Implementação
 
+Forecast e curva de contrato em `src/lib/projectForecast.ts` (`buildProjectForecast`,
+`buildContractCurve`), sobre os meses de calendário de `useProjectCostSummary().months`
+(US-0026). A aba Financeiro deixou de ter cálculo próprio de meses (`projectDuration` com
+meses cheios, `monthlyChartData`, `revenueByMonth`).
+
+- O que falta, mês a mês do mês atual até a data de fim, é o planejado menos o realizado do
+  mês (nunca negativo). No mês atual é o resto do plano; num mês futuro, desconta o que já foi
+  pago antecipadamente (evita contar duas vezes).
+- Depois da data de fim, nada falta: o custo final é o realizado.
+- A curva inclui os meses das parcelas (a última costuma vencer depois do fim), e o ponto
+  final do custo projetado é o custo final estimado.
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1 | Script descartável (23/11/2026): curva com Out/26 e Nov/26, mais Dez/26 da parcela. Falta conferir na tela. |
+| 2 | Script: em 10/11, gasto R$ 4.755,27 + falta R$ 394,74 = R$ 5.150,01 (margem 49,4%). Falta conferir na tela. |
+| 3 | Por construção: o realizado vem dos meses da US-0026, que incluem os meses fora do período. |
+| 4 | Script: em 23/11 (depois do fim), falta R$ 0,00 e o custo final é o realizado. |
+| 5 | Script: Paraíso em 23/11 dá custo final R$ 4.755,27 e margem 53,3%. Falta conferir na tela. |
+
+Testes automatizados não escritos: testes desativados no Harness por decisão do time.

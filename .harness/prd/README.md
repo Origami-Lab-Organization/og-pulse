@@ -253,7 +253,7 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 | [US-0028](stories/4-em-desenvolvimento/US-0028-projetos-grafico-planejado-x-realizado-so-com-totais.md) | O gráfico Planejado × Realizado mostra só os totais | GP ou admin | Em desenvolvimento | Pronta com ressalvas |
 | [US-0029](stories/4-em-desenvolvimento/US-0029-projetos-total-dos-custos-lancados.md) | Ver o total dos custos lançados | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0030](stories/4-em-desenvolvimento/US-0030-projetos-lancamento-so-dentro-do-periodo.md) | Lançar horas e custos só dentro do período do projeto | GP ou admin | Em desenvolvimento | Pronta |
-| [US-0031](stories/3-pronta-para-desenvolver/US-0031-projetos-forecast-usa-todos-os-meses.md) | O forecast e a curva da aba Financeiro usam todos os meses do projeto | GP ou admin | Pronta para desenvolver | Pronta |
+| [US-0031](stories/4-em-desenvolvimento/US-0031-projetos-forecast-usa-todos-os-meses.md) | O forecast e a curva da aba Financeiro usam todos os meses do projeto | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0032](stories/3-pronta-para-desenvolver/US-0032-projetos-card-de-forecast-claro.md) | O card de forecast diz o que significa | GP ou admin | Pronta para desenvolver | Pronta |
 | [US-0033](stories/3-pronta-para-desenvolver/US-0033-projetos-pl-realizado.md) | Ver o P&L realizado ao lado do projetado | GP ou admin | Pronta para desenvolver | Pronta |
 
