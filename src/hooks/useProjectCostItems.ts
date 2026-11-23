@@ -18,14 +18,15 @@ export const useProjectCostItems = (projectId: string | undefined) => {
       if (!projectId) return [];
       const { data, error } = await supabase
         .from('project_costs')
-        .select('*')
+        // Meses do custo recorrente: o gráfico mensal da aba Despesas os distribui (US-0026).
+        .select('*, months:project_cost_months(month_number, planned_value, actual_value, invoice_date)')
         .eq('project_id', projectId)
         .is('deleted_at', null)
         .order('cost_date', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as ProjectCostDB[];
+      return data as unknown as ProjectCostDB[];
     },
     enabled: !!projectId,
   });

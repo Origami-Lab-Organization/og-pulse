@@ -6,14 +6,19 @@ import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
 import { useHolidays } from '@/hooks/useHolidays';
 import {
   buildProjectCostSummary,
-  sumLegacyLaborPlanned,
-  sumRealizedLabor,
+  legacyLaborPlannedEntries,
+  realizedLaborEntries,
 } from '@/lib/projectCostSummary';
+import { buildProjectMonthlyCosts } from '@/lib/projectMonthlyCosts';
 import type { ProjectWithRelations } from '@/types/project';
+import type { DatedCost } from '@/types/projectCostSummary';
+
+const sumCosts = (entries: DatedCost[]) => entries.reduce((sum, entry) => sum + entry.cost, 0);
 
 /**
- * Custo planejado e realizado do projeto pela regra única (US-0025). Toda tela que mostra
- * custo, margem ou desvio do projeto lê daqui, para os números baterem entre as abas.
+ * Custo planejado e realizado do projeto pela regra única (US-0025), também mês a mês de
+ * calendário (US-0026). Toda tela que mostra custo, margem ou desvio do projeto lê daqui,
+ * para os números baterem entre as abas — e a soma dos meses bate com os totais.
  *
  * - Mão de obra planejada: alocações por papel (ADR-0006); sem elas, o modelo legado por
  *   membro/mês.
@@ -34,16 +39,38 @@ export function useProjectCostSummary(project: ProjectWithRelations) {
   const timesheets = timesheetsQuery.data;
   const costItems = costItemsQuery.data;
 
-  const summary = useMemo(() => {
-    const laborPlanned = plannedLabor.hasRoleAllocations
-      ? plannedLabor.total
-      : sumLegacyLaborPlanned(project, memberMonths ?? [], holidays);
-    const laborActual = sumRealizedLabor(timesheets ?? [], project.members || [], holidays);
-    return buildProjectCostSummary({ laborPlanned, laborActual, costs: costItems ?? [] });
-  }, [project, plannedLabor.hasRoleAllocations, plannedLabor.total, memberMonths, timesheets, costItems, holidays]);
+  const result = useMemo(() => {
+    const laborPlannedEntries = plannedLabor.hasRoleAllocations
+      ? plannedLabor.byCalendarMonth
+      : legacyLaborPlannedEntries(project, memberMonths ?? [], holidays);
+    const laborRealizedEntries = realizedLaborEntries(timesheets ?? [], project.members || [], holidays);
+    const costs = costItems ?? [];
+
+    const summary = buildProjectCostSummary({
+      laborPlanned: plannedLabor.hasRoleAllocations ? plannedLabor.total : sumCosts(laborPlannedEntries),
+      laborActual: sumCosts(laborRealizedEntries),
+      costs,
+    });
+    const months = buildProjectMonthlyCosts({
+      project,
+      laborPlanned: laborPlannedEntries,
+      laborRealized: laborRealizedEntries,
+      costs,
+    });
+    return { ...summary, months };
+  }, [
+    project,
+    plannedLabor.hasRoleAllocations,
+    plannedLabor.total,
+    plannedLabor.byCalendarMonth,
+    memberMonths,
+    timesheets,
+    costItems,
+    holidays,
+  ]);
 
   const isLoading =
     plannedLabor.isLoading || timesheetsQuery.isLoading || costItemsQuery.isLoading || memberMonthsQuery.isLoading;
 
-  return useMemo(() => ({ ...summary, isLoading }), [summary, isLoading]);
+  return useMemo(() => ({ ...result, isLoading }), [result, isLoading]);
 }

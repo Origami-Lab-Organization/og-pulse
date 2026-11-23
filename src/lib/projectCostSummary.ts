@@ -62,51 +62,69 @@ function timesheetHourlyCost(
   return memberFallbackHourlyCost(member, date.getFullYear(), date.getMonth(), holidays);
 }
 
-/**
- * Mão de obra realizada: horas × custo/hora gravado na própria hora lançada; sem snapshot,
- * o custo/hora estimado do membro no mês da hora.
- */
-export function sumRealizedLabor(
+/** Custo de cada hora lançada, com a data do lançamento (base do realizado por mês). */
+export function realizedLaborEntries(
   timesheets: RealizedTimesheet[],
   members: ProjectMember[],
   holidays: Holiday[],
-): number {
+): { date: Date; cost: number }[] {
   const memberMap = new Map(members.map((member) => [member.id, member]));
-  return timesheets.reduce(
-    (sum, timesheet) => sum + timesheetHourlyCost(timesheet, memberMap, holidays) * Number(timesheet.hours),
-    0,
-  );
+  return timesheets.map((timesheet) => ({
+    date: parseISO(timesheet.work_date),
+    cost: timesheetHourlyCost(timesheet, memberMap, holidays) * Number(timesheet.hours),
+  }));
 }
 
-function legacyMemberLaborPlanned(
+type LegacyProject = Pick<ProjectWithRelations, 'start_date' | 'duration_months' | 'members'>;
+
+/** Membro sem horas por mês: horas/mês do membro em cada mês da duração, à taxa do 1º mês. */
+function legacyMemberFallbackMonths(
   member: ProjectMember,
-  entries: ProjectMemberMonthDB[],
-  project: Pick<ProjectWithRelations, 'start_date' | 'duration_months'>,
+  projectStart: Date,
+  durationMonths: number,
+  holidays: Holiday[],
+): { date: Date; cost: number }[] {
+  const rate = memberFallbackHourlyCost(member, projectStart.getFullYear(), projectStart.getMonth(), holidays);
+  const monthly = rate * Number(member.hours_per_month || 0);
+  return Array.from({ length: Math.max(durationMonths, 0) }, (_, i) => ({
+    date: addMonths(projectStart, i),
+    cost: monthly,
+  }));
+}
+
+function legacyMemberEntryCost(
+  member: ProjectMember,
+  entry: ProjectMemberMonthDB,
+  monthDate: Date,
   holidays: Holiday[],
 ): number {
-  const projectStart = startOfMonth(parseISO(project.start_date));
-  if (entries.length === 0) {
-    const fallback = memberFallbackHourlyCost(member, projectStart.getFullYear(), projectStart.getMonth(), holidays);
-    return fallback * Number(member.hours_per_month || 0) * project.duration_months;
-  }
-  return entries.reduce((sum, entry) => {
-    if (entry.cost_per_hour != null) return sum + Number(entry.cost_per_hour) * Number(entry.hours);
-    const monthDate = addMonths(projectStart, entry.month_number - 1);
-    const fallback = memberFallbackHourlyCost(member, monthDate.getFullYear(), monthDate.getMonth(), holidays);
-    return sum + fallback * Number(entry.hours);
-  }, 0);
+  const rate =
+    entry.cost_per_hour != null
+      ? Number(entry.cost_per_hour)
+      : memberFallbackHourlyCost(member, monthDate.getFullYear(), monthDate.getMonth(), holidays);
+  return rate * Number(entry.hours);
 }
 
-/** Mão de obra planejada no modelo legado por membro/mês (projetos sem alocação por papel). */
-export function sumLegacyLaborPlanned(
-  project: Pick<ProjectWithRelations, 'start_date' | 'duration_months' | 'members'>,
+/**
+ * Mão de obra planejada no modelo legado por membro/mês (projetos sem alocação por papel),
+ * mês a mês de calendário. O total legado é a soma destes meses.
+ */
+export function legacyLaborPlannedEntries(
+  project: LegacyProject,
   memberMonths: ProjectMemberMonthDB[],
   holidays: Holiday[],
-): number {
-  return (project.members || []).reduce((acc, member) => {
+): { date: Date; cost: number }[] {
+  const projectStart = startOfMonth(parseISO(project.start_date));
+  return (project.members || []).flatMap((member) => {
     const entries = memberMonths.filter((entry) => entry.project_member_id === member.id);
-    return acc + legacyMemberLaborPlanned(member, entries, project, holidays);
-  }, 0);
+    if (entries.length === 0) {
+      return legacyMemberFallbackMonths(member, projectStart, project.duration_months, holidays);
+    }
+    return entries.map((entry) => {
+      const monthDate = addMonths(projectStart, entry.month_number - 1);
+      return { date: monthDate, cost: legacyMemberEntryCost(member, entry, monthDate, holidays) };
+    });
+  });
 }
 
 export function buildProjectCostSummary(input: {

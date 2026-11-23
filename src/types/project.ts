@@ -146,6 +146,21 @@ export interface ProjectCostDB {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  /** Custo recorrente migrado do modelo legado (ADR-0004); o detalhe mensal fica em `months`. */
+  is_recurring?: boolean;
+  start_month?: number | null;
+  end_month?: number | null;
+  /** Mês relativo do projeto de custos avulsos legados (sem `cost_date`). */
+  month_number?: number | null;
+  months?: ProjectCostMonthDB[];
+}
+
+/** Valor mensal de um custo recorrente (`project_cost_months`). */
+export interface ProjectCostMonthDB {
+  month_number: number;
+  planned_value: number | null;
+  actual_value: number | null;
+  invoice_date: string | null;
 }
 
 export interface CreateProjectCostInput {
