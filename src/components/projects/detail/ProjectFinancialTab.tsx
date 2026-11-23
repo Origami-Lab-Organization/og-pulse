@@ -17,6 +17,7 @@ import {
 import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
+import { useProjectCostSummary } from '@/hooks/useProjectCostSummary';
 import { useHolidays } from '@/hooks/useHolidays';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
 import { FinancialKpiCards } from './financial/FinancialKpiCards';
@@ -81,65 +82,20 @@ export function ProjectFinancialTab({
     return getFallbackHourlyCost(member.employee.total_monthly_cost_estimated || 0, member.employee.jornada_diaria || 8, year, monthIndex, holidays);
   };
 
-  // Aggregate cost data (same logic as OverviewTab)
-  const costData = useMemo(() => {
-    const projStart = startOfMonth(parseISO(project.start_date));
-    const laborPlanned = plannedLaborFromAllocations.hasRoleAllocations
-      ? plannedLaborFromAllocations.total
-      : (project.members || []).reduce((acc, member) => {
-          const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
-          if (memberEntries.length === 0) {
-            const fallbackCost = fallbackHourlyCost(member, projStart.getFullYear(), projStart.getMonth());
-            return acc + fallbackCost * Number(member.hours_per_month || 0) * projectDuration;
-          }
-
-          return acc + memberEntries.reduce((sum, mm) => {
-            if ((mm as any).cost_per_hour != null) {
-              return sum + Number((mm as any).cost_per_hour) * Number(mm.hours);
-            }
-            const monthDate = addMonths(projStart, mm.month_number - 1);
-            const fallbackCost = fallbackHourlyCost(member, monthDate.getFullYear(), monthDate.getMonth());
-            return sum + fallbackCost * Number(mm.hours);
-          }, 0);
-        }, 0);
-
-    const laborActual = timesheets.reduce((sum, t) => {
-      if ((t as any).cost_per_hour != null) {
-        return sum + Number((t as any).cost_per_hour) * Number(t.hours);
-      }
-      const member = memberMap.get(t.project_member_id);
-      if (!member) return sum;
-      const tsDate = parseISO(t.work_date);
-      const fallbackCost = fallbackHourlyCost(member, tsDate.getFullYear(), tsDate.getMonth());
-      return sum + fallbackCost * Number(t.hours);
-    }, 0);
-
-    // Custos extras (fornecedores, materiais, etc.) vêm da fonte unificada
-    // `project_costs` — mesma origem usada pela aba Despesas.
-    const extraPlanned = projectCosts.reduce(
-      (sum, cost) => sum + Number(cost.planned_amount_brl || 0),
-      0,
-    );
-    const extraActual = projectCosts.reduce(
-      (sum, cost) => sum + Number(cost.actual_amount_brl || 0),
-      0,
-    );
-
-    const totalPlanned = laborPlanned + extraPlanned;
-    const totalActual = laborActual + extraActual;
-
-    return { totalPlanned, totalActual, laborPlanned, laborActual, extraPlanned, extraActual };
-  }, [
-    project,
-    memberMap,
-    memberMonths,
-    timesheets,
-    projectCosts,
-    projectDuration,
-    holidays,
-    plannedLaborFromAllocations.hasRoleAllocations,
-    plannedLaborFromAllocations.total,
-  ]);
+  // Totais de custo: regra única do custo do projeto (US-0025) — o mesmo número da Visão
+  // Geral e da aba Despesas. A curva mensal abaixo ainda tem cálculo próprio (US-0026).
+  const costSummary = useProjectCostSummary(project);
+  const costData = useMemo(
+    () => ({
+      totalPlanned: costSummary.totalPlanned,
+      totalActual: costSummary.totalActual,
+      laborPlanned: costSummary.laborPlanned,
+      laborActual: costSummary.laborActual,
+      extraPlanned: costSummary.otherPlanned,
+      extraActual: costSummary.otherActual,
+    }),
+    [costSummary],
+  );
 
   // KPI data (same logic as OverviewTab)
   const kpiData = useMemo(() => {

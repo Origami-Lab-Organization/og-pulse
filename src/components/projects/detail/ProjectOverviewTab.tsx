@@ -6,39 +6,48 @@ import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
 import { useMaskedCurrency, useMaskedPercent } from '@/contexts/HideValuesContext';
 import { InstallmentAlertsBanner } from './financial/InstallmentAlertsBanner';
 import { ProjectKPIBar } from './ProjectKPIBar';
-import { useProjectTimesheets } from '@/hooks/useProjectTimesheets';
-import { useProjectSupplierActuals } from '@/hooks/useProjectSupplierActuals';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 import { useProjectPlannedMargin } from '@/hooks/useProjectPlannedMargin';
-import { useHolidays } from '@/hooks/useHolidays';
-import { getFallbackHourlyCost } from '@/lib/employeeCost';
-import { formatDate, formatPercent } from '@/lib/formatters';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDate } from '@/lib/formatters';
 import { clientLabel, projectKindOf } from '@/lib/projectKind';
 
 interface ProjectOverviewTabProps {
   project: ProjectWithRelations;
 }
 
+const executedPercent = (actual: number, planned: number) => (planned > 0 ? (actual / planned) * 100 : 0);
+
+const marginPercent = (revenue: number, commission: number, cost: number) =>
+  revenue > 0 ? ((revenue - commission - cost) / revenue) * 100 : 0;
+
+function computeOverviewKpis(input: {
+  revenuePlanned: number;
+  revenueActual: number;
+  commissionPlanned: number;
+  commissionActual: number;
+  costPlanned: number;
+  costActual: number;
+}) {
+  const { revenuePlanned, revenueActual, commissionPlanned, commissionActual, costPlanned, costActual } = input;
+  const marginPlanned = marginPercent(revenuePlanned, commissionPlanned, costPlanned);
+  const marginActual = marginPercent(revenueActual, commissionActual, costActual);
+  return {
+    ...input,
+    revenueExecuted: executedPercent(revenueActual, revenuePlanned),
+    commissionExecuted: executedPercent(commissionActual, commissionPlanned),
+    costExecuted: executedPercent(costActual, costPlanned),
+    marginPlanned,
+    marginActual,
+    marginVar: marginActual - marginPlanned,
+  };
+}
+
 export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
   const formatCurrency = useMaskedCurrency();
   const formatPercent = useMaskedPercent();
-  const supplierIds = useMemo(
-    () => (project.suppliers || []).map((s) => s.id),
-    [project.suppliers]
-  );
-  const memberMap = useMemo(
-    () => new Map((project.members || []).map((m) => [m.id, m])),
-    [project.members],
-  );
-
-  // Por project_id, não pela equipe atual — ver ProjectFinancialTab.tsx.
-  const { data: timesheets = [] } = useProjectTimesheets(project.id);
-  const { data: supplierActuals = [] } = useProjectSupplierActuals(supplierIds);
-  const { data: holidays = [] } = useHolidays();
-  // Custo, comissão e margem PLANEJADOS: mesma fonte do simulador de alocação.
+  // Custo, comissão e margem PLANEJADOS e custo REALIZADO: regra única do custo do
+  // projeto (US-0025) — o mesmo número da aba Despesas, do Financeiro e do simulador.
   const plannedMargin = useProjectPlannedMargin(project);
 
   const metrics = useMemo(() => {
@@ -49,63 +58,31 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     return { contractValue, receivedValue };
   }, [project]);
 
-  const costData = useMemo(() => {
-    const fallbackHourlyCost = (member: NonNullable<typeof project.members>[number], year: number, monthIndex: number) => {
-      if (!member.employee) return Number((member as any).hourly_rate) || 0;
-      return getFallbackHourlyCost(member.employee.total_monthly_cost_estimated || 0, member.employee.jornada_diaria || 8, year, monthIndex, holidays);
-    };
-
-    const laborActual = timesheets.reduce((sum, t) => {
-      if ((t as any).cost_per_hour != null) {
-        return sum + Number((t as any).cost_per_hour) * Number(t.hours);
-      }
-      const member = memberMap.get(t.project_member_id);
-      if (!member) return sum;
-      const tsDate = parseISO(t.work_date);
-      const fallbackCost = fallbackHourlyCost(member, tsDate.getFullYear(), tsDate.getMonth());
-      return sum + fallbackCost * Number(t.hours);
-    }, 0);
-
-    const supplierActualTotal = supplierActuals.reduce((s, sa) => s + sa.value, 0);
-
-    const materialActual = (project.materials || [])
-      .filter((m) => m.is_realized)
-      .reduce((s, m) => s + Number(m.value || 0), 0);
-
-    const totalActual = laborActual + supplierActualTotal + materialActual;
-
-    return { totalPlanned: plannedMargin.costPlanned, totalActual };
-  }, [project, memberMap, timesheets, supplierActuals, holidays, plannedMargin.costPlanned]);
+  const costData = useMemo(
+    () => ({
+      totalPlanned: plannedMargin.costPlanned,
+      totalActual: plannedMargin.costSummary.totalActual,
+    }),
+    [plannedMargin.costPlanned, plannedMargin.costSummary.totalActual],
+  );
 
   // A meta e os percentuais que julgam ESTE projeto são os que valiam quando ele começou
   // (PUL-260). Mudar a política em setembro não muda o que um projeto de janeiro assinou.
   const { data: financialSettings } = useFinancialSettings(project.start_date);
   const { data: commissions = [] } = useProjectCommissions(project.id);
 
-  const kpiData = useMemo(() => {
-    const revenuePlanned = metrics.contractValue;
-    const revenueActual = metrics.receivedValue;
-    const revenueExecuted = revenuePlanned > 0 ? (revenueActual / revenuePlanned) * 100 : 0;
-
-    const commissionPlanned = plannedMargin.commissionPlanned;
-    const commissionActual = commissions.filter((c) => c.is_paid).reduce((s, c) => s + Number(c.planned_value), 0);
-    const commissionExecuted = commissionPlanned > 0 ? (commissionActual / commissionPlanned) * 100 : 0;
-
-    const costPlanned = costData.totalPlanned;
-    const costActual = costData.totalActual;
-    const costExecuted = costPlanned > 0 ? (costActual / costPlanned) * 100 : 0;
-
-    const marginPlanned = revenuePlanned > 0 ? ((revenuePlanned - commissionPlanned - costPlanned) / revenuePlanned) * 100 : 0;
-    const marginActual = revenueActual > 0 ? ((revenueActual - commissionActual - costActual) / revenueActual) * 100 : 0;
-    const marginVar = marginActual - marginPlanned;
-
-    return {
-      revenuePlanned, revenueActual, revenueExecuted,
-      commissionPlanned, commissionActual, commissionExecuted,
-      costPlanned, costActual, costExecuted,
-      marginPlanned, marginActual, marginVar,
-    };
-  }, [metrics, costData, financialSettings, plannedMargin.commissionPlanned, commissions, project.installments]);
+  const kpiData = useMemo(
+    () =>
+      computeOverviewKpis({
+        revenuePlanned: metrics.contractValue,
+        revenueActual: metrics.receivedValue,
+        commissionPlanned: plannedMargin.commissionPlanned,
+        commissionActual: commissions.filter((c) => c.is_paid).reduce((s, c) => s + Number(c.planned_value), 0),
+        costPlanned: costData.totalPlanned,
+        costActual: costData.totalActual,
+      }),
+    [metrics, costData, plannedMargin.commissionPlanned, commissions],
+  );
 
   const getPaymentMethodLabel = (method: string) => {
     const found = PAYMENT_METHOD_OPTIONS.find((m) => m.value === method);

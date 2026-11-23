@@ -14,6 +14,7 @@ import { useProjectMemberMonths } from "@/hooks/useProjectMemberMonths";
 import { useProjectCostItems } from "@/hooks/useProjectCostItems";
 import { useProjectTimesheets } from "@/hooks/useProjectTimesheets";
 import { useProjectPlannedLaborCost } from "@/hooks/useProjectPlannedLaborCost";
+import { useProjectCostSummary } from "@/hooks/useProjectCostSummary";
 import { useHolidays } from "@/hooks/useHolidays";
 import { getFallbackHourlyCost } from "@/lib/employeeCost";
 import { ProjectWithRelations } from "@/types/project";
@@ -139,74 +140,11 @@ export function ProjectCostsTab({
     [holidays],
   );
 
-  const laborCostsPlanned = useMemo(() => {
-    if (plannedLaborFromAllocations.hasRoleAllocations) {
-      return plannedLaborFromAllocations.total;
-    }
-
-    if (!project.members || project.members.length === 0) return 0;
-
-    const projStart = startOfMonth(parseISO(project.start_date));
-    let total = 0;
-    project.members.forEach((member) => {
-      memberMonths
-        .filter((month) => month.project_member_id === member.id)
-        .forEach((month) => {
-          if ((month as any).cost_per_hour != null) {
-            total += Number((month as any).cost_per_hour) * Number(month.hours);
-            return;
-          }
-          const monthDate = addMonths(projStart, month.month_number - 1);
-          const fallbackCost = getMemberHourlyCost(member, monthDate.getFullYear(), monthDate.getMonth());
-          total += fallbackCost * Number(month.hours);
-        });
-    });
-
-    return total;
-  }, [
-    getMemberHourlyCost,
-    memberMonths,
-    plannedLaborFromAllocations.hasRoleAllocations,
-    plannedLaborFromAllocations.total,
-    project.members,
-    project.start_date,
-  ]);
-
-  const laborCostsActual = useMemo(() => {
-    const memberMap = new Map((project.members || []).map((member) => [member.id, member]));
-
-    return timesheets.reduce((total, timesheet) => {
-      if ((timesheet as any).cost_per_hour != null) {
-        return total + Number((timesheet as any).cost_per_hour) * Number(timesheet.hours);
-      }
-      const member = memberMap.get(timesheet.project_member_id);
-      if (!member) return total;
-      const tsDate = parseISO(timesheet.work_date);
-      const cost = getMemberHourlyCost(member, tsDate.getFullYear(), tsDate.getMonth());
-      return total + cost * Number(timesheet.hours);
-    }, 0);
-  }, [project.members, timesheets, getMemberHourlyCost]);
-
-  const costsPlannedBrl = useMemo(
-    () =>
-      projectCosts.reduce(
-        (sum, cost) => sum + Number(cost.planned_amount_brl || 0),
-        0,
-      ),
-    [projectCosts],
-  );
-
-  const costsActualBrl = useMemo(
-    () =>
-      projectCosts.reduce(
-        (sum, cost) => sum + Number(cost.actual_amount_brl || 0),
-        0,
-      ),
-    [projectCosts],
-  );
-
-  const totalPlanned = laborCostsPlanned + costsPlannedBrl;
-  const totalActual = laborCostsActual + costsActualBrl;
+  // Cards: regra única do custo do projeto (US-0025) — o mesmo número da Visão Geral e
+  // do Financeiro. O gráfico mensal abaixo ainda tem cálculo próprio (US-0026).
+  const costSummary = useProjectCostSummary(project);
+  const totalPlanned = costSummary.totalPlanned;
+  const totalActual = costSummary.totalActual;
 
   const desvioText = useMemo(() => {
     if (totalPlanned === 0) return "-";
@@ -222,7 +160,7 @@ export function ProjectCostsTab({
 
   const activeCategories = useMemo(() => {
     let count = 0;
-    if (laborCostsActual > 0 || laborCostsPlanned > 0) count++;
+    if (costSummary.laborActual > 0 || costSummary.laborPlanned > 0) count++;
     projectCosts.forEach((cost) => {
       if (
         Number(cost.planned_amount_brl || 0) > 0 ||
@@ -232,11 +170,7 @@ export function ProjectCostsTab({
       }
     });
     return count;
-  }, [
-    laborCostsActual,
-    laborCostsPlanned,
-    projectCosts,
-  ]);
+  }, [costSummary.laborActual, costSummary.laborPlanned, projectCosts]);
 
   const monthlyChartData = useMemo(() => {
     const projectStart = startOfMonth(parseISO(project.start_date));
