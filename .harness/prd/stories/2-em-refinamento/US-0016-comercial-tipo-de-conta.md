@@ -35,7 +35,8 @@ O tipo substitui o Tier da empresa (US-0017).
 - Inclui: ao abrir oportunidade (US-0008), a tela sugere o tipo pelo faturamento
   estimado e a pessoa confirma ou troca; o tipo fica guardado na empresa, num campo
   próprio com lista fechada; aparece e pode ser editado na ficha da empresa; vira filtro
-  na aba "Na Prospecção"; o filtro de faturamento da base passa a usar as mesmas faixas.
+  na aba "Na Prospecção"; o filtro de faturamento da base usa as mesmas faixas (entra na US-0006,
+  decisão de 2026-11-17).
 - Não inclui: limites por tipo (como "3 Satélites no piloto"); ticket ou contrato
   calculados a partir do tipo.
 

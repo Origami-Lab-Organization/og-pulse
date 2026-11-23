@@ -39,24 +39,41 @@ completados pela carga, sem acesso de root.
 | `nome_fantasia`, `nome_exibicao` | `estabelecimentos.nome_fantasia` | exibição = fantasia, senão razão social |
 | `cnae_principal`, `cnaes_secundarios` | `estabelecimentos` | a descrição vem de `public.cnaes` na consulta |
 | `data_inicio_atividade`, `municipio`, `uf` | `estabelecimentos` | |
-| `funcionarios`, `unidades_com_funcionarios` | `empresas_funcionarios_total` | nulo = sem RAIS (cerca de 80% da base) |
+| `funcionarios`, `unidades_com_funcionarios` | `empresas_funcionarios` e `rais_estabelecimentos` | vínculos da RAIS 2025 somados por empresa. A RAIS pública não traz CNPJ: vale o cruzamento da base (CEP + CNAE + natureza) e, no estabelecimento que ele não cruzou, o par único por CEP + CNAE (um só na RAIS e um só ativo na Receita; US-0006). Nulo = sem RAIS. Obras em consórcio (outro CNPJ) não entram |
 | `filiais_ativas` | contagem em `estabelecimentos` | filiais com situação Ativa |
 | `socios` | contagem em `socios` | **só a quantidade**: nada de nome, CPF ou faixa etária (ADR-0041) |
 | `divida_total`, `divida_em_cobranca`, `divida_ajuizada`, `inscricoes_divida` | `pgfn_resumo` | nulo = sem inscrição |
 | `tem_email`, `tem_telefone` | `estabelecimentos.email`, `telefone_1` | só se existe; o contato em si não é copiado |
 | `fit_previo`, `fit_frente` | calculado pelo script | `src/lib/prospecting/fit.ts`, sem regime nem site (ADR-0042) |
-| `faturamento_estimado` | — | US-0006, ainda vazio |
+| `faturamento_estimado`, `faturamento_base` | calculado pelo script | `rais`: funcionários × receita por pessoa da classe da CNAE e do porte (IBGE), combinada com o capital social quando ele passa de R$ 10 mi (`calibracaoCapital.json`); `modelo`: sem RAIS, empresas parecidas (`modeloDeFaturamento.json`, recalibrado por `scripts/receita/calibrar-faturamento.ts`) quando passa de R$ 4,8 mi; `piso`: R$ 4,8 mi (`src/lib/prospecting/faturamentoEstimado.ts`, US-0006) |
+| `distancia_km` | calculado pelo script | km em linha reta (haversine, truncado) da sede de Formiga à sede do município; coordenadas das sedes do IBGE, Localidades do Brasil 2022 (`scripts/receita/sedes-municipais.json`, montado por `montar-sedes.ts`, com 17 nomes antigos da Receita); nulo sem município reconhecido (US-0015) |
 | `secao`, `divisao`, `secoes_sec`, `divisoes_sec` | calculado pelo script | setor e ramo da CNAE do principal e dos secundários (`src/lib/prospecting/cnae.ts`, US-0003) |
 
-A Edge Function tem três modos (US-0003):
+Busca (US-0005): sem coluna nova. `pulse.normalizar(text)` tira acentos e passa para
+minúsculas; dois índices usam a função, um de trechos de 3 letras (`gin_trgm_ops`, extensão
+`pg_trgm`) sobre `nome_fantasia + razao_social` e um comum sobre `municipio`. A Edge Function
+repete a mesma expressão para usar os índices. A extensão é a única peça que exige o
+administrador do banco (`preparar-vps.sql`); a função e os índices ficam em `esquema.sql`.
+Medido em 17/11/2026: índice de nome com 183 MB, criado em 93 s; buscas entre 16 e 500 ms,
+total de termo muito comum ("comercio", 69 mil) em 1,2 s.
 
-- **página** (padrão): `{ ordem, crescente, pagina, filtros }` → `{ carregada_em, total_da_base, linhas[] }`.
-  Ordens: `fit`, `nome`, `funcionarios`, `idade`. Páginas de 25, até a 400ª (10 mil empresas).
-- **total**: `{ modo: 'total', filtros }` → `{ total, limitado }`. Conta até 100 mil; `limitado` = há mais.
+A Edge Function tem três modos (US-0003, US-0005):
+
+- **página** (padrão): `{ ordem, crescente, pagina, filtros, busca? }` → `{ carregada_em, total_da_base, linhas[] }`.
+  Ordens: `fit`, `nome`, `distancia`, `faturamento`, `funcionarios`, `idade`. Páginas de 25, até a 400ª (10 mil empresas).
+- **total**: `{ modo: 'total', filtros, busca? }` → `{ total, limitado }`. Conta até 100 mil; `limitado` = há mais.
 - **cnaes**: `{ modo: 'cnaes', termo }` → `{ cnaes: [{ codigo, descricao }] }`, por código ou descrição, até 20.
+- **ficha** (US-0007): `{ modo: 'ficha', cnpj }` → `{ empresa, contato, socios[], oportunidades[] }`. O contato (e-mail e telefones do estabelecimento) vem da visão `pulse.contatos`; os sócios, da visão `pulse.socios` (só nome, qualificação, entrada, tipo e raiz do CNPJ de sócio empresa; ADR-0041); as oportunidades em andamento, do Supabase com a sessão da pessoa.
+
+`busca` (até 100 caracteres): só números, com ou sem pontuação, de 5 a 14, é CNPJ e ignora
+os filtros; 14 procuram `cnpj_basico` (CNPJ de filial acha a matriz), menos que isso procuram
+o começo por intervalo na chave primária (o `LIKE` não usa índice com a collation `en_US`).
+Outro texto, a partir de 3 letras, procura parte do nome ou o nome inteiro da cidade e soma
+aos filtros.
+`%` e `_` valem como texto. Mesma regra em `src/lib/prospecting/buscaReceita.ts`.
 
 Os filtros seguem `src/types/filtrosReceita.ts`; cada valor vem de lista fechada e vira
-parâmetro. Valor fora da lista: 400. Sem sessão: 401. Sem `prospeccao:ler`: 403.
+parâmetro. Valor fora da lista ou busca inválida: 400. Sem sessão: 401. Sem `prospeccao:ler`: 403.
 Base fora do ar ou lenta: 503.
 
 ## Preparação da VPS (uma vez)
@@ -148,7 +165,7 @@ npx supabase functions deploy empresas-receita
 ssh -N -L 5433:localhost:5432 root@<vps>
 # simulação: lê e resume, não grava
 npx vite-node scripts/receita/sincronizar-base.ts
-# carga em pulse.empresas (fora do horário comercial; levou 15 minutos)
+# carga em pulse.empresas (fora do horário comercial; 11 minutos em 17/11/2026, com o índice de nome)
 npx vite-node scripts/receita/sincronizar-base.ts -- --aplicar
 ```
 

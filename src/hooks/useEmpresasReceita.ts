@@ -3,6 +3,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { EmpresaReceita, OrdenacaoReceita, PaginaReceita, TotalReceita } from '@/lib/prospecting/empresasReceita';
 import type { CnaeEncontrado, FiltrosReceita } from '@/types/filtrosReceita';
+import type { FichaReceita } from '@/types/fichaReceita';
 
 /**
  * A base da Receita na tela Empresas (US-0002, US-0003, ADR-0053).
@@ -13,6 +14,7 @@ import type { CnaeEncontrado, FiltrosReceita } from '@/types/filtrosReceita';
  * vazia seriam indistinguíveis de "não há empresas".
  *
  * A página e o total são consultas separadas: a lista aparece sem esperar a contagem.
+ * `busca` (US-0005) é o CNPJ ou o texto já validado por `buscaDoPedido`; sem busca, só filtros.
  */
 
 export const POR_PAGINA_RECEITA = 25;
@@ -57,11 +59,11 @@ interface RespostaDaPagina {
   linhas: EmpresaReceita[] | null;
 }
 
-export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: OrdenacaoReceita, pagina: number) {
+export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: OrdenacaoReceita, pagina: number, busca?: string) {
   return useQuery({
-    queryKey: ['receita-empresas', filtros, ordenacao.ordem, ordenacao.crescente, pagina],
+    queryKey: ['receita-empresas', filtros, busca ?? '', ordenacao.ordem, ordenacao.crescente, pagina],
     queryFn: async (): Promise<PaginaReceita> => {
-      const r = await chamar<RespostaDaPagina>({ ordem: ordenacao.ordem, crescente: ordenacao.crescente, pagina, filtros });
+      const r = await chamar<RespostaDaPagina>({ ordem: ordenacao.ordem, crescente: ordenacao.crescente, pagina, filtros, busca });
       return { totalDaBase: r.total_da_base, carregadaEm: r.carregada_em, linhas: r.linhas ?? [] };
     },
     // Trocar de página, ordem ou filtro mantém a lista anterior na tela até a nova chegar.
@@ -70,10 +72,10 @@ export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: Ordenacao
   });
 }
 
-export function useTotalReceita(filtros: FiltrosReceita) {
+export function useTotalReceita(filtros: FiltrosReceita, busca?: string) {
   return useQuery({
-    queryKey: ['receita-empresas-total', filtros],
-    queryFn: () => chamar<TotalReceita>({ modo: 'total', filtros }),
+    queryKey: ['receita-empresas-total', filtros, busca ?? ''],
+    queryFn: () => chamar<TotalReceita>({ modo: 'total', filtros, busca }),
     ...DA_BASE,
   });
 }
@@ -86,6 +88,16 @@ export function useCnaesReceita(termo: string) {
     queryFn: async () => (await chamar<{ cnaes: CnaeEncontrado[] }>({ modo: 'cnaes', termo: limpo })).cnaes,
     enabled: limpo.length >= 2,
     placeholderData: keepPreviousData,
+    ...DA_BASE,
+  });
+}
+
+/** A ficha de uma empresa da base (US-0007); só busca com um CNPJ escolhido. */
+export function useFichaReceita(cnpj: string | null) {
+  return useQuery({
+    queryKey: ['receita-ficha', cnpj],
+    queryFn: () => chamar<FichaReceita>({ modo: 'ficha', cnpj }),
+    enabled: !!cnpj,
     ...DA_BASE,
   });
 }
