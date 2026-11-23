@@ -187,9 +187,10 @@ export function calculateRealizedLaborCost(
     const employeeId = memberToEmployee.get(timesheet.project_member_id);
     if (!employeeId) return;
 
-    const date = new Date(timesheet.work_date);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
+    // Ano e mês direto do texto `yyyy-MM-dd`: `new Date('2026-11-01')` é meia-noite UTC,
+    // que no Brasil ainda é 31/10 — a hora do dia 1º caía no mês anterior (US-0027).
+    const year = Number(timesheet.work_date.slice(0, 4));
+    const month = Number(timesheet.work_date.slice(5, 7));
 
     const fallback = fallbackByMember.get(timesheet.project_member_id);
     const hourlyCost =

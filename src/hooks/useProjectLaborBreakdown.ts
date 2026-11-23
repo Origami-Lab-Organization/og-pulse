@@ -87,6 +87,14 @@ export function useProjectLaborBreakdown(project: ProjectWithRelations) {
         fallbackByEmployee[member.employee_id] = fallback;
       }
     });
+    // A pessoa de cada hora também pelo vínculo da própria hora: sem isso, a hora de quem não
+    // veio em `project.members` era descartada e a seção mostrava "60h / 0h" (US-0027, TD-0014).
+    timesheets.forEach((timesheet) => {
+      const employeeId = timesheet.project_member?.employee_id;
+      if (employeeId && !memberToEmployee.has(timesheet.project_member_id)) {
+        memberToEmployee.set(timesheet.project_member_id, employeeId);
+      }
+    });
 
     const deallocatedEmployees = new Set(
       teamRows

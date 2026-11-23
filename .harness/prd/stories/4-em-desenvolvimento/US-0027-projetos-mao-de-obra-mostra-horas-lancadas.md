@@ -1,6 +1,6 @@
 # US-0027 — A seção Mão de Obra mostra as horas lançadas
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** bug
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Custos do projeto
@@ -102,6 +102,24 @@ aba Equipe (`project_role_allocations`), e o vínculo antigo pode faltar. O defe
 
 ## Implementação
 
+A seção passa a identificar a pessoa de cada hora também pelo vínculo gravado na própria
+hora (`project_timesheets → project_members.employee_id`), o mesmo caminho da aba Equipe
+(`equipeService.getRealizedHoursByEmployeeMonth`). Antes, só pela equipe carregada com o
+projeto (`project.members`), que pode vir sem a pessoa (TD-0014). `useProjectTimesheets`
+traz o vínculo (`project_member:project_members(employee_id)`) e
+`calculateRealizedLaborCost` lê ano e mês do texto da data, sem deslocamento de UTC.
+
+Diagnóstico do Paraíso: a aba Equipe lê o vínculo da hora e mostra 28h, então a linha em
+`project_members` existe e é legível. O que falha é a equipe carregada com o projeto
+(`projectService.getById`, que ignora o erro da consulta). A causa exata dessa consulta não
+foi confirmada no banco; a correção não depende dela.
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1 | Pendente: conferir na tela (Paraíso, localhost:8080). |
+| 2 | Pendente: conferir na tela. Seção e KPI usam a mesma regra de custo por hora (`cost_per_hour` da hora; sem ele, a taxa do membro). |
+| 3 | Pendente: conferir na tela. Código lê o mês do texto `yyyy-MM-dd`. |
+| 4 | Pendente: conferir na tela (esperado: 60h / 28h e R$ 3.671,67). |
+| 5 | Pendente: conferir na tela num projeto com pessoa desalocada que lançou horas. |
+
+Testes automatizados não escritos: testes desativados no Harness por decisão do time.
