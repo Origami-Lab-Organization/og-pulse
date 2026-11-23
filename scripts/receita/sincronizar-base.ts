@@ -98,7 +98,7 @@ const COLUNAS_DESTINO = [
 ].join(', ');
 
 const COL = {
-  cnaePrincipal: 5, cnaesSecundarios: 6, natureza: 7, capital: 8, abertura: 9, municipio: 10, uf: 11, funcionarios: 12,
+  razao: 2, cnaePrincipal: 5, cnaesSecundarios: 6, natureza: 7, capital: 8, abertura: 9, municipio: 10, uf: 11, funcionarios: 12,
   filiais: 14, socios: 15, divida: 16, email: 20, telefone: 21,
 } as const;
 
@@ -142,6 +142,7 @@ function colunaDeDistancia(campos: string[], resumo: Resumo): string {
 function colunasDeFaturamento(campos: string[], hoje: string, resumo: Resumo): string {
   const cnae = campos[COL.cnaePrincipal];
   const { valor, base } = estimarFaturamento(cnae, numero(campos[COL.funcionarios]), {
+    nome: texto(campos[COL.razao]),
     secao: setorDoCnae(cnae) ?? null,
     natureza: texto(campos[COL.natureza]),
     capital: numero(campos[COL.capital]),

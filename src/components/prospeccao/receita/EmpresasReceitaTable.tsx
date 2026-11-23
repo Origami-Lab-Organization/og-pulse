@@ -24,10 +24,14 @@ import {
   textoDoFaturamento,
   textoDoInformado,
 } from '@/lib/prospecting/faturamentoEstimado';
+import { confiancaDoFaturamento, seloDoInformado } from '@/lib/prospecting/confiancaDoFaturamento';
+import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
+import { notaDoRegime } from '@/lib/prospecting/limiteDoRegime';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import type { SelecaoDaLista } from '@/types/filtrosReceita';
+import { MotivoDaConfianca } from './SeloDeConfianca';
 import { CelulaDeRelacao } from './SeloDeRelacao';
 
 interface EmpresasReceitaTableProps {
@@ -179,7 +183,8 @@ const AVISO_LUCRO_REAL =
 
 /**
  * Faturamento da linha (US-0006): o que o time informou, quando há; senão a
- * estimativa da base ("≈ valor" com a base, ou o piso do porte). A conta vai no tooltip.
+ * estimativa da base ("≈ valor" com a base, ou o piso do porte). A conta, o selo de confiança
+ * com o porquê (US-0018) e o regime vão no hover, para a coluna ficar limpa.
  */
 function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
   if (empresa.faturamento_informado != null) return <FaturamentoDoTime empresa={empresa} />;
@@ -187,6 +192,8 @@ function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
   if (valor == null || !base) return <span className="text-[12.5px] text-muted-foreground">—</span>;
   const lucroReal = lucroRealProvavel(Number(valor), base);
   const piso = base === BASE_PISO;
+  const confianca = confiancaDoFaturamento(empresa.cnae_principal, base);
+  const regime = notaDoRegime(empresa);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -199,6 +206,8 @@ function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
       <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
         <p className="font-medium">Faturamento {ROTULO_DA_BASE[base]}</p>
         <p className="mt-0.5">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social, empresa.funcionarios_do_time)}</p>
+        <MotivoDaConfianca confianca={confianca} className="mt-1.5" />
+        {regime && <p className="mt-1.5">{regime}</p>}
         {lucroReal && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}
       </TooltipContent>
     </Tooltip>
@@ -206,6 +215,8 @@ function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
 }
 
 function FaturamentoDoTime({ empresa }: { empresa: EmpresaReceita }) {
+  const { byId } = useEmployeeDirectoryMap();
+  const selo = seloDoInformado(empresa, (id) => byId.get(id)?.nome);
   const valor = Number(empresa.faturamento_informado);
   const rotulo = empresa.faturamento_informado_base ? ROTULO_DO_INFORMADO[empresa.faturamento_informado_base] : 'informado pelo time';
   const estimado = empresa.faturamento_estimado != null && empresa.faturamento_base
@@ -221,7 +232,9 @@ function FaturamentoDoTime({ empresa }: { empresa: EmpresaReceita }) {
       </TooltipTrigger>
       <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
         <p className="font-medium">Faturamento {rotulo}</p>
-        <p className="mt-0.5">Valor informado pelo time.{estimado && ` A estimativa pela base seria ${estimado}.`}</p>
+        {selo.confianca && <MotivoDaConfianca confianca={selo.confianca} className="mt-1" />}
+        {selo.autoria && <p className="mt-1">{selo.autoria}</p>}
+        {estimado && <p className="mt-1.5 text-muted-foreground">A estimativa pela base seria {estimado}.</p>}
         {lucroReal && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}
       </TooltipContent>
     </Tooltip>

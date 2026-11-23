@@ -89,6 +89,12 @@ GRANT EXECUTE ON FUNCTION pulse.normalizar(text) TO pulse_api;
 ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS faturamento_base text
   CHECK (faturamento_base IN ('rais', 'modelo', 'piso'));
 
+-- US-0018: a base "capital" (sem RAIS, pelo capital social a partir de R$ 10 mi). Troca o CHECK
+-- de cima, que o ADD COLUMN IF NOT EXISTS não refaz numa base já criada.
+ALTER TABLE pulse.empresas DROP CONSTRAINT IF EXISTS empresas_faturamento_base_check;
+ALTER TABLE pulse.empresas ADD CONSTRAINT empresas_faturamento_base_check
+  CHECK (faturamento_base IN ('rais', 'capital', 'modelo', 'piso'));
+
 -- Ordem por faturamento: só as estimadas (RAIS e modelo, cerca de 300 mil). As de piso têm
 -- todas o mesmo valor e a Edge Function as ordena pelo CNPJ, à parte (US-0006).
 DROP INDEX IF EXISTS pulse.empresas_fat_desc_idx;

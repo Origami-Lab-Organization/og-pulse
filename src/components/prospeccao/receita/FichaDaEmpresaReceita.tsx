@@ -20,16 +20,20 @@ import {
   textoDoFaturamento,
   textoDoInformado,
 } from '@/lib/prospecting/faturamentoEstimado';
+import { autoriaDoFaturamento, confiancaDoFaturamento, seloDoInformado } from '@/lib/prospecting/confiancaDoFaturamento';
 import { fitDaBase } from '@/lib/prospecting/fitDaBase';
+import { notaDoRegime } from '@/lib/prospecting/limiteDoRegime';
 import { rotuloDoCnae } from '@/lib/prospecting/filtrosReceita';
 import { getDiscardReasonLabel } from '@/types/prospect';
 import { etapaDaOportunidade, statusDoProjeto } from '@/lib/prospecting/relacao';
 import type { OportunidadeDaRelacao, ProjetoDaRelacao } from '@/types/relacao';
 import { nomeDaQualificacao } from '@/lib/prospecting/qualificacoesDeSocio';
 import type { ContatoDaFicha, EmpresaDaFicha, FichaReceita, SocioDaFicha } from '@/types/fichaReceita';
+import type { RegistroDoFaturamento } from '@/types/filtrosReceita';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { ColocarParaAbordarDialog } from './ColocarParaAbordarDialog';
+import { MotivoDaConfianca, SeloDeConfianca } from './SeloDeConfianca';
 import { SeloDeRelacao } from './SeloDeRelacao';
 
 interface FichaDaEmpresaReceitaProps {
@@ -286,24 +290,64 @@ function Tamanho({ empresa }: { empresa: EmpresaDaFicha }) {
   );
 }
 
-function Faturamento({ empresa }: { empresa: EmpresaDaFicha }) {
-  if (empresa.faturamento_informado != null) {
-    const valor = Number(empresa.faturamento_informado);
-    const rotulo = empresa.faturamento_informado_base ? ROTULO_DO_INFORMADO[empresa.faturamento_informado_base] : 'informado pelo time';
-    return (
-      <div className="mt-3 rounded-md border px-3 py-2.5">
-        <p className="text-[13px]"><span className="font-mono text-[15px] font-semibold">{textoDoInformado(valor)}</span> · {rotulo}</p>
-        <p className="mt-1 text-[12.5px] text-muted-foreground">Valor informado pelo time.</p>
-        {lucroRealPeloTime(valor) && <Aviso>{AVISO_LUCRO_REAL}</Aviso>}
-      </div>
-    );
-  }
-  const { faturamento_estimado: valor, faturamento_base: base } = empresa;
-  if (valor == null || !base) return null;
+const TEXTO_PEQUENO = 'text-[12.5px] leading-snug text-muted-foreground';
+
+/** As mudanças anteriores do faturamento informado, da mais nova para a mais antiga (US-0018). */
+function HistoricoDoFaturamento({ registros }: { registros: RegistroDoFaturamento[] }) {
+  const { byId } = useEmployeeDirectoryMap();
+  if (!registros.length) return null;
+  return (
+    <div className="mt-2.5 border-t pt-2">
+      <p className="text-[12px] font-medium text-muted-foreground">Antes</p>
+      <ul className="mt-1 space-y-1">
+        {registros.map((r) => (
+          <li key={r.informado_em} className={TEXTO_PEQUENO}>
+            <span className="font-mono tabular-nums text-foreground">{r.valor == null ? 'apagado' : textoDoInformado(r.valor)}</span>
+            {' · '}
+            {autoriaDoFaturamento(r, (id) => byId.get(id)?.nome)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function FaturamentoDoTime({ empresa }: { empresa: EmpresaDaFicha }) {
+  const { byId } = useEmployeeDirectoryMap();
+  const valor = Number(empresa.faturamento_informado);
+  const rotulo = empresa.faturamento_informado_base ? ROTULO_DO_INFORMADO[empresa.faturamento_informado_base] : 'informado pelo time';
+  const selo = seloDoInformado(empresa, (id) => byId.get(id)?.nome);
   return (
     <div className="mt-3 rounded-md border px-3 py-2.5">
-      <p className="text-[13px]"><span className="font-mono text-[15px] font-semibold">{textoDoFaturamento(Number(valor), base)}</span> · faturamento {ROTULO_DA_BASE[base]}</p>
+      <p className="flex flex-wrap items-center gap-x-1.5 text-[13px]">
+        <span className="font-mono text-[15px] font-semibold">{textoDoInformado(valor)}</span>
+        <span>· {rotulo}{selo.confianca ? ' ·' : ''}</span>
+        {selo.confianca && <SeloDeConfianca confianca={selo.confianca} className="text-[12.5px]" />}
+      </p>
+      {selo.confianca && <MotivoDaConfianca confianca={selo.confianca} className={cn('mt-1', TEXTO_PEQUENO)} />}
+      {selo.autoria && <p className={cn('mt-1', TEXTO_PEQUENO)}>{selo.autoria}</p>}
+      <HistoricoDoFaturamento registros={(empresa.faturamento_historico ?? []).slice(1)} />
+      {lucroRealPeloTime(valor) && <Aviso>{AVISO_LUCRO_REAL}</Aviso>}
+    </div>
+  );
+}
+
+function Faturamento({ empresa }: { empresa: EmpresaDaFicha }) {
+  if (empresa.faturamento_informado != null) return <FaturamentoDoTime empresa={empresa} />;
+  const { faturamento_estimado: valor, faturamento_base: base } = empresa;
+  if (valor == null || !base) return null;
+  const confianca = confiancaDoFaturamento(empresa.cnae_principal, base);
+  const regime = notaDoRegime(empresa);
+  return (
+    <div className="mt-3 rounded-md border px-3 py-2.5">
+      <p className="flex flex-wrap items-center gap-x-1.5 text-[13px]">
+        <span className="font-mono text-[15px] font-semibold">{textoDoFaturamento(Number(valor), base)}</span>
+        <span>· faturamento {ROTULO_DA_BASE[base]} ·</span>
+        <SeloDeConfianca confianca={confianca} className="text-[12.5px]" />
+      </p>
       <p className="mt-1 text-[12.5px] leading-snug text-muted-foreground">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social, empresa.funcionarios_do_time)}</p>
+      <MotivoDaConfianca confianca={confianca} className={cn('mt-1.5', TEXTO_PEQUENO)} />
+      {regime && <p className={cn('mt-1.5', TEXTO_PEQUENO)}>{regime}</p>}
       {lucroRealProvavel(Number(valor), base) && <Aviso>{AVISO_LUCRO_REAL}</Aviso>}
     </div>
   );

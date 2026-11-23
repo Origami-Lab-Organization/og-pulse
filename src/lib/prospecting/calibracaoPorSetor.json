@@ -1,0 +1,11 @@
+{
+ "calibrado_em": "2026-11-23",
+ "formula": "faturamento pela RAIS × fator do setor; fator = mediana de (faturamento do time ÷ estimativa) nos casos do setor",
+ "minimo_de_casos": 5,
+ "erro_alvo": 1.5,
+ "fontes": "Empresas com faturamento apurado ou estimado pelo time no Pulse (o calculado fica de fora), cruzadas por CNPJ com a base; só o fator e as medidas ficam aqui, nunca o faturamento de uma empresa",
+ "casos": 3,
+ "erro_mediano_antes": 17,
+ "setores": {},
+ "erro_mediano_depois": 17
+}

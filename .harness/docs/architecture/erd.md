@@ -17,6 +17,7 @@ sources:
   - supabase/migrations/20261118160000_tipo_de_conta.sql
   - supabase/migrations/20261118200000_funcionarios_do_time.sql
   - supabase/migrations/20261119120000_qualificacao_e_bant.sql
+  - supabase/migrations/20261123120000_historico_do_faturamento.sql
   - supabase/migrations/20260923120000_prospect_instagram.sql
   - supabase/migrations/20260924120000_prospect_tasks.sql
   - supabase/migrations/20260928120000_prospect_stage_changes.sql
@@ -102,6 +103,9 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 23/11/2026: 20261123120000 — nova tabela prospect_company_faturamentos (FK prospect_companies,
+#  tenants e employees; só SELECT por prospeccao:ler, escrita só pelo gatilho em
+#  prospect_companies; US-0018), conferida contra RegistroDoFaturamento (src/types/filtrosReceita.ts).
 # 18/11/2026: src/types/prospect.ts só trocou um comentário ("mover para abordar", US-0019);
 #  a relação com a Origami é calculada, sem tabela nem coluna nova — diagrama conferido, nada muda.
 # 01/10/2026: src/types/prospect.ts ganhou só regra de tela (previousStagesOf/isBackwardMove,
@@ -198,6 +202,8 @@ erDiagram
     employees ||--o{ prospects : "owner_id"
     prospects |o--o| budgets : "budgets.prospect_id (um por oportunidade)"
     prospects ||--o{ prospect_bant_evidencias : "BANT: evidências por letra (US-0022)"
+    prospect_companies ||--o{ prospect_company_faturamentos : "histórico do faturamento, pelo gatilho (US-0018)"
+    employees |o--o{ prospect_company_faturamentos : "informado_por"
     prospects |o--o{ projects : "projects.prospect_id (projeto do Ganho)"
 
     prospect_companies {

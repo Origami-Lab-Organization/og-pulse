@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { EmpresaReceita, OrdenacaoReceita, PaginaReceita, TotalReceita } from '@/lib/prospecting/empresasReceita';
 import type { CnaeEncontrado, FiltrosReceita } from '@/types/filtrosReceita';
 import { comFuncionariosDoTime } from '@/lib/prospecting/funcionariosDoTime';
+import { comLimiteDoRegime } from '@/lib/prospecting/limiteDoRegime';
 import type { FichaReceita } from '@/types/fichaReceita';
 
 /**
@@ -61,6 +62,12 @@ interface RespostaDaPagina {
   relacao_indisponivel?: boolean;
 }
 
+/**
+ * O que a tela refaz sobre a linha da VPS: os funcionários confirmados pelo time (US-0020) e o
+ * limite do Lucro Presumido (US-0018), nesta ordem.
+ */
+const naTela = <T extends EmpresaReceita>(empresa: T): T => comLimiteDoRegime(comFuncionariosDoTime(empresa));
+
 export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: OrdenacaoReceita, pagina: number, busca?: string) {
   return useQuery({
     queryKey: ['receita-empresas', filtros, busca ?? '', ordenacao.ordem, ordenacao.crescente, pagina],
@@ -69,7 +76,7 @@ export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: Ordenacao
       return {
         totalDaBase: r.total_da_base,
         carregadaEm: r.carregada_em,
-        linhas: (r.linhas ?? []).map(comFuncionariosDoTime),
+        linhas: (r.linhas ?? []).map(naTela),
         relacaoIndisponivel: r.relacao_indisponivel === true,
       };
     },
@@ -105,7 +112,7 @@ export function useFichaReceita(cnpj: string | null) {
     queryKey: ['receita-ficha', cnpj],
     queryFn: async () => {
       const ficha = await chamar<FichaReceita>({ modo: 'ficha', cnpj });
-      return { ...ficha, empresa: comFuncionariosDoTime(ficha.empresa) };
+      return { ...ficha, empresa: naTela(ficha.empresa) };
     },
     enabled: !!cnpj,
     ...DA_BASE,

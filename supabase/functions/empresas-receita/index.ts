@@ -519,37 +519,80 @@ function porRelacaoEmDuasPartes(p: Extract<Pedido, { modo: "pagina" }>, where: s
 
 type LinhaDaPagina = Record<string, unknown> & { cnpj: string };
 
+interface RegistroDoFaturamento {
+  company_id: string;
+  valor: number | null;
+  base: string | null;
+  informado_por: string | null;
+  informado_em: string;
+}
+
 interface DoTimeNaEmpresa {
+  id: string;
   cnpj: string;
   faturamento_anual: number | null;
   faturamento_anual_base: string | null;
   funcionarios_informados: number | null;
+  regime_tributario: string | null;
+  regime_tributario_ano: number | null;
 }
 
-function comODoTime(l: LinhaDaPagina, t: DoTimeNaEmpresa | undefined): LinhaDaPagina {
+function comODoTime(l: LinhaDaPagina, t: DoTimeNaEmpresa | undefined, historico: Map<string, RegistroDoFaturamento[]>): LinhaDaPagina {
   if (!t) return l;
+  const registros = (historico.get(t.id) ?? []).map(({ company_id: _, ...r }) => ({ ...r, valor: r.valor == null ? null : Number(r.valor) }));
   const faturamento = t.faturamento_anual == null
     ? {}
     : { faturamento_informado: Number(t.faturamento_anual), faturamento_informado_base: t.faturamento_anual_base };
-  return { ...l, ...faturamento, funcionarios_informados: t.funcionarios_informados };
+  return {
+    ...l,
+    ...faturamento,
+    funcionarios_informados: t.funcionarios_informados,
+    regime_tributario: t.regime_tributario,
+    regime_tributario_ano: t.regime_tributario_ano,
+    faturamento_historico: registros,
+  };
 }
 
 /**
  * O que o time informou na Prospecção prevalece sobre a base: o faturamento (US-0006), o único
  * jeito de acertar quem fatura muito acima da média do ramo, e os funcionários confirmados
- * (US-0020), que a tela usa no lugar da RAIS e no faturamento estimado. Lido com a sessão da
+ * (US-0020), que a tela usa no lugar da RAIS e no faturamento estimado; e o regime tributário
+ * da BrasilAPI, que limita a estimativa no Lucro Presumido (US-0018), com o histórico de quem
+ * informou o faturamento e quando, do mais novo para o mais antigo. Lido com a sessão da
  * pessoa, então a RLS só deixa ver as empresas do tenant dela. Falha aqui não derruba a lista.
  */
 async function comFaturamentoDoTime(sessao: SupabaseClient, linhas: LinhaDaPagina[]): Promise<LinhaDaPagina[]> {
   if (!linhas.length) return linhas;
   const { data, error } = await sessao
     .from("prospect_companies")
-    .select("cnpj, faturamento_anual, faturamento_anual_base, funcionarios_informados")
+    .select("id, cnpj, faturamento_anual, faturamento_anual_base, funcionarios_informados, regime_tributario, regime_tributario_ano")
     .in("cnpj", linhas.map((l) => l.cnpj.trim()))
-    .or("faturamento_anual.not.is.null,funcionarios_informados.not.is.null");
+    .or("faturamento_anual.not.is.null,funcionarios_informados.not.is.null,regime_tributario.not.is.null");
   if (error || !data) return linhas;
-  const doTime = new Map((data as DoTimeNaEmpresa[]).map((r) => [r.cnpj, r]));
-  return linhas.map((l) => comODoTime(l, doTime.get(l.cnpj.trim())));
+  const empresas = data as DoTimeNaEmpresa[];
+  const doTime = new Map(empresas.map((r) => [r.cnpj, r]));
+  const historico = await historicoDoFaturamento(sessao, empresas.map((r) => r.id));
+  return linhas.map((l) => comODoTime(l, doTime.get(l.cnpj.trim()), historico));
+}
+
+// Últimas mudanças por empresa: o histórico raramente passa disso, e a lista só usa a primeira.
+const REGISTROS_POR_EMPRESA = 10;
+
+/** Quem informou o faturamento e quando (US-0018). Falha aqui só tira o histórico. */
+async function historicoDoFaturamento(sessao: SupabaseClient, ids: string[]): Promise<Map<string, RegistroDoFaturamento[]>> {
+  const porEmpresa = new Map<string, RegistroDoFaturamento[]>();
+  if (!ids.length) return porEmpresa;
+  const { data, error } = await sessao
+    .from("prospect_company_faturamentos")
+    .select("company_id, valor, base, informado_por, informado_em")
+    .in("company_id", ids)
+    .order("informado_em", { ascending: false });
+  if (error || !data) return porEmpresa;
+  for (const r of data as RegistroDoFaturamento[]) {
+    const lista = porEmpresa.get(r.company_id) ?? [];
+    if (lista.length < REGISTROS_POR_EMPRESA) porEmpresa.set(r.company_id, [...lista, r]);
+  }
+  return porEmpresa;
 }
 
 // ---------- relação com a Origami (US-0019) ----------

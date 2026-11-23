@@ -2,7 +2,7 @@ import { valuesAreHidden } from '@/lib/hideValuesStore';
 import { HIDDEN_VALUE_MASK } from '@/lib/formatters';
 import { divisaoDoCnae, nomeDoRamo } from '@/lib/prospecting/cnae';
 import type { FitFront } from '@/types/receita';
-import type { BaseDoFaturamento } from '@/types/filtrosReceita';
+import type { BaseDoFaturamento, RegistroDoFaturamento } from '@/types/filtrosReceita';
 import type { FaturamentoBase } from '@/types/prospect';
 import type { RelacaoDaEmpresa } from '@/types/relacao';
 
@@ -53,6 +53,13 @@ export interface EmpresaReceita {
   funcionarios_informados?: number | null;
   /** `funcionarios` veio do time, não da RAIS (US-0020). */
   funcionarios_do_time?: boolean;
+  /** Regime tributário mais recente, da BrasilAPI, quando a empresa já está no Pulse (US-0018). */
+  regime_tributario?: string | null;
+  regime_tributario_ano?: number | null;
+  /** A estimativa antes do limite do Lucro Presumido; ausente quando o regime não limitou (US-0018). */
+  faturamento_sem_limite?: number;
+  /** Quem informou o faturamento e quando, do mais novo para o mais antigo (US-0018). */
+  faturamento_historico?: RegistroDoFaturamento[];
   /** Relação da Origami com a empresa (US-0019); nula sem relação, ausente se não carregou. */
   relacao?: RelacaoDaEmpresa | null;
 }
