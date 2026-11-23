@@ -84,8 +84,8 @@ na legenda dela, e continua lá. Nada muda nesse comportamento.
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| 1 | Pendente: conferir na tela (duas barras por mês e legenda só com Planejado e Realizado). |
-| 2 | Por construção: cada barra é o total do mês da US-0026, cuja soma é igual aos cards. Falta conferir na tela. |
-| 3 | Pendente: conferir o tooltip na tela. |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
+| 2 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso); cada barra é o total do mês da US-0026. |
+| 3 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso). |
 
 Testes automatizados não escritos: testes desativados no Harness por decisão do time.
