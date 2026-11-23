@@ -1,3 +1,6 @@
+import type { EmpresaReceita } from '@/lib/prospecting/empresasReceita';
+import type { Relacao } from '@/types/relacao';
+
 /**
  * Filtros da base da Receita (US-0003). O mesmo formato vai no corpo da Edge Function
  * `empresas-receita`, que aceita só os valores destas listas fechadas.
@@ -9,10 +12,55 @@ export type FaixaDeFuncionarios = 'ate19' | '20a49' | '50a99' | '100a249' | '250
 
 /**
  * De onde vem o faturamento estimado (US-0006): funcionários da RAIS × receita por pessoa do
- * ramo; o modelo de empresas parecidas, quando passa do piso; ou só o piso de R$ 4,8 mi que a
- * Receita garante para quem não é ME nem EPP.
+ * ramo; sem RAIS, o capital social a partir de R$ 10 mi (US-0018); o modelo de empresas
+ * parecidas, quando passa do piso; ou só o piso de R$ 4,8 mi que a Receita garante para quem
+ * não é ME nem EPP.
  */
-export type BaseDoFaturamento = 'rais' | 'modelo' | 'piso';
+export type BaseDoFaturamento = 'rais' | 'capital' | 'modelo' | 'piso';
+
+/** Calibração de um ramo ou setor pelos casos do time (US-0018). */
+export interface SetorCalibrado {
+  /** Multiplica a estimativa pela RAIS. */
+  fator: number;
+  casos: number;
+  /** Erro mediano em vezes, para mais ou para menos, sem e com o fator (cada caso fora do ajuste). */
+  erro_mediano_antes: number;
+  erro_mediano_depois: number;
+}
+
+export interface CalibracaoDoSetor extends SetorCalibrado {
+  /** "ramo 10 (Alimentos)" ou "setor C". */
+  nome: string;
+}
+
+/** Uma mudança do faturamento informado na empresa da Prospecção (US-0018). */
+export interface RegistroDoFaturamento {
+  /** Nulo = o faturamento foi apagado. */
+  valor: number | null;
+  base: 'estimado' | 'apurado' | 'calculado' | null;
+  /** Employee que mudou; nulo sem sessão (script). */
+  informado_por: string | null;
+  informado_em: string;
+}
+
+/** Selo de confiança do faturamento estimado (US-0018). */
+export type NivelDeConfianca = 'alta' | 'media' | 'baixa';
+
+export interface ConfiancaDoFaturamento {
+  nivel: NivelDeConfianca;
+  /** "confiança média". */
+  rotulo: string;
+  /** O porquê, para o tooltip e a ficha. */
+  motivo: string;
+}
+
+/** O selo do faturamento que está na empresa da Prospecção (US-0018). */
+export interface SeloDoInformado {
+  /** Nulo no "calculado" sem a estimativa da base para dar o selo. */
+  confianca: ConfiancaDoFaturamento | null;
+  /** Quem informou e quando, à parte quando o selo não é o do time ("calculado"). */
+  autoria: string | null;
+}
 
 /** Faturamento estimado de uma empresa, em reais, e de onde ele veio. */
 export interface Faturamento {
@@ -34,6 +82,8 @@ export interface ReceitaPorPessoa {
 
 /** O que o modelo de empresas parecidas lê de cada empresa (sem a RAIS). */
 export interface EmpresaParaModelo {
+  /** Razão social: separa as SPEs, que ficam fora do capital social (US-0018). */
+  nome?: string | null;
   secao: string | null;
   natureza: string | null;
   capital: number | null;
@@ -76,6 +126,8 @@ export interface FiltrosReceita {
   divida: FiltroDeDivida;
   comEmail: boolean;
   comTelefone: boolean;
+  /** Relação com a Origami (US-0019). */
+  relacoes: Relacao[];
 }
 
 /** Um CNAE achado pelo código ou pela descrição, para o campo de CNAE. */
@@ -99,3 +151,10 @@ export type BuscaReceita =
   | { tipo: 'curta'; aviso: string }
   | { tipo: 'cnpj'; digitos: string }
   | { tipo: 'texto'; termo: string };
+
+/** Seleção da lista para mover para abordar (US-0008): vale entre páginas e filtros. */
+export interface SelecaoDaLista {
+  marcadas: ReadonlySet<string>;
+  /** Marca ou desmarca estas empresas (uma linha, ou a página inteira). */
+  onMarcar: (empresas: EmpresaReceita[], marcar: boolean) => void;
+}

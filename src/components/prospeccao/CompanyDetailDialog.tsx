@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { useUpdateProspectCompany } from '@/hooks/useProspectCompanies';
 import { descreverProximaAtividade } from '@/lib/prospecting/companyList';
@@ -24,7 +25,10 @@ import { formatCNPJ } from '@/lib/masks';
 import { cn } from '@/lib/utils';
 import {
   FATURAMENTO_BASE_PADRAO,
+  getTipoDeContaLabel,
+  TIPOS_DE_CONTA,
   type FaturamentoBase,
+  type TipoDeConta,
   type ProspectCompanyDB,
   type ProspectContactDB,
   type ProspectWithCompany,
@@ -153,6 +157,7 @@ function Visualizacao({
 
         <Secao titulo="Segmentação">
           <Item rotulo="Segmento">{row.setor && [row.setor, row.subsetor].filter(Boolean).join(' / ')}</Item>
+          <Item rotulo="Tipo de conta">{getTipoDeContaLabel(company.tipo_conta)}</Item>
           <Item rotulo="Anel">{row.anel && `Anel ${row.anel}`}</Item>
           <Item rotulo="Tier">{row.tier && `Tier ${row.tier}`}</Item>
         </Secao>
@@ -248,6 +253,7 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
   const gravarReceita = useSaveCompanyReceita();
   const [rascunho, setRascunho] = useState<Rascunho>(() => rascunhoInicial(row));
   const [faturamento, setFaturamento] = useState(() => faturamentoInicial(row.company));
+  const [tipoConta, setTipoConta] = useState<TipoDeConta | null>(row.company.tipo_conta ?? null);
   // Retrato achado pela busca de CNPJ: gravado junto ao salvar (empresa + sócios, ADR-0041).
   const [receita, setReceita] = useState<ReceitaSnapshot | null>(null);
   const pendente = atualizar.isPending || gravarReceita.isPending;
@@ -274,6 +280,7 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
         segment: formatSegmentInput(rascunho.segmento),
         ring: formatRankInput(rascunho.anel),
         tier: formatRankInput(rascunho.tier),
+        tipo_conta: tipoConta,
         client_id: company.client_id,
         notes: company.notes,
         faturamento_anual: faturamento.valor,
@@ -321,6 +328,7 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
             )}
           </div>
         ))}
+        <CampoTipoDeConta valor={tipoConta} onChange={setTipoConta} disabled={pendente} />
         <div className="col-span-2 space-y-1.5">
           <Label htmlFor="empresa-faturamento" className="text-[12.5px] font-medium text-muted-foreground">
             Faturamento anual
@@ -355,6 +363,29 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
         </Button>
       </Rodape>
     </form>
+  );
+}
+
+const SEM_TIPO = 'sem';
+
+/** Tipo de conta da empresa (US-0008): lista fechada; vazio para quem ainda não foi classificada. */
+function CampoTipoDeConta(props: { valor: TipoDeConta | null; onChange: (tipo: TipoDeConta | null) => void; disabled: boolean }) {
+  const { valor, onChange, disabled } = props;
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="empresa-tipo-conta" className="text-[12.5px] font-medium text-muted-foreground">Tipo de conta</Label>
+      <Select value={valor ?? SEM_TIPO} onValueChange={(v) => onChange(v === SEM_TIPO ? null : (v as TipoDeConta))} disabled={disabled}>
+        <SelectTrigger id="empresa-tipo-conta" className="h-[38px]"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={SEM_TIPO}>Sem tipo</SelectItem>
+          {TIPOS_DE_CONTA.map((t) => (
+            <SelectItem key={t.value} value={t.value}>
+              {t.label} <span className="text-muted-foreground">· {t.faixa}</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 

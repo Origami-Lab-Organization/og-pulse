@@ -31,8 +31,10 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Comercial',
     url: '/comercial/prospeccao',
     tabs: [
-      { title: 'Oportunidades', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
+      // Empresas antes de Oportunidades (19/11/2026): é a ordem do fluxo — achar e qualificar a
+      // conta, depois conduzir a conversa.
       { title: 'Empresas', url: '/comercial/empresas', requiresCapability: 'prospeccao:ler' },
+      { title: 'Oportunidades', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
       { title: 'Contatos', url: '/comercial/contatos', requiresCapability: 'prospeccao:ler' },
       { title: 'Métricas', url: '/comercial/metricas', requiresCapability: 'prospeccao:ler' },
     ],

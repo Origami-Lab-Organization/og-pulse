@@ -117,7 +117,7 @@ async function avisar(supabase: Supabase, empresa: Empresa, itens: string[]): Pr
       title: `${empresa.name}: ${itens[0]}`,
       message: itens.length > 1 ? itens.slice(1).join(" · ") : null,
       reference_id: empresa.id,
-      action_url: `/comercial/empresas?empresa=${empresa.id}`,
+      action_url: `/comercial/prospeccao?empresa=${empresa.id}`,
       metadata: { gatilhos: itens },
     })),
   );

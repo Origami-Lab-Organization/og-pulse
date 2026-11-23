@@ -20,7 +20,7 @@ Pulse, do tenant ou da pessoa acompanha a chamada.
 | `cnpj` | `cnpj` | guardado só com dígitos |
 | `segment` | `cnae_fiscal_descricao` | atividade principal; só se vazio |
 | `razao_social`, `nome_fantasia`, `porte`, `capital_social`, `data_abertura`, `situacao_cadastral` | mesmos campos | gravados pela RPC `save_prospect_company_receita` (ADR-0041) |
-| `regime_tributario`, `regime_tributario_ano` | `regime_tributario[]` (ano mais recente) | filtro da Lei do Bem; vazio = não informado |
+| `regime_tributario`, `regime_tributario_ano` | `regime_tributario[]` (ano mais recente) | filtro da Lei do Bem; vazio = não informado. Também limita o faturamento estimado na tela Empresas: Lucro Presumido → no máximo R$ 78 mi (US-0018) |
 | `receita` (jsonb) | natureza, matriz/filial, CNAEs, histórico de regime, Simples/MEI, endereço, telefones, e-mail | só exibido |
 | `prospect_company_partners` | `qsa[]` | nome, qualificação, entrada, tipo, CNPJ só de sócio-empresa. **Nunca** `faixa_etaria` nem `cnpj_cpf_do_socio` de pessoa |
 

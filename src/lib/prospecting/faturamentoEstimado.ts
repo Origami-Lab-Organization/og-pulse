@@ -4,13 +4,18 @@ import type { BaseDoFaturamento, EmpresaParaModelo, Faturamento } from '@/types/
 import type { FaturamentoBase } from '@/types/prospect';
 import MODELO from './modeloDeFaturamento.json';
 import CAPITAL from './calibracaoCapital.json';
+import { calibracaoDoSetor, fatorDoSetor } from './fatorDoSetor';
 import { receitaPorPessoa } from './receitaPorPessoa';
 
 /**
- * Faturamento estimado das empresas da base da Receita (US-0006). Três bases, nesta ordem:
+ * Faturamento estimado das empresas da base da Receita (US-0006, US-0018). Quatro bases, nesta
+ * ordem:
  *
  * 1. **RAIS:** funcionários × receita por pessoa da classe da CNAE e do porte
- *    (receitaPorPessoa.ts).
+ *    (receitaPorPessoa.ts), combinada com o capital a partir de R$ 10 mi e ajustada pelo fator
+ *    do setor, quando ele já foi calibrado com os casos do time (fatorDoSetor.ts).
+ * 1a. **Capital:** sem RAIS, com capital a partir de R$ 10 mi, fora de holdings, imobiliárias e
+ *    SPEs: a mesma conta do capital, com a previsão do modelo no lugar da RAIS (US-0018).
  * 2. **Modelo:** sem funcionário na RAIS, o modelo de empresas parecidas
  *    (modeloDeFaturamento.json, calibrado por scripts/receita/calibrar-faturamento.ts) prevê
  *    os funcionários pelas características da empresa; vale só quando passa do piso.
@@ -22,6 +27,7 @@ import { receitaPorPessoa } from './receitaPorPessoa';
  */
 
 export const BASE_RAIS: BaseDoFaturamento = 'rais';
+export const BASE_CAPITAL: BaseDoFaturamento = 'capital';
 export const BASE_MODELO: BaseDoFaturamento = 'modelo';
 export const BASE_PISO: BaseDoFaturamento = 'piso';
 
@@ -124,21 +130,55 @@ function comCapital(pelaRais: number, capital: number, natureza: string | null):
 }
 
 /**
- * O faturamento estimado de uma empresa, em reais, truncado. Com RAIS, pela conta (com o
- * capital, quando ele entra); sem RAIS, pelo modelo quando passa do piso; senão, o piso.
+ * Funcionários × receita por pessoa (com o capital, quando ele entra), ajustado pelo fator do
+ * setor; nulo sem funcionário ou sem receita por pessoa para o ramo. Serve à RAIS da carga e
+ * aos funcionários confirmados pelo time (US-0020), que a tela recalcula. A calibração por
+ * setor pede a conta sem o fator (`comFatorDoSetor = false`).
  */
-export function estimarFaturamento(cnae: string, funcionarios: number | null, empresa: EmpresaParaModelo, hoje: string): Faturamento {
-  if (funcionarios && funcionarios > 0) {
-    const r = receitaPorPessoa(cnae, funcionarios);
-    if (r) {
-      const pelaRais = funcionarios * r.mil * 1000;
-      const valor = usaCapital(cnae, empresa.capital) ? comCapital(pelaRais, empresa.capital!, empresa.natureza) : pelaRais;
-      return { valor, base: BASE_RAIS };
-    }
-  }
+export function estimarPorFuncionarios(
+  cnae: string,
+  funcionarios: number | null,
+  capital: number | null,
+  natureza: string | null,
+  comFatorDoSetor = true,
+): number | null {
+  if (!funcionarios || funcionarios <= 0) return null;
+  const r = receitaPorPessoa(cnae, funcionarios);
+  if (!r) return null;
+  const pelaRais = funcionarios * r.mil * 1000;
+  const conta = usaCapital(cnae, capital) ? comCapital(pelaRais, capital!, natureza) : pelaRais;
+  return comFatorDoSetor ? Math.trunc(conta * fatorDoSetor(cnae)) : conta;
+}
+
+// Sociedade de propósito específico: capital alto para um único empreendimento, sem relação
+// com o faturamento (US-0018).
+const SPE = /\bSPE\b|PROP[OÓ]SITO ESPEC[IÍ]FICO/i;
+
+/** Sem RAIS, o capital entra a partir de R$ 10 mi, fora de holdings, imobiliárias e SPEs (US-0018). */
+export function usaCapitalSemRais(cnae: string, empresa: EmpresaParaModelo): boolean {
+  return usaCapital(cnae, empresa.capital) && !SPE.test(empresa.nome ?? '');
+}
+
+/** Faturamento previsto pelo modelo de empresas parecidas; zero sem receita por pessoa do ramo. */
+function previstoPeloModelo(cnae: string, empresa: EmpresaParaModelo, hoje: string): number {
   const previstos = funcionariosPrevistos(empresa, hoje);
   const r = receitaPorPessoa(cnae, Math.max(1, Math.round(previstos)));
-  const previsto = r ? Math.trunc(previstos * r.mil * 1000) : 0;
+  return r ? Math.trunc(previstos * r.mil * 1000) : 0;
+}
+
+/**
+ * O faturamento estimado de uma empresa, em reais, truncado. Com RAIS, pela conta (com o
+ * capital, quando ele entra); sem RAIS, pelo capital quando ele entra (a previsão do modelo no
+ * lugar da RAIS, nunca abaixo do piso); senão pelo modelo quando passa do piso; senão, o piso.
+ */
+export function estimarFaturamento(cnae: string, funcionarios: number | null, empresa: EmpresaParaModelo, hoje: string): Faturamento {
+  const pelosFuncionarios = estimarPorFuncionarios(cnae, funcionarios, empresa.capital, empresa.natureza);
+  if (pelosFuncionarios != null) return { valor: pelosFuncionarios, base: BASE_RAIS };
+  const previsto = previstoPeloModelo(cnae, empresa, hoje);
+  if (usaCapitalSemRais(cnae, empresa)) {
+    const pelaCapital = comCapital(Math.max(previsto, PISO_DO_PORTE), empresa.capital!, empresa.natureza);
+    return { valor: Math.max(pelaCapital, PISO_DO_PORTE), base: BASE_CAPITAL };
+  }
   return previsto > PISO_DO_PORTE ? { valor: previsto, base: BASE_MODELO } : { valor: PISO_DO_PORTE, base: BASE_PISO };
 }
 
@@ -155,7 +195,7 @@ export function lucroRealProvavel(valor: number, base: BaseDoFaturamento): boole
 const ESCALAS: ReadonlyArray<[number, string]> = [[1e9, 'bi'], [1e6, 'mi'], [1e3, 'mil'], [1, '']];
 
 /** Abaixo de 10 na unidade, uma casa; acima, só o inteiro. Sempre truncado. */
-function emReais(valor: number): string {
+export function emReais(valor: number): string {
   const [limite, unidade] = ESCALAS.find(([l]) => valor >= l) ?? ESCALAS[ESCALAS.length - 1];
   // Multiplica antes de dividir: 2.300.000 / 1e6 × 10 dá 22,99… em ponto flutuante.
   const casas = valor < 10 * limite ? 10 : 1;
@@ -171,6 +211,7 @@ export function textoDoFaturamento(valor: number, base: BaseDoFaturamento): stri
 
 export const ROTULO_DA_BASE: Record<BaseDoFaturamento, string> = {
   rais: 'pela RAIS',
+  capital: 'pelo capital social',
   modelo: 'aproximado',
   piso: 'pelo porte',
 };
@@ -183,20 +224,44 @@ const PELO_PISO =
 const detalhe = (r: { nivel: string; porte: string | null; fonte: string }) =>
   `${r.nivel} da CNAE${r.porte ? `, empresas de ${r.porte}` : ''}; ${r.fonte}`;
 
+const ERRO_DO_CAPITAL = CAPITAL.erro_mediano_casos_do_time.toLocaleString('pt-BR');
+
+/** As bases sem RAIS: a explicação não depende dos funcionários. */
+const SEM_RAIS: Partial<Record<BaseDoFaturamento, (capital: number | null) => string>> = {
+  piso: () => PELO_PISO,
+  modelo: () =>
+    `Sem funcionários na RAIS. Estimado por empresas parecidas (setor, capital social, idade, filiais, sócios, natureza jurídica e estado) × a receita por pessoa do IBGE. Erro típico de ${ERRO_DO_MODELO} vezes, para mais ou para menos.`,
+  capital: (capital) =>
+    `Sem funcionários na RAIS (podem estar registrados em outro CNPJ do grupo). Estimado pelo capital social${capital ? ` de ${emReais(capital)}` : ''}, combinado com a previsão por empresas parecidas, pela conta calibrada com companhias abertas e casos do time (erro típico de ${ERRO_DO_CAPITAL} vezes, maior sem a RAIS).`,
+};
+
+/** O ajuste do setor, quando já há casos do time para calibrar (US-0018). */
+function notaDoSetor(cnae: string): string {
+  const s = calibracaoDoSetor(cnae);
+  if (!s) return '';
+  const fator = (Math.trunc(s.fator * 100) / 100).toLocaleString('pt-BR');
+  return ` Ajustado × ${fator} pelos ${s.casos} casos do time no ${s.nome}.`;
+}
+
 /** A explicação do valor, para o tooltip (US-0006, cenário 5). */
-export function contaDoFaturamento(cnae: string, funcionarios: number | null, base: BaseDoFaturamento, capital: number | null = null): string {
-  if (base === BASE_PISO) return PELO_PISO;
-  if (base === BASE_MODELO) {
-    return `Sem funcionários na RAIS. Estimado por empresas parecidas (setor, capital social, idade, filiais, sócios, natureza jurídica e estado) × a receita por pessoa do IBGE. Erro típico de ${ERRO_DO_MODELO} vezes, para mais ou para menos.`;
-  }
+export function contaDoFaturamento(
+  cnae: string,
+  funcionarios: number | null,
+  base: BaseDoFaturamento,
+  capital: number | null = null,
+  doTime = false,
+): string {
+  const semRais = SEM_RAIS[base];
+  if (semRais) return semRais(capital);
   const r = receitaPorPessoa(cnae, funcionarios ?? 0);
   if (!r) return PELO_PISO;
   const pessoas = (funcionarios ?? 0).toLocaleString('pt-BR');
-  const conta = `${pessoas} funcionários (RAIS) × R$ ${r.mil.toLocaleString('pt-BR')} mil por pessoa (${detalhe(r)})`;
+  const origem = doTime ? 'confirmados pelo time' : 'RAIS';
+  const conta = `${pessoas} funcionários (${origem}) × R$ ${r.mil.toLocaleString('pt-BR')} mil por pessoa (${detalhe(r)})`;
   if (usaCapital(cnae, capital)) {
-    return `${conta} = ${emReais((funcionarios ?? 0) * r.mil * 1000)}, combinado com o capital social de ${emReais(capital!)}: empresas com capital alto costumam faturar acima da média do ramo (calibrado com companhias abertas e casos conhecidos pelo time; erro típico de 2 vezes).`;
+    return `${conta} = ${emReais((funcionarios ?? 0) * r.mil * 1000)}, combinado com o capital social de ${emReais(capital!)}: empresas com capital alto costumam faturar acima da média do ramo (calibrado com companhias abertas e casos conhecidos pelo time; erro típico de ${ERRO_DO_CAPITAL} vezes).${notaDoSetor(cnae)}`;
   }
-  return `${conta}. É uma média: empresas do mesmo ramo e porte variam bastante em torno dela.`;
+  return `${conta}. É uma média: empresas do mesmo ramo e porte variam bastante em torno dela.${notaDoSetor(cnae)}`;
 }
 
 // ---------- informado pelo time ----------
@@ -209,6 +274,7 @@ export function textoDoInformado(valor: number): string {
 export const ROTULO_DO_INFORMADO: Record<FaturamentoBase, string> = {
   estimado: 'estimado pelo time',
   apurado: 'apurado pelo time',
+  calculado: 'calculado pela base',
 };
 
 /** Com o valor do time, sem margem: passou de R$ 78 mi, o selo aparece. */

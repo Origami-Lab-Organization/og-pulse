@@ -24,12 +24,23 @@ import {
   textoDoFaturamento,
   textoDoInformado,
 } from '@/lib/prospecting/faturamentoEstimado';
+import { confiancaDoFaturamento, seloDoInformado } from '@/lib/prospecting/confiancaDoFaturamento';
+import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
+import { notaDoRegime } from '@/lib/prospecting/limiteDoRegime';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import type { SelecaoDaLista } from '@/types/filtrosReceita';
+import { MotivoDaConfianca } from './SeloDeConfianca';
+import { CelulaDeRelacao } from './SeloDeRelacao';
 
 interface EmpresasReceitaTableProps {
   /** Abre a ficha da empresa (US-0007): clique na linha, ou Enter com ela em foco. */
   onAbrir: (cnpj: string) => void;
+  /** Seleção para mover para abordar (US-0008); ausente sem `prospeccao:editar`. */
+  selecao?: SelecaoDaLista;
+  /** A relação com a Origami não carregou (US-0019, cenário 9). */
+  relacaoIndisponivel?: boolean;
   /** Com o painel de filtros aberto: menos respiro e nome e atividade mais estreitos, para caber sem rolar. */
   compacta?: boolean;
   linhas: EmpresaReceita[];
@@ -42,7 +53,8 @@ interface EmpresasReceitaTableProps {
  * inteiro ao passar o mouse; números não quebram. O faturamento estimado vem antes da dívida ativa, com a
  * conta no tooltip (US-0006).
  */
-export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, onAbrir, compacta = false }: EmpresasReceitaTableProps) {
+export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
+  const { linhas, ordenacao, onOrdenar, onAbrir, selecao, relacaoIndisponivel = false, compacta = false } = props;
   useHideValues(); // re-renderiza quando o olho de ocultar valores muda
   const ordenavel = (ordem: OrdemReceita, rotulo: string, numerica = false) => (
     <CabecalhoOrdenavel ordem={ordem} ordenacao={ordenacao} onOrdenar={onOrdenar} numerica={numerica}>
@@ -51,13 +63,15 @@ export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, onAbrir, co
   );
 
   return (
-    <table className={cn('w-full border-collapse', compacta ? 'min-w-[960px] text-[13px] [&_td]:px-2 [&_th]:px-2' : 'min-w-[1160px] text-[13.5px]')}>
+    <table className={cn('w-full border-collapse', compacta ? 'min-w-[1160px] text-[13px] [&_td]:px-2 [&_th]:px-2' : 'min-w-[1380px] text-[13.5px]')}>
       <caption className="sr-only">Empresas da base da Receita</caption>
       <thead>
         <tr className="h-10 border-b bg-muted/40 text-left text-[12.5px] font-medium text-muted-foreground">
+          {selecao && <th scope="col" className="w-10 pl-4"><MarcarPagina linhas={linhas} selecao={selecao} /></th>}
           {ordenavel('nome', 'Empresa')}
+          {ordenavel('relacao', 'Relação')}
           {ordenavel('distancia', 'Distância', true)}
-          <th scope="col" className="whitespace-nowrap px-3 text-center font-medium">Capital social</th>
+          {ordenavel('capital', 'Capital social', true)}
           {ordenavel('funcionarios', 'Funcionários', true)}
           <th scope="col" className="whitespace-nowrap px-3 font-medium">Atividade</th>
           {ordenavel('idade', 'Idade', true)}
@@ -68,7 +82,7 @@ export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, onAbrir, co
       </thead>
       <tbody>
         {linhas.map((empresa) => (
-          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} />
+          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} selecao={selecao} relacaoIndisponivel={relacaoIndisponivel} />
         ))}
       </tbody>
     </table>
@@ -77,7 +91,16 @@ export function EmpresasReceitaTable({ linhas, ordenacao, onOrdenar, onAbrir, co
 
 const TECLA_QUE_ABRE = 'Enter';
 
-function Linha({ empresa, compacta, onAbrir }: { empresa: EmpresaReceita; compacta: boolean; onAbrir: (cnpj: string) => void }) {
+interface LinhaProps {
+  empresa: EmpresaReceita;
+  compacta: boolean;
+  onAbrir: (cnpj: string) => void;
+  selecao?: SelecaoDaLista;
+  relacaoIndisponivel: boolean;
+}
+
+function Linha(props: LinhaProps) {
+  const { empresa, compacta, onAbrir, selecao, relacaoIndisponivel } = props;
   const largura = compacta ? 'max-w-[170px]' : 'max-w-[260px]';
   const nome = nomeDaEmpresa(empresa);
   const ramo = ramoDaEmpresa(empresa.cnae_principal);
@@ -93,13 +116,23 @@ function Linha({ empresa, compacta, onAbrir }: { empresa: EmpresaReceita; compac
       title="Abrir a ficha"
       className="cursor-pointer border-b last:border-b-0 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
-      <td className="px-3 py-2 pl-5">
+      {selecao && (
+        <td className="w-10 pl-4" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selecao.marcadas.has(empresa.cnpj)}
+            onCheckedChange={(marcada) => selecao.onMarcar([empresa], marcada === true)}
+            aria-label={`Selecionar ${nome}`}
+          />
+        </td>
+      )}
+      <td className={cn('px-3 py-2', !selecao && 'pl-5')}>
         <div className={cn(compacta ? 'max-w-[190px]' : 'max-w-[280px]', 'truncate font-semibold leading-snug')} title={nomeCompleto}>{nome}</div>
         <div className="mt-0.5 flex gap-x-2 whitespace-nowrap text-xs text-muted-foreground">
           <span className="font-mono tabular-nums">{formatCNPJ(empresa.cnpj)}</span>
           {local && <span>{local}</span>}
         </div>
       </td>
+      <td className="whitespace-nowrap px-3 py-2"><CelulaDeRelacao relacao={empresa.relacao} indisponivel={relacaoIndisponivel} /></td>
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
         {empresa.distancia_km != null ? `${empresa.distancia_km.toLocaleString('pt-BR')} km` : <span title="Município não reconhecido">—</span>}
       </td>
@@ -107,7 +140,9 @@ function Linha({ empresa, compacta, onAbrir }: { empresa: EmpresaReceita; compac
         {empresa.capital_social ? reaisCurtos(Number(empresa.capital_social)) : <span title="Capital social não informado na Receita">—</span>}
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
-        {empresa.funcionarios != null ? empresa.funcionarios.toLocaleString('pt-BR') : <span title="Sem dado na RAIS">—</span>}
+        {empresa.funcionarios != null
+          ? <span title={empresa.funcionarios_do_time ? 'Confirmados pelo time' : undefined}>{empresa.funcionarios.toLocaleString('pt-BR')}{empresa.funcionarios_do_time && '*'}</span>
+          : <span title="Sem dado na RAIS">—</span>}
       </td>
       <td className="px-3 py-2">
         <div className={cn(largura, 'truncate leading-snug')} title={empresa.cnae_descricao ?? undefined}>
@@ -128,13 +163,28 @@ function Linha({ empresa, compacta, onAbrir }: { empresa: EmpresaReceita; compac
   );
 }
 
+/** "Selecionar todas desta página": marca as da página, ou desmarca se já estão todas. */
+function MarcarPagina({ linhas, selecao }: { linhas: EmpresaReceita[]; selecao: SelecaoDaLista }) {
+  const marcadas = linhas.filter((e) => selecao.marcadas.has(e.cnpj)).length;
+  const todas = marcadas === linhas.length;
+  const estado = todas ? true : marcadas > 0 ? 'indeterminate' : false;
+  return (
+    <Checkbox
+      checked={estado}
+      onCheckedChange={() => selecao.onMarcar(linhas, !todas)}
+      aria-label="Selecionar todas desta página"
+    />
+  );
+}
+
 const GATILHO = 'inline-flex flex-col items-center gap-1 rounded-sm text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 const AVISO_LUCRO_REAL =
   'Lucro Real provável: acima de R$ 78 mi por ano, o regime é obrigatório (Lei 9.718/1998, art. 14). Confirme na consulta da Receita.';
 
 /**
- * Faturamento da linha (US-0006): o que o time informou na Prospecção, quando há; senão a
- * estimativa da base ("≈ valor" com a base, ou o piso do porte). A conta vai no tooltip.
+ * Faturamento da linha (US-0006): o que o time informou, quando há; senão a
+ * estimativa da base ("≈ valor" com a base, ou o piso do porte). A conta, o selo de confiança
+ * com o porquê (US-0018) e o regime vão no hover, para a coluna ficar limpa.
  */
 function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
   if (empresa.faturamento_informado != null) return <FaturamentoDoTime empresa={empresa} />;
@@ -142,6 +192,8 @@ function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
   if (valor == null || !base) return <span className="text-[12.5px] text-muted-foreground">—</span>;
   const lucroReal = lucroRealProvavel(Number(valor), base);
   const piso = base === BASE_PISO;
+  const confianca = confiancaDoFaturamento(empresa.cnae_principal, base);
+  const regime = notaDoRegime(empresa);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -153,7 +205,9 @@ function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
       </TooltipTrigger>
       <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
         <p className="font-medium">Faturamento {ROTULO_DA_BASE[base]}</p>
-        <p className="mt-0.5">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social)}</p>
+        <p className="mt-0.5">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social, empresa.funcionarios_do_time)}</p>
+        <MotivoDaConfianca confianca={confianca} className="mt-1.5" />
+        {regime && <p className="mt-1.5">{regime}</p>}
         {lucroReal && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}
       </TooltipContent>
     </Tooltip>
@@ -161,6 +215,8 @@ function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
 }
 
 function FaturamentoDoTime({ empresa }: { empresa: EmpresaReceita }) {
+  const { byId } = useEmployeeDirectoryMap();
+  const selo = seloDoInformado(empresa, (id) => byId.get(id)?.nome);
   const valor = Number(empresa.faturamento_informado);
   const rotulo = empresa.faturamento_informado_base ? ROTULO_DO_INFORMADO[empresa.faturamento_informado_base] : 'informado pelo time';
   const estimado = empresa.faturamento_estimado != null && empresa.faturamento_base
@@ -176,7 +232,9 @@ function FaturamentoDoTime({ empresa }: { empresa: EmpresaReceita }) {
       </TooltipTrigger>
       <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
         <p className="font-medium">Faturamento {rotulo}</p>
-        <p className="mt-0.5">Valor informado na Prospecção.{estimado && ` A estimativa pela base seria ${estimado}.`}</p>
+        {selo.confianca && <MotivoDaConfianca confianca={selo.confianca} className="mt-1" />}
+        {selo.autoria && <p className="mt-1">{selo.autoria}</p>}
+        {estimado && <p className="mt-1.5 text-muted-foreground">A estimativa pela base seria {estimado}.</p>}
         {lucroReal && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}
       </TooltipContent>
     </Tooltip>
