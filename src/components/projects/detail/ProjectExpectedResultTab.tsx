@@ -1,15 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProjectWithRelations } from '@/types/project';
 import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
-import { useMemo } from 'react';
-import { parseISO, startOfMonth, addMonths } from 'date-fns';
 import { TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
-import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
-import { useProjectSupplierMonths } from '@/hooks/useProjectSupplierMonths';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
-import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
-import { useHolidays } from '@/hooks/useHolidays';
-import { getFallbackHourlyCost } from '@/lib/employeeCost';
+import { useProjectCostSummary } from '@/hooks/useProjectCostSummary';
 import { FinanceInstallmentsTable } from './financial/FinanceInstallmentsTable';
 
 interface ProjectExpectedResultTabProps {
@@ -20,76 +14,14 @@ interface ProjectExpectedResultTabProps {
 export function ProjectExpectedResultTab({ project, canManageInstallments = false }: ProjectExpectedResultTabProps) {
   const formatCurrency = useMaskedCurrency();
   const hideValues = useHideValues();
-  const memberIds = useMemo(() => (project.members || []).map((m) => m.id), [project.members]);
-  const supplierIds = useMemo(() => (project.suppliers || []).map((s) => s.id), [project.suppliers]);
-
-  const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
-  const { data: supplierMonths = [] } = useProjectSupplierMonths(supplierIds);
   // A meta e os percentuais que julgam ESTE projeto são os que valiam quando ele começou
   // (PUL-260). Mudar a política em setembro não muda o que um projeto de janeiro assinou.
   const { data: financialSettings } = useFinancialSettings(project.start_date);
-  const { data: holidays = [] } = useHolidays();
-  const plannedLaborFromAllocations = useProjectPlannedLaborCost(
-    project,
-    project.duration_months,
-  );
-
-  const costs = useMemo(() => {
-    let laborCost = plannedLaborFromAllocations.hasRoleAllocations
-      ? plannedLaborFromAllocations.total
-      : 0;
-
-    if (!plannedLaborFromAllocations.hasRoleAllocations) {
-      const projStart = startOfMonth(parseISO(project.start_date));
-      project.members?.forEach((member) => {
-        const memberEntries = memberMonths.filter((mm) => mm.project_member_id === member.id);
-        if (memberEntries.length === 0) return;
-
-        laborCost += memberEntries.reduce((sum, mm) => {
-          if ((mm as any).cost_per_hour != null) {
-            return sum + Number((mm as any).cost_per_hour) * Number(mm.hours);
-          }
-          const fallbackCost = member.employee
-            ? (() => {
-                const monthDate = addMonths(projStart, mm.month_number - 1);
-                return getFallbackHourlyCost(
-                  member.employee.total_monthly_cost_estimated || 0,
-                  member.employee.jornada_diaria || 8,
-                  monthDate.getFullYear(),
-                  monthDate.getMonth(),
-                  holidays,
-                );
-              })()
-            : Number((member as any).hourly_rate) || 0;
-          return sum + fallbackCost * Number(mm.hours);
-        }, 0);
-      });
-    }
-
-    const suppliersCost = supplierMonths.reduce((sum, sm) => sum + Number(sm.value), 0);
-
-    const materialsCost = project.materials?.reduce((total, material) => {
-      return total + material.value;
-    }, 0) || 0;
-
-    return { laborCost, suppliersCost, materialsCost };
-  }, [
-    project.members,
-    project.materials,
-    project.start_date,
-    memberMonths,
-    supplierMonths,
-    holidays,
-    plannedLaborFromAllocations.hasRoleAllocations,
-    plannedLaborFromAllocations.total,
-  ]);
+  // Custo planejado: regra única do custo do projeto (US-0025) — mão de obra e todas as
+  // categorias do ledger, o mesmo número da Visão Geral e da aba Despesas.
+  const { totalPlanned: totalCost } = useProjectCostSummary(project);
 
   const totalValue = project.total_value;
-  const laborCost = costs.laborCost;
-  const suppliersCost = costs.suppliersCost;
-  const materialsCost = costs.materialsCost;
-  const totalCost = laborCost + suppliersCost + materialsCost;
-
   const grossMargin = totalValue - totalCost;
   const marginPercent = totalValue > 0 ? (grossMargin / totalValue) * 100 : 0;
   const isPositiveMargin = grossMargin >= 0;

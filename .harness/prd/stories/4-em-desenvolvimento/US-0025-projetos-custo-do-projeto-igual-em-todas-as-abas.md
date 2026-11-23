@@ -1,6 +1,6 @@
 # US-0025 — O custo do projeto é o mesmo em todas as abas
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** bug
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
@@ -112,6 +112,17 @@ mais saudável do que está.
 
 ## Implementação
 
+Regra única do custo do projeto: `src/lib/projectCostSummary.ts` (funções puras) e
+`src/hooks/useProjectCostSummary.ts`. Passaram a ler dela: Visão Geral e simulador de
+alocação (via `useProjectPlannedMargin`), cards da aba Despesas, totais da aba Financeiro e
+Resultado Esperado (Financeiro na fase de Planejamento). Os gráficos mensais de Despesas e
+Financeiro mantêm cálculo próprio até a US-0026.
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080): a Visão Geral passou a contar Viagem. |
+| 2 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). As quatro telas leem o mesmo hook. |
+| 3 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080); as funções puras com os números do Paraíso dão planejado R$ 8.602,39, realizado R$ 4.755,27 e margem planejada 15,5%. |
+| 4 | Por construção: `useProjectCostItems` só lê custos com `deleted_at` nulo. Não houve custo removido no Paraíso para conferir na tela. |
+
+Testes automatizados não escritos: testes desativados no Harness por decisão do time.
