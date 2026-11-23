@@ -1,6 +1,4 @@
 import { useMemo, useCallback, useRef, useState } from "react";
-import { addMonths, differenceInMonths, format, parseISO, startOfMonth } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { HelpCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,13 +8,9 @@ import { LaborCostSection } from "@/components/projects/detail/costs/LaborCostSe
 import { useAuth } from "@/contexts/AuthContext";
 import { useMaskedCurrency } from "@/contexts/HideValuesContext";
 
-import { useProjectMemberMonths } from "@/hooks/useProjectMemberMonths";
 import { useProjectCostItems } from "@/hooks/useProjectCostItems";
-import { useProjectTimesheets } from "@/hooks/useProjectTimesheets";
-import { useProjectPlannedLaborCost } from "@/hooks/useProjectPlannedLaborCost";
 import { useProjectCostSummary } from "@/hooks/useProjectCostSummary";
-import { useHolidays } from "@/hooks/useHolidays";
-import { getFallbackHourlyCost } from "@/lib/employeeCost";
+import { countActiveCostCategories } from "@/lib/projectMonthlyCosts";
 import { ProjectWithRelations } from "@/types/project";
 
 interface ProjectCostsTabProps {
@@ -78,16 +72,6 @@ export function ProjectCostsTab({
 }: ProjectCostsTabProps) {
   const formatCurrency = useMaskedCurrency();
 
-  const durationMonths = useMemo(() => {
-    const startDate = parseISO(project.start_date);
-    if (project.is_continuous) return 12;
-    if (project.end_date) {
-      const endDate = parseISO(project.end_date);
-      return Math.max(1, differenceInMonths(endDate, startDate) + 1);
-    }
-    return 1;
-  }, [project.start_date, project.end_date, project.is_continuous]);
-
   const { employee } = useAuth();
   const isAdmin = employee?.isAdmin ?? false;
   // Nota² do PRD: custo de MO por pessoa só para admin ou o GP do próprio projeto
@@ -107,41 +91,9 @@ export function ProjectCostsTab({
     }
   }, [canSeeLaborBreakdown]);
 
-  const memberIds = useMemo(
-    () => (project.members || []).map((member) => member.id),
-    [project.members],
-  );
-
-  const { data: memberMonths = [] } = useProjectMemberMonths(memberIds);
-  // Por project_id, não pela equipe atual — ver ProjectFinancialTab.tsx.
-  const { data: timesheets = [] } = useProjectTimesheets(project.id);
-  const { data: projectCosts = [], isLoading: projectCostsLoading } =
-    useProjectCostItems(project.id);
-  const { data: holidays = [] } = useHolidays();
-  const plannedLaborFromAllocations = useProjectPlannedLaborCost(
-    project,
-    durationMonths,
-  );
-
-  const getMemberHourlyCost = useCallback(
-    (member: (typeof project.members)[0], year: number, monthIndex: number) => {
-      if (member.employee) {
-        return getFallbackHourlyCost(
-          member.employee.total_monthly_cost_estimated || 0,
-          member.employee.jornada_diaria || 8,
-          year,
-          monthIndex,
-          holidays,
-        );
-      }
-
-      return Number((member as any).hourly_rate) || 0;
-    },
-    [holidays],
-  );
-
-  // Cards: regra única do custo do projeto (US-0025) — o mesmo número da Visão Geral e
-  // do Financeiro. O gráfico mensal abaixo ainda tem cálculo próprio (US-0026).
+  const { data: projectCosts = [] } = useProjectCostItems(project.id);
+  // Cards, gráfico mensal e rosca: regra única do custo do projeto (US-0025/US-0026) — o
+  // mesmo número da Visão Geral e do Financeiro, e a soma dos meses igual aos cards.
   const costSummary = useProjectCostSummary(project);
   const totalPlanned = costSummary.totalPlanned;
   const totalActual = costSummary.totalActual;
@@ -158,170 +110,14 @@ export function ProjectCostsTab({
   const devDotStatus =
     totalPlanned === 0 ? undefined : totalActual > totalPlanned ? "alert" : "ok";
 
-  const activeCategories = useMemo(() => {
-    let count = 0;
-    if (costSummary.laborActual > 0 || costSummary.laborPlanned > 0) count++;
-    projectCosts.forEach((cost) => {
-      if (
-        Number(cost.planned_amount_brl || 0) > 0 ||
-        Number(cost.actual_amount_brl || 0) > 0
-      ) {
-        count++;
-      }
-    });
-    return count;
-  }, [costSummary.laborActual, costSummary.laborPlanned, projectCosts]);
-
-  const monthlyChartData = useMemo(() => {
-    const projectStart = startOfMonth(parseISO(project.start_date));
-    const memberMap = new Map((project.members || []).map((member) => [member.id, member]));
-
-    const plannedLaborMap = new Map<number, number>();
-    if (plannedLaborFromAllocations.hasRoleAllocations) {
-      plannedLaborFromAllocations.byMonth.forEach((value, monthNumber) => {
-        plannedLaborMap.set(monthNumber, value);
-      });
-    } else {
-      memberMonths.forEach((month) => {
-        let cost: number;
-        if ((month as any).cost_per_hour != null) {
-          cost = Number((month as any).cost_per_hour);
-        } else {
-          const member = memberMap.get(month.project_member_id);
-          const monthDate = addMonths(projectStart, month.month_number - 1);
-          cost = member ? getMemberHourlyCost(member, monthDate.getFullYear(), monthDate.getMonth()) : 0;
-        }
-        plannedLaborMap.set(
-          month.month_number,
-          (plannedLaborMap.get(month.month_number) || 0) +
-            cost * Number(month.hours),
-        );
-      });
-    }
-
-    const actualLaborMap = new Map<number, number>();
-    timesheets.forEach((timesheet) => {
-      const workDate = parseISO(timesheet.work_date);
-      const monthNumber =
-        differenceInMonths(workDate, projectStart) + 1;
-      if (monthNumber < 1 || monthNumber > durationMonths) return;
-
-      let cost: number;
-      if ((timesheet as any).cost_per_hour != null) {
-        cost = Number((timesheet as any).cost_per_hour);
-      } else {
-        const member = memberMap.get(timesheet.project_member_id);
-        cost = member ? getMemberHourlyCost(member, workDate.getFullYear(), workDate.getMonth()) : 0;
-      }
-      actualLaborMap.set(
-        monthNumber,
-        (actualLaborMap.get(monthNumber) || 0) +
-          cost * Number(timesheet.hours),
-      );
-    });
-
-    const plannedExtraMap = new Map<number, number>();
-    const plannedMaterialMap = new Map<number, number>();
-    const actualExtraMap = new Map<number, number>();
-    const actualMaterialMap = new Map<number, number>();
-
-    projectCosts.forEach((cost) => {
-      const isMaterial = cost.category === "material";
-      const plannedMap = isMaterial ? plannedMaterialMap : plannedExtraMap;
-      const actualMap = isMaterial ? actualMaterialMap : actualExtraMap;
-      const isRecurring = Boolean((cost as any).is_recurring);
-
-      if (isRecurring) {
-        const startMonth = Number((cost as any).start_month || 1);
-        const endMonth = Math.min(
-          Number((cost as any).end_month || durationMonths),
-          durationMonths,
-        );
-        const monthlyPlanned = Number(
-          (cost as any).monthly_amount_brl ||
-            (cost as any).monthly_amount ||
-            0,
-        );
-
-        for (let monthNumber = startMonth; monthNumber <= endMonth; monthNumber++) {
-          if (monthNumber < 1 || monthNumber > durationMonths) continue;
-          plannedMap.set(
-            monthNumber,
-            (plannedMap.get(monthNumber) || 0) + monthlyPlanned,
-          );
-        }
-
-        if (cost.actual_amount_brl != null) {
-          actualMap.set(
-            startMonth,
-            (actualMap.get(startMonth) || 0) + Number(cost.actual_amount_brl),
-          );
-        }
-        return;
-      }
-
-      const storedMonth = Number((cost as any).month_number || 0);
-      const monthNumber =
-        storedMonth ||
-        (cost.cost_date
-          ? differenceInMonths(parseISO(cost.cost_date), projectStart) + 1
-          : 1);
-      const clampedMonth = Math.max(1, Math.min(monthNumber, durationMonths));
-
-      plannedMap.set(
-        clampedMonth,
-        (plannedMap.get(clampedMonth) || 0) +
-          Number(cost.planned_amount_brl || 0),
-      );
-      if (cost.actual_amount_brl != null) {
-        actualMap.set(
-          clampedMonth,
-          (actualMap.get(clampedMonth) || 0) +
-            Number(cost.actual_amount_brl || 0),
-        );
-      }
-    });
-
-    return Array.from({ length: durationMonths }, (_, index) => {
-      const monthNumber = index + 1;
-      const monthDate = addMonths(projectStart, index);
-      const plannedLabor = plannedLaborMap.get(monthNumber) || 0;
-      const plannedExtra = plannedExtraMap.get(monthNumber) || 0;
-      const plannedMaterials = plannedMaterialMap.get(monthNumber) || 0;
-      const actualLabor = actualLaborMap.get(monthNumber) || 0;
-      const actualExtra = actualExtraMap.get(monthNumber) || 0;
-      const actualMaterials = actualMaterialMap.get(monthNumber) || 0;
-
-      return {
-        month: format(monthDate, "MMM yyyy", { locale: ptBR }),
-        monthNum: monthNumber,
-        planned: plannedLabor + plannedExtra + plannedMaterials,
-        realized: actualLabor + actualExtra + actualMaterials,
-        breakdown: {
-          planned: {
-            labor: plannedLabor,
-            suppliers: plannedExtra,
-            materials: plannedMaterials,
-          },
-          realized: {
-            labor: actualLabor,
-            suppliers: actualExtra,
-            materials: actualMaterials,
-          },
-        },
-      };
-    });
-  }, [
-    durationMonths,
-    getMemberHourlyCost,
-    memberMonths,
-    plannedLaborFromAllocations.byMonth,
-    plannedLaborFromAllocations.hasRoleAllocations,
-    project.members,
-    project.start_date,
-    projectCosts,
-    timesheets,
-  ]);
+  const activeCategories = useMemo(
+    () =>
+      countActiveCostCategories(
+        { planned: costSummary.laborPlanned, actual: costSummary.laborActual },
+        projectCosts,
+      ),
+    [costSummary.laborActual, costSummary.laborPlanned, projectCosts],
+  );
 
   return (
     <div className="space-y-6">
@@ -351,11 +147,8 @@ export function ProjectCostsTab({
       </Card>
 
       <ProjectMonthlyCostChart
-        data={monthlyChartData}
-        isLoading={
-          projectCostsLoading ||
-          plannedLaborFromAllocations.isLoading
-        }
+        months={costSummary.months}
+        isLoading={costSummary.isLoading}
         onCategoryClick={handleCategoryClick}
       />
 

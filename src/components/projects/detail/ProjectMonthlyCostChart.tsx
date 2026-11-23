@@ -19,35 +19,70 @@ import { cn } from '@/lib/utils';
 import { useMaskedCurrency, useHideValues } from '@/contexts/HideValuesContext';
 import { BarChart2, PieChart as PieChartIcon } from 'lucide-react';
 import { useState } from 'react';
-
-export interface MonthlyChartItem {
-  month: string;
-  monthNum: number;
-  planned: number;
-  realized: number;
-  breakdown: {
-    planned: { labor: number; suppliers: number; materials: number };
-    realized: { labor: number; suppliers: number; materials: number };
-  };
-}
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { COST_CATEGORIES } from '@/lib/projectCosts';
+import { bucketOthers } from '@/lib/projectMonthlyCosts';
+import type { ProjectCostMonth } from '@/types/projectCostSummary';
 
 export type CostCategoryTarget = 'labor' | 'others';
 
 interface ProjectMonthlyCostChartProps {
-  data: MonthlyChartItem[];
+  /** Meses de calendário do custo do projeto (`useProjectCostSummary().months`). */
+  months: ProjectCostMonth[];
   isLoading?: boolean;
   onCategoryClick?: (target: CostCategoryTarget) => void;
 }
 
+interface ChartPoint {
+  month: string;
+  outOfPeriod: boolean;
+  planned: number;
+  realized: number;
+  plannedLabor: number;
+  plannedOthers: number;
+  realizedLabor: number;
+  realizedOthers: number;
+}
+
 // Escala monocromática do verde ESCURO da marca (--primary-deep, base
 // green-600 do origami-ds) — do tom cheio ao mais suave. Acento único, sem
-// paleta arco-íris.
-const CATEGORY_COLORS = [
-  'hsl(var(--primary-deep))',
-  'hsl(var(--primary-deep) / 0.72)',
-  'hsl(var(--primary-deep) / 0.48)',
-  'hsl(var(--primary-deep) / 0.26)',
-];
+// paleta arco-íris. Mão de Obra no tom cheio; as categorias do ledger seguem.
+const CATEGORY_ALPHAS = [1, 0.72, 0.56, 0.42, 0.3, 0.22, 0.16, 0.11];
+const categoryColor = (index: number) =>
+  `hsl(var(--primary-deep) / ${CATEGORY_ALPHAS[Math.min(index, CATEGORY_ALPHAS.length - 1)]})`;
+
+const LABOR_KEY = 'labor';
+
+function toChartPoint(month: ProjectCostMonth): ChartPoint {
+  const plannedOthers = bucketOthers(month.planned);
+  const realizedOthers = bucketOthers(month.realized);
+  return {
+    month: format(month.date, 'MMM yyyy', { locale: ptBR }),
+    outOfPeriod: month.outOfPeriod,
+    planned: month.planned.labor + plannedOthers,
+    realized: month.realized.labor + realizedOthers,
+    plannedLabor: month.planned.labor,
+    plannedOthers,
+    realizedLabor: month.realized.labor,
+    realizedOthers,
+  };
+}
+
+/** Fatias da rosca: Mão de Obra e cada categoria do ledger com valor, no modo escolhido. */
+function buildPieData(months: ProjectCostMonth[], mode: 'realized' | 'planned') {
+  const slices = [
+    { categoryKey: LABOR_KEY, name: 'Mão de Obra', value: months.reduce((sum, m) => sum + m[mode].labor, 0) },
+    ...COST_CATEGORIES.map((category) => ({
+      categoryKey: category.value as string,
+      name: category.label,
+      value: months.reduce((sum, m) => sum + (m[mode].byCategory[category.value] ?? 0), 0),
+    })),
+  ];
+  return slices
+    .filter((slice) => slice.value > 0)
+    .map((slice, index) => ({ ...slice, color: categoryColor(index) }));
+}
 
 function formatShort(value: number): string {
   if (value >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(1)}M`;
@@ -66,8 +101,8 @@ function BarTooltip({
   formatCurrency: (v: number) => string;
 }) {
   if (!active || !payload?.length) return null;
-  const point = payload[0]?.payload as (MonthlyChartItem & { plannedTotal: number; realizedTotal: number }) | undefined;
-  const b = point?.breakdown;
+  const point = payload[0]?.payload as ChartPoint | undefined;
+  if (!point) return null;
   const line = (title: string, total: number, labor: number, others: number) => (
     <div className="mb-1 last:mb-0">
       <p className="font-medium">{title}: {formatCurrency(total)}</p>
@@ -78,13 +113,14 @@ function BarTooltip({
   );
   return (
     <div className="bg-background border rounded-lg p-3 shadow-lg text-sm">
-      <p className="font-medium mb-2">{label}</p>
-      {b && (
-        <>
-          {line('Planejado', point!.planned, b.planned.labor, b.planned.suppliers + b.planned.materials)}
-          {line('Realizado', point!.realized, b.realized.labor, b.realized.suppliers + b.realized.materials)}
-        </>
+      <p className="font-medium">{label}</p>
+      {point.outOfPeriod && (
+        <p className="text-xs text-muted-foreground">Fora do período do projeto</p>
       )}
+      <div className="mt-2">
+        {line('Planejado', point.planned, point.plannedLabor, point.plannedOthers)}
+        {line('Realizado', point.realized, point.realizedLabor, point.realizedOthers)}
+      </div>
     </div>
   );
 }
@@ -109,60 +145,19 @@ function PieTooltip({
   );
 }
 
-export function ProjectMonthlyCostChart({ data, isLoading = false, onCategoryClick }: ProjectMonthlyCostChartProps) {
+export function ProjectMonthlyCostChart({ months, isLoading = false, onCategoryClick }: ProjectMonthlyCostChartProps) {
   const formatCurrency = useMaskedCurrency();
   const hideValues = useHideValues();
   const [pieMode, setPieMode] = useState<'realized' | 'planned'>('realized');
 
-  const hasData = data.some(d => d.planned > 0 || d.realized > 0);
+  const stackedData = months.map(toChartPoint);
+  const hasData = stackedData.some((d) => d.planned > 0 || d.realized > 0);
 
-  // Achata o breakdown para barras empilhadas: MO + Outros, por planejado e realizado.
-  const stackedData = data.map((d) => ({
-    ...d,
-    plannedLabor: d.breakdown.planned.labor,
-    plannedOthers: d.breakdown.planned.suppliers + d.breakdown.planned.materials,
-    realizedLabor: d.breakdown.realized.labor,
-    realizedOthers: d.breakdown.realized.suppliers + d.breakdown.realized.materials,
-  }));
-
-  // Acumula os totais por categoria para os dois modos do donut.
-  const totals = data.reduce(
-    (acc, d) => ({
-      planned: {
-        labor:     acc.planned.labor     + d.breakdown.planned.labor,
-        suppliers: acc.planned.suppliers + d.breakdown.planned.suppliers,
-        materials: acc.planned.materials + d.breakdown.planned.materials,
-      },
-      realized: {
-        labor:     acc.realized.labor     + d.breakdown.realized.labor,
-        suppliers: acc.realized.suppliers + d.breakdown.realized.suppliers,
-        materials: acc.realized.materials + d.breakdown.realized.materials,
-      },
-    }),
-    {
-      planned: { labor: 0, suppliers: 0, materials: 0 },
-      realized: { labor: 0, suppliers: 0, materials: 0 },
-    }
-  );
-
-  const pieData = (
-    pieMode === 'realized'
-      ? [
-          { name: 'Mão de Obra',  value: totals.realized.labor,     color: CATEGORY_COLORS[0] },
-          { name: 'Fornecedores', value: totals.realized.suppliers, color: CATEGORY_COLORS[1] },
-          { name: 'Materiais',    value: totals.realized.materials, color: CATEGORY_COLORS[2] },
-        ]
-      : [
-          { name: 'Mão de Obra',  value: totals.planned.labor,     color: CATEGORY_COLORS[0] },
-          { name: 'Fornecedores', value: totals.planned.suppliers, color: CATEGORY_COLORS[1] },
-          { name: 'Materiais',    value: totals.planned.materials, color: CATEGORY_COLORS[2] },
-        ]
-  ).filter(item => item.value > 0);
-
+  const pieData = buildPieData(months, pieMode);
   const pieTotal = pieData.reduce((sum, item) => sum + item.value, 0);
   const pieCenterLabel = pieMode === 'realized' ? 'Realizado' : 'Planejado';
 
-  const categoryTarget = (name: string): CostCategoryTarget => (name === 'Mão de Obra' ? 'labor' : 'others');
+  const categoryTarget = (key: string): CostCategoryTarget => (key === LABOR_KEY ? 'labor' : 'others');
 
   if (isLoading) {
     return (
@@ -274,11 +269,11 @@ export function ProjectMonthlyCostChart({ data, isLoading = false, onCategoryCli
                       paddingAngle={2}
                       dataKey="value"
                       strokeWidth={0}
-                      onClick={onCategoryClick ? (entry: { name?: string }) => onCategoryClick(categoryTarget(entry?.name ?? '')) : undefined}
+                      onClick={onCategoryClick ? (entry: { categoryKey?: string }) => onCategoryClick(categoryTarget(entry?.categoryKey ?? '')) : undefined}
                       className={onCategoryClick ? 'cursor-pointer' : undefined}
                     >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {pieData.map((entry) => (
+                        <Cell key={entry.categoryKey} fill={entry.color} />
                       ))}
                       <Label
                         content={({ viewBox }) => {
@@ -316,9 +311,9 @@ export function ProjectMonthlyCostChart({ data, isLoading = false, onCategoryCli
                   const percent = ((item.value / pieTotal) * 100).toFixed(0);
                   return (
                     <button
-                      key={item.name}
+                      key={item.categoryKey}
                       type="button"
-                      onClick={onCategoryClick ? () => onCategoryClick(categoryTarget(item.name)) : undefined}
+                      onClick={onCategoryClick ? () => onCategoryClick(categoryTarget(item.categoryKey)) : undefined}
                       disabled={!onCategoryClick}
                       className={cn(
                         'flex items-center justify-between rounded px-1 py-0.5 text-xs transition-colors',

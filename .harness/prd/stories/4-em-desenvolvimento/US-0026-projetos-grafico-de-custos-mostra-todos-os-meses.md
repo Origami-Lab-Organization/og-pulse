@@ -1,6 +1,6 @@
 # US-0026 — O gráfico de custos mostra todos os meses do projeto
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** bug
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
@@ -105,6 +105,20 @@ O card "Categorias ativas" também está errado: conta cada lançamento como uma
 
 ## Implementação
 
+Meses de calendário em `src/lib/projectMonthlyCosts.ts` (`buildProjectMonthlyCosts`,
+`countActiveCostCategories`), calculados dentro de `useProjectCostSummary`, a mesma fonte
+dos cards (US-0025). Mão de obra planejada por mês de calendário vem de
+`useProjectPlannedLaborCost().byCalendarMonth`; custo recorrente usa `project_cost_months`
+(trazido por `useProjectCostItems`) com a regra de reconhecimento de `projectCostsService`.
+A data da hora é lida com `parseISO` (sem o deslocamento de UTC). O gráfico mensal da aba
+Financeiro ainda tem cálculo próprio e não faz parte desta história.
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080); script descartável com 19/10–17/11/2026 gera out/2026 e nov/2026. |
+| 2 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso); no script, soma do gráfico = cards (planejado 9.002,39 e realizado 5.105,28, com Viagem, fornecedor recorrente e custo fora do período) e a hora de 01/11 fica em novembro. |
+| 3 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso): a rosca lê as categorias do ledger (`COST_CATEGORIES`). |
+| 4 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso: 2); no script, Mão de Obra + Viagem + Fornecedor = 3. |
+| 5 | Só no script: custo de 02/12/2026 num projeto que acaba em 17/11 abre dez/2026 marcado como fora do período e entra no total. O Paraíso não tem lançamento fora do período para conferir na tela. |
+
+Testes automatizados não escritos: testes desativados no Harness por decisão do time.
