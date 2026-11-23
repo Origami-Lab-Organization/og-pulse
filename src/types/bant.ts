@@ -47,8 +47,13 @@ export interface LetraDoBant {
 
 export interface BantDaOportunidade {
   letras: Record<LetraBant, LetraDoBant>;
-  /** 0 a 100: pontos (indício 1, confirmado 2) ÷ 8. */
+  /** 0 a 100: pontos (indício 1, confirmado 2) ÷ 8, com os indícios do Pulse. */
   nota: number;
+  /**
+   * A nota só das evidências aceitas, sem os indícios do Pulse (US-0038). É ela que decide a
+   * entrada em "Oportunidade qualificada", na tela, no MCP e no banco.
+   */
+  notaComprovada: number;
   /** Meta da etapa atual; nula nos desfechos. */
   meta: number | null;
   temNaoAtende: boolean;

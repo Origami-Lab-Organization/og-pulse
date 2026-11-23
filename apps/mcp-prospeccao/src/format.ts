@@ -350,7 +350,8 @@ export function bantDaOportunidadeTexto(bant: BantDaOportunidade, evidencias: Ev
     .map((e) => `- ${e.letra} → ${rotuloDoEstado(e.estado)}: ${e.texto} (${ROTULO_DA_ORIGEM[e.origem] ?? e.origem}, recusada)`);
   const falta = oQueFaltaParaQualificar(bant);
   return [
-    `**BANT ${bant.nota}${bant.meta != null ? ` · meta da etapa ${bant.meta}` : ''}**`,
+    `**BANT ${bant.nota}${bant.meta != null ? ` · meta da etapa ${bant.meta}` : ''} · comprovada por evidências ${bant.notaComprovada}**`,
+    'Para "Oportunidade qualificada", só a nota comprovada conta: proponha evidências com fonte; os indícios do Pulse são pista.',
     ...LETRAS_BANT.map(({ letra }) => linhaDaLetra(bant.letras[letra])),
     falta ? `\nPara "Oportunidade qualificada": ${falta}` : '\nPronta para "Oportunidade qualificada".',
     ...(propostas.length ? ['', '**Propostas esperando a pessoa decidir:**', ...propostas] : []),
