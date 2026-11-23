@@ -21,10 +21,13 @@ import {
 import { contarFiltros, FILTROS_VAZIOS, filtrosDoNavegador, guardarFiltros } from '@/lib/prospecting/filtrosReceita';
 import { avisoDaBusca, buscaDoNavegador, buscaDoPedido, buscouFilial, cnpjCompleto, guardarBusca, lerBusca } from '@/lib/prospecting/buscaReceita';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { usePainelDeFiltros } from '@/hooks/usePainelDeFiltros';
 import type { BuscaReceita, FiltrosReceita } from '@/types/filtrosReceita';
 import { cn } from '@/lib/utils';
 import { CaixaDeBusca } from './CaixaDeBusca';
 import { EmpresasReceitaTable } from './EmpresasReceitaTable';
+import { FichaDaEmpresaReceita } from './FichaDaEmpresaReceita';
+import { GavetaDeFiltros } from './GavetaDeFiltros';
 import { PainelDeFiltros } from './PainelDeFiltros';
 
 const RECORTE =
@@ -36,11 +39,13 @@ const ESPERA_DA_DIGITACAO_MS = 300;
 
 /**
  * Aba "A classificar" da tela Empresas: a base da Receita, filtrada, buscada e página por
- * página (US-0002, US-0003, US-0005). A busca e os filtros ficam guardados entre visitas.
+ * página (US-0002, US-0003, US-0005). A busca e os filtros ficam guardados entre visitas; o
+ * painel de filtros fica ao lado da lista no computador e por cima dela no celular (US-0004).
  */
 export function EmpresasDaReceita() {
   const [filtros, setFiltros] = useState<FiltrosReceita>(filtrosDoNavegador);
-  const [painelAberto, setPainelAberto] = useState(true);
+  const painel = usePainelDeFiltros();
+  const [ficha, setFicha] = useState<string | null>(null);
   const [ordenacao, setOrdenacao] = useState(ORDENACAO_PADRAO);
   const [pagina, setPagina] = useState(0);
   const [texto, setTexto] = useState(buscaDoNavegador);
@@ -65,17 +70,22 @@ export function EmpresasDaReceita() {
     setPagina(0);
   };
 
+  const filtrosDoPainel = (emGaveta: boolean) => (
+    <PainelDeFiltros filtros={filtros} onChange={filtrar} onLimpar={limpar} onRecolher={painel.recolher} emGaveta={emGaveta} />
+  );
+
   return (
-    <div className={cn('grid items-start gap-3.5', painelAberto && 'lg:grid-cols-[minmax(0,1fr)_288px]')}>
+    <div className={cn('grid items-start gap-3.5', painel.larga && painel.aberto && 'grid-cols-[minmax(0,1fr)_288px]')}>
       <section className="min-w-0 space-y-3" aria-label="Empresas encontradas">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-1">
           <LinhaDoTotal contagem={contagem.data} contando={contagem.isFetching} carregadaEm={consulta.data?.carregadaEm ?? null} />
           <CaixaDeBusca valor={texto} aviso={avisoDaBusca(lerBusca(texto))} onChange={buscar} />
           <Button
+            ref={painel.botao}
             variant="outline"
             size="sm"
-            onClick={() => setPainelAberto((aberto) => !aberto)}
-            aria-expanded={painelAberto}
+            onClick={painel.alternar}
+            aria-expanded={painel.aberto}
             aria-label={ativos ? `Filtros, ${ativos} ativo${ativos > 1 ? 's' : ''}` : 'Filtros'}
           >
             <Filter className="mr-1.5 h-4 w-4" aria-hidden="true" />
@@ -85,11 +95,17 @@ export function EmpresasDaReceita() {
         </div>
         <div className="overflow-hidden rounded-xl border bg-card">
           <AvisosDaBusca busca={busca} ativos={ativos} primeira={consulta.data?.linhas[0]?.cnpj} />
-          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} />
+          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={setFicha} compacta={painel.larga && painel.aberto} />
           <Rodape contagem={contagem.data} pagina={pagina} onPagina={setPagina} vazia={!consulta.data?.linhas.length} />
         </div>
       </section>
-      {painelAberto && <PainelDeFiltros filtros={filtros} onChange={filtrar} onLimpar={limpar} onRecolher={() => setPainelAberto(false)} />}
+      {painel.larga && painel.aberto && filtrosDoPainel(false)}
+      <FichaDaEmpresaReceita cnpj={ficha} onFechar={() => setFicha(null)} />
+      {!painel.larga && (
+        <GavetaDeFiltros aberta={painel.aberto} onAbertaChange={painel.definirGaveta} contagem={contagem.data} contando={contagem.isFetching} botao={painel.botao}>
+          {filtrosDoPainel(true)}
+        </GavetaDeFiltros>
+      )}
     </div>
   );
 }
@@ -159,8 +175,10 @@ function Conteudo(props: {
   ordenacao: typeof ORDENACAO_PADRAO;
   onOrdenar: (ordem: OrdemReceita) => void;
   onLimpar: () => void;
+  onAbrir: (cnpj: string) => void;
+  compacta: boolean;
 }) {
-  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar } = props;
+  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar, onAbrir, compacta } = props;
   if (consulta.isLoading) return <Carregando />;
   if (consulta.error) return <Falha erro={consulta.error} onTentar={() => consulta.refetch()} />;
   if (!consulta.data || consulta.data.totalDaBase == null) {
@@ -175,7 +193,7 @@ function Conteudo(props: {
   const trocando = consulta.isPlaceholderData;
   return (
     <div className={cn('overflow-x-auto transition-opacity', trocando && 'opacity-60')} aria-busy={trocando}>
-      <EmpresasReceitaTable linhas={consulta.data.linhas} ordenacao={ordenacao} onOrdenar={onOrdenar} />
+      <EmpresasReceitaTable linhas={consulta.data.linhas} ordenacao={ordenacao} onOrdenar={onOrdenar} onAbrir={onAbrir} compacta={compacta} />
     </div>
   );
 }

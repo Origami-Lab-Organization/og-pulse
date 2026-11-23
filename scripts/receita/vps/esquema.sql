@@ -82,3 +82,24 @@ CREATE INDEX IF NOT EXISTS empresas_nome_busca_idx ON pulse.empresas
 CREATE INDEX IF NOT EXISTS empresas_municipio_busca_idx ON pulse.empresas (pulse.normalizar(municipio));
 
 GRANT EXECUTE ON FUNCTION pulse.normalizar(text) TO pulse_api;
+
+
+-- US-0006: de onde vem o faturamento estimado — RAIS, modelo de empresas parecidas ou só o
+-- piso do porte (src/lib/prospecting/faturamentoEstimado.ts).
+ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS faturamento_base text
+  CHECK (faturamento_base IN ('rais', 'modelo', 'piso'));
+
+-- Ordem por faturamento: só as estimadas (RAIS e modelo, cerca de 300 mil). As de piso têm
+-- todas o mesmo valor e a Edge Function as ordena pelo CNPJ, à parte (US-0006).
+DROP INDEX IF EXISTS pulse.empresas_fat_desc_idx;
+DROP INDEX IF EXISTS pulse.empresas_fat_asc_idx;
+CREATE INDEX IF NOT EXISTS empresas_fat_estimado_desc_idx ON pulse.empresas (faturamento_estimado DESC NULLS LAST, cnpj DESC)
+  WHERE faturamento_base IS DISTINCT FROM 'piso';
+CREATE INDEX IF NOT EXISTS empresas_fat_estimado_asc_idx ON pulse.empresas (faturamento_estimado ASC NULLS LAST, cnpj ASC)
+  WHERE faturamento_base IS DISTINCT FROM 'piso';
+
+-- US-0015: distância em linha reta da sede de Formiga à sede do município (km inteiros; nulo
+-- sem município reconhecido), gravada pela carga. Ordem nos dois sentidos, sem município no fim.
+ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS distancia_km integer;
+CREATE INDEX IF NOT EXISTS empresas_distancia_asc_idx ON pulse.empresas (distancia_km ASC NULLS LAST, cnpj ASC);
+CREATE INDEX IF NOT EXISTS empresas_distancia_desc_idx ON pulse.empresas (distancia_km DESC NULLS LAST, cnpj DESC);

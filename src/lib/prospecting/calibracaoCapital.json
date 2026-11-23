@@ -1,0 +1,14 @@
+{
+ "calibrado_em": "2026-11-18",
+ "formula": "ln(faturamento) = constante + peso_estimativa × ln(estimativa pela RAIS) + peso_capital × ln(capital social) + ajuste_sa × (S.A.)",
+ "constante": 6.438,
+ "peso_estimativa": 0.362,
+ "peso_capital": 0.417,
+ "ajuste_sa": -1.407,
+ "capital_minimo": 10000000,
+ "divisoes_fora": ["64", "68"],
+ "fontes": "Receita líquida 2024 de 413 companhias abertas (CVM, DFP individual, sem bancos e holdings) e 10 casos com faturamento conhecido pelo time (peso 10), cruzados por CNPJ com a base",
+ "erro_mediano_casos_do_time": 2.0,
+ "erro_mediano_antes": 4.4,
+ "erro_mediano_cvm": 1.9
+}
