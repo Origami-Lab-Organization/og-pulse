@@ -22,17 +22,30 @@ function getSidebarDefaultOpen(): boolean {
   return match ? match.split('=')[1] === 'true' : true;
 }
 
+const RECOLHIDO = 'collapsed';
+
+/**
+ * Botão de recolher o menu, na borda dele. `fixed` (23/11/2026): era `absolute` dentro do
+ * conteúdo, então subia com a rolagem e, com a página rolada para o lado, passava por cima do
+ * menu. Agora acompanha a largura do menu — aberto (`--sidebar-width`) ou só com ícones
+ * (`--sidebar-width-icon`) — e fica sempre no mesmo lugar da tela.
+ */
 function DesktopSidebarToggle() {
   const { state, toggleSidebar } = useSidebar();
+  const recolhido = state === RECOLHIDO;
   return (
     <button
+      type="button"
       onClick={toggleSidebar}
-      aria-label={state === 'collapsed' ? 'Expandir menu' : 'Recolher menu'}
-      className="hidden md:flex absolute left-0 top-12 -translate-x-1/2 -translate-y-1/2 z-50
+      aria-label={recolhido ? 'Expandir menu' : 'Recolher menu'}
+      title={recolhido ? 'Expandir menu' : 'Recolher menu'}
+      style={{ left: recolhido ? 'var(--sidebar-width-icon)' : 'var(--sidebar-width)' }}
+      className="hidden md:flex fixed top-12 -translate-x-1/2 -translate-y-1/2 z-50
                  h-6 w-6 rounded-full border border-border bg-background shadow-sm
                  items-center justify-center
                  text-muted-foreground hover:text-foreground hover:border-foreground/30
-                 transition-all duration-150 focus-visible:outline-none"
+                 transition-[left,color,border-color] duration-200 ease-linear
+                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {state === 'collapsed'
         ? <ChevronRight className="h-3 w-3" />
@@ -109,7 +122,9 @@ export function AppLayout(props: AppLayoutProps) {
       {/* `min-w-0`: sem ele o container cresce até a largura mínima do conteúdo (as 8 colunas do
           kanban, 1800px) e a página inteira fica mais larga que a janela — o cabeçalho sai da
           tela e o documento rola solto. Medido no Chromium em 02/10/2026. */}
-      <SidebarInset className={cn('relative', fillViewport && 'h-svh min-w-0 overflow-hidden')}>
+      {/* `min-w-0` sempre (23/11/2026): conteúdo mais largo que a janela rola dentro do <main>,
+          em vez de alargar a página e escorregá-la para baixo do menu fixo. */}
+      <SidebarInset className={cn('relative min-w-0', fillViewport && 'h-svh overflow-hidden')}>
         <DesktopSidebarToggle />
 
         <AppHeader page={page} />
