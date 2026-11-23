@@ -21,8 +21,8 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
-import { raizDoCnpj, RELACOES, relacaoDaEmpresa } from "../_shared/relacao.ts";
-import type { DadosDaRelacao, RelacaoDaEmpresa } from "../_shared/relacaoTipos.ts";
+import { ESCONDIDAS_POR_PADRAO, raizDoCnpj, RELACOES, relacaoDaEmpresa } from "../_shared/relacao.ts";
+import type { DadosDaRelacao, DecisaoDaRelacao, RelacaoDaEmpresa } from "../_shared/relacaoTipos.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -201,6 +201,8 @@ interface Filtros {
   relacoes: string[];
   /** Raízes de CNPJ com as relações marcadas, calculadas antes da consulta; nulo sem filtro. */
   raizes: string[] | null;
+  /** Sem filtro de relação: raízes descartadas ou em "Não agora", fora da lista (US-0010). */
+  escondidas: string[] | null;
 }
 
 const RELACAO_VALIDA = new Set<string>(RELACOES.map((r) => r.valor));
@@ -248,6 +250,7 @@ function lerFiltros(valor: unknown): Filtros {
     comTelefone: f.comTelefone === true,
     relacoes: listaDe(f.relacoes, (v) => RELACAO_VALIDA.has(v), "relação com a Origami"),
     raizes: null,
+    escondidas: null,
   };
 }
 
@@ -314,6 +317,7 @@ function condicoes(f: Filtros, inicio: number, extra?: (c: Condicoes) => string)
   if (f.comEmail) c.e("e.tem_email");
   if (f.comTelefone) c.e("e.tem_telefone");
   if (f.raizes) c.e(f.raizes.length ? `e.cnpj_basico = ANY(${c.param(f.raizes)}::bpchar[])` : "false");
+  if (f.escondidas?.length) c.e(`NOT (e.cnpj_basico = ANY(${c.param(f.escondidas)}::bpchar[]))`);
   // "Entrou pela atividade secundária": casou no filtro, mas não pelo CNAE principal.
   const pelaSecundaria = f.secundaria && principal.length ? `NOT (${principal.map((p) => `(${p})`).join(" AND ")})` : "false";
   return { where: c.where(), valores: c.valores, pelaSecundaria };
@@ -622,11 +626,13 @@ interface ProjetoDoTenant {
   start_date: string | null; end_date: string | null;
 }
 
+interface DecisaoDoTenant extends DecisaoDaRelacao { cnpj_raiz: string }
+
 const dia = (valor: string | null | undefined) => (valor ? valor.slice(0, 10) : null);
 
-/** Lê clientes, empresas da Prospecção, oportunidades e projetos do tenant, com a RLS da pessoa. */
+/** Lê clientes, empresas da Prospecção, oportunidades, projetos e decisões do tenant, com a RLS da pessoa. */
 async function lerDoTenant(sessao: SupabaseClient) {
-  const [empresas, clientes, oportunidades, projetos] = await Promise.all([
+  const [empresas, clientes, oportunidades, projetos, decisoes] = await Promise.all([
     todas<EmpresaDoTenant>((de, ate) => sessao.from("prospect_companies").select("id, cnpj, client_id").not("cnpj", "is", null).range(de, ate)),
     todas<ClienteDoTenant>((de, ate) => sessao.from("clients").select("id, cnpj").not("cnpj", "is", null).range(de, ate)),
     todas<OportunidadeDoTenant>((de, ate) =>
@@ -635,8 +641,14 @@ async function lerDoTenant(sessao: SupabaseClient) {
         .range(de, ate)
     ),
     todas<ProjetoDoTenant>((de, ate) => sessao.from("projects").select("id, name, status, client_id, prospect_id, start_date, end_date").range(de, ate)),
+    todas<DecisaoDoTenant>((de, ate) =>
+      sessao.from("prospect_decisoes_da_base")
+        .select("id, cnpj_raiz, decisao, motivo, texto, voltar_em, prospect_id, decidida_por, decidida_em")
+        .is("desfeita_em", null)
+        .range(de, ate)
+    ),
   ]);
-  return { empresas, clientes, oportunidades, projetos };
+  return { empresas, clientes, oportunidades, projetos, decisoes };
 }
 
 type DoTenant = Awaited<ReturnType<typeof lerDoTenant>>;
@@ -696,6 +708,11 @@ class Agrupador {
     raizes.forEach((raiz) => this.anotarProjeto(raiz, projeto));
   }
 
+  /** Descartada ou "Não agora" (US-0010): uma valendo por empresa. */
+  decisao({ cnpj_raiz, ...decisao }: DecisaoDoTenant) {
+    this.dados(cnpj_raiz).decisao = decisao;
+  }
+
   private anotarProjeto(raiz: string, projeto: DadosDaRelacao["projetos"][number]) {
     const chave = `${raiz}:${projeto.id}`;
     if (this.projetosVistos.has(chave)) return;
@@ -708,12 +725,13 @@ class Agrupador {
   }
 }
 
-function agrupar({ empresas, clientes, oportunidades, projetos }: DoTenant): Map<string, DadosDaRelacao> {
+function agrupar({ empresas, clientes, oportunidades, projetos, decisoes }: DoTenant): Map<string, DadosDaRelacao> {
   const g = new Agrupador();
   clientes.forEach((c) => g.cliente(c));
   empresas.forEach((e) => g.empresa(e));
   oportunidades.forEach((o) => g.oportunidade(o));
   projetos.forEach((p) => g.projeto(p));
+  decisoes.forEach((d) => g.decisao(d));
   return g.resultado();
 }
 
@@ -742,13 +760,19 @@ async function relacoesSeguras(sessao: SupabaseClient): Promise<Map<string, Rela
 
 /**
  * Com o filtro de relação, a lista de raízes entra na consulta da VPS (índice de cnpj_basico).
- * Sem os dados do tenant, o filtro não acha ninguém, e a resposta avisa (cenário 9).
+ * Sem os dados do tenant, o filtro não acha ninguém, e a resposta avisa (cenário 9). Sem filtro
+ * de relação, as descartadas e as em "Não agora" saem da lista (US-0010).
  */
 function comRaizes(filtros: Filtros, relacoes: Map<string, RelacaoDaEmpresa> | null): Filtros {
-  if (!filtros.relacoes.length) return filtros;
+  if (!filtros.relacoes.length) return { ...filtros, escondidas: escondidas(relacoes) };
   if (!relacoes) return { ...filtros, raizes: [] };
   const marcadas = new Set(filtros.relacoes);
   return { ...filtros, raizes: [...relacoes].filter(([, r]) => marcadas.has(r.relacao)).map(([raiz]) => raiz) };
+}
+
+function escondidas(relacoes: Map<string, RelacaoDaEmpresa> | null): string[] | null {
+  if (!relacoes) return null;
+  return [...relacoes].filter(([, r]) => ESCONDIDAS_POR_PADRAO.has(r.relacao)).map(([raiz]) => raiz);
 }
 
 /** A relação de cada linha da página; sem os dados, a lista aparece sem ela. */
@@ -808,13 +832,15 @@ async function pagina(cliente: Cliente, pedidoOriginal: Extract<Pedido, { modo: 
 const TETO_DA_CONTAGEM = 100_000;
 
 async function total(cliente: Cliente, pedido: Extract<Pedido, { modo: "total" }>, sessao: SupabaseClient) {
-  const relacoes = pedido.filtros.relacoes.length ? await relacoesSeguras(sessao) : null;
+  // Sempre: sem filtro de relação, o total já desconta as descartadas e as em "Não agora".
+  const relacoes = await relacoesSeguras(sessao);
   const filtros = comRaizes(pedido.filtros, relacoes);
-  const { where, valores } = condicoesDaBusca(filtros, pedido.busca, 2);
-  if (!where) {
+  // Sem outro filtro, o total é o da base menos as escondidas: contar 2 milhões passaria de 2 s.
+  if (!condicoesDaBusca({ ...filtros, escondidas: null }, pedido.busca, 2).where) {
     const base = await lerBase(cliente);
-    return { total: base?.total ?? null, limitado: false };
+    return { total: base?.total == null ? null : Number(base.total) - (filtros.escondidas?.length ?? 0), limitado: false };
   }
+  const { where, valores } = condicoesDaBusca(filtros, pedido.busca, 2);
   const r = await cliente.queryObject<{ n: bigint }>(
     `SELECT count(*) AS n FROM (SELECT 1 FROM pulse.empresas e ${where} LIMIT $1) x`,
     [TETO_DA_CONTAGEM + 1, ...valores],

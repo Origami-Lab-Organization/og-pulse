@@ -1,6 +1,6 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
-import { detalheDaRelacao, rotuloDaRelacao } from '@/lib/prospecting/relacao';
+import { detalheDaRelacao, rotuloDaRelacao, rotuloDoSelo } from '@/lib/prospecting/relacao';
 import { cn } from '@/lib/utils';
 import type { Relacao, RelacaoDaEmpresa } from '@/types/relacao';
 
@@ -8,6 +8,10 @@ const COR: Record<Relacao, string> = {
   cliente_ativo: 'bg-success-subtle text-success-emphasis',
   sendo_abordada: 'bg-info-subtle text-info-emphasis',
   ja_foi_cliente: 'bg-muted text-foreground/80',
+  // Retomar pede ação: destaque de acento; Não agora e Descartada são estados quietos (US-0010).
+  retomar: 'border border-primary bg-background text-primary',
+  nao_agora: 'bg-muted text-muted-foreground',
+  descartada: 'bg-muted text-muted-foreground line-through decoration-muted-foreground/50',
   sem_sucesso: 'bg-warning-subtle text-warning-emphasis',
 };
 const COR_PEDIU_PARA_PARAR = 'bg-destructive-subtle text-destructive-emphasis';
@@ -20,7 +24,7 @@ const PEDIU_PARA_PARAR = 'Pediu para parar';
 export function SeloDeRelacao({ relacao }: { relacao: RelacaoDaEmpresa }) {
   const { byId } = useEmployeeDirectoryMap();
   const nomeDe = (id: string | null) => (id ? byId.get(id)?.nome ?? 'responsável' : 'sem responsável');
-  const rotulo = relacao.pediuParaParar ? PEDIU_PARA_PARAR : rotuloDaRelacao(relacao.relacao);
+  const rotulo = relacao.pediuParaParar ? PEDIU_PARA_PARAR : rotuloDoSelo(relacao);
   const detalhe = detalheDaRelacao(relacao, nomeDe);
   return (
     <Tooltip>

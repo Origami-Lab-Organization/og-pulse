@@ -1,4 +1,5 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +28,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { BuscaReceita, FiltrosReceita, SelecaoDaLista } from '@/types/filtrosReceita';
 import { cn } from '@/lib/utils';
 import { BarraDeSelecao } from './BarraDeSelecao';
+import { DecisaoNaBaseDialog } from './DecisaoNaBaseDialog';
+import { useDecidirNaSelecao } from '@/hooks/useDecidirNaSelecao';
 import { CaixaDeBusca } from './CaixaDeBusca';
 import { ColocarParaAbordarDialog } from './ColocarParaAbordarDialog';
 import { EmpresasReceitaTable } from './EmpresasReceitaTable';
@@ -50,10 +53,12 @@ export function EmpresasDaReceita() {
   const [filtros, setFiltros] = useState<FiltrosReceita>(filtrosDoNavegador);
   const painel = usePainelDeFiltros();
   const [ficha, setFicha] = useState<string | null>(null);
+  useFichaPeloLink(setFicha);
   const { can } = useAuth();
   const podeColocar = can('prospeccao:editar');
   const marcadas = useSelecaoDeEmpresas();
   const [colocando, setColocando] = useState(false);
+  const decidir = useDecidirNaSelecao(marcadas.empresas);
   const [ordenacao, setOrdenacao] = useState(ORDENACAO_PADRAO);
   const [pagina, setPagina] = useState(0);
   const [texto, setTexto] = useState(buscaDoNavegador);
@@ -89,7 +94,7 @@ export function EmpresasDaReceita() {
           <BotaoDeFiltros ref={painel.botao} ativos={ativos} aberto={painel.aberto} onClick={painel.alternar} />
         </div>
         <div className="overflow-hidden rounded-xl border bg-card">
-          <BarraDeSelecao quantidade={marcadas.empresas.length} onColocar={() => setColocando(true)} onLimpar={marcadas.limpar} />
+          <BarraDeSelecao quantidade={marcadas.empresas.length} onColocar={() => setColocando(true)} onDecidir={decidir.abrir} onLimpar={marcadas.limpar} />
           <AvisosDaBusca busca={busca} ativos={ativos} primeira={consulta.data?.linhas[0]?.cnpj} />
           <AvisoDaRelacao indisponivel={!!consulta.data?.relacaoIndisponivel} comFiltro={filtros.relacoes.length > 0} />
           <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={setFicha} selecao={podeColocar ? marcadas.selecao : undefined} />
@@ -98,11 +103,28 @@ export function EmpresasDaReceita() {
       </section>
       <FichaDaEmpresaReceita cnpj={ficha} onFechar={() => setFicha(null)} />
       <ColocarParaAbordarDialog empresas={marcadas.empresas} aberta={colocando} onAbertaChange={setColocando} onConcluido={marcadas.limpar} />
+      <DecisaoNaBaseDialog modo={decidir.modo} empresas={decidir.empresas} onFechar={decidir.fechar} onConcluido={marcadas.limpar} />
       <GavetaDeFiltros aberta={painel.aberto} onAbertaChange={painel.definir} contagem={contagem.data} contando={contagem.isFetching} botao={painel.botao}>
         <PainelDeFiltros filtros={filtros} onChange={filtrar} onLimpar={limpar} onRecolher={painel.recolher} emGaveta />
       </GavetaDeFiltros>
     </div>
   );
+}
+
+const CNPJ_COMPLETO = /^\d{14}$/;
+
+/** `?cnpj=<14 dígitos>`: o aviso "Hora de retomar" do sino abre a ficha da empresa (US-0010). */
+function useFichaPeloLink(abrir: (cnpj: string) => void) {
+  const [params, setParams] = useSearchParams();
+  const cnpj = params.get('cnpj');
+  useEffect(() => {
+    if (!cnpj) return;
+    if (CNPJ_COMPLETO.test(cnpj)) abrir(cnpj);
+    setParams((atual) => {
+      atual.delete('cnpj');
+      return atual;
+    }, { replace: true });
+  }, [cnpj, abrir, setParams]);
 }
 
 interface BotaoDeFiltrosProps {

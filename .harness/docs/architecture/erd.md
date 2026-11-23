@@ -19,6 +19,7 @@ sources:
   - supabase/migrations/20261119120000_qualificacao_e_bant.sql
   - supabase/migrations/20261123120000_historico_do_faturamento.sql
   - supabase/migrations/20261123160000_anel_e_tier_saem.sql
+  - supabase/migrations/20261123200000_decisoes_da_base.sql
   - supabase/migrations/20260923120000_prospect_instagram.sql
   - supabase/migrations/20260924120000_prospect_tasks.sql
   - supabase/migrations/20260928120000_prospect_stage_changes.sql
@@ -104,6 +105,9 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 23/11/2026: 20261123200000 — nova tabela prospect_decisoes_da_base (FK tenants, prospects e
+#  employees; chave pela raiz do CNPJ, sem FK para a base, que mora na VPS; US-0010), conferida
+#  contra DecisaoDaRelacao (supabase/functions/_shared/relacaoTipos.ts).
 # 23/11/2026: 20261123160000 — prospect_companies perde ring e tier (US-0017); os valores ficam em
 #  legado_prospeccao.empresas_anel_tier, fora da API. Conferido contra ProspectCompanyDB.
 # 23/11/2026: 20261123120000 — nova tabela prospect_company_faturamentos (FK prospect_companies,
@@ -207,6 +211,8 @@ erDiagram
     prospects ||--o{ prospect_bant_evidencias : "BANT: evidências por letra (US-0022)"
     prospect_companies ||--o{ prospect_company_faturamentos : "histórico do faturamento, pelo gatilho (US-0018)"
     employees |o--o{ prospect_company_faturamentos : "informado_por"
+    prospects |o--o{ prospect_decisoes_da_base : "Não agora vindo da Perda (US-0010)"
+    employees |o--o{ prospect_decisoes_da_base : "decidida_por, desfeita_por"
     prospects |o--o{ projects : "projects.prospect_id (projeto do Ganho)"
 
     prospect_companies {

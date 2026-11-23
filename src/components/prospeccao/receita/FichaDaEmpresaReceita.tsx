@@ -25,7 +25,10 @@ import { fitDaBase } from '@/lib/prospecting/fitDaBase';
 import { notaDoRegime } from '@/lib/prospecting/limiteDoRegime';
 import { rotuloDoCnae } from '@/lib/prospecting/filtrosReceita';
 import { getDiscardReasonLabel } from '@/types/prospect';
-import { etapaDaOportunidade, statusDoProjeto } from '@/lib/prospecting/relacao';
+import { detalheDaRelacao, etapaDaOportunidade, statusDoProjeto } from '@/lib/prospecting/relacao';
+import { useDecisoesDaBase } from '@/hooks/useDecisoesDaBase';
+import type { ModoDaDecisao } from '@/types/decisoesDaBase';
+import type { RelacaoDaEmpresa } from '@/types/relacao';
 import type { OportunidadeDaRelacao, ProjetoDaRelacao } from '@/types/relacao';
 import { nomeDaQualificacao } from '@/lib/prospecting/qualificacoesDeSocio';
 import type { ContatoDaFicha, EmpresaDaFicha, FichaReceita, SocioDaFicha } from '@/types/fichaReceita';
@@ -33,6 +36,7 @@ import type { RegistroDoFaturamento } from '@/types/filtrosReceita';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { ColocarParaAbordarDialog } from './ColocarParaAbordarDialog';
+import { DecisaoNaBaseDialog } from './DecisaoNaBaseDialog';
 import { MotivoDaConfianca, SeloDeConfianca } from './SeloDeConfianca';
 import { SeloDeRelacao } from './SeloDeRelacao';
 
@@ -94,15 +98,44 @@ function Conteudo({ ficha }: { ficha: ReturnType<typeof useFichaReceita> }) {
   );
 }
 
-/** Mover para qualificação (US-0008, US-0023): só com `prospeccao:editar` e sem oportunidade em andamento. */
+/**
+ * Mover para qualificação (US-0008, US-0023), "Não agora" e Descartar (US-0010): só com
+ * `prospeccao:editar` e sem oportunidade em andamento — aí o caminho é a Perda na oportunidade.
+ */
 function Rodape({ empresa, emAndamento }: { empresa: EmpresaDaFicha; emAndamento: boolean }) {
   const { can } = useAuth();
   const [colocando, setColocando] = useState(false);
+  const [decidindo, setDecidindo] = useState<ModoDaDecisao | null>(null);
   if (emAndamento || !can('prospeccao:editar')) return null;
   return (
-    <div className="border-t bg-card px-5 py-4">
+    <div className="space-y-2 border-t bg-card px-5 py-4">
       <Button className="w-full" onClick={() => setColocando(true)}>Mover para qualificação</Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="outline" onClick={() => setDecidindo('nao_agora')}>Não agora</Button>
+        <Button variant="outline" onClick={() => setDecidindo('descartar')}>Descartar</Button>
+      </div>
       <ColocarParaAbordarDialog empresas={[empresa]} aberta={colocando} onAbertaChange={setColocando} />
+      <DecisaoNaBaseDialog modo={decidindo} empresas={[{ cnpj: empresa.cnpj, nome: nomeDaEmpresa(empresa) }]} onFechar={() => setDecidindo(null)} />
+    </div>
+  );
+}
+
+/** A decisão do time (Descartada, "Não agora", Retomar), com quem, quando e o Desfazer (US-0010). */
+function DecisaoNaFicha({ relacao }: { relacao: RelacaoDaEmpresa }) {
+  const { can } = useAuth();
+  const { byId } = useEmployeeDirectoryMap();
+  const { desfazer } = useDecisoesDaBase();
+  const decisao = relacao.decisao;
+  if (!decisao) return null;
+  const nomeDe = (id: string | null) => (id ? byId.get(id)?.nome ?? 'alguém do time' : 'alguém do time');
+  return (
+    <div className="space-y-2 rounded-md border px-3 py-2.5">
+      {detalheDaRelacao(relacao, nomeDe).map((linha) => <p key={linha} className="text-[12.5px] leading-snug text-muted-foreground">{linha}</p>)}
+      {can('prospeccao:editar') && (
+        <Button variant="outline" size="sm" disabled={desfazer.isPending} onClick={() => desfazer.mutate([decisao.id])}>
+          {desfazer.isPending ? 'Desfazendo…' : 'Desfazer'}
+        </Button>
+      )}
     </div>
   );
 }
@@ -182,6 +215,7 @@ function RelacaoComAOrigami({ ficha }: { ficha: FichaReceita }) {
     <Secao titulo="Relação com a Origami">
       <div className="space-y-2.5">
         {ficha.relacao ? <SeloDeRelacao relacao={ficha.relacao} /> : <p className="text-[13px] text-muted-foreground">Sem relação com a Origami.</p>}
+        {ficha.relacao && <DecisaoNaFicha relacao={ficha.relacao} />}
         {projetos.length > 0 && <ListaDoHistorico titulo="Projetos">{projetos.map((p) => <ItemDeProjeto key={p.id} projeto={p} />)}</ListaDoHistorico>}
         {oportunidades.length > 0 && (
           <ListaDoHistorico titulo="Oportunidades">{oportunidades.map((o) => <ItemDeOportunidade key={o.id} oportunidade={o} />)}</ListaDoHistorico>

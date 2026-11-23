@@ -5,6 +5,9 @@
  */
 export type {
   DadosDaRelacao,
+  DecisaoDaBase,
+  DecisaoDaRelacao,
+  MotivoDoDescarte,
   OportunidadeDaRelacao,
   ProjetoDaRelacao,
   Relacao,

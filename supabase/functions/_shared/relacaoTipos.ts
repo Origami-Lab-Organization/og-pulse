@@ -1,6 +1,33 @@
 /** Contratos da relação da Origami com uma empresa (US-0019); a regra está em relacao.ts. */
 
-export type Relacao = "cliente_ativo" | "sendo_abordada" | "ja_foi_cliente" | "sem_sucesso";
+export type Relacao =
+  | "cliente_ativo"
+  | "sendo_abordada"
+  | "ja_foi_cliente"
+  | "retomar"
+  | "nao_agora"
+  | "descartada"
+  | "sem_sucesso";
+
+/** Decisão do time sobre a empresa na Base de empresas (US-0010). */
+export type DecisaoDaBase = "descartada" | "nao_agora";
+
+/** Motivos do descarte: lista própria, separada dos motivos de Perda (decisão de 16/11/2026). */
+export type MotivoDoDescarte = "sem_fit" | "cliente_ou_parceiro" | "concorrente" | "dados_invalidos" | "outro";
+
+/** A decisão ativa (não desfeita) sobre a empresa. */
+export interface DecisaoDaRelacao {
+  id: string;
+  decisao: DecisaoDaBase;
+  motivo: MotivoDoDescarte | null;
+  texto: string | null;
+  /** "Não agora": quando voltar. AAAA-MM-DD. */
+  voltar_em: string | null;
+  /** "Não agora" que veio da Perda na Qualificação. */
+  prospect_id: string | null;
+  decidida_por: string | null;
+  decidida_em: string;
+}
 
 
 export interface OportunidadeDaRelacao {
@@ -27,6 +54,8 @@ export interface DadosDaRelacao {
   cliente: boolean;
   projetos: ProjetoDaRelacao[];
   oportunidades: OportunidadeDaRelacao[];
+  /** Descartada ou "Não agora", ainda valendo (US-0010). */
+  decisao?: DecisaoDaRelacao | null;
 }
 
 export interface RelacaoDaEmpresa {
@@ -37,4 +66,6 @@ export interface RelacaoDaEmpresa {
   projeto: ProjetoDaRelacao | null;
   /** Em andamento (cliente ativo ou sendo abordada), o Ganho (já foi cliente) ou a Perda. */
   oportunidade: OportunidadeDaRelacao | null;
+  /** Retomar, Não agora ou Descartada: a decisão do time (US-0010). */
+  decisao?: DecisaoDaRelacao | null;
 }

@@ -20,7 +20,8 @@ export type TabelaDeProspeccao =
   | 'prospect_tasks'
   | 'prospect_stage_changes'
   | 'prospect_company_partners'
-  | 'prospect_bant_evidencias';
+  | 'prospect_bant_evidencias'
+  | 'prospect_decisoes_da_base';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver comentário acima
 const clienteSemTipos = supabase as any;
