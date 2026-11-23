@@ -78,8 +78,8 @@ Valores passam por `useMaskedCurrency` (ocultar valores).
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| 1 | Pendente: conferir na tela (Paraíso: R$ 1.083,60 e R$ 1.083,60). |
-| 2 | Pendente: conferir na tela com filtro Viagem e outro tipo. |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso: R$ 1.083,60 e R$ 1.083,60). |
+| 2 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
 | 3 | Pendente: conferir na tela num projeto sem custos. |
 
 Testes automatizados não escritos: testes desativados no Harness por decisão do time.
