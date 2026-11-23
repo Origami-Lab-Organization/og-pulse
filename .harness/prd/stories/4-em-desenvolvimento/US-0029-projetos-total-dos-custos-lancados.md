@@ -1,6 +1,6 @@
 # US-0029 — Ver o total dos custos lançados
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
@@ -70,6 +70,16 @@ Paraíso, para saber que as cinco viagens somam R$ 1.083,60 é preciso fazer a c
 
 ## Implementação
 
+Rodapé "Total geral" na tabela de `ProjectCostsLedger`, com a soma do Planejado e do
+Realizado em BRL de todos os custos do projeto (`sumLedgerCosts`, a mesma conta dos cards).
+Com filtro de tipo, o rótulo vira "Total geral (todos os tipos)". Se o filtro não tem
+resultado mas o projeto tem custos, o total geral aparece sob a mensagem de lista vazia.
+Valores passam por `useMaskedCurrency` (ocultar valores).
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso: R$ 1.083,60 e R$ 1.083,60). |
+| 2 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
+| 3 | Pendente: conferir na tela num projeto sem custos. |
+
+Testes automatizados não escritos: testes desativados no Harness por decisão do time.

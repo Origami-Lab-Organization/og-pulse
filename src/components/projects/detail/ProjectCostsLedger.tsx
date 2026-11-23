@@ -26,6 +26,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -59,6 +60,7 @@ import { useCancelProjectCost, useDeleteProjectCost } from "@/hooks/useProjectCo
 import { ProjectCostFormDialog } from "./ProjectCostFormDialog";
 import { ProjectCostPayDialog } from "./ProjectCostPayDialog";
 import type { ProjectCostCategory, ProjectCostDB } from "@/types/project";
+import { sumLedgerCosts } from "@/lib/projectCostSummary";
 
 interface ProjectCostsLedgerProps {
   projectId: string;
@@ -115,6 +117,11 @@ export function ProjectCostsLedger({
     if (filter === "all") return allRows;
     return allRows.filter((r) => r.data.category === filter);
   }, [allRows, filter]);
+
+  // Total GERAL da lista (US-0029, decisão de 23/11): soma todos os custos do projeto, de
+  // todos os tipos, mesmo com filtro — o mesmo número que entra nos cards da aba.
+  const grandTotal = useMemo(() => sumLedgerCosts(costs), [costs]);
+  const grandTotalLabel = filter === "all" ? "Total geral" : "Total geral (todos os tipos)";
 
   const defaultCategory: ProjectCostCategory =
     filter === "all" ? "supplier" : filter;
@@ -195,6 +202,12 @@ export function ProjectCostsLedger({
         {visibleRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
             <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+            {costs.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {grandTotalLabel}: planejado {formatCurrency(grandTotal.planned)} · realizado{" "}
+                {formatCurrency(grandTotal.actual)}
+              </p>
+            )}
             {canManage && (
               <Button variant="outline" size="sm" onClick={openAdd}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -346,6 +359,20 @@ export function ProjectCostsLedger({
                   );
                 })}
               </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={5} className="font-medium">
+                    {grandTotalLabel}
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {formatCurrency(grandTotal.planned)}
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {formatCurrency(grandTotal.actual)}
+                  </TableCell>
+                  {canManage && <TableCell />}
+                </TableRow>
+              </TableFooter>
             </Table>
           </div>
         )}
