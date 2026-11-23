@@ -116,10 +116,10 @@ foi confirmada no banco; a correção não depende dela.
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| 1 | Pendente: conferir na tela (Paraíso, localhost:8080). |
-| 2 | Pendente: conferir na tela. Seção e KPI usam a mesma regra de custo por hora (`cost_per_hour` da hora; sem ele, a taxa do membro). |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
+| 2 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso). Seção e KPI usam a mesma regra de custo por hora. |
 | 3 | Pendente: conferir na tela. Código lê o mês do texto `yyyy-MM-dd`. |
-| 4 | Pendente: conferir na tela (esperado: 60h / 28h e R$ 3.671,67). |
+| 4 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso: 60h / 28h e R$ 3.671,67). |
 | 5 | Pendente: conferir na tela num projeto com pessoa desalocada que lançou horas. |
 
 Testes automatizados não escritos: testes desativados no Harness por decisão do time.
