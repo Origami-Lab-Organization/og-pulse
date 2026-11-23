@@ -1,8 +1,8 @@
 # US-0030 — Lançar horas e custos só dentro do período do projeto
 
-- **Status:** Em refinamento
+- **Status:** A fazer
 - **Tipo:** história
-- **Prontidão:** NÃO PRONTA
+- **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
 - **Prioridade:** 6
 - **Aprovada por / em:** —
@@ -30,8 +30,8 @@ cai no mês errado (US-0026).
 
 ### Escopo
 
-- Inclui: lançamento de horas e de custos (ledger da aba Despesas), pela tela e pelo
-  chat; o aviso que a pessoa recebe quando o lançamento é recusado.
+- Inclui: lançar, editar e apagar horas e custos (ledger da aba Despesas), pela tela e
+  pelo chat; o aviso que a pessoa recebe quando a ação é recusada.
 - Não inclui: lançamentos fora do período que já existem (continuam valendo e aparecem
   num mês extra do gráfico, US-0026); recebimento de parcelas (ADR-0038).
 
@@ -39,32 +39,60 @@ cai no mês errado (US-0026).
 
 **Cenário 1: projeto concluído não recebe lançamento**
 
-- **Dado** um projeto na etapa Concluído;
-- **Quando** alguém tenta lançar horas ou um custo nele;
+- **Dado** um projeto na etapa Concluído e uma pessoa que não é admin;
+- **Quando** ela tenta lançar horas ou um custo nele;
 - **Então** o lançamento é recusado;
-- **E** a pessoa vê que o projeto está concluído e por isso não aceita lançamentos.
+- **E** ela vê que o projeto está concluído e por isso não aceita lançamentos.
 
-**Cenário 2: data antes do início é recusada**
+**Cenário 2: em projeto concluído, também não se edita nem apaga**
+
+- **Dado** um projeto na etapa Concluído e uma pessoa que não é admin;
+- **Quando** ela tenta editar ou apagar uma hora ou um custo já lançado;
+- **Então** a ação é recusada, com o mesmo aviso.
+
+**Cenário 3: admin lança em projeto concluído**
+
+- **Dado** um projeto na etapa Concluído e um admin;
+- **Quando** ele lança, edita ou apaga uma hora ou um custo com data dentro do período;
+- **Então** a ação é aceita.
+
+**Cenário 4: data antes do início é recusada**
 
 - **Dado** um projeto que começa em 19/10/2026;
-- **Quando** alguém tenta lançar horas ou um custo com data 18/10/2026;
-- **Então** o lançamento é recusado;
+- **Quando** alguém tenta lançar horas ou um custo com data 18/10/2026, ou mudar a data
+  de um lançamento para 18/10/2026;
+- **Então** a ação é recusada;
 - **E** a pessoa vê o período aceito pelo projeto.
 
-**Cenário 3: data depois do fim é recusada**
+**Cenário 5: data depois do fim é recusada**
 
 - **Dado** um projeto que termina em 17/11/2026;
-- **Quando** alguém tenta lançar horas ou um custo com data 18/11/2026;
-- **Então** o lançamento é recusado.
+- **Quando** alguém tenta lançar horas ou um custo com data 18/11/2026, ou mudar a data
+  de um lançamento para 18/11/2026;
+- **Então** a ação é recusada.
 
-**Cenário 4: data dentro do período é aceita**
+**Cenário 6: data dentro do período é aceita**
 
 - **Dado** um projeto em andamento de 19/10/2026 a 17/11/2026;
 - **Quando** alguém lança horas ou um custo em qualquer data de 19/10 a 17/11,
   incluindo as duas pontas;
 - **Então** o lançamento é aceito.
 
-**Cenário 5: o chat segue a mesma regra**
+**Cenário 7: para o custo, vale a data do custo**
+
+- **Dado** um custo com data do custo dentro do período e data de pagamento depois do
+  fim do projeto (ex.: hotel de 15/11 pago em 25/11, num projeto que termina em 17/11);
+- **Quando** ele é lançado;
+- **Então** o lançamento é aceito.
+
+**Cenário 8: projeto sem data de fim**
+
+- **Dado** um projeto contínuo ou sem data de fim;
+- **Quando** alguém lança horas ou um custo com data a partir do início;
+- **Então** o lançamento é aceito;
+- **E** só a data antes do início é recusada.
+
+**Cenário 9: o chat segue a mesma regra**
 
 - **Dado** um lançamento de horas feito pelo chat;
 - **Quando** o projeto está concluído ou a data está fora do período;
@@ -74,20 +102,18 @@ cai no mês errado (US-0026).
 
 - Não se lança em projeto concluído.
 - Lançamentos só entre a data de início e a data de fim do projeto.
+- O admin pode lançar, editar e apagar em projeto concluído.
+- Para o custo, vale a data do custo; a data de pagamento pode ser depois do fim.
+- Em projeto concluído, a regra vale também para editar e apagar.
+- Projeto sem data de fim só tem o limite da data de início.
 
 ## Pontos em aberto
 
-### Decisões pendentes
+### Hipóteses para validar
 
-- **Admin em projeto concluído:** hoje o admin ainda edita projeto concluído ("Apenas
-  administradores podem realizar alterações"). A regra vale também para o admin, ou ele
-  continua podendo lançar para corrigir, por exemplo, uma nota que chegou depois?
-- **Qual data do custo conta:** o custo tem a data do custo e a data de pagamento. Uma
-  nota de hotel da última semana costuma ser paga depois do fim do projeto. A regra vale
-  para a data do custo (pagamento pode ser depois) ou para as duas?
-- **Editar e apagar:** a regra vale também para editar ou apagar um lançamento que já
-  existe em projeto concluído, ou só para lançar novo?
-- **Projeto contínuo ou sem data de fim:** sem data de fim, vale só o limite do início?
+- A exceção do admin vale só para a etapa Concluído; a regra do período vale para todos,
+  inclusive o admin. Uma nota que chega depois tem data do custo dentro do período, então
+  continua aceita (cenário 7).
 
 ### Provocações para produto
 
@@ -99,7 +125,7 @@ cai no mês errado (US-0026).
 
 - **Comportamento atual:** PROVADO —
   - `src/pages/ProjectDetail.tsx`: `canEdit = canManageProject && (isAdmin || !isCompleted)`
-    e `canEditActuals` falso em projeto concluído (só tela);
+    e `canEditActuals` falso em projeto concluído, inclusive para o admin (só tela);
   - `src/hooks/useMyTimesheetData.ts` exclui projetos com `portfolio_stage = 'completed'`
     e lê `start_date`/`end_date` (só tela);
   - `ProjectCostFormDialog.tsx`: data do custo começa em hoje, sem limite de período;
@@ -107,12 +133,15 @@ cai no mês errado (US-0026).
   - NÃO LOCALIZADO: guarda no banco (trigger ou policy) por período ou por etapa em
     `project_timesheets` e `project_costs`.
 - **Restrições:** a recusa precisa valer no banco, não só na tela, porque há dois
-  caminhos de escrita (tela e MCP, TD-0022); mensagem ao usuário com `ERRCODE 'PU001'` e
-  `mensagemParaUsuario` (ai-review-checklist); mudança de schema só por migration.
+  caminhos de escrita (tela e MCP, TD-0022); "admin" é capacidade, não papel (ADR-0027):
+  a exceção do cenário 3 deve seguir a capacidade que hoje libera editar projeto
+  concluído; mensagem ao usuário com `ERRCODE 'PU001'` e `mensagemParaUsuario`
+  (ai-review-checklist); mudança de schema só por migration.
 - **Riscos para investigar:** "Limpar semana" e preenchimento automático de horas
   (`useTimesheetPrefill`); edição de horas pelo admin (`AdminWeekEditDialog`); lançamento
-  gerado no fechamento de negócio (`useCloseBusinessDeal` grava em `project_costs`).
-- **Provas esperadas:** os cinco cenários, pela tela e pelo chat.
+  gerado no fechamento de negócio (`useCloseBusinessDeal` grava em `project_costs`);
+  custo recorrente (`start_month`/`end_month`) em vez de data única.
+- **Provas esperadas:** os nove cenários, pela tela e pelo chat.
 - **Fora do escopo:** limpar lançamentos fora do período que já existem.
 
 ## Implementação

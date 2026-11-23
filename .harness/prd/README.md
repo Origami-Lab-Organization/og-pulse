@@ -252,7 +252,7 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 | [US-0027](stories/1-a-fazer/US-0027-projetos-mao-de-obra-mostra-horas-lancadas.md) | A seção Mão de Obra mostra as horas lançadas | GP ou admin | A fazer | Pronta com ressalvas |
 | [US-0028](stories/1-a-fazer/US-0028-projetos-grafico-planejado-x-realizado-so-com-totais.md) | O gráfico Planejado × Realizado mostra só os totais | GP ou admin | A fazer | Pronta com ressalvas |
 | [US-0029](stories/1-a-fazer/US-0029-projetos-total-dos-custos-lancados.md) | Ver o total dos custos lançados | GP ou admin | A fazer | Pronta |
-| [US-0030](stories/2-em-refinamento/US-0030-projetos-lancamento-so-dentro-do-periodo.md) | Lançar horas e custos só dentro do período do projeto | GP ou admin | Em refinamento | Não pronta |
+| [US-0030](stories/1-a-fazer/US-0030-projetos-lancamento-so-dentro-do-periodo.md) | Lançar horas e custos só dentro do período do projeto | GP ou admin | A fazer | Pronta |
 
 #### Ordem de implementação proposta
 
@@ -270,12 +270,12 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 - Lançamento fora do período aparece num mês extra do gráfico e entra no total
   (US-0026).
 - Não se lança em projeto concluído, e lançamentos só valem entre a data de início e a
-  data de fim do projeto (US-0030).
+  data de fim do projeto (US-0030). O admin pode lançar, editar e apagar em projeto
+  concluído; para o custo vale a data do custo, não a de pagamento; em projeto concluído
+  a regra vale também para editar e apagar; projeto sem data de fim só tem o limite do
+  início.
 
 #### Decisões pendentes do épico
 
-1. **US-0030:** admin pode lançar em projeto concluído? Qual data do custo conta (data
-   do custo ou de pagamento)? A regra vale para editar e apagar? E projeto sem data de
-   fim?
-2. **US-0028:** o que acontece ao clicar numa barra do gráfico, sem séries por
+1. **US-0028:** o que acontece ao clicar numa barra do gráfico, sem séries por
    categoria.
