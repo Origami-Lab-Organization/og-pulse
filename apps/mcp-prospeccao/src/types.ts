@@ -9,7 +9,7 @@ export interface PgError {
 export type CompanyFields = Partial<
   Pick<
     ProspectCompanyDB,
-    'name' | 'cnpj' | 'linkedin_url' | 'instagram_url' | 'website' | 'segment' | 'ring' | 'tier' | 'tipo_conta' | 'funcionarios_informados' | 'notes' | 'client_id'
+    'name' | 'cnpj' | 'linkedin_url' | 'instagram_url' | 'website' | 'segment' | 'tipo_conta' | 'funcionarios_informados' | 'notes' | 'client_id'
   >
 >;
 

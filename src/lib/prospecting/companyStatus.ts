@@ -5,7 +5,7 @@ import type {
   ProspectStage,
   ProspectWithCompany,
 } from '@/types/prospect';
-import { parseRank, parseSegment } from './companySegmentation';
+import { parseSegment } from './companySegmentation';
 
 /**
  * Situação da EMPRESA na prospecção, derivada das oportunidades dela (24/09/2026; desde
@@ -197,8 +197,6 @@ export interface CompanyRow {
   /** Segmentação lida do texto livre da empresa — ver `companySegmentation`. */
   setor: string | null;
   subsetor: string | null;
-  anel: number | null;
-  tier: number | null;
 }
 
 export function buildCompanyRows(
@@ -217,8 +215,6 @@ export function buildCompanyRows(
       company,
       setor,
       subsetor,
-      anel: parseRank(company.ring),
-      tier: parseRank(company.tier),
       opportunities,
       contacts: pessoasPorEmpresa.get(company.id) ?? [],
       status: companyProspectStatus(company, opportunities),

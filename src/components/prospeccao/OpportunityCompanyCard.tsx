@@ -124,13 +124,11 @@ function Convite({ onClick }: { onClick: () => void }) {
 
 /**
  * O segmento em texto corrido, cortado em duas linhas (o da Receita é a descrição inteira do
- * CNAE e não cabe num chip); tipo de conta (US-0008), anel e tier, que são curtos, seguem como chips.
+ * CNAE e não cabe num chip); o tipo de conta (US-0008), curto, segue como chip.
  */
 function Segmentacao({ empresa }: { empresa: ProspectCompanyDB }) {
   const chips = [
     getTipoDeContaLabel(empresa.tipo_conta),
-    empresa.ring && `Anel ${empresa.ring}`,
-    empresa.tier && `Tier ${empresa.tier}`,
   ].filter(Boolean) as string[];
   if (!empresa.segment && chips.length === 0) return null;
   return (
@@ -236,8 +234,6 @@ function EdicaoDaEmpresa(props: OpportunityCompanyCardProps) {
       <Campo label="Site" draft={rascunho.company_website} onChange={definir('company_website')} />
       <Campo label="Segmento" draft={rascunho.company_segment} onChange={definir('company_segment')} />
       <CampoTipoDeConta valor={rascunho.company_tipo_conta ?? ''} onChange={definir('company_tipo_conta')} />
-      <Campo label="Anel" draft={rascunho.company_ring} onChange={definir('company_ring')} />
-      <Campo label="Tier" draft={rascunho.company_tier} onChange={definir('company_tier')} />
       <div className="space-y-1">
         <Label htmlFor="ficha-empresa-faturamento" className="text-xs text-muted-foreground">Faturamento anual</Label>
         <FaturamentoAnualField

@@ -63,8 +63,6 @@ export const schema = z.object({
   company_instagram: z.string().max(300, 'Endereço longo demais').optional(),
   company_website: z.string().optional(),
   company_segment: z.string().optional(),
-  company_ring: z.string().optional(),
-  company_tier: z.string().optional(),
   company_faturamento: z.number().min(0).optional(),
   company_faturamento_base: z.enum(['estimado', 'apurado', 'calculado']).optional(),
   // Empresa que já é cliente da carteira (escolhida no seletor).
@@ -139,8 +137,6 @@ function empresaDoFormulario(values: FormData) {
     instagram_url: values.company_instagram,
     website: values.company_website,
     segment: values.company_segment,
-    ring: values.company_ring,
-    tier: values.company_tier,
     client_id: values.company_client_id,
     faturamento_anual: values.company_faturamento ?? null,
     faturamento_anual_base: values.company_faturamento_base,
@@ -267,8 +263,6 @@ function CamposDaEmpresaNova({ form, empresaNova }: { form: Formulario; empresaN
         <CampoDeTexto form={form} name="company_instagram" label="Instagram da empresa" placeholder="@empresa ou link do perfil" />
         <CampoDeTexto form={form} name="company_website" label="Site" />
         <CampoDeTexto form={form} name="company_segment" label="Segmento" />
-        <CampoDeTexto form={form} name="company_ring" label="Anel" />
-        <CampoDeTexto form={form} name="company_tier" label="Tier" />
         <CampoDeFaturamento form={form} />
       </div>
     </>
@@ -484,8 +478,6 @@ export function ResumoDaEmpresa({ empresa }: { empresa: ProspectCompanyDB }) {
   const itens = [
     empresa.cnpj ? formatCNPJ(empresa.cnpj) : null,
     empresa.segment,
-    empresa.ring ? `Anel ${empresa.ring}` : null,
-    empresa.tier ? `Tier ${empresa.tier}` : null,
   ].filter(Boolean);
 
   return (

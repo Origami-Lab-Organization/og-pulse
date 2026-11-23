@@ -6,7 +6,7 @@ import type { ProspectCompanyDB } from '@/types/prospect';
  * Nome, CNPJ e LinkedIn ficam de fora: o nome é o da empresa cadastrada, e CNPJ e LinkedIn
  * são únicos por organização — a empresa de origem continua com os dela.
  */
-const CAMPOS_COMPLETAVEIS = ['instagram_url', 'website', 'segment', 'ring', 'tier'] as const;
+const CAMPOS_COMPLETAVEIS = ['instagram_url', 'website', 'segment'] as const;
 
 /** O cadastro como entrada de `update`: o service grava todos os campos, então vão todos. */
 function entradaDe(empresa: ProspectCompanyDB): ProspectCompanyInput {
@@ -17,8 +17,6 @@ function entradaDe(empresa: ProspectCompanyDB): ProspectCompanyInput {
     instagram_url: empresa.instagram_url,
     website: empresa.website,
     segment: empresa.segment,
-    ring: empresa.ring,
-    tier: empresa.tier,
     client_id: empresa.client_id,
     notes: empresa.notes,
     faturamento_anual: empresa.faturamento_anual ?? null,

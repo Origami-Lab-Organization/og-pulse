@@ -11,8 +11,6 @@ export interface ProspectCompanyInput {
   instagram_url?: string | null;
   website?: string | null;
   segment?: string | null;
-  ring?: string | null;
-  tier?: string | null;
   client_id?: string | null;
   notes?: string | null;
   /** Ausente = não mexe: quem edita a empresa sem esse campo não apaga o que já existe. */
@@ -32,8 +30,6 @@ function normalize(input: ProspectCompanyInput) {
     instagram_url: input.instagram_url?.trim() || null,
     website: input.website?.trim() || null,
     segment: input.segment?.trim() || null,
-    ring: input.ring?.trim() || null,
-    tier: input.tier?.trim() || null,
     client_id: input.client_id || null,
     notes: input.notes?.trim() || null,
     ...faturamentoDe(input),

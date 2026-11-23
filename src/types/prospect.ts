@@ -331,10 +331,6 @@ export interface ProspectCompanyDB {
   instagram_url: string | null;
   website: string | null;
   segment: string | null;
-  /** "Anel" — segmentação de proximidade. Texto livre, editável no card. */
-  ring: string | null;
-  /** "Tier" — segmentação de porte/prioridade. Texto livre, editável no card. */
-  tier: string | null;
   /** Âncora, Ponte ou Satélite (US-0008); nulo = ainda não classificada. */
   tipo_conta?: TipoDeConta | null;
   /** Funcionários confirmados pelo time; prevalece sobre a RAIS (US-0020). Nulo = não informado. */

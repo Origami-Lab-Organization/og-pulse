@@ -7,39 +7,6 @@ import {
 } from '@/lib/prospecting/companyStatus';
 import { cn } from '@/lib/utils';
 
-/** Tier 1 é a conta mais prioritária e leva o maior contraste; do 3 em diante, o menor. */
-const ESTILO_DO_TIER: Record<number, string> = {
-  1: 'border-foreground bg-foreground text-background',
-  2: 'border-border bg-muted text-foreground',
-};
-const ESTILO_TIER_BAIXO = 'border-border bg-card text-muted-foreground';
-
-export function TierBadge({ tier, longo = false }: { tier: number; longo?: boolean }) {
-  return (
-    <span
-      title={`Tier ${tier}`}
-      className={cn(
-        'inline-flex items-center rounded-md border font-semibold tracking-wide',
-        longo ? 'h-[26px] px-2.5 text-xs' : 'h-[22px] px-[7px] text-[11.5px]',
-        ESTILO_DO_TIER[tier] ?? ESTILO_TIER_BAIXO,
-      )}
-    >
-      {longo ? `Tier ${tier}` : `T${tier}`}
-    </span>
-  );
-}
-
-export function AnelBadge({ anel }: { anel: number }) {
-  return (
-    <span
-      title={`Anel ${anel}`}
-      className="inline-flex h-6 w-6 items-center justify-center rounded-full border-[1.5px] border-input text-xs font-semibold text-foreground/80"
-    >
-      {anel}
-    </span>
-  );
-}
-
 /** O sinal que a tela existe para dar. "Não abordar" tem menos ênfase de propósito. */
 export function AbordagemBadge({ status, comFundo = false }: { status: CompanyProspectStatus; comFundo?: boolean }) {
   const acao = COMPANY_STATUS_META[status].action;

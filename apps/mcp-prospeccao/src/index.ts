@@ -134,7 +134,7 @@ const INSTRUCOES = [
   'Ao falar com a pessoa, use Prospecção, Ganho, Perda e Oportunidade qualificada — nunca "lead", "CRM" ou "funil".',
 ].join('\n');
 
-const server = new McpServer({ name: 'og-pulse-prospeccao', version: '1.2.0' }, { instructions: INSTRUCOES });
+const server = new McpServer({ name: 'og-pulse-prospeccao', version: '1.3.0' }, { instructions: INSTRUCOES });
 
 const camposDeEmpresa = {
   cnpj: textoOpcional('CNPJ com ou sem máscara. Evita empresa duplicada.'),
@@ -142,8 +142,6 @@ const camposDeEmpresa = {
   instagram_url: textoOpcional('Instagram da empresa: @perfil ou link.'),
   website: textoOpcional('Site da empresa.'),
   segment: textoOpcional('Segmento de mercado.'),
-  ring: z.string().max(60).optional().describe('Anel — segmentação de proximidade (texto livre).'),
-  tier: z.string().max(60).optional().describe('Tier — porte/prioridade (texto livre).'),
   tipo_conta: z
     .enum(TIPOS)
     .nullable()
@@ -468,7 +466,7 @@ function secaoDePessoas(pessoas: Map<string, string>): string[] {
 
 server.tool(
   'list_prospecting_options',
-  'Valores válidos da Prospecção, com id e rótulo: etapas (e como se chega a cada uma, inclusive Ganho e Perda), canais, alavancas, motivos de perda, períodos das métricas e responsáveis. Consulte antes de cadastrar ou mover, para nunca chutar valor. Anel e Tier da empresa são texto livre.',
+  'Valores válidos da Prospecção, com id e rótulo: etapas (e como se chega a cada uma, inclusive Ganho e Perda), canais, alavancas, motivos de perda, períodos das métricas e responsáveis. Consulte antes de cadastrar ou mover, para nunca chutar valor. A empresa se segmenta pelo tipo de conta (lista fechada) e pela distância de Formiga; Anel e Tier não existem mais.',
   {},
   executar(async () => {
     const pessoas = await db.nomesDasPessoas();
