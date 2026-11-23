@@ -47,6 +47,9 @@ capacidade que governa a ação.
 
 - **Pessoa do comercial:** tem `prospeccao:ler` para ver e `prospeccao:editar`
   para classificar e abrir oportunidade.
+- **GP ou admin:** tem `financeiro:ler` para ver custo, margem e despesas do
+  projeto. O custo de mão de obra por pessoa é só do admin ou do GP do próprio
+  projeto.
 
 ## Épicos e histórias
 
@@ -233,3 +236,46 @@ O que a base tem e não tem, e por que importa:
   Os índices existentes cobrem CNAE principal, UF com município e situação, e
   `cnpj_basico`; não há índice para idade, natureza jurídica isolada nem busca por
   nome.
+
+### Custos do projeto (aberto em 2026-11-23)
+
+A análise do projeto Projeto Fator S | UFLA (Paraíso), em 23/11/2026, mostrou que a
+Visão Geral, a aba Despesas e a seção Mão de Obra calculam o custo do projeto cada
+uma à sua maneira, e os números não batem. O número correto é o KPI "Custo
+realizado" da aba Despesas (R$ 4.755,27 no Paraíso). As correções valem para todos
+os projetos, porque o defeito está no cálculo das telas, não nos dados lançados.
+
+| ID | História | Persona | Status | Prontidão |
+|---|---|---|---|---|
+| [US-0025](stories/1-a-fazer/US-0025-projetos-custo-do-projeto-igual-em-todas-as-abas.md) | O custo do projeto é o mesmo em todas as abas | GP ou admin | A fazer | Pronta |
+| [US-0026](stories/1-a-fazer/US-0026-projetos-grafico-de-custos-mostra-todos-os-meses.md) | O gráfico de custos mostra todos os meses do projeto | GP ou admin | A fazer | Pronta |
+| [US-0027](stories/1-a-fazer/US-0027-projetos-mao-de-obra-mostra-horas-lancadas.md) | A seção Mão de Obra mostra as horas lançadas | GP ou admin | A fazer | Pronta com ressalvas |
+| [US-0028](stories/1-a-fazer/US-0028-projetos-grafico-planejado-x-realizado-so-com-totais.md) | O gráfico Planejado × Realizado mostra só os totais | GP ou admin | A fazer | Pronta com ressalvas |
+| [US-0029](stories/1-a-fazer/US-0029-projetos-total-dos-custos-lancados.md) | Ver o total dos custos lançados | GP ou admin | A fazer | Pronta |
+| [US-0030](stories/2-em-refinamento/US-0030-projetos-lancamento-so-dentro-do-periodo.md) | Lançar horas e custos só dentro do período do projeto | GP ou admin | Em refinamento | Não pronta |
+
+#### Ordem de implementação proposta
+
+| Ordem | Fatia | Histórias |
+|---|---|---|
+| 1 | Um número só de custo | US-0025 |
+| 2 | Números certos na aba Despesas | US-0026, US-0027 |
+| 3 | Leitura mais clara | US-0028, US-0029 |
+| 4 | Lançar só no período | US-0030 |
+
+#### Decisões do Victor Couto (2026-11-23)
+
+- O tooltip do gráfico mensal mantém a quebra MO / Outros sob cada total (US-0028).
+- O total da lista de Custos é sempre geral, não acompanha o filtro de tipo (US-0029).
+- Lançamento fora do período aparece num mês extra do gráfico e entra no total
+  (US-0026).
+- Não se lança em projeto concluído, e lançamentos só valem entre a data de início e a
+  data de fim do projeto (US-0030).
+
+#### Decisões pendentes do épico
+
+1. **US-0030:** admin pode lançar em projeto concluído? Qual data do custo conta (data
+   do custo ou de pagamento)? A regra vale para editar e apagar? E projeto sem data de
+   fim?
+2. **US-0028:** o que acontece ao clicar numa barra do gráfico, sem séries por
+   categoria.
