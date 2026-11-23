@@ -162,9 +162,18 @@ export function ProjectFinancialTab({
       <div className="grid gap-3 lg:grid-cols-[1.05fr_1.5fr]">
         <ProjectPnLBridge
           contract={kpiData.revenuePlanned}
-          commission={kpiData.commissionPlanned}
-          labor={costData.laborPlanned}
-          other={costData.extraPlanned}
+          projected={{
+            revenue: kpiData.revenuePlanned,
+            commission: kpiData.commissionPlanned,
+            labor: costData.laborPlanned,
+            other: costData.extraPlanned,
+          }}
+          realized={{
+            revenue: kpiData.revenueActual,
+            commission: kpiData.commissionActual,
+            labor: costData.laborActual,
+            other: costData.extraActual,
+          }}
         />
         <ProjectContractCurveChart
           data={curveData}
