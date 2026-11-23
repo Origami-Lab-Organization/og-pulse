@@ -16,9 +16,11 @@ import { readFileSync } from 'node:fs';
 import { Transform, type TransformCallback } from 'node:stream';
 import { divisaoDoCnae, setorDoCnae, setoresERamos } from '@/lib/prospecting/cnae';
 import { estimarFaturamento } from '@/lib/prospecting/faturamentoEstimado';
-import { bestFit, companyFit } from '@/lib/prospecting/fit';
-import type { ProspectCompanyDB } from '@/types/prospect';
+import { bestFit } from '@/lib/prospecting/fit';
+import { fitDaBase } from '@/lib/prospecting/fitDaBase';
 import { ARQUIVO_DESTINO, ARQUIVO_ORIGEM, lerAmbiente, psql, terminou, type Ambiente } from './psql';
+import { chaveDoMunicipio, kmEntre } from './distancia';
+import SEDES from './sedes-municipais.json';
 
 const NULO = '\\N';
 const aplicar = process.argv.includes('--aplicar');
@@ -30,7 +32,7 @@ const aplicar = process.argv.includes('--aplicar');
 const NATUREZAS_FORA = ['3085', '3220', '3255', '3263', '3271', '3280', '3298', '4090'];
 
 // Recorte: matrizes ativas, fora do exterior. A ordem das colunas é a de COLUNAS_DESTINO
-// sem as oito últimas (fit, setor, ramo e faturamento estimado), que o script acrescenta.
+// sem as nove últimas (fit, setor, ramo, faturamento estimado e distância), que o script acrescenta.
 // Funcionários (US-0006, 17/11/2026): a RAIS pública não traz CNPJ. Valem os vínculos do
 // cruzamento da base (empresas_funcionarios: CEP + CNAE + natureza) e, para o estabelecimento
 // que ele não cruzou, o par único por CEP + CNAE — um só estabelecimento na RAIS e um só ativo
@@ -92,32 +94,19 @@ const COLUNAS_DESTINO = [
   'uf', 'funcionarios', 'unidades_com_funcionarios', 'filiais_ativas', 'socios', 'divida_total',
   'divida_em_cobranca', 'divida_ajuizada', 'inscricoes_divida', 'tem_email', 'tem_telefone',
   'fit_previo', 'fit_frente', 'secao', 'divisao', 'secoes_sec', 'divisoes_sec', 'faturamento_estimado',
-  'faturamento_base',
+  'faturamento_base', 'distancia_km',
 ].join(', ');
 
 const COL = {
-  cnaePrincipal: 5, cnaesSecundarios: 6, natureza: 7, capital: 8, abertura: 9, uf: 11, funcionarios: 12,
+  cnaePrincipal: 5, cnaesSecundarios: 6, natureza: 7, capital: 8, abertura: 9, municipio: 10, uf: 11, funcionarios: 12,
   filiais: 14, socios: 15, divida: 16, email: 20, telefone: 21,
 } as const;
 
 // ---------- transformação ----------
 
-/** Nota de fit prévio pela regra da tela, só com o que a Receita informa. */
+/** Nota de fit prévio pela regra da tela, só com o que a Receita informa (fitDaBase). */
 function fitPrevio(cnaePrincipal: string, secundarios: string[], abertura: string | null, hoje: string) {
-  // Só os campos que companyFit lê; o resto do cadastro não existe para empresa da base.
-  const empresa = {
-    receita_consultada_em: hoje,
-    situacao_cadastral: 'Ativa',
-    porte: 'DEMAIS',
-    data_abertura: abertura,
-    regime_tributario: null,
-    site_scan: null,
-    receita: {
-      cnaePrincipal: { codigo: cnaePrincipal, descricao: '' },
-      cnaesSecundarios: secundarios.map((codigo) => ({ codigo, descricao: '' })),
-    },
-  } as unknown as ProspectCompanyDB;
-  return bestFit(companyFit(empresa));
+  return bestFit(fitDaBase(cnaePrincipal, secundarios, abertura, hoje));
 }
 
 interface Resumo {
@@ -125,6 +114,7 @@ interface Resumo {
   porFrente: Record<string, number>;
   porFaixaDeFit: Record<string, number>;
   porFaixaDeFaturamento: Record<string, number>;
+  semDistancia: number;
 }
 
 const FAIXAS_DE_FATURAMENTO: ReadonlyArray<[number, string]> = [[300e6, 'âncora'], [100e6, 'ponte'], [10e6, 'satélite'], [0, 'abaixo de 10 mi']];
@@ -132,6 +122,21 @@ const VERDADEIRO = 't';
 
 const texto = (v: string) => (v === NULO ? null : v);
 const numero = (v: string) => (v === NULO ? null : Number(v));
+
+const FORMIGA = SEDES.formiga as [number, number];
+const COORDENADAS = SEDES.sedes as Record<string, [number, number]>;
+
+/** Km em linha reta da sede de Formiga à sede do município (US-0015); nulo sem município reconhecido. */
+function colunaDeDistancia(campos: string[], resumo: Resumo): string {
+  const municipio = texto(campos[COL.municipio]);
+  const uf = texto(campos[COL.uf]);
+  const sede = municipio && uf ? COORDENADAS[chaveDoMunicipio(uf, municipio)] : undefined;
+  if (!sede) {
+    resumo.semDistancia += 1;
+    return NULO;
+  }
+  return String(kmEntre(FORMIGA, sede));
+}
 
 /** Faturamento estimado e a base dele (US-0006), no formato do COPY em texto. */
 function colunasDeFaturamento(campos: string[], hoje: string, resumo: Resumo): string {
@@ -165,7 +170,7 @@ function linhaComFit(linha: string, hoje: string, resumo: Resumo): string {
   const faixa = `${Math.floor(nota / 10) * 10}`;
   resumo.porFaixaDeFit[faixa] = (resumo.porFaixaDeFit[faixa] ?? 0) + 1;
   const atividade = colunasDeAtividade(campos[COL.cnaePrincipal], secundarios);
-  return `${linha}\t${nota}\t${frente}\t${atividade}\t${colunasDeFaturamento(campos, hoje, resumo)}\n`;
+  return `${linha}\t${nota}\t${frente}\t${atividade}\t${colunasDeFaturamento(campos, hoje, resumo)}\t${colunaDeDistancia(campos, resumo)}\n`;
 }
 
 /** Setor e ramo do principal e dos secundários (US-0003), no formato do COPY em texto. */
@@ -233,6 +238,7 @@ function imprimirResumo(resumo: Resumo, segundos: number) {
   console.log('Por frente de maior fit:', resumo.porFrente);
   console.log('Por faixa de fit prévio:', resumo.porFaixaDeFit);
   console.log('Por faixa de faturamento estimado:', resumo.porFaixaDeFaturamento);
+  console.log('Sem distância (município não reconhecido):', resumo.semDistancia);
 }
 
 /** O nome de cada natureza fora do recorte, lido da base: um código errado aparece aqui. */
@@ -251,7 +257,7 @@ async function main() {
   await conferirNaturezas(origem);
   const destino = aplicar ? lerAmbiente(ARQUIVO_DESTINO) : null;
   const inicio = Date.now();
-  const resumo: Resumo = { linhas: 0, porFrente: {}, porFaixaDeFit: {}, porFaixaDeFaturamento: {} };
+  const resumo: Resumo = { linhas: 0, porFrente: {}, porFaixaDeFit: {}, porFaixaDeFaturamento: {}, semDistancia: 0 };
   await carregarEmpresas(origem, destino, resumo);
   imprimirResumo(resumo, Math.round((Date.now() - inicio) / 1000));
 }

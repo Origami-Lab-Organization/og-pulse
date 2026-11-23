@@ -55,6 +55,12 @@
 
 ## Pontos em aberto
 
+### Decisões pendentes
+
+- O Victor indicou em 18/11/2026 (refino da US-0015) que a aba "Na Prospecção" vai sair: a
+  tela fica com "A classificar" e depois "A abordar". Rever as abas, os cenários 1 a 3 e a
+  relação com o Pipeline no refinamento desta história.
+
 
 ### Hipóteses para validar
 
