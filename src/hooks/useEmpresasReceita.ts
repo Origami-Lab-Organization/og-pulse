@@ -3,6 +3,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { EmpresaReceita, OrdenacaoReceita, PaginaReceita, TotalReceita } from '@/lib/prospecting/empresasReceita';
 import type { CnaeEncontrado, FiltrosReceita } from '@/types/filtrosReceita';
+import { comFuncionariosDoTime } from '@/lib/prospecting/funcionariosDoTime';
 import type { FichaReceita } from '@/types/fichaReceita';
 
 /**
@@ -57,6 +58,7 @@ interface RespostaDaPagina {
   total_da_base: number | null;
   carregada_em: string | null;
   linhas: EmpresaReceita[] | null;
+  relacao_indisponivel?: boolean;
 }
 
 export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: OrdenacaoReceita, pagina: number, busca?: string) {
@@ -64,7 +66,12 @@ export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: Ordenacao
     queryKey: ['receita-empresas', filtros, busca ?? '', ordenacao.ordem, ordenacao.crescente, pagina],
     queryFn: async (): Promise<PaginaReceita> => {
       const r = await chamar<RespostaDaPagina>({ ordem: ordenacao.ordem, crescente: ordenacao.crescente, pagina, filtros, busca });
-      return { totalDaBase: r.total_da_base, carregadaEm: r.carregada_em, linhas: r.linhas ?? [] };
+      return {
+        totalDaBase: r.total_da_base,
+        carregadaEm: r.carregada_em,
+        linhas: (r.linhas ?? []).map(comFuncionariosDoTime),
+        relacaoIndisponivel: r.relacao_indisponivel === true,
+      };
     },
     // Trocar de página, ordem ou filtro mantém a lista anterior na tela até a nova chegar.
     placeholderData: keepPreviousData,
@@ -96,7 +103,10 @@ export function useCnaesReceita(termo: string) {
 export function useFichaReceita(cnpj: string | null) {
   return useQuery({
     queryKey: ['receita-ficha', cnpj],
-    queryFn: () => chamar<FichaReceita>({ modo: 'ficha', cnpj }),
+    queryFn: async () => {
+      const ficha = await chamar<FichaReceita>({ modo: 'ficha', cnpj });
+      return { ...ficha, empresa: comFuncionariosDoTime(ficha.empresa) };
+    },
     enabled: !!cnpj,
     ...DA_BASE,
   });

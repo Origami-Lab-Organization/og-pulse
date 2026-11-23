@@ -1,4 +1,4 @@
-# US-0008 — Colocar empresas para abordar
+# US-0008 — Mover empresas para abordar
 
 - **Status:** Em desenvolvimento
 - **Tipo:** história
@@ -11,7 +11,7 @@
 ## Descrição
 
 **Como** pessoa do comercial,
-**quero** selecionar na lista as empresas que vou abordar e colocá-las em A abordar,
+**quero** selecionar na lista as empresas que vou abordar e movê-las para A abordar,
 confirmando se cada uma é Âncora, Ponte ou Satélite,
 **para** que elas entrem no Pipeline com responsável e tipo de conta, sem cadastro à mão.
 
@@ -35,9 +35,9 @@ US-0016), arquivadas em 18/11/2026.
 ### Escopo
 
 - Inclui: caixa de seleção em cada linha e "selecionar todas desta página"; barra com a
-  quantidade selecionada, "Colocar para abordar" e "Limpar seleção".
-- Inclui: "Colocar para abordar" também na ficha (US-0007), para uma empresa só.
-- Inclui: janela de confirmação com o responsável (padrão: quem coloca) e a lista das
+  quantidade selecionada, "Mover para abordar" e "Limpar seleção".
+- Inclui: "Mover para abordar" também na ficha (US-0007), para uma empresa só.
+- Inclui: janela de confirmação com o responsável (padrão: quem move) e a lista das
   empresas, cada uma com o tipo de conta sugerido pelo faturamento estimado e editável. O
   tipo é obrigatório: sem ele, a empresa não entra.
 - Inclui: a empresa vai direto para A abordar no Pipeline de Oportunidades, cadastrada com os
@@ -46,7 +46,7 @@ US-0016), arquivadas em 18/11/2026.
   nasce sem alavanca.
 - Inclui: a tela Empresas vira só a base da Receita com filtros, sem abas: saem "A
   classificar" e "Na Prospecção" (a lista de contas); a classificação é o tipo de conta, feita
-  obrigatoriamente ao colocar para abordar.
+  obrigatoriamente ao mover para abordar.
 - Inclui: a ficha completa da empresa abre de dentro da oportunidade ("Ver ficha completa da
   empresa"), e o link das notificações de gatilho (`?empresa=`) passa a abri-la no Pipeline.
 - Inclui: empresa que já tem oportunidade em andamento não entra de novo; a confirmação diz
@@ -65,19 +65,19 @@ US-0016), arquivadas em 18/11/2026.
 
 ## Critérios de aceite
 
-**Cenário 1: colocar uma empresa pela ficha**
+**Cenário 1: mover uma empresa pela ficha**
 
 - **Dado** que tenho `prospeccao:editar` e a empresa não tem oportunidade em andamento;
-- **Quando** clico em "Colocar para abordar" na ficha;
+- **Quando** clico em "Mover para abordar" na ficha;
 - **Então** a janela mostra o responsável (eu) e o tipo sugerido pelo faturamento;
 - **Quando** confirmo;
 - **Então** a empresa aparece em A abordar no Pipeline, com o responsável e o tipo de conta;
 - **E** vejo "[empresa] em A abordar, com [responsável]", com Desfazer e o link.
 
-**Cenário 2: colocar várias pela lista**
+**Cenário 2: mover várias pela lista**
 
 - **Dado** que marquei cinco empresas na lista;
-- **Quando** clico em "Colocar para abordar" na barra;
+- **Quando** clico em "Mover para abordar" na barra;
 - **Então** a janela lista as cinco, cada uma com o tipo sugerido;
 - **Quando** troco o tipo de uma e confirmo;
 - **Então** as cinco entram em A abordar com o responsável escolhido e o tipo de cada uma;
@@ -103,7 +103,7 @@ US-0016), arquivadas em 18/11/2026.
 - **Então** ela não entra de novo;
 - **E** a mensagem diz "[empresa] já está em [etapa], com [responsável]".
 
-**Cenário 6: dados completos depois de colocar**
+**Cenário 6: dados completos depois de mover**
 
 - **Então** a empresa na Prospecção tem os dados da Receita, o regime tributário e a nota de
   fit completa, como se tivesse sido cadastrada pelo CNPJ;
@@ -125,7 +125,7 @@ US-0016), arquivadas em 18/11/2026.
 **Cenário 9: sem permissão**
 
 - **Dado** que tenho só `prospeccao:ler`;
-- **Então** vejo a lista e a ficha, sem seleção nem "Colocar para abordar".
+- **Então** vejo a lista e a ficha, sem seleção nem "Mover para abordar".
 
 **Cenário 10: Receita fora do ar**
 
@@ -138,7 +138,7 @@ US-0016), arquivadas em 18/11/2026.
 - **Dado** uma oportunidade em A abordar, sem atividade, tarefa nem contato;
 - **Quando** escolho "Devolver para a lista" no menu da oportunidade;
 - **Então** ela sai de A abordar e o cadastro da empresa fica, com o tipo de conta;
-- **E** a ficha da empresa na tela Empresas volta a oferecer "Colocar para abordar";
+- **E** a ficha da empresa na tela Empresas volta a oferecer "Mover para abordar";
 - **Dado** que ela já tem atividade, tarefa ou contato;
 - **Então** ela fica, e a mensagem diz que o caminho é registrar a Perda.
 
@@ -151,16 +151,20 @@ US-0016), arquivadas em 18/11/2026.
 - O tipo de conta é obrigatório, sugerido pelo faturamento, fica na empresa em campo próprio
   com lista fechada e substitui o Tier (16/11, da US-0016).
 - Depois da validação da tela (18/11):
-  - o fluxo é selecionar uma ou várias empresas e colocá-las para abordar; a seleção em lote
+  - o fluxo é selecionar uma ou várias empresas e movê-las para abordar; a seleção em lote
     (US-0009) e o tipo de conta (US-0016) entram nesta história;
   - sem alavanca: ela é o canal de chegada, definida ao abordar ou ao criar a oportunidade
     direto no Pipeline; a alavanca "Base da Receita" sai do banco, da tela e do MCP;
-  - o botão passa a se chamar "Colocar para abordar".
+  - o botão passa a se chamar "Mover para abordar".
 - A empresa não some da lista; a marca de relacionamento entra na US-0019 (18/11).
 - Depois da aplicação da migration (18/11): a tela Empresas é só um filtro da base, sem abas;
-  a empresa colocada para abordar entra no Pipeline de Oportunidades, em A abordar; a ficha
+  a empresa movida para abordar entra no Pipeline de Oportunidades, em A abordar; a ficha
   completa da empresa abre de dentro da oportunidade, e a lista de contas sai. Substitui a
   US-0011 (abas da classificação), arquivada.
+- O botão e a ação passam a se chamar "Mover para abordar" (antes, "Colocar para abordar"),
+  na validação da US-0019 (18/11).
+- 19/11/2026 (US-0023): a empresa entra em **Qualificação**, não mais direto em A abordar; o
+  botão vira "Mover para qualificação", e "Devolver para a lista" vale também na Qualificação.
 - "Devolver para a lista" no menu da oportunidade em A abordar, com a regra do Desfazer, para
   não usar "Excluir oportunidade", que apaga histórico (18/11).
 - "Importar CNPJs" fica na tela Empresas, para a empresa que não está na base (uso raro); o
@@ -177,7 +181,7 @@ US-0016), arquivadas em 18/11/2026.
 
 - Empresa importada por CNPJ é cadastrada sem oportunidade e, sem a lista de contas, não
   aparece em nenhuma tela até alguém abrir uma oportunidade para ela no Pipeline — impacto
-  possível: importação "perdida"; caminho provável: a importação também colocar para abordar,
+  possível: importação "perdida"; caminho provável: a importação também mover para abordar,
   com o tipo de conta.
 
 - Duas pessoas colocando a mesma empresa quase ao mesmo tempo — impacto possível: duas
@@ -218,7 +222,7 @@ US-0016), arquivadas em 18/11/2026.
 |---|---|
 | 1 a 11 | validação na tela pelo Victor em 18/11/2026; testes desativados neste ciclo |
 
-- **Serviço:** `src/services/abrirOportunidadeService.ts` — `colocarParaAbordar` coloca uma
+- **Serviço:** `src/services/abrirOportunidadeService.ts` — `colocarParaAbordar` move uma
   por vez (pausa de 1,2 s entre consultas e uma nova tentativa depois de 1 min se a BrasilAPI
   recusar pelo limite); a falha de uma não impede as outras; `desfazerAberturas` desfaz o lote.
 - **Tela:** caixas de seleção e barra na lista (`EmpresasReceitaTable`, `BarraDeSelecao`,

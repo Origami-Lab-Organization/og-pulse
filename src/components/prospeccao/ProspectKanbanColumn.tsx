@@ -1,6 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import type { PendingTaskLite, ProspectColumnCut, ProspectStage, ProspectWithCompany } from '@/types/prospect';
+import type { BantDaOportunidade } from '@/types/bant';
 import { ProspectKanbanCard } from './ProspectKanbanCard';
 
 interface ProspectKanbanColumnProps {
@@ -11,6 +12,8 @@ interface ProspectKanbanColumnProps {
   /** Empresa → oportunidades dela em andamento (`opportunitiesInProgressByCompany`). */
   emAndamentoPorEmpresa: Map<string, ProspectWithCompany[]>;
   proximaTarefaPorOportunidade: Map<string, PendingTaskLite>;
+  /** O BANT de cada oportunidade (US-0022). */
+  bantPorOportunidade: Map<string, BantDaOportunidade>;
   onOpen: (prospect: ProspectWithCompany) => void;
 }
 
@@ -65,7 +68,7 @@ function RodapeDoRecorte({ recorte, mostrando }: { recorte: ProspectColumnCut; m
 }
 
 function Cards(props: ProspectKanbanColumnProps) {
-  const { prospects, stage, emAndamentoPorEmpresa, proximaTarefaPorOportunidade, onOpen } = props;
+  const { prospects, stage, emAndamentoPorEmpresa, proximaTarefaPorOportunidade, bantPorOportunidade, onOpen } = props;
   return (
     <>
       {prospects.map((prospect) => (
@@ -75,6 +78,7 @@ function Cards(props: ProspectKanbanColumnProps) {
           currentStage={stage}
           emAndamentoPorEmpresa={emAndamentoPorEmpresa}
           proximaTarefa={proximaTarefaPorOportunidade.get(prospect.id)}
+          bant={bantPorOportunidade.get(prospect.id)}
           onOpen={onOpen}
         />
       ))}

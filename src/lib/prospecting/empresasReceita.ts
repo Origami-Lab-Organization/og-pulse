@@ -4,13 +4,14 @@ import { divisaoDoCnae, nomeDoRamo } from '@/lib/prospecting/cnae';
 import type { FitFront } from '@/types/receita';
 import type { BaseDoFaturamento } from '@/types/filtrosReceita';
 import type { FaturamentoBase } from '@/types/prospect';
+import type { RelacaoDaEmpresa } from '@/types/relacao';
 
 /**
  * Empresas da base da Receita (US-0002, ADR-0053) — o que a tela Empresas lista em
  * "A classificar". Vem da Edge Function `empresas-receita`; aqui só há regra de exibição.
  */
 
-export type OrdemReceita = 'fit' | 'nome' | 'distancia' | 'faturamento' | 'funcionarios' | 'idade';
+export type OrdemReceita = 'fit' | 'nome' | 'distancia' | 'faturamento' | 'funcionarios' | 'idade' | 'capital' | 'relacao';
 
 export interface OrdenacaoReceita {
   ordem: OrdemReceita;
@@ -46,6 +47,14 @@ export interface EmpresaReceita {
   faturamento_informado_base?: FaturamentoBase | null;
   /** Entrou na lista só por uma atividade secundária (filtro com "Incluir atividade secundária"). */
   pela_secundaria?: boolean;
+  /** Natureza jurídica (código da Receita); entra no faturamento recalculado (US-0020). */
+  natureza_juridica?: string | null;
+  /** Funcionários confirmados pelo time na Prospecção (US-0020); nulo = vale a RAIS. */
+  funcionarios_informados?: number | null;
+  /** `funcionarios` veio do time, não da RAIS (US-0020). */
+  funcionarios_do_time?: boolean;
+  /** Relação da Origami com a empresa (US-0019); nula sem relação, ausente se não carregou. */
+  relacao?: RelacaoDaEmpresa | null;
 }
 
 export interface PaginaReceita {
@@ -53,6 +62,8 @@ export interface PaginaReceita {
   totalDaBase: number | null;
   carregadaEm: string | null;
   linhas: EmpresaReceita[];
+  /** A relação com a Origami não carregou (US-0019, cenário 9): a lista vem sem ela. */
+  relacaoIndisponivel: boolean;
 }
 
 /** Total da lista filtrada (US-0003). A contagem para em 100 mil: `limitado` = há mais. */

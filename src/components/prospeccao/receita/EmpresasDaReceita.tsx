@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { forwardRef, useState } from 'react';
 import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -78,54 +78,71 @@ export function EmpresasDaReceita() {
     setPagina(0);
   };
 
-  const filtrosDoPainel = (emGaveta: boolean) => (
-    <PainelDeFiltros filtros={filtros} onChange={filtrar} onLimpar={limpar} onRecolher={painel.recolher} emGaveta={emGaveta} />
-  );
-
+  // O ícone de filtros na ponta da barra abre a gaveta por cima da lista (18/11/2026); o selo no
+  // ícone diz quantos filtros estão valendo.
   return (
-    <div className={cn('grid items-start gap-3.5', painel.larga && painel.aberto && 'grid-cols-[minmax(0,1fr)_288px]')}>
+    <div className="space-y-3">
       <section className="min-w-0 space-y-3" aria-label="Empresas encontradas">
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-1">
-          <LinhaDoTotal contagem={contagem.data} contando={contagem.isFetching} carregadaEm={consulta.data?.carregadaEm ?? null} />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <CaixaDeBusca valor={texto} aviso={avisoDaBusca(lerBusca(texto))} onChange={buscar} />
-          <Button
-            ref={painel.botao}
-            variant="outline"
-            size="sm"
-            onClick={painel.alternar}
-            aria-expanded={painel.aberto}
-            aria-label={ativos ? `Filtros, ${ativos} ativo${ativos > 1 ? 's' : ''}` : 'Filtros'}
-          >
-            <Filter className="mr-1.5 h-4 w-4" aria-hidden="true" />
-            Filtros
-            {ativos > 0 && <span className="ml-1.5 rounded-full bg-primary px-1.5 font-mono text-[11px] text-primary-foreground">{ativos}</span>}
-          </Button>
+          <LinhaDoTotal contagem={contagem.data} contando={contagem.isFetching} carregadaEm={consulta.data?.carregadaEm ?? null} />
+          <BotaoDeFiltros ref={painel.botao} ativos={ativos} aberto={painel.aberto} onClick={painel.alternar} />
         </div>
         <div className="overflow-hidden rounded-xl border bg-card">
           <BarraDeSelecao quantidade={marcadas.empresas.length} onColocar={() => setColocando(true)} onLimpar={marcadas.limpar} />
           <AvisosDaBusca busca={busca} ativos={ativos} primeira={consulta.data?.linhas[0]?.cnpj} />
-          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={setFicha} selecao={podeColocar ? marcadas.selecao : undefined} compacta={painel.larga && painel.aberto} />
+          <AvisoDaRelacao indisponivel={!!consulta.data?.relacaoIndisponivel} comFiltro={filtros.relacoes.length > 0} />
+          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={setFicha} selecao={podeColocar ? marcadas.selecao : undefined} />
           <Rodape contagem={contagem.data} pagina={pagina} onPagina={setPagina} vazia={!consulta.data?.linhas.length} />
         </div>
       </section>
-      {painel.larga && painel.aberto && filtrosDoPainel(false)}
       <FichaDaEmpresaReceita cnpj={ficha} onFechar={() => setFicha(null)} />
       <ColocarParaAbordarDialog empresas={marcadas.empresas} aberta={colocando} onAbertaChange={setColocando} onConcluido={marcadas.limpar} />
-      {!painel.larga && (
-        <GavetaDeFiltros aberta={painel.aberto} onAbertaChange={painel.definirGaveta} contagem={contagem.data} contando={contagem.isFetching} botao={painel.botao}>
-          {filtrosDoPainel(true)}
-        </GavetaDeFiltros>
-      )}
+      <GavetaDeFiltros aberta={painel.aberto} onAbertaChange={painel.definir} contagem={contagem.data} contando={contagem.isFetching} botao={painel.botao}>
+        <PainelDeFiltros filtros={filtros} onChange={filtrar} onLimpar={limpar} onRecolher={painel.recolher} emGaveta />
+      </GavetaDeFiltros>
     </div>
   );
 }
+
+interface BotaoDeFiltrosProps {
+  ativos: number;
+  aberto: boolean;
+  onClick: () => void;
+}
+
+/** Só o ícone (18/11/2026): abre e recolhe o painel; a contagem de filtros ativos vai num selo. */
+const BotaoDeFiltros = forwardRef<HTMLButtonElement, BotaoDeFiltrosProps>(function BotaoDeFiltros(props, ref) {
+  const { ativos, aberto, onClick } = props;
+  const acao = aberto ? 'Recolher filtros' : 'Mostrar filtros';
+  const rotulo = ativos ? `${acao}, ${ativos} ativo${ativos > 1 ? 's' : ''}` : acao;
+  return (
+    <Button
+      ref={ref}
+      variant={aberto ? 'secondary' : 'outline'}
+      size="icon"
+      className="relative h-9 w-9 shrink-0"
+      onClick={onClick}
+      aria-expanded={aberto}
+      aria-label={rotulo}
+      title={rotulo}
+    >
+      <Filter className="h-4 w-4" aria-hidden="true" />
+      {ativos > 0 && (
+        <span className="absolute -right-1.5 -top-1.5 min-w-[18px] rounded-full bg-primary px-1 font-mono text-[11px] leading-[18px] text-primary-foreground" aria-hidden="true">
+          {ativos}
+        </span>
+      )}
+    </Button>
+  );
+});
 
 function LinhaDoTotal(props: { contagem: TotalReceita | undefined; contando: boolean; carregadaEm: string | null }) {
   const { contagem, contando, carregadaEm } = props;
   const data = dataDaBase(carregadaEm);
   const total = contagem?.total;
   return (
-    <p className="flex flex-wrap items-baseline gap-x-1.5 text-[13px] text-muted-foreground" aria-live="polite">
+    <p className="flex flex-wrap items-baseline gap-x-1.5 text-[13px] text-muted-foreground sm:ml-auto sm:justify-end" aria-live="polite">
       {total == null || contando ? (
         <span>contando…</span>
       ) : (
@@ -162,6 +179,17 @@ function AvisosDaBusca(props: { busca: BuscaReceita; ativos: number; primeira: s
   );
 }
 
+/** Cenário 9: sem a relação, a lista aparece; com o filtro por relação, ele não acha ninguém. */
+function AvisoDaRelacao({ indisponivel, comFiltro }: { indisponivel: boolean; comFiltro: boolean }) {
+  if (!indisponivel) return null;
+  return (
+    <p role="status" className="border-b bg-warning-subtle px-4 py-2 text-[12.5px] text-warning-emphasis">
+      A relação com a Origami não carregou agora.
+      {comFiltro ? ' O filtro por relação está indisponível: tire esse filtro ou tente de novo em alguns minutos.' : ' A lista aparece sem ela.'}
+    </p>
+  );
+}
+
 function Vazio(props: { busca: BuscaReceita; ativos: number; onLimpar: () => void }) {
   const { busca, ativos, onLimpar } = props;
   if (busca.tipo === BUSCA_POR_CNPJ) {
@@ -187,9 +215,8 @@ function Conteudo(props: {
   onLimpar: () => void;
   onAbrir: (cnpj: string) => void;
   selecao?: SelecaoDaLista;
-  compacta: boolean;
 }) {
-  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar, onAbrir, selecao, compacta } = props;
+  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar, onAbrir, selecao } = props;
   if (consulta.isLoading) return <Carregando />;
   if (consulta.error) return <Falha erro={consulta.error} onTentar={() => consulta.refetch()} />;
   if (!consulta.data || consulta.data.totalDaBase == null) {
@@ -204,7 +231,7 @@ function Conteudo(props: {
   const trocando = consulta.isPlaceholderData;
   return (
     <div className={cn('overflow-x-auto transition-opacity', trocando && 'opacity-60')} aria-busy={trocando}>
-      <EmpresasReceitaTable linhas={consulta.data.linhas} ordenacao={ordenacao} onOrdenar={onOrdenar} onAbrir={onAbrir} selecao={selecao} compacta={compacta} />
+      <EmpresasReceitaTable linhas={consulta.data.linhas} relacaoIndisponivel={consulta.data.relacaoIndisponivel} ordenacao={ordenacao} onOrdenar={onOrdenar} onAbrir={onAbrir} selecao={selecao} />
     </div>
   );
 }

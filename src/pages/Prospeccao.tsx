@@ -36,6 +36,11 @@ export default function Prospeccao() {
   const [novoAberto, setNovoAberto] = useState(false);
   const [selecionado, setSelecionado] = useState<ProspectWithCompany | null>(null);
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
+  const [motivoSugerido, setMotivoSugerido] = useState<string | null>(null);
+  const descartar = (prospect: ProspectWithCompany, motivo?: string | null) => {
+    setMotivoSugerido(motivo ?? null);
+    setDescartando(prospect);
+  };
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
   const [empresaAberta, setEmpresaAberta] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<ProspectFilter>(FILTRO_VAZIO);
@@ -121,7 +126,7 @@ export default function Prospeccao() {
         prospect={selecionadoAtual}
         open={!!selecionado}
         onOpenChange={(aberto) => !aberto && setSelecionado(null)}
-        onDiscard={setDescartando}
+        onDiscard={descartar}
         onWin={setGanhando}
         onOpenCompany={setEmpresaAberta}
       />
@@ -132,6 +137,7 @@ export default function Prospeccao() {
         prospect={descartando}
         open={!!descartando}
         onOpenChange={(aberto) => !aberto && setDescartando(null)}
+        motivoSugerido={motivoSugerido}
       />
 
       <ProspectWonDialog

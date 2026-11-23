@@ -11,7 +11,7 @@
 ## Descrição
 
 **Como** pessoa do comercial,
-**quero** que as Métricas reflitam o fluxo novo (filtrar a base → colocar para abordar com o
+**quero** que as Métricas reflitam o fluxo novo (filtrar a base → mover para abordar com o
 tipo de conta → estudar a conta → abordar),
 **para** acompanhar a cobertura e o andamento sem depender da lista de contas que saiu.
 
@@ -26,9 +26,9 @@ até esta revisão.
 ### Escopo (rascunho, a refinar)
 
 - Rever "Cobertura da lista" (aba Esforço) e "contas cadastradas nunca abordadas" (Visão
-  geral): o que é a "lista" agora — a base filtrada, as empresas colocadas para abordar, ou
+  geral): o que é a "lista" agora — a base filtrada, as empresas movidas para abordar, ou
   as cadastradas.
-- Métricas novas possíveis: empresas colocadas para abordar no período, por tipo de conta
+- Métricas novas possíveis: empresas movidas para abordar no período, por tipo de conta
   (Âncora, Ponte, Satélite) e por responsável; tempo em A abordar; contas estudadas
   (US-0020).
 - Para onde levam os atalhos das Métricas, sem a lista de contas.
@@ -46,7 +46,7 @@ até esta revisão.
   `src/lib/prospecting/metrics.ts`, exibidos em `metrics/EffortTab.tsx` e
   `metrics/OverviewTab.tsx`; o MCP também lê as Métricas (`get_prospecting_metrics`,
   TD-0022).
-- **Fora do escopo:** colocar para abordar (US-0008); relacionamento (US-0019); estudo da
+- **Fora do escopo:** mover para abordar (US-0008); relacionamento (US-0019); estudo da
   conta (US-0020).
 
 ## Implementação

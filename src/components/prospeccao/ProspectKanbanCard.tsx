@@ -6,6 +6,8 @@ import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { formatCurrency } from '@/lib/formatters';
 import { otherOpportunitiesInProgress } from '@/lib/prospecting/companyStatus';
 import { cn } from '@/lib/utils';
+import type { BantDaOportunidade } from '@/types/bant';
+import { LetrasDoBant } from './bant/LetrasDoBant';
 import {
   describeOpportunityContacts,
   getDiscardReasonLabel,
@@ -26,6 +28,8 @@ interface ProspectKanbanCardProps {
   emAndamentoPorEmpresa: Map<string, ProspectWithCompany[]>;
   /** A tarefa pendente mais urgente da oportunidade — é ela, e só ela, que avisa vencimento. */
   proximaTarefa?: PendingTaskLite;
+  /** O BANT da oportunidade (US-0022); ausente enquanto carrega. */
+  bant?: BantDaOportunidade;
   onOpen: (prospect: ProspectWithCompany) => void;
   isOverlay?: boolean;
 }
@@ -44,6 +48,7 @@ export function ProspectKanbanCard({
   currentStage,
   emAndamentoPorEmpresa,
   proximaTarefa,
+  bant,
   onOpen,
   isOverlay,
 }: ProspectKanbanCardProps) {
@@ -102,6 +107,12 @@ export function ProspectKanbanCard({
             <User className="h-3 w-3 shrink-0" aria-hidden="true" />
             <span className="truncate">{responsavel ?? 'Sem responsável'}</span>
           </span>
+
+          {bant && (
+            <span className="flex items-center gap-1 text-xs">
+              <LetrasDoBant bant={bant} compacto />
+            </span>
+          )}
 
           <DesfechoDoCard prospect={prospect} />
 

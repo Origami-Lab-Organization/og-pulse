@@ -8,6 +8,7 @@ import type {
   Opcao,
 } from '@/types/filtrosReceita';
 import { ramosDosSetores } from './cnae';
+import { RELACOES_DA_ORIGAMI } from './relacao';
 
 /**
  * Filtros da base da Receita (US-0003): opções, padrão, contagem e o que fica guardado no
@@ -96,6 +97,7 @@ export const FILTROS_VAZIOS: FiltrosReceita = {
   divida: DIVIDA_QUALQUER,
   comEmail: false,
   comTelefone: false,
+  relacoes: [],
 };
 
 /** Primeiro acesso, ou navegador novo: a indústria de transformação (decisão de 16/11/2026). */
@@ -116,6 +118,7 @@ export function contarFiltros(f: FiltrosReceita): number {
     f.naturezas.length > 0,
     f.divida !== DIVIDA_QUALQUER,
     f.comEmail || f.comTelefone,
+    f.relacoes.length > 0,
   ];
   return ativos.filter(Boolean).length;
 }
@@ -173,6 +176,7 @@ export function lerFiltrosSalvos(texto: string | null): FiltrosReceita {
     divida,
     comEmail: salvo.comEmail === true,
     comTelefone: salvo.comTelefone === true,
+    relacoes: lista(salvo.relacoes, conjunto(RELACOES_DA_ORIGAMI)),
   };
 }
 
@@ -189,28 +193,6 @@ export function guardarFiltros(f: FiltrosReceita): void {
     window.localStorage.setItem(CHAVE, JSON.stringify(f));
   } catch {
     // Sem armazenamento, a tela só não lembra o filtro na próxima visita.
-  }
-}
-
-// Painel de filtros no computador (US-0004): recolhido na primeira visita; depois, o último
-// estado. No celular ele sempre começa fechado e não passa por aqui.
-const CHAVE_DO_PAINEL = 'pulse:empresas-receita:painel:v1';
-const PAINEL_ABERTO = 'aberto';
-
-export function painelDoNavegador(): boolean {
-  try {
-    return window.localStorage.getItem(CHAVE_DO_PAINEL) === PAINEL_ABERTO;
-  } catch {
-    return false;
-  }
-}
-
-export function guardarPainel(aberto: boolean): void {
-  try {
-    if (aberto) window.localStorage.setItem(CHAVE_DO_PAINEL, PAINEL_ABERTO);
-    else window.localStorage.removeItem(CHAVE_DO_PAINEL);
-  } catch {
-    // Sem armazenamento, o painel só volta recolhido na próxima visita.
   }
 }
 
