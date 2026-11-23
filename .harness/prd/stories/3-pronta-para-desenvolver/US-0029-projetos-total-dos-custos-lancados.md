@@ -1,11 +1,11 @@
 # US-0029 — Ver o total dos custos lançados
 
-- **Status:** A fazer
+- **Status:** Pronta para desenvolver
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
 - **Prioridade:** 5
-- **Aprovada por / em:** —
+- **Aprovada por / em:** Victor Couto, 23/11/2026
 - **Relacionadas:** US-0025
 
 ## Descrição

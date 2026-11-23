@@ -1,11 +1,11 @@
 # US-0025 — O custo do projeto é o mesmo em todas as abas
 
-- **Status:** A fazer
+- **Status:** Pronta para desenvolver
 - **Tipo:** bug
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
 - **Prioridade:** 1
-- **Aprovada por / em:** —
+- **Aprovada por / em:** Victor Couto, 23/11/2026
 - **Relacionadas:** US-0026, US-0027, ADR-0004, ADR-0006, TD-0014
 
 ## Descrição

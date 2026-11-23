@@ -1,11 +1,11 @@
 # US-0026 — O gráfico de custos mostra todos os meses do projeto
 
-- **Status:** A fazer
+- **Status:** Pronta para desenvolver
 - **Tipo:** bug
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
 - **Prioridade:** 2
-- **Aprovada por / em:** —
+- **Aprovada por / em:** Victor Couto, 23/11/2026
 - **Relacionadas:** US-0025, US-0028, US-0030
 
 ## Descrição

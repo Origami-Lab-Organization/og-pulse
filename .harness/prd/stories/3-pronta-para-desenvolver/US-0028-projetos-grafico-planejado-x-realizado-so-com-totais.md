@@ -1,11 +1,11 @@
 # US-0028 — O gráfico Planejado × Realizado mostra só os totais
 
-- **Status:** A fazer
+- **Status:** Pronta para desenvolver
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Custos do projeto
 - **Prioridade:** 4
-- **Aprovada por / em:** —
+- **Aprovada por / em:** Victor Couto, 23/11/2026
 - **Relacionadas:** US-0026
 
 ## Descrição

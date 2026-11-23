@@ -1,11 +1,11 @@
 # US-0030 — Lançar horas e custos só dentro do período do projeto
 
-- **Status:** A fazer
+- **Status:** Pronta para desenvolver
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
 - **Prioridade:** 6
-- **Aprovada por / em:** —
+- **Aprovada por / em:** Victor Couto, 23/11/2026
 - **Relacionadas:** US-0026, ADR-0038
 
 ## Descrição
