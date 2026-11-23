@@ -134,7 +134,7 @@ tinha `pipeline:ler`/`pipeline:editar`.
 |---|---|---|---|---|---|
 | `projeto:ler` | sim | sim | — | alocado `!` | `/projects/:id` sem guard de perfil — **D7** |
 | `projeto:editar` | sim | PM | — | — | `can_manage_project` (ADR-0002) |
-| `projeto:gerir-qualquer` — alcanca projeto que a pessoa nao gerencia | sim | — | — | — | criada em 04/09; substituiu `has_role(admin)` dentro de `can_manage_project` |
+| `projeto:gerir-qualquer` — alcanca projeto que a pessoa nao gerencia; desde 23/11/2026 tambem libera lancar, editar e apagar horas e custos em projeto concluido (US-0030) | sim | — | — | — | criada em 04/09; substituiu `has_role(admin)` dentro de `can_manage_project`; triggers `guard_project_timesheet_entry` e `guard_project_cost_entry` (20261123220000) |
 | `portfolio:ler` | sim | sim | — | — | rota `requireManager` (ADR-0002) |
 | `alocacao:ler` | sim | sim | — | proprio | rota `requireManager` |
 | `alocacao:editar` | sim | PM | — | — | `can_manage_project` (ADR-0003) |

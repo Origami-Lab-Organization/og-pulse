@@ -408,9 +408,11 @@ export default function ProjectDetail() {
                   project={project}
                   isEditable={isPlanning && !isReadOnly}
                   canEditActuals={
+                    // Em projeto concluído, só quem o banco deixa lançar: `projeto:gerir-qualquer`
+                    // (US-0030, trigger guard_project_cost_entry). Os demais só leem.
                     !isPlanning &&
                     !isReadOnly &&
-                    project.portfolio_stage !== "completed"
+                    (!isCompleted || canManageAnyProject)
                   }
                 />
               </TabsContent>

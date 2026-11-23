@@ -146,6 +146,8 @@ export interface ProjectCostDB {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  /** Data do pagamento, separada da data do custo (US-0030). Nula enquanto não pago. */
+  paid_at?: string | null;
   /** Custo recorrente migrado do modelo legado (ADR-0004); o detalhe mensal fica em `months`. */
   is_recurring?: boolean;
   start_month?: number | null;
@@ -174,6 +176,8 @@ export interface CreateProjectCostInput {
   exchangeRate: number;
   notes?: string | null;
   status?: ProjectCostStatus;
+  /** Data do pagamento (custo já pago). A data do custo continua em `costDate`. */
+  paidAt?: string | null;
 }
 
 export interface UpdateProjectCostInput {
@@ -188,6 +192,7 @@ export interface UpdateProjectCostInput {
   exchangeRate?: number;
   notes?: string | null;
   status?: ProjectCostStatus;
+  paidAt?: string | null;
 }
 
 export interface CreateProjectInput {

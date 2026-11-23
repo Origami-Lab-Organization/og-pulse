@@ -1,6 +1,6 @@
 # US-0030 — Lançar horas e custos só dentro do período do projeto
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
@@ -106,6 +106,8 @@ cai no mês errado (US-0026).
 - Para o custo, vale a data do custo; a data de pagamento pode ser depois do fim.
 - Em projeto concluído, a regra vale também para editar e apagar.
 - Projeto sem data de fim só tem o limite da data de início.
+- (durante o desenvolvimento) A data do custo e a data do pagamento ficam separadas; vale a
+  data do custo. Custo não pago entra no planejado; pago, também no realizado.
 
 ## Pontos em aberto
 
@@ -146,6 +148,41 @@ cai no mês errado (US-0026).
 
 ## Implementação
 
+Decisão de 23/11/2026 (Victor), tomada durante o desenvolvimento: o custo tinha uma data só,
+e pagar gravava a data do pagamento em `cost_date`. A data do custo e a do pagamento foram
+separadas (`project_costs.paid_at`); é a data do custo que precisa estar no período. Custo
+não pago entra no planejado; pago, também no realizado (regra que já existia).
+
+- **Banco** (migration `20261123220000_lancamento_no_periodo_do_projeto`, rollback em
+  `supabase/rollback/`): coluna `paid_at` (custos já pagos copiam `cost_date`); regra
+  `assert_project_accepts_entry` (PU001) chamada pelos triggers
+  `guard_project_timesheet_entry` e `guard_project_cost_entry`. Projeto concluído só aceita
+  escrita de quem tem `projeto:gerir-qualquer`. O período vale para todos. Escrita sem usuário
+  (migration, rotina) não é recusada; travar/aprovar hora, snapshot de custo e zerar célula
+  também não.
+- **Tela:** formulário de custo com "Data do custo" limitada ao período e "Pago em" separado;
+  diálogo de pagamento grava só `paid_at`; coluna "Pago em" da lista lê `paid_at`; grade
+  semanal trava os dias fora do período; em projeto concluído, a lista de custos só é editável
+  para quem tem `projeto:gerir-qualquer`; erros de horas e custos passam por
+  `mensagemParaUsuario`.
+- **Chat:** `log_project_hours` grava com a sessão da pessoa, então a mesma regra do banco
+  vale; não houve mudança no MCP.
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1 | Ensaio da migration em Postgres 15 descartável (stub de `auth.uid`, `has_capability` e tabelas), 23/11/2026: hora e custo em projeto concluído recusados com PU001. Falta conferir na tela depois de a migration estar no banco. |
+| 2 | Ensaio: editar e apagar hora, cancelar e excluir custo em concluído recusados; travar hora aceito. |
+| 3 | Ensaio: com `projeto:gerir-qualquer`, lançar hora e editar custo em concluído aceitos; data fora do período continua recusada. |
+| 4 | Ensaio: hora e custo em 18/10 num projeto que começa em 19/10 recusados. |
+| 5 | Ensaio: hora em 18/11 e mudar a data do custo para 18/11 num projeto que acaba em 17/11 recusados. |
+| 6 | Ensaio: horas em 19/10 e 17/11 aceitas. |
+| 7 | Ensaio: custo de 15/11 pago em 25/11 aceito. |
+| 8 | Ensaio: projeto contínuo aceita data um ano depois e recusa antes do início. |
+| 9 | Por construção: o MCP grava com a sessão da pessoa, e a recusa é do banco. Falta conferir pelo chat depois de a migration estar no banco. |
+
+A migration só é aplicada no build de produção (`scripts/vercel-build.sh`); até o merge, a
+tela (localhost:8080) mostra só a parte da tela: limites de data no formulário, "Pago em"
+separado e dias travados na grade. **O "Pago em" separado depende da coluna nova:** sem a
+migration aplicada, gravar custo pela tela falha. Ensaio rodado com `rollback` também.
+
+Testes automatizados não escritos: testes desativados no Harness por decisão do time.

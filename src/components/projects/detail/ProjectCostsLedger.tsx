@@ -61,6 +61,7 @@ import { ProjectCostFormDialog } from "./ProjectCostFormDialog";
 import { ProjectCostPayDialog } from "./ProjectCostPayDialog";
 import type { ProjectCostCategory, ProjectCostDB } from "@/types/project";
 import { sumLedgerCosts } from "@/lib/projectCostSummary";
+import type { ProjectPeriod } from "@/types/projectPeriod";
 
 interface ProjectCostsLedgerProps {
   projectId: string;
@@ -69,6 +70,8 @@ interface ProjectCostsLedgerProps {
   canManage: boolean;
   /** Admin edita inclusive em mês fechado. */
   isAdmin: boolean;
+  /** Período do projeto, para limitar a data do custo (US-0030). */
+  projectPeriod: ProjectPeriod;
 }
 
 type FilterValue = "all" | ProjectCostCategory;
@@ -90,6 +93,7 @@ export function ProjectCostsLedger({
   costs,
   canManage,
   isAdmin,
+  projectPeriod,
 }: ProjectCostsLedgerProps) {
   const formatCurrency = useMaskedCurrency();
   const { toast } = useToast();
@@ -297,9 +301,11 @@ export function ProjectCostsLedger({
                         )}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        {/* "Pago em" é a data do pagamento; custos pagos antes da US-0030
+                            só têm a data do custo, que era gravada como data de pagamento. */}
                         {isPaid
-                          ? cost.cost_date
-                            ? formatShortDate(cost.cost_date)
+                          ? (cost.paid_at ?? cost.cost_date)
+                            ? formatShortDate((cost.paid_at ?? cost.cost_date) as string)
                             : "–"
                           : "–"}
                       </TableCell>
@@ -382,6 +388,7 @@ export function ProjectCostsLedger({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         projectId={projectId}
+        projectPeriod={projectPeriod}
         category={editing ? editing.category : defaultCategory}
         cost={editing}
       />

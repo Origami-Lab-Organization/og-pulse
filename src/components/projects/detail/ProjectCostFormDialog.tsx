@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { isDateInProjectPeriod, outsidePeriodMessage } from "@/lib/projectPeriod";
+import type { ProjectPeriod } from "@/types/projectPeriod";
 import {
   Select,
   SelectContent,
@@ -37,6 +39,8 @@ interface ProjectCostFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
+  /** Período do projeto: a data do custo precisa estar dentro dele (US-0030). */
+  projectPeriod: ProjectPeriod;
   category: ProjectCostCategory;
   cost?: ProjectCostDB | null;
 }
@@ -67,6 +71,7 @@ export function ProjectCostFormDialog({
   open,
   onOpenChange,
   projectId,
+  projectPeriod,
   category,
   cost,
 }: ProjectCostFormDialogProps) {
@@ -91,7 +96,7 @@ export function ProjectCostFormDialog({
         plannedAmount: Number(cost.planned_amount),
         actualAmount: cost.actual_amount != null ? Number(cost.actual_amount) : null,
         costDate: cost.cost_date ?? todayISO(),
-        paidDate: cost.cost_date ?? todayISO(),
+        paidDate: cost.paid_at ?? cost.cost_date ?? todayISO(),
         notes: cost.notes ?? "",
       });
     } else {
@@ -106,8 +111,10 @@ export function ProjectCostFormDialog({
   const handlePaidToggle = (checked: boolean) => {
     setIsPaid(checked);
     if (checked) {
-      const date = form.costDate || todayISO();
-      patch({ paidDate: date, costDate: date, actualAmount: form.plannedAmount });
+      // A data do custo não muda ao marcar como pago: o pagamento tem data própria (US-0030).
+      const today = todayISO();
+      const date = form.costDate && form.costDate <= today ? form.costDate : today;
+      patch({ paidDate: date, actualAmount: form.plannedAmount });
     } else {
       patch({ actualAmount: null });
     }
@@ -118,6 +125,7 @@ export function ProjectCostFormDialog({
     if (!form.description.trim()) newErrors.description = "Descrição é obrigatória";
     if (!form.plannedAmount || form.plannedAmount <= 0) newErrors.plannedAmount = "Valor planejado é obrigatório";
     if (!form.costDate) newErrors.costDate = "Data é obrigatória";
+    else if (!isDateInProjectPeriod(projectPeriod, form.costDate)) newErrors.costDate = outsidePeriodMessage(projectPeriod);
     if (isPaid && (!form.actualAmount || form.actualAmount <= 0)) newErrors.actualAmount = "Valor realizado é obrigatório";
     if (isPaid && !form.paidDate) newErrors.paidDate = "Data de pagamento é obrigatória";
 
@@ -130,7 +138,8 @@ export function ProjectCostFormDialog({
     const payload = {
       category: form.category,
       description: form.description,
-      costDate: isPaid ? form.paidDate : form.costDate,
+      costDate: form.costDate,
+      paidAt: isPaid ? form.paidDate : null,
       plannedAmount: form.plannedAmount,
       actualAmount: isPaid ? form.actualAmount : null,
       currency: "BRL" as const,
@@ -209,11 +218,13 @@ export function ProjectCostFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cost-date">Data *</Label>
+              <Label htmlFor="cost-date">Data do custo *</Label>
               <Input
                 id="cost-date"
                 type="date"
                 value={form.costDate}
+                min={projectPeriod.startDate ?? undefined}
+                max={!projectPeriod.isContinuous && projectPeriod.endDate ? projectPeriod.endDate : undefined}
                 onChange={(e) => patch({ costDate: e.target.value })}
                 aria-invalid={!!errors.costDate}
               />
@@ -255,7 +266,7 @@ export function ProjectCostFormDialog({
                   id="cost-paid-date"
                   type="date"
                   value={form.paidDate}
-                  onChange={(e) => patch({ paidDate: e.target.value, costDate: e.target.value })}
+                  onChange={(e) => patch({ paidDate: e.target.value })}
                   max={todayISO()}
                   aria-invalid={!!errors.paidDate}
                 />
