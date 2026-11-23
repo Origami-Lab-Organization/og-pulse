@@ -253,6 +253,9 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 | [US-0028](stories/4-em-desenvolvimento/US-0028-projetos-grafico-planejado-x-realizado-so-com-totais.md) | O gráfico Planejado × Realizado mostra só os totais | GP ou admin | Em desenvolvimento | Pronta com ressalvas |
 | [US-0029](stories/4-em-desenvolvimento/US-0029-projetos-total-dos-custos-lancados.md) | Ver o total dos custos lançados | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0030](stories/4-em-desenvolvimento/US-0030-projetos-lancamento-so-dentro-do-periodo.md) | Lançar horas e custos só dentro do período do projeto | GP ou admin | Em desenvolvimento | Pronta |
+| [US-0031](stories/3-pronta-para-desenvolver/US-0031-projetos-forecast-usa-todos-os-meses.md) | O forecast e a curva da aba Financeiro usam todos os meses do projeto | GP ou admin | Pronta para desenvolver | Pronta |
+| [US-0032](stories/3-pronta-para-desenvolver/US-0032-projetos-card-de-forecast-claro.md) | O card de forecast diz o que significa | GP ou admin | Pronta para desenvolver | Pronta |
+| [US-0033](stories/3-pronta-para-desenvolver/US-0033-projetos-pl-realizado.md) | Ver o P&L realizado ao lado do projetado | GP ou admin | Pronta para desenvolver | Pronta |
 
 #### Ordem de implementação proposta
 
@@ -262,6 +265,7 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 | 2 | Números certos na aba Despesas | US-0026, US-0027 |
 | 3 | Leitura mais clara | US-0028, US-0029 |
 | 4 | Lançar só no período | US-0030 |
+| 5 | Financeiro do projeto | US-0031, US-0032, US-0033 |
 
 #### Decisões do Victor Couto (2026-11-23)
 
@@ -274,8 +278,12 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
   concluído; para o custo vale a data do custo, não a de pagamento; em projeto concluído
   a regra vale também para editar e apagar; projeto sem data de fim só tem o limite do
   início.
+- (aba Financeiro) Forecast acima da meta com plano abaixo: card verde, com aviso escrito
+  (US-0032). No mês atual, o forecast conta o realizado até hoje mais o que ainda falta do
+  planejado do mês; depois da data de fim, o que não foi lançado não conta mais (US-0031).
+  No P&L realizado, a receita é a recebida, e Projetado /
+  Realizado ficam num seletor como o da rosca (US-0033).
 
 #### Decisões pendentes do épico
 
-Nenhuma. O clique na barra (US-0028) não existia: o atalho para as seções está na rosca e
-continua lá.
+Nenhuma. O clique na barra (US-0028) não existia: o atalho para as seções está na rosca e continua lá.
