@@ -4017,6 +4017,36 @@ export type Database = {
           },
         ]
       }
+      portfolio_goals: {
+        Row: {
+          created_at: string
+          gross_margin_target_percent: number
+          revenue_target: number
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          gross_margin_target_percent: number
+          revenue_target: number
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string
+          gross_margin_target_percent?: number
+          revenue_target?: number
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       project_costs: {
         Row: {
           actual_amount: number | null

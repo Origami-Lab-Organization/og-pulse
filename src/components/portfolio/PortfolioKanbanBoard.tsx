@@ -25,7 +25,14 @@ import { Label } from '@/components/ui/label';
 import { PortfolioColumn } from './PortfolioColumn';
 import { PortfolioCard } from './PortfolioCard';
 import { PortfolioProject, useUpdatePortfolioStage } from '@/hooks/usePortfolioProjects';
-import { PORTFOLIO_COLUMNS, PortfolioStage } from '@/types/portfolio';
+import {
+  PORTFOLIO_BOARD_COLUMN,
+  PORTFOLIO_STAGE,
+  type PortfolioAlert,
+  type PortfolioBoardColumnId,
+  type PortfolioStage,
+} from '@/types/portfolio';
+import { boardColumnOf, isCompletedInYear, sortForColumn } from '@/lib/portfolioBoard';
 import { useProjectPlanningReadiness } from '@/hooks/useProjectPlanningReadiness';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -39,17 +46,46 @@ interface CompletionDialogState {
 
 interface PortfolioKanbanBoardProps {
   projects: PortfolioProject[];
+  /** Ano filtrado: a coluna Concluído mostra só os concluídos nele. Padrão: o ano atual. */
+  year?: number;
+  /** Hoje, `yyyy-MM-dd`: decide quem está em Encerramento. Padrão: hoje. */
+  today?: string;
   canEditProject?: (project: PortfolioProject) => boolean;
-  onRemoveProject?: (project: PortfolioProject) => void;
   hideValues?: boolean;
+  /** Pendências de cada projeto (sino do card e ordem na coluna, US-0037). */
+  alertsOf?: (project: PortfolioProject) => PortfolioAlert[];
 }
 
-export function PortfolioKanbanBoard({
-  projects,
-  canEditProject = () => false,
-  onRemoveProject,
-  hideValues,
-}: PortfolioKanbanBoardProps) {
+/** Quem tem algo fora do planejado vem primeiro; depois quem pede atenção; depois o resto. */
+const alertRank = (alerts: PortfolioAlert[]) => {
+  if (alerts.some((alert) => alert.level === 'late')) return 0;
+  return alerts.length ? 1 : 2;
+};
+
+/** Etapa gravada ao soltar o card na coluna. Encerramento segue a data de fim e não recebe card. */
+const STAGE_OF_COLUMN: Record<PortfolioBoardColumnId, PortfolioStage | null> = {
+  planning: PORTFOLIO_STAGE.PLANNING,
+  value_delivery: PORTFOLIO_STAGE.VALUE_DELIVERY,
+  closing: null,
+  completed: PORTFOLIO_STAGE.COMPLETED,
+};
+
+const BOARD_COLUMNS = (year: number) => [
+  { id: PORTFOLIO_BOARD_COLUMN.PLANNING, label: 'Planejamento', rule: 'Até o GP iniciar a execução.' },
+  { id: PORTFOLIO_BOARD_COLUMN.VALUE_DELIVERY, label: 'Entrega de Valor', rule: 'Em execução, a mais de 20 dias do fim.' },
+  { id: PORTFOLIO_BOARD_COLUMN.CLOSING, label: 'Encerramento', rule: 'Últimos 20 dias e depois do fim, até concluir.' },
+  { id: PORTFOLIO_BOARD_COLUMN.COMPLETED, label: 'Concluído', rule: `Concluídos em ${year}.` },
+];
+
+export function PortfolioKanbanBoard(props: PortfolioKanbanBoardProps) {
+  const {
+    projects,
+    year = new Date().getFullYear(),
+    today = format(new Date(), 'yyyy-MM-dd'),
+    canEditProject = () => false,
+    hideValues,
+    alertsOf = () => [],
+  } = props;
   const [activeProject, setActiveProject] = useState<PortfolioProject | null>(null);
   const [completionDialog, setCompletionDialog] = useState<CompletionDialogState | null>(null);
   const [completionDate, setCompletionDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -67,108 +103,92 @@ export function PortfolioKanbanBoard({
     })
   );
 
-  const projectsByStage = useMemo(() => {
-    const grouped: Record<PortfolioStage, PortfolioProject[]> = {
+  const projectsByColumn = useMemo(() => {
+    const grouped: Record<PortfolioBoardColumnId, PortfolioProject[]> = {
       planning: [],
       value_delivery: [],
-      results_presentation: [],
-      learning_case: [],
+      closing: [],
       completed: [],
     };
-
     projects.forEach((project) => {
-      const stage = (project.portfolio_stage as PortfolioStage) || 'planning';
-      if (grouped[stage]) {
-        grouped[stage].push(project);
-      } else {
-        grouped['planning'].push(project);
-      }
+      const column = boardColumnOf(project, today);
+      if (column === PORTFOLIO_BOARD_COLUMN.COMPLETED && !isCompletedInYear(project, year)) return;
+      grouped[column].push(project);
     });
-
+    (Object.keys(grouped) as PortfolioBoardColumnId[]).forEach((column) => {
+      // `sort` é estável: dentro do mesmo grupo de pendência, vale a ordem da coluna.
+      grouped[column] = sortForColumn(grouped[column], column).sort(
+        (a, b) => alertRank(alertsOf(a)) - alertRank(alertsOf(b)),
+      );
+    });
     return grouped;
-  }, [projects]);
+  }, [projects, today, year, alertsOf]);
+
+  const columnUnder = (overId: string): PortfolioBoardColumnId | null => {
+    if (overId in STAGE_OF_COLUMN) return overId as PortfolioBoardColumnId;
+    const overProject = projects.find((p) => p.id === overId);
+    return overProject ? boardColumnOf(overProject, today) : null;
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     const project = projects.find((p) => p.id === event.active.id);
     if (project) setActiveProject(project);
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  type MoveDecision = { stage: PortfolioStage } | { notice: { title: string; description: string; destructive?: boolean } };
+
+  // Seguindo .harness/patterns/security.md e OWASP A01: mover card altera o recurso projeto,
+  // então a tela também confere a permissão sobre o projeto específico.
+  const permissionNotice = (project: PortfolioProject) => {
+    if (!canEditProject(project)) return 'Você só pode alterar projetos em que é PM.';
+    if (project.portfolio_stage === PORTFOLIO_STAGE.COMPLETED && !isAdmin) return 'Apenas administradores podem mover projetos concluídos.';
+    return null;
+  };
+
+  const decideMove = (project: PortfolioProject, overId: string): MoveDecision | null => {
+    const denied = permissionNotice(project);
+    if (denied) return { notice: { title: 'Ação não permitida', description: denied, destructive: true } };
+    const targetColumn = columnUnder(overId);
+    if (!targetColumn) {
+      return { notice: { title: 'Movimento não realizado', description: 'Não foi possível identificar a coluna de destino.', destructive: true } };
+    }
+    if (targetColumn === boardColumnOf(project, today)) return null;
+    const stage = STAGE_OF_COLUMN[targetColumn];
+    if (!stage) {
+      return { notice: { title: 'Encerramento segue a data de fim', description: 'O projeto entra em Encerramento sozinho nos últimos 20 dias antes da data de fim.' } };
+    }
+    return stage === project.portfolio_stage ? null : { stage };
+  };
+
+  const openCompletion = (project: PortfolioProject) => {
+    setCompletionDate(format(new Date(), 'yyyy-MM-dd'));
+    setCompletionDialog({ projectId: project.id, projectName: project.name, warnings: [] });
+    // Avisos (ex.: pagamento pendente) aparecem antes de confirmar, sem impedir a conclusão.
+    void checkCompletionReadiness(project.id).then(({ warnings }) => {
+      setCompletionDialog((current) => (current?.projectId === project.id ? { ...current, warnings } : current));
+    });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveProject(null);
-
     if (!over) {
-      toast({
-        title: 'Movimento não realizado',
-        description: 'Solte o card sobre uma coluna do portfólio para mover o projeto.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Movimento não realizado', description: 'Solte o card sobre uma coluna do portfólio para mover o projeto.', variant: 'destructive' });
       return;
     }
-
-    const projectId = active.id as string;
-    const project = projects.find((p) => p.id === projectId);
+    const project = projects.find((p) => p.id === active.id);
     if (!project) return;
-
-    // Seguindo .harness/patterns/security.md e OWASP A01: mover card altera o recurso
-    // projeto, entao a UI tambem verifica permissao do projeto especifico.
-    if (!canEditProject(project)) {
-      toast({
-        title: 'Ação não permitida',
-        description: 'Você só pode alterar projetos em que é PM.',
-        variant: 'destructive',
-      });
+    const decision = decideMove(project, String(over.id));
+    if (!decision) return;
+    if ('notice' in decision) {
+      toast({ title: decision.notice.title, description: decision.notice.description, variant: decision.notice.destructive ? 'destructive' : 'default' });
       return;
     }
-
-    let targetStage: PortfolioStage | null = null;
-    if (PORTFOLIO_COLUMNS.some((col) => col.id === over.id)) {
-      targetStage = over.id as PortfolioStage;
-    } else {
-      const overProject = projects.find((p) => p.id === over.id);
-      if (overProject) {
-        targetStage = (overProject.portfolio_stage as PortfolioStage) || 'planning';
-      }
-    }
-
-    if (!targetStage) {
-      toast({
-        title: 'Movimento não realizado',
-        description: 'Não foi possível identificar a coluna de destino.',
-        variant: 'destructive',
-      });
+    if (decision.stage === PORTFOLIO_STAGE.COMPLETED) {
+      openCompletion(project);
       return;
     }
-
-    if (targetStage === project.portfolio_stage) return;
-
-    // Projetos concluídos só podem ser movidos por admins
-    if (project.portfolio_stage === 'completed' && !isAdmin) {
-      toast({
-        title: 'Ação não permitida',
-        description: 'Apenas administradores podem mover projetos concluídos.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (targetStage === 'completed') {
-      setCompletionDate(format(new Date(), 'yyyy-MM-dd'));
-      setCompletionDialog({
-        projectId,
-        projectName: project.name,
-        warnings: [],
-      });
-      // Avisos (ex.: pagamento pendente) aparecem antes de confirmar, sem impedir a conclusão.
-      void checkCompletionReadiness(projectId).then(({ warnings }) => {
-        setCompletionDialog((current) =>
-          current?.projectId === projectId ? { ...current, warnings } : current
-        );
-      });
-      return;
-    }
-
-    updateStage.mutate({ projectId, newStage: targetStage });
+    updateStage.mutate({ projectId: project.id, newStage: decision.stage });
   };
 
   const confirmCompletion = async () => {
@@ -211,17 +231,18 @@ export function PortfolioKanbanBoard({
         onDragEnd={handleDragEnd}
       >
         <div className="overflow-x-auto pb-2">
-          <div className="grid grid-cols-[repeat(5,minmax(240px,1fr))] gap-4">
-            {PORTFOLIO_COLUMNS.map((column) => (
+          <div className="grid grid-cols-[repeat(4,minmax(260px,1fr))] gap-4">
+            {BOARD_COLUMNS(year).map((column) => (
               <PortfolioColumn
                 key={column.id}
                 id={column.id}
                 label={column.label}
-                color={column.color}
-                projects={projectsByStage[column.id]}
-                canEditProject={canEditProject}
-                onRemoveProject={onRemoveProject}
+                rule={column.rule}
+                projects={projectsByColumn[column.id]}
+                today={today}
+                canDragProject={canEditProject}
                 hideValues={hideValues}
+                alertsOf={alertsOf}
               />
             ))}
           </div>
@@ -232,7 +253,9 @@ export function PortfolioKanbanBoard({
             <div className="rotate-3 scale-105">
               <PortfolioCard
                 project={activeProject}
-                canEdit={canEditProject(activeProject)}
+                column={boardColumnOf(activeProject, today)}
+                today={today}
+                canDrag
                 hideValues={hideValues}
               />
             </div>

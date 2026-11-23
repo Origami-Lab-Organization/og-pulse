@@ -3,21 +3,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProjectMemberMonthDB } from '@/types/project';
 
+/** Horas planejadas por membro/mês (modelo legado). Também usado pelo portfólio. */
+export async function fetchProjectMemberMonths(projectMemberIds: string[]): Promise<ProjectMemberMonthDB[]> {
+  if (projectMemberIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('project_member_months')
+    .select('*')
+    .in('project_member_id', projectMemberIds)
+    .order('month_number', { ascending: true });
+
+  if (error) throw error;
+  return data as ProjectMemberMonthDB[];
+}
+
 export const useProjectMemberMonths = (projectMemberIds: string[]) => {
   return useQuery({
     queryKey: ['project-member-months', projectMemberIds],
-    queryFn: async () => {
-      if (projectMemberIds.length === 0) return [];
-      
-      const { data, error } = await supabase
-        .from('project_member_months')
-        .select('*')
-        .in('project_member_id', projectMemberIds)
-        .order('month_number', { ascending: true });
-
-      if (error) throw error;
-      return data as ProjectMemberMonthDB[];
-    },
+    queryFn: () => fetchProjectMemberMonths(projectMemberIds),
     enabled: projectMemberIds.length > 0,
   });
 };

@@ -380,7 +380,7 @@ export default function ProjectDetail() {
           {canAccessFullProject && (
             <>
               <TabsContent value="overview" className="mt-6">
-                <ProjectOverviewTab project={project} />
+                <ProjectOverviewTab project={project} onNavigateToTab={setActiveTab} />
               </TabsContent>
 
               <TabsContent value="planning" className="mt-6">

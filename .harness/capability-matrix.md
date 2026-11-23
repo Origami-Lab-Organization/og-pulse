@@ -135,7 +135,7 @@ tinha `pipeline:ler`/`pipeline:editar`.
 | `projeto:ler` | sim | sim | — | alocado `!` | `/projects/:id` sem guard de perfil — **D7** |
 | `projeto:editar` | sim | PM | — | — | `can_manage_project` (ADR-0002) |
 | `projeto:gerir-qualquer` — alcanca projeto que a pessoa nao gerencia; desde 23/11/2026 tambem libera lancar, editar e apagar horas e custos em projeto concluido (US-0030) | sim | — | — | — | criada em 04/09; substituiu `has_role(admin)` dentro de `can_manage_project`; triggers `guard_project_timesheet_entry` e `guard_project_cost_entry` (20261123220000) |
-| `portfolio:ler` | sim | sim | — | — | rota `requireManager` (ADR-0002) |
+| `portfolio:ler` — inclui ler as metas do portfólio (`portfolio_goals`, US-0036) | sim | sim | — | — | rota `requireManager` (ADR-0002); `portfolio_goals` SELECT por `has_capability` (20261124120000) |
 | `alocacao:ler` | sim | sim | — | proprio | rota `requireManager` |
 | `alocacao:editar` | sim | PM | — | — | `can_manage_project` (ADR-0003) |
 | `alocacao:editar-mes-fechado` — corrigir planejamento de mes anterior | sim | — | — | — | trigger `enforce_past_month_allocation_edit`; criada em 08/09, substituiu `has_role(admin)` que ficou orfa na aposentadoria |
@@ -207,7 +207,7 @@ Admin + Gerente. Faltava vocabulario, nao mecanismo.
 
 | Capacidade | Admin | Gerente | RH | Colab. | Predicado vigente |
 |---|---|---|---|---|---|
-| `configuracao:editar` — encargos e perfil de folha, tabela de precos por cargo, config. financeira, feriados, beneficios e ferramentas do catalogo, modelos de receita, dados da empresa, **centros de custo** (PUL-217) | sim | — | — | — | `has_role('admin')` em `payroll_profiles`, `role_rates`, `financial_settings`, `company_holidays`, `benefits`, `tools`, `service_revenue_models`, `tenants` UPDATE; `has_capability` direto em `cost_centers` INSERT/UPDATE (leitura tenant-wide por `user_belongs_to_tenant`; sem DELETE) |
+| `configuracao:editar` — encargos e perfil de folha, tabela de precos por cargo, config. financeira, metas do portfolio (`portfolio_goals`, US-0036), feriados, beneficios e ferramentas do catalogo, modelos de receita, dados da empresa, **centros de custo** (PUL-217) | sim | — | — | — | `has_role('admin')` em `payroll_profiles`, `role_rates`, `financial_settings`, `company_holidays`, `benefits`, `tools`, `service_revenue_models`, `tenants` UPDATE; `has_capability` direto em `cost_centers` INSERT/UPDATE (leitura tenant-wide por `user_belongs_to_tenant`; sem DELETE) |
 
 Nao entra aqui, de proposito: **governanca do proprio mecanismo** (`tenant_roles`,
 `role_capabilities`, `user_tenant_roles`, `user_capability_overrides`, `user_roles`)

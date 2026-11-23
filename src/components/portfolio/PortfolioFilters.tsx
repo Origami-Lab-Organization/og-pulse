@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useServices } from '@/hooks/useServices';
+import type { PortfolioScope } from '@/types/portfolio';
 import {
   Select,
   SelectContent,
@@ -11,15 +12,15 @@ import {
 } from '@/components/ui/select';
 
 interface PortfolioFiltersProps {
-  canFilterManagers: boolean;
   clientId: string;
   serviceLine: string;
-  managerId: string;
   year: string;
+  /** Alcance: só os projetos de quem está logado, ou todos (US-0035). */
+  scope: PortfolioScope;
   onClientChange: (value: string) => void;
   onServiceLineChange: (value: string) => void;
-  onManagerChange: (value: string) => void;
   onYearChange: (value: string) => void;
+  onScopeChange: (value: PortfolioScope) => void;
 }
 
 interface ClientOption {
@@ -28,28 +29,18 @@ interface ClientOption {
   trading_name: string | null;
 }
 
-interface ManagerOption {
-  id: string;
-  nome: string;
-}
+const SCOPES: { value: PortfolioScope; label: string }[] = [
+  { value: 'mine', label: 'Meus projetos' },
+  { value: 'all', label: 'Todos' },
+];
 
-export function PortfolioFilters({
-  canFilterManagers,
-  clientId,
-  serviceLine,
-  managerId,
-  year,
-  onClientChange,
-  onServiceLineChange,
-  onManagerChange,
-  onYearChange,
-}: PortfolioFiltersProps) {
+export function PortfolioFilters(props: PortfolioFiltersProps) {
+  const { clientId, serviceLine, year, scope, onClientChange, onServiceLineChange, onYearChange, onScopeChange } = props;
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear - i);
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
   const [clients, setClients] = useState<ClientOption[]>([]);
-  const [managers, setManagers] = useState<ManagerOption[]>([]);
   const { data: services = [] } = useServices();
 
   useEffect(() => {
@@ -62,34 +53,15 @@ export function PortfolioFilters({
       .then(({ data }) => setClients((data || []) as ClientOption[]));
   }, [tenantId]);
 
-  useEffect(() => {
-    if (!tenantId || !canFilterManagers) return;
-    // A lista é de quem GERENCIA projeto, e por isso sai dos próprios projetos em vez da
-    // coluna legada `is_gerente` (aposentada em PUL-206). Também fica mais correta: filtrar
-    // o portfólio por alguém que tem a flag mas não gerencia nada nunca devolvia nada.
-    supabase
-      .from('projects')
-      .select('manager:employees!projects_manager_id_fkey(id, nome)')
-      .eq('tenant_id', tenantId)
-      .not('manager_id', 'is', null)
-      .then(({ data }) => {
-        const porId = new Map<string, ManagerOption>();
-        for (const row of (data || []) as { manager?: ManagerOption | null }[]) {
-          if (row.manager?.id) porId.set(row.manager.id, row.manager);
-        }
-        setManagers([...porId.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')));
-      });
-  }, [tenantId, canFilterManagers]);
-
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* Filtro de Ano */}
-      <Select value={year || '__all__'} onValueChange={v => onYearChange(v === '__all__' ? '' : v)}>
-        <SelectTrigger className="w-[120px]">
-          <SelectValue placeholder="Todos os anos" />
+      {/* O ano é sempre um ano: os indicadores falam de receita "em 2026" (US-0034). */}
+      <Select value={year} onValueChange={onYearChange}>
+        <SelectTrigger className="w-[120px]" aria-label="Ano">
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__all__">Todos os anos</SelectItem>
           {years.map(y => (
             <SelectItem key={y} value={String(y)}>{y}</SelectItem>
           ))}
@@ -126,23 +98,24 @@ export function PortfolioFilters({
         </SelectContent>
       </Select>
 
-      {/* Seguindo .harness/patterns/security.md: filtro visível para quem pode ver o portfólio,
-          mas autorização de escrita continua por recurso/RLS. */}
-      {canFilterManagers && (
-        <Select value={managerId || '__all__'} onValueChange={v => onManagerChange(v === '__all__' ? '' : v)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Todos os gerentes" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Todos os gerentes</SelectItem>
-            {managers.map(m => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
+      {/* O alcance é escolha da tela; quem pode ler o quê continua no RLS. */}
+      <div role="group" aria-label="Alcance" className="flex h-10 overflow-hidden rounded-md border border-border">
+        {SCOPES.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={scope === option.value}
+            onClick={() => onScopeChange(option.value)}
+            className={
+              scope === option.value
+                ? 'bg-primary px-3 text-sm font-medium text-primary-foreground'
+                : 'px-3 text-sm text-muted-foreground hover:bg-muted/60'
+            }
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

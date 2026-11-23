@@ -2,18 +2,10 @@ import { useMemo } from 'react';
 import { useProjectMemberMonths } from '@/hooks/useProjectMemberMonths';
 import { useProjectTimesheets } from '@/hooks/useProjectTimesheets';
 import { useProjectCostItems } from '@/hooks/useProjectCostItems';
-import { useProjectPlannedLaborCost } from '@/hooks/useProjectPlannedLaborCost';
+import { useProjectAllocations } from '@/hooks/useProjectRoles';
 import { useHolidays } from '@/hooks/useHolidays';
-import {
-  buildProjectCostSummary,
-  legacyLaborPlannedEntries,
-  realizedLaborEntries,
-} from '@/lib/projectCostSummary';
-import { buildProjectMonthlyCosts } from '@/lib/projectMonthlyCosts';
+import { computeProjectCosts } from '@/lib/projectCostMonths';
 import type { ProjectWithRelations } from '@/types/project';
-import type { DatedCost } from '@/types/projectCostSummary';
-
-const sumCosts = (entries: DatedCost[]) => entries.reduce((sum, entry) => sum + entry.cost, 0);
 
 /**
  * Custo planejado e realizado do projeto pela regra única (US-0025), também mês a mês de
@@ -33,44 +25,29 @@ export function useProjectCostSummary(project: ProjectWithRelations) {
   const timesheetsQuery = useProjectTimesheets(project.id);
   const costItemsQuery = useProjectCostItems(project.id);
   const { data: holidays = [] } = useHolidays();
-  const plannedLabor = useProjectPlannedLaborCost(project, project.duration_months);
+  const allocationsQuery = useProjectAllocations(project.id, true);
 
   const memberMonths = memberMonthsQuery.data;
   const timesheets = timesheetsQuery.data;
   const costItems = costItemsQuery.data;
+  const allocations = allocationsQuery.data;
 
-  const result = useMemo(() => {
-    const laborPlannedEntries = plannedLabor.hasRoleAllocations
-      ? plannedLabor.byCalendarMonth
-      : legacyLaborPlannedEntries(project, memberMonths ?? [], holidays);
-    const laborRealizedEntries = realizedLaborEntries(timesheets ?? [], project.members || [], holidays);
-    const costs = costItems ?? [];
-
-    const summary = buildProjectCostSummary({
-      laborPlanned: plannedLabor.hasRoleAllocations ? plannedLabor.total : sumCosts(laborPlannedEntries),
-      laborActual: sumCosts(laborRealizedEntries),
-      costs,
-    });
-    const months = buildProjectMonthlyCosts({
-      project,
-      laborPlanned: laborPlannedEntries,
-      laborRealized: laborRealizedEntries,
-      costs,
-    });
-    return { ...summary, months };
-  }, [
-    project,
-    plannedLabor.hasRoleAllocations,
-    plannedLabor.total,
-    plannedLabor.byCalendarMonth,
-    memberMonths,
-    timesheets,
-    costItems,
-    holidays,
-  ]);
+  // A conta é `computeProjectCosts`, a mesma que o portfólio usa para vários projetos (US-0034).
+  const result = useMemo(
+    () =>
+      computeProjectCosts({
+        project,
+        allocations: allocations ?? [],
+        memberMonths: memberMonths ?? [],
+        timesheets: timesheets ?? [],
+        costs: costItems ?? [],
+        holidays,
+      }),
+    [project, allocations, memberMonths, timesheets, costItems, holidays],
+  );
 
   const isLoading =
-    plannedLabor.isLoading || timesheetsQuery.isLoading || costItemsQuery.isLoading || memberMonthsQuery.isLoading;
+    allocationsQuery.isLoading || timesheetsQuery.isLoading || costItemsQuery.isLoading || memberMonthsQuery.isLoading;
 
   return useMemo(() => ({ ...result, isLoading }), [result, isLoading]);
 }

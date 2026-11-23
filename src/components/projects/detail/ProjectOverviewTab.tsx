@@ -1,19 +1,24 @@
 import { useMemo } from 'react';
 import { DollarSign, Target, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ProjectWithRelations, PAYMENT_METHOD_OPTIONS } from '@/types/project';
 import { useMaskedCurrency, useMaskedPercent } from '@/contexts/HideValuesContext';
-import { InstallmentAlertsBanner } from './financial/InstallmentAlertsBanner';
+import { isNfEmissionDue } from '@/lib/installmentStatus';
 import { ProjectKPIBar } from './ProjectKPIBar';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 import { useProjectPlannedMargin } from '@/hooks/useProjectPlannedMargin';
-import { formatDate } from '@/lib/formatters';
-import { clientLabel, projectKindOf } from '@/lib/projectKind';
+import { ProjectPendingPanel } from './ProjectPendingPanel';
+import { ProjectTeamThisMonth } from './ProjectTeamThisMonth';
+import { alertsOf } from '@/lib/portfolioBoard';
+import { buildProjectForecast } from '@/lib/projectForecast';
+import { useHideValues } from '@/contexts/HideValuesContext';
+import { format } from 'date-fns';
 
 interface ProjectOverviewTabProps {
   project: ProjectWithRelations;
+  /** Abre outra aba do projeto (o "Ver equipe" do bloco da equipe). */
+  onNavigateToTab?: (tab: string) => void;
 }
 
 const executedPercent = (actual: number, planned: number) => (planned > 0 ? (actual / planned) * 100 : 0);
@@ -43,7 +48,7 @@ function computeOverviewKpis(input: {
   };
 }
 
-export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
+export function ProjectOverviewTab({ project, onNavigateToTab }: ProjectOverviewTabProps) {
   const formatCurrency = useMaskedCurrency();
   const formatPercent = useMaskedPercent();
   // Custo, comissão e margem PLANEJADOS e custo REALIZADO: regra única do custo do
@@ -84,6 +89,32 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     [metrics, costData, plannedMargin.commissionPlanned, commissions],
   );
 
+  // Pendências: as mesmas do sino do portfólio, com o forecast da aba Financeiro (US-0037).
+  const hideValues = useHideValues();
+  const alerts = useMemo(() => {
+    const forecast = buildProjectForecast({
+      months: plannedMargin.costSummary.months,
+      project,
+      contract: metrics.contractValue,
+      commissionPlanned: plannedMargin.commissionPlanned,
+      today: new Date(),
+    });
+    const nfDue = (project.installments || [])
+      .filter((installment) => isNfEmissionDue(installment, project.nf_emission_lead_days ?? 7, new Date()))
+      .map((installment) => ({
+        level: 'attention' as const,
+        text: `Parcela ${installment.installment_number} aguardando emissão de NF (a janela já abriu)`,
+      }));
+    return [...alertsOf(project, format(new Date(), 'yyyy-MM-dd'), {
+      projectId: project.id,
+      contract: metrics.contractValue,
+      forecastCost: forecast.forecastCost,
+      forecastMargin: forecast.forecastMargin,
+      hasCostPlanned: plannedMargin.costSummary.totalPlanned > 0,
+      target: financialSettings?.gross_margin_target_percent ?? 0,
+    }, hideValues), ...nfDue];
+  }, [project, metrics.contractValue, plannedMargin.costSummary, plannedMargin.commissionPlanned, financialSettings, hideValues]);
+
   const getPaymentMethodLabel = (method: string) => {
     const found = PAYMENT_METHOD_OPTIONS.find((m) => m.value === method);
     return found?.label || method;
@@ -91,97 +122,7 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
 
   return (
     <div className="space-y-4">
-      <InstallmentAlertsBanner project={project} />
-      {/* Informações do projeto e financeiras */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Informações do Projeto</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <p className="ol-label text-muted-foreground mb-0.5">Cliente</p>
-              <p className="text-sm font-medium text-foreground">
-                {clientLabel(project.client?.trading_name || project.client?.company_name, projectKindOf(project))}
-              </p>
-            </div>
-            <div>
-              <p className="ol-label text-muted-foreground mb-0.5">Gerente</p>
-              <p className="text-sm font-medium text-foreground">
-                {project.manager?.nome || 'Não definido'}
-              </p>
-            </div>
-            <div>
-              <p className="ol-label text-muted-foreground mb-0.5">Período</p>
-              <p className="text-sm font-medium text-foreground">
-                {formatDate(project.start_date)}
-                {project.end_date && (
-                  <> a {formatDate(project.end_date)}</>
-                )}
-                {project.is_continuous && (
-                  <Badge variant="outline" className="ml-2">Contínuo</Badge>
-                )}
-              </p>
-            </div>
-            {project.description && (
-              <div>
-                <p className="ol-label text-muted-foreground mb-0.5">Descrição</p>
-                <p className="text-sm text-foreground">{project.description}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Informações Financeiras</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <p className="ol-label text-muted-foreground mb-1">Valor do Contrato</p>
-              <p className="font-mono text-[1.75rem] font-semibold leading-none tabular-nums text-foreground">
-                {formatCurrency(project.total_value)}
-              </p>
-            </div>
-            {project.service_line === 'financiamento_inovacao' ? (
-              <>
-                <div>
-                  <p className="ol-label text-muted-foreground mb-0.5">Prazo de Pagamento</p>
-                  <p className="text-sm font-medium text-foreground">
-                    Pagamento em {project.due_day} dias após NF
-                  </p>
-                </div>
-                {(project as any).success_fee_percent != null && (
-                  <div>
-                    <p className="ol-label text-muted-foreground mb-0.5">Percentual de Sucesso</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {(project as any).success_fee_percent}%
-                    </p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div>
-                  <p className="ol-label text-muted-foreground mb-0.5">Forma de Pagamento</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {getPaymentMethodLabel(project.payment_method)}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {project.installments_count} parcela(s)
-                  </p>
-                </div>
-                <div>
-                  <p className="ol-label text-muted-foreground mb-0.5">Dia de Vencimento</p>
-                  <p className="text-sm font-medium text-foreground">Dia {project.due_day}</p>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Row 2: KPI Bar (padrão unificado) */}
+      {/* Indicadores logo abaixo das abas: o que o GP olha primeiro. */}
       <ProjectKPIBar
         revenuePlanned={kpiData.revenuePlanned}
         revenueActual={kpiData.revenueActual}
@@ -197,6 +138,64 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         marginVar={kpiData.marginVar}
         marginTarget={financialSettings?.gross_margin_target_percent ?? undefined}
       />
+
+      {/* Financeiro à esquerda, pendências à direita. Cliente, GP e período já estão no cabeçalho. */}
+      <div className="grid gap-4 md:auto-rows-[minmax(13.5rem,auto)] md:grid-cols-2">
+        <Card>
+          <CardHeader className="p-5 pb-3">
+            <CardTitle className="text-sm font-semibold">Informações Financeiras</CardTitle>
+          </CardHeader>
+          {/* Compacto para a Visão Geral caber sem rolagem no notebook de 14". */}
+          <CardContent className="space-y-5 p-5 pt-0">
+            <div>
+              <p className="ol-label text-muted-foreground mb-1">Valor do Contrato</p>
+              <p className="font-mono text-[1.75rem] font-semibold leading-none tabular-nums text-foreground">
+                {formatCurrency(project.total_value)}
+              </p>
+            </div>
+            {project.service_line === 'financiamento_inovacao' ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="ol-label text-muted-foreground mb-0.5">Prazo de Pagamento</p>
+                  <p className="text-sm font-medium text-foreground">{project.due_day} dias após NF</p>
+                </div>
+                {project.success_fee_percent != null && (
+                  <div>
+                    <p className="ol-label text-muted-foreground mb-0.5">Percentual de Sucesso</p>
+                    <p className="text-sm font-medium text-foreground">{project.success_fee_percent}%</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="ol-label text-muted-foreground mb-0.5">Forma de Pagamento</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {getPaymentMethodLabel(project.payment_method)}
+                    <span className="font-normal text-muted-foreground">
+                      {' '}· {project.installments_count} {project.installments_count === 1 ? 'parcela' : 'parcelas'}
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <p className="ol-label text-muted-foreground mb-0.5">Dia de Vencimento</p>
+                  <p className="text-sm font-medium text-foreground">Dia {project.due_day}</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+          {project.description && (
+            <CardContent className="border-t p-5 pt-4">
+              <p className="ol-label mb-0.5 text-muted-foreground">Descrição</p>
+              <p className="text-sm text-foreground">{project.description}</p>
+            </CardContent>
+          )}
+        </Card>
+        <ProjectPendingPanel alerts={alerts} />
+      </div>
+
+      <ProjectTeamThisMonth project={project} onOpenTeam={onNavigateToTab ? () => onNavigateToTab('team') : undefined} />
+
     </div>
   );
 }

@@ -1,4 +1,7 @@
-import type { ProjectCostCategory } from '@/types/project';
+import type { ProjectCostCategory, ProjectCostDB, ProjectMemberMonthDB, ProjectWithRelations } from '@/types/project';
+import type { Holiday } from '@/types/holiday';
+import type { ProjectAllocation } from '@/types/equipe.types';
+import type { ProjectTimesheetDB } from '@/hooks/useProjectTimesheets';
 
 /** Custo do projeto pela regra única (US-0025, `src/lib/projectCostSummary.ts`). */
 export interface ProjectCostSummary {
@@ -33,4 +36,14 @@ export interface ProjectCostMonth {
 export interface DatedCost {
   date: Date;
   cost: number;
+}
+
+/** Dados já carregados de um projeto para calcular o custo dele (`computeProjectCosts`). */
+export interface ProjectCostInputs {
+  project: Pick<ProjectWithRelations, 'start_date' | 'end_date' | 'is_continuous' | 'duration_months' | 'members'>;
+  allocations: ProjectAllocation[];
+  memberMonths: ProjectMemberMonthDB[];
+  timesheets: ProjectTimesheetDB[];
+  costs: ProjectCostDB[];
+  holidays: Holiday[];
 }
