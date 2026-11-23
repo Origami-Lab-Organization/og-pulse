@@ -111,10 +111,10 @@ antiga. Não foi reescrito porque os testes estão desativados no Harness; o CI 
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| 1 | Script: 56% e 55% → verde; 53,3% e 49,5% → amarelo; 49,4% → vermelho; sem meta ou sem custo → neutro. Falta conferir na tela (Paraíso: 53,3% → amarelo). |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). Script: 56% e 55% → verde; 53,3% e 49,5% → amarelo; 49,4% → vermelho; sem meta ou sem custo → neutro. |
 | 2 | Pendente: conferir na tela num projeto com forecast acima da meta e plano abaixo. |
-| 3 | Pendente: conferir o texto na tela. |
-| 3b | Pendente: conferir na tela (Paraíso, encerrado em 17/11). |
+| 3 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
+| 3b | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
 | 4 | Pendente: conferir na tela num projeto sem custo planejado. |
 | 5 | Pendente: conferir com "ocultar valores". |
 
