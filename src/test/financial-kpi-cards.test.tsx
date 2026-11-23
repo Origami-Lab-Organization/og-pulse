@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { FinancialKpiCards } from '@/components/projects/detail/financial/FinancialKpiCards';
 import { HideValuesProvider } from '@/contexts/HideValuesContext';
 
-function renderWithProviders(props: Parameters<typeof FinancialKpiCards>[0]) {
+// Regras do card de forecast: US-0032 (decisões de 23/11/2026).
+
+function renderWithProviders(props: Parameters<typeof FinancialKpiCards>[0], hide = false) {
   return render(
-    <HideValuesProvider value={false}>
+    <HideValuesProvider value={hide}>
       <FinancialKpiCards {...props} />
     </HideValuesProvider>,
   );
@@ -25,265 +27,144 @@ const baseProps = {
   forecastCost: 12000,
 };
 
-describe('FinancialKpiCards - Destaque do card Forecast', () => {
-  it('aplica fundo vermelho quando forecast está abaixo da meta', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 25, // 25% < meta 30%
-      marginTarget: 30,
-    });
+const forecastCard = () => screen.getByText('Forecast · fim do projeto').closest('div');
 
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-destructive');
-    expect(forecastCard).not.toHaveClass('bg-[hsl(var(--brand-slate))]');
+describe('FinancialKpiCards - faixas do forecast (meta 30%: amarelo de 27% a 30%)', () => {
+  it('fica verde (petróleo) com o forecast acima da meta', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 35 });
+
+    expect(forecastCard()).toHaveClass('bg-[hsl(var(--brand-slate))]');
+    expect(screen.getByText('35%')).toHaveClass('text-[hsl(var(--green-300))]');
+    expect(screen.getByText(/na meta ou acima/)).toBeInTheDocument();
   });
 
-  it('mantém fundo petróleo quando forecast está acima da meta', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 35, // 35% >= meta 30%
-      marginTarget: 30,
-    });
+  it('fica verde com o forecast igual à meta', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 30 });
 
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-[hsl(var(--brand-slate))]');
-    expect(forecastCard).not.toHaveClass('bg-destructive');
+    expect(forecastCard()).toHaveClass('bg-[hsl(var(--brand-slate))]');
+    expect(forecastCard()).not.toHaveClass('bg-warning');
   });
 
-  it('mantém fundo petróleo quando forecast está igual à meta', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 30, // 30% == meta 30%
-      marginTarget: 30,
-    });
+  it('fica amarelo com o forecast até 10% da meta abaixo dela', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 28 });
 
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-[hsl(var(--brand-slate))]');
-    expect(forecastCard).not.toHaveClass('bg-destructive');
+    expect(forecastCard()).toHaveClass('bg-warning');
+    expect(forecastCard()).not.toHaveClass('bg-destructive');
+    expect(screen.getByText('28%')).toHaveClass('text-warning-foreground');
+    expect(screen.getByText(/até 10% abaixo da meta/)).toBeInTheDocument();
   });
 
-  it('mantém fundo petróleo quando meta é zero (sem meta configurada)', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 10, // 10% abaixo de qualquer meta razoável
-      marginTarget: 0, // sem meta configurada
-    });
+  it('fica amarelo exatamente no limite de 10% da meta', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 27 });
 
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-[hsl(var(--brand-slate))]');
-    expect(forecastCard).not.toHaveClass('bg-destructive');
+    expect(forecastCard()).toHaveClass('bg-warning');
   });
 
-  it('exibe texto "abaixo da meta" quando forecast está abaixo', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 25,
-      marginTarget: 30,
-    });
+  it('fica vermelho com o forecast mais de 10% da meta abaixo dela', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 26.9 });
 
-    expect(screen.getByText(/abaixo da meta/)).toBeInTheDocument();
-    expect(screen.queryByText(/acima da meta/)).not.toBeInTheDocument();
+    expect(forecastCard()).toHaveClass('bg-destructive');
+    expect(forecastCard()).not.toHaveClass('bg-warning');
   });
 
-  it('exibe texto "acima da meta ✓" quando forecast está acima', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 35,
-      marginTarget: 30,
-    });
+  it('mostra "mais de 10% abaixo da meta" na faixa vermelha', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 20 });
 
-    expect(screen.getByText(/acima da meta ✓/)).toBeInTheDocument();
+    expect(screen.getByText('20%')).toHaveClass('text-destructive-foreground');
+    expect(screen.getByText(/mais de 10% abaixo da meta/)).toBeInTheDocument();
   });
 
-  it('aplica cor verde no percentual quando acima da meta', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 35,
-      marginTarget: 30,
-    });
+  it('fica neutro sem meta configurada', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 10, marginTarget: 0 });
 
-    const percentSpan = screen.getByText('35%');
-    expect(percentSpan).toHaveClass('text-[hsl(var(--green-300))]');
-  });
-
-  it('aplica cor destructive-foreground no percentual quando abaixo da meta', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 25,
-      marginTarget: 30,
-    });
-
-    const percentSpan = screen.getByText('25%');
-    expect(percentSpan).toHaveClass('text-destructive-foreground');
-    expect(percentSpan).not.toHaveClass('text-[hsl(var(--green-300))]');
+    expect(forecastCard()).toHaveClass('bg-[hsl(var(--brand-slate))]');
+    expect(forecastCard()).not.toHaveClass('bg-destructive');
+    expect(forecastCard()).not.toHaveClass('bg-warning');
+    expect(screen.getByText('sem meta de margem definida')).toBeInTheDocument();
   });
 });
 
-describe('FinancialKpiCards - Margem planejada abaixo da meta', () => {
-  it('aplica fundo vermelho quando margem planejada está abaixo da meta, mesmo com forecast acima', () => {
-    renderWithProviders({
-      ...baseProps,
-      marginPlanned: 21, // 21% < meta 55%
-      marginTarget: 55,
-      forecastMargin: 100, // forecast acima da meta
-    });
+describe('FinancialKpiCards - plano abaixo da meta', () => {
+  it('fica verde com aviso escrito quando o forecast está na meta e o plano abaixo', () => {
+    renderWithProviders({ ...baseProps, marginPlanned: 21, marginTarget: 55, forecastMargin: 60 });
 
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-destructive');
-    expect(forecastCard).not.toHaveClass('bg-[hsl(var(--brand-slate))]');
+    expect(forecastCard()).toHaveClass('bg-[hsl(var(--brand-slate))]');
+    expect(forecastCard()).not.toHaveClass('bg-destructive');
+    expect(screen.getByText('Plano abaixo da meta (21%)')).toBeInTheDocument();
   });
 
-  it('mantém fundo petróleo quando margem planejada está acima da meta', () => {
-    renderWithProviders({
-      ...baseProps,
-      marginPlanned: 60, // 60% >= meta 55%
-      marginTarget: 55,
-      forecastMargin: 60, // forecast também acima
-    });
+  it('não mostra o aviso quando o plano está na meta', () => {
+    renderWithProviders({ ...baseProps, marginPlanned: 60, marginTarget: 55, forecastMargin: 60 });
 
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-[hsl(var(--brand-slate))]');
-    expect(forecastCard).not.toHaveClass('bg-destructive');
+    expect(screen.queryByText(/Plano abaixo da meta/)).not.toBeInTheDocument();
   });
 
-  it('mantém fundo petróleo quando margem planejada está igual à meta', () => {
-    renderWithProviders({
-      ...baseProps,
-      marginPlanned: 55, // 55% == meta 55%
-      marginTarget: 55,
-      forecastMargin: 55, // forecast também igual
-    });
+  it('não mostra o aviso quando o forecast já está fora da meta (a cor já avisa)', () => {
+    // meta 55% → amarelo de 49,5% a 55%
+    renderWithProviders({ ...baseProps, marginPlanned: 21, marginTarget: 55, forecastMargin: 50 });
 
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-[hsl(var(--brand-slate))]');
-    expect(forecastCard).not.toHaveClass('bg-destructive');
-  });
-
-  it('mantém fundo petróleo quando meta é zero (sem meta configurada), mesmo com margem planejada baixa', () => {
-    renderWithProviders({
-      ...baseProps,
-      marginPlanned: 10, // margem planejada baixa
-      marginTarget: 0, // sem meta configurada
-      forecastMargin: 50,
-    });
-
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-[hsl(var(--brand-slate))]');
-    expect(forecastCard).not.toHaveClass('bg-destructive');
-  });
-
-  it('mantém fundo petróleo sem custo planejado, mesmo com margem planejada abaixo da meta', () => {
-    renderWithProviders({
-      ...baseProps,
-      marginPlanned: 21, // 21% < meta 55%
-      marginTarget: 55,
-      forecastMargin: 100,
-      hasCostPlanned: false,
-    });
-
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-[hsl(var(--brand-slate))]');
-    expect(forecastCard).not.toHaveClass('bg-destructive');
-  });
-
-  it('exibe texto "acima da meta ✓" quando forecast está acima mas mostra destaque vermelho por margem planejada abaixo', () => {
-    renderWithProviders({
-      ...baseProps,
-      marginPlanned: 21, // 21% < meta 55% (destaque vermelho)
-      marginTarget: 55,
-      forecastMargin: 60, // forecast acima
-    });
-
-    // O texto mostra que o forecast está acima da meta
-    expect(screen.getByText(/acima da meta ✓/)).toBeInTheDocument();
-    // Mas o card está vermelho por causa da margem planejada
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-destructive');
+    expect(forecastCard()).toHaveClass('bg-warning');
+    expect(screen.queryByText(/Plano abaixo da meta/)).not.toBeInTheDocument();
   });
 });
 
-describe('FinancialKpiCards - Cenário sem custo planejado', () => {
-  it('exibe "—" quando não há custo planejado (hasCostPlanned=false)', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 100, // seria 100% sem custo
-      hasCostPlanned: false,
-    });
+describe('FinancialKpiCards - texto do card', () => {
+  it('informa "Projeto encerrado" depois da data de fim', () => {
+    renderWithProviders({ ...baseProps, projectEnded: true });
 
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText('Projeto encerrado')).toBeInTheDocument();
+  });
+
+  it('não informa "Projeto encerrado" com o projeto em andamento', () => {
+    renderWithProviders({ ...baseProps, projectEnded: false });
+
+    expect(screen.queryByText('Projeto encerrado')).not.toBeInTheDocument();
+  });
+
+  it('não repete valores de custo nem usa jargão', () => {
+    renderWithProviders({ ...baseProps, forecastCost: 12000 });
+
+    expect(screen.queryByText(/Custo final estimado/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/EAC/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/burn-rate/)).not.toBeInTheDocument();
+    expect(forecastCard()).not.toHaveTextContent('R$');
+  });
+
+  it('mostra a meta com a faixa', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 35 });
+
+    expect(screen.getByText(/meta 30% · na meta ou acima/)).toBeInTheDocument();
+  });
+
+  it('oculta percentuais com "ocultar valores"', () => {
+    renderWithProviders({ ...baseProps, marginPlanned: 21, marginTarget: 55, forecastMargin: 60 }, true);
+
+    expect(screen.queryByText('60%')).not.toBeInTheDocument();
+    expect(screen.getByText(/meta ••• ·/)).toBeInTheDocument();
+    expect(screen.getByText('Plano abaixo da meta (•••)')).toBeInTheDocument();
+  });
+});
+
+describe('FinancialKpiCards - sem custo planejado', () => {
+  it('mostra "—" no lugar do percentual', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 100, hasCostPlanned: false });
+
+    expect(screen.getByText('—')).toHaveClass('text-white/70');
     expect(screen.queryByText('100%')).not.toBeInTheDocument();
   });
 
-  it('exibe "sem custo planejado" na descrição quando hasCostPlanned=false', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 100,
-      hasCostPlanned: false,
-    });
+  it('explica que não há custo planejado para projetar', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 100, hasCostPlanned: false });
 
-    expect(screen.getByText('sem custo planejado')).toBeInTheDocument();
+    expect(screen.getByText('sem custo planejado para projetar')).toBeInTheDocument();
     expect(screen.queryByText(/margem projetada/)).not.toBeInTheDocument();
   });
 
-  it('exibe "sem dados para projeção" no rodapé quando hasCostPlanned=false', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 100,
-      hasCostPlanned: false,
-    });
+  it('fica neutro e não mostra faixa nem "Projeto encerrado"', () => {
+    renderWithProviders({ ...baseProps, forecastMargin: 10, marginTarget: 30, hasCostPlanned: false, projectEnded: true });
 
-    expect(screen.getByText('sem dados para projeção')).toBeInTheDocument();
-    expect(screen.queryByText(/acima da meta/)).not.toBeInTheDocument();
+    expect(forecastCard()).toHaveClass('bg-[hsl(var(--brand-slate))]');
     expect(screen.queryByText(/abaixo da meta/)).not.toBeInTheDocument();
-  });
-
-  it('mantém fundo petróleo quando não há custo planejado (não mostra vermelho)', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 100,
-      marginTarget: 30, // mesmo com meta definida
-      hasCostPlanned: false,
-    });
-
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-[hsl(var(--brand-slate))]');
-    expect(forecastCard).not.toHaveClass('bg-destructive');
-  });
-
-  it('aplica cor opaca (text-white/70) no "—" quando hasCostPlanned=false', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 100,
-      hasCostPlanned: false,
-    });
-
-    const dashSpan = screen.getByText('—');
-    expect(dashSpan).toHaveClass('text-white/70');
-  });
-
-  it('exibe percentual normalmente quando hasCostPlanned=true (comportamento padrão)', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 35,
-      marginTarget: 30,
-      hasCostPlanned: true,
-    });
-
-    expect(screen.getByText('35%')).toBeInTheDocument();
-    expect(screen.queryByText('—')).not.toBeInTheDocument();
-    expect(screen.getByText(/acima da meta ✓/)).toBeInTheDocument();
-  });
-
-  it('aplica fundo vermelho normalmente com custo planejado e margem abaixo da meta', () => {
-    renderWithProviders({
-      ...baseProps,
-      forecastMargin: 25,
-      marginTarget: 30,
-      hasCostPlanned: true,
-    });
-
-    const forecastCard = screen.getByText('Forecast · fim do projeto').closest('div');
-    expect(forecastCard).toHaveClass('bg-destructive');
-    expect(screen.getByText(/abaixo da meta/)).toBeInTheDocument();
+    expect(screen.queryByText('Projeto encerrado')).not.toBeInTheDocument();
   });
 });
