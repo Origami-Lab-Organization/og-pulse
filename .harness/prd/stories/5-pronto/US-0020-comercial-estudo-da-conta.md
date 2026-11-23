@@ -1,6 +1,6 @@
 # US-0020 — Estudar a conta antes de abordar
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Empresas da Receita

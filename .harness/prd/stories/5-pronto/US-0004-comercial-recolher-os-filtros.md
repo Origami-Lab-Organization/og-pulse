@@ -1,6 +1,6 @@
 # US-0004 — Recolher os filtros para ver mais da lista
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresas da Receita

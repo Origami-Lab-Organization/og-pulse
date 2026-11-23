@@ -65,30 +65,30 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 
 | ID | História | Persona | Status | Prontidão |
 |---|---|---|---|---|
-| [US-0001](stories/4-em-desenvolvimento/US-0001-tecnica-pulse-le-a-base-da-receita.md) | O Pulse lê a base da Receita com segurança e rapidez | Técnica | Em desenvolvimento | Pronta com ressalvas |
-| [US-0002](stories/4-em-desenvolvimento/US-0002-comercial-ver-empresas-da-base-da-receita.md) | Ver as empresas da base da Receita na tela Empresas | Pessoa do comercial | Em desenvolvimento | Pronta |
-| [US-0003](stories/4-em-desenvolvimento/US-0003-comercial-filtrar-empresas.md) | Filtrar as empresas pelo que importa para a Origami | Pessoa do comercial | Em desenvolvimento | Pronta |
-| [US-0004](stories/4-em-desenvolvimento/US-0004-comercial-recolher-os-filtros.md) | Recolher os filtros para ver mais da lista | Pessoa do comercial | Em desenvolvimento | Pronta |
-| [US-0005](stories/4-em-desenvolvimento/US-0005-comercial-buscar-empresa.md) | Buscar empresa por nome, CNPJ ou cidade | Pessoa do comercial | Em desenvolvimento | Pronta |
-| [US-0006](stories/4-em-desenvolvimento/US-0006-comercial-faturamento-estimado.md) | Ver o faturamento estimado de cada empresa | Pessoa do comercial | Em desenvolvimento | Pronta |
-| [US-0007](stories/4-em-desenvolvimento/US-0007-comercial-ficha-da-empresa.md) | Avaliar a empresa pela ficha antes de decidir | Pessoa do comercial | Em desenvolvimento | Pronta |
-| [US-0008](stories/4-em-desenvolvimento/US-0008-comercial-colocar-para-abordar.md) | Mover empresas para abordar | Pessoa do comercial | Em desenvolvimento | Pronta |
+| [US-0001](stories/5-pronto/US-0001-tecnica-pulse-le-a-base-da-receita.md) | O Pulse lê a base da Receita com segurança e rapidez | Técnica | Pronto | Pronta com ressalvas |
+| [US-0002](stories/5-pronto/US-0002-comercial-ver-empresas-da-base-da-receita.md) | Ver as empresas da base da Receita na tela Empresas | Pessoa do comercial | Pronto | Pronta |
+| [US-0003](stories/5-pronto/US-0003-comercial-filtrar-empresas.md) | Filtrar as empresas pelo que importa para a Origami | Pessoa do comercial | Pronto | Pronta |
+| [US-0004](stories/5-pronto/US-0004-comercial-recolher-os-filtros.md) | Recolher os filtros para ver mais da lista | Pessoa do comercial | Pronto | Pronta |
+| [US-0005](stories/5-pronto/US-0005-comercial-buscar-empresa.md) | Buscar empresa por nome, CNPJ ou cidade | Pessoa do comercial | Pronto | Pronta |
+| [US-0006](stories/5-pronto/US-0006-comercial-faturamento-estimado.md) | Ver o faturamento estimado de cada empresa | Pessoa do comercial | Pronto | Pronta |
+| [US-0007](stories/5-pronto/US-0007-comercial-ficha-da-empresa.md) | Avaliar a empresa pela ficha antes de decidir | Pessoa do comercial | Pronto | Pronta |
+| [US-0008](stories/5-pronto/US-0008-comercial-colocar-para-abordar.md) | Mover empresas para abordar | Pessoa do comercial | Pronto | Pronta |
 | [US-0009](stories/9-arquivadas/US-0009-comercial-abrir-oportunidades-em-lote.md) | Abrir oportunidades em lote | Pessoa do comercial | Arquivada (na US-0008) | — |
 | [US-0010](stories/2-em-refinamento/US-0010-comercial-nao-agora-e-descartar.md) | Marcar "Não agora" ou descartar a empresa | Pessoa do comercial | Em refinamento | Pronta |
 | [US-0011](stories/9-arquivadas/US-0011-comercial-abas-da-classificacao.md) | Acompanhar a classificação pelas abas e desfazer | Pessoa do comercial | Arquivada (tela sem abas) | — |
 | [US-0012](stories/2-em-refinamento/US-0012-comercial-classificar-pelo-teclado.md) | Classificar pelo teclado | Pessoa do comercial | Em refinamento | Pronta |
 | [US-0013](stories/1-a-fazer/US-0013-comercial-salvar-filtro-para-o-time.md) | Salvar um filtro para o time | Pessoa do comercial | A fazer | Não pronta |
 | [US-0014](stories/1-a-fazer/US-0014-comercial-fit-com-funcionarios-e-divida.md) | Nota de fit considera funcionários e dívida ativa | Pessoa do comercial | A fazer | Não pronta |
-| [US-0015](stories/4-em-desenvolvimento/US-0015-comercial-distancia-de-formiga.md) | Filtrar e ordenar pela distância de Formiga | Pessoa do comercial | Em desenvolvimento | Pronta |
+| [US-0015](stories/5-pronto/US-0015-comercial-distancia-de-formiga.md) | Filtrar e ordenar pela distância de Formiga | Pessoa do comercial | Pronto | Pronta |
 | [US-0016](stories/9-arquivadas/US-0016-comercial-tipo-de-conta.md) | Classificar a conta como Âncora, Ponte ou Satélite | Pessoa do comercial | Arquivada (na US-0008) | — |
 | [US-0017](stories/2-em-refinamento/US-0017-comercial-anel-e-tier-saem.md) | Anel e Tier saem da Prospecção | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0018](stories/4-em-desenvolvimento/US-0018-comercial-refinar-faturamento-estimado.md) | Refinar o faturamento estimado | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
-| [US-0019](stories/4-em-desenvolvimento/US-0019-comercial-marca-de-relacionamento.md) | Ver a relação da Origami com cada empresa | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
-| [US-0020](stories/4-em-desenvolvimento/US-0020-comercial-estudo-da-conta.md) | Estudar a conta antes de abordar | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
+| [US-0019](stories/5-pronto/US-0019-comercial-marca-de-relacionamento.md) | Ver a relação da Origami com cada empresa | Pessoa do comercial | Pronto | Pronta com ressalvas |
+| [US-0020](stories/5-pronto/US-0020-comercial-estudo-da-conta.md) | Estudar a conta antes de abordar | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0021](stories/1-a-fazer/US-0021-comercial-metricas-do-novo-fluxo.md) | Ajustar as Métricas ao novo fluxo de abordagem | Pessoa do comercial | A fazer | Não pronta |
-| [US-0022](stories/4-em-desenvolvimento/US-0022-comercial-bant-da-oportunidade.md) | Qualificar a oportunidade pelo BANT, do começo ao fim | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
-| [US-0023](stories/4-em-desenvolvimento/US-0023-comercial-etapa-qualificacao.md) | Qualificar a empresa antes de abordar | Pessoa do comercial | Em desenvolvimento | Pronta |
-| [US-0024](stories/4-em-desenvolvimento/US-0024-comercial-ia-propoe-bant-pelo-mcp.md) | IA propõe evidências de BANT pela assinatura do Claude | Pessoa do comercial | Em desenvolvimento | Pronta |
+| [US-0022](stories/5-pronto/US-0022-comercial-bant-da-oportunidade.md) | Qualificar a oportunidade pelo BANT, do começo ao fim | Pessoa do comercial | Pronto | Pronta com ressalvas |
+| [US-0023](stories/5-pronto/US-0023-comercial-etapa-qualificacao.md) | Qualificar a empresa antes de abordar | Pessoa do comercial | Pronto | Pronta |
+| [US-0024](stories/5-pronto/US-0024-comercial-ia-propoe-bant-pelo-mcp.md) | IA propõe evidências de BANT pela assinatura do Claude | Pessoa do comercial | Pronto | Pronta |
 
 #### Ordem de implementação proposta
 

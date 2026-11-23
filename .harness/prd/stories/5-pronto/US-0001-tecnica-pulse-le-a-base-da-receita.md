@@ -1,6 +1,6 @@
 # US-0001 — O Pulse lê a base da Receita com segurança e rapidez
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** técnica
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Empresas da Receita

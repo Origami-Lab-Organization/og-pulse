@@ -1,6 +1,6 @@
 # US-0023 — Qualificar a empresa antes de abordar
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresas da Receita

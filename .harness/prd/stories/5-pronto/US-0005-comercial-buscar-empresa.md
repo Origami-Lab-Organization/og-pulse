@@ -1,6 +1,6 @@
 # US-0005 — Buscar empresa por nome, CNPJ ou cidade
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresas da Receita

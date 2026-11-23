@@ -1,6 +1,6 @@
 # US-0003 — Filtrar as empresas pelo que importa para a Origami
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresas da Receita

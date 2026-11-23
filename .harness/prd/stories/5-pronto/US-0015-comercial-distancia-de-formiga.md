@@ -1,6 +1,6 @@
 # US-0015 — Filtrar e ordenar pela distância de Formiga
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresas da Receita

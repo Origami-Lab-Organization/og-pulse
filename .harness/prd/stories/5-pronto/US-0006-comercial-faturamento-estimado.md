@@ -1,6 +1,6 @@
 # US-0006 — Ver o faturamento estimado de cada empresa
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresas da Receita

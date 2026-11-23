@@ -1,6 +1,6 @@
 # US-0024 — IA propõe evidências de BANT pela assinatura do Claude (fase 1)
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresas da Receita

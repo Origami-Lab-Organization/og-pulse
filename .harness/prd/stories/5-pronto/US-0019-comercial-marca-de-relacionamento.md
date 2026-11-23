@@ -1,6 +1,6 @@
 # US-0019 — Ver a relação da Origami com cada empresa
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Empresas da Receita

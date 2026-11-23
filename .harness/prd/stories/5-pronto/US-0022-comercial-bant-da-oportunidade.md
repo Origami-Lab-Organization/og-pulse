@@ -1,6 +1,6 @@
 # US-0022 — Qualificar a oportunidade pelo BANT, do começo ao fim
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Empresas da Receita

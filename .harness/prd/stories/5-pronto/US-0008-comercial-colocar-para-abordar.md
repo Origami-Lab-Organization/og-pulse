@@ -1,6 +1,6 @@
 # US-0008 — Mover empresas para abordar
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresas da Receita
