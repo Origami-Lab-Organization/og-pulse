@@ -26,6 +26,8 @@ import { usePainelDeFiltros } from '@/hooks/usePainelDeFiltros';
 import { useSelecaoDeEmpresas } from '@/hooks/useSelecaoDeEmpresas';
 import { useAuth } from '@/contexts/AuthContext';
 import type { BuscaReceita, FiltrosReceita, SelecaoDaLista } from '@/types/filtrosReceita';
+import type { Relacao } from '@/types/relacao';
+import { RELACOES_DA_ORIGAMI } from '@/lib/prospecting/relacao';
 import { cn } from '@/lib/utils';
 import { BarraDeSelecao } from './BarraDeSelecao';
 import { DecisaoNaBaseDialog } from './DecisaoNaBaseDialog';
@@ -77,6 +79,7 @@ export function EmpresasDaReceita() {
     setPagina(0);
   };
   const limpar = () => filtrar(FILTROS_VAZIOS);
+  useRelacaoPeloLink(filtrar);
   const buscar = (novo: string) => {
     setTexto(novo);
     guardarBusca(novo);
@@ -112,6 +115,21 @@ export function EmpresasDaReceita() {
 }
 
 const CNPJ_COMPLETO = /^\d{14}$/;
+const RELACOES_DO_LINK = new Set<string>(RELACOES_DA_ORIGAMI.map((r) => r.valor));
+
+/** `?relacao=retomar`: o "Ver na Base de empresas" das Métricas abre a lista já filtrada (US-0021). */
+function useRelacaoPeloLink(filtrar: (filtros: FiltrosReceita) => void) {
+  const [params, setParams] = useSearchParams();
+  const relacao = params.get('relacao');
+  useEffect(() => {
+    if (!relacao) return;
+    if (RELACOES_DO_LINK.has(relacao)) filtrar({ ...FILTROS_VAZIOS, relacoes: [relacao as Relacao] });
+    setParams((atual) => {
+      atual.delete('relacao');
+      return atual;
+    }, { replace: true });
+  }, [relacao, filtrar, setParams]);
+}
 
 /** `?cnpj=<14 dígitos>`: o aviso "Hora de retomar" do sino abre a ficha da empresa (US-0010). */
 function useFichaPeloLink(abrir: (cnpj: string) => void) {

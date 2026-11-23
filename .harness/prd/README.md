@@ -85,7 +85,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0018](stories/5-pronto/US-0018-comercial-refinar-faturamento-estimado.md) | Refinar o faturamento estimado | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0019](stories/5-pronto/US-0019-comercial-marca-de-relacionamento.md) | Ver a relação da Origami com cada empresa | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0020](stories/5-pronto/US-0020-comercial-estudo-da-conta.md) | Estudar a conta antes de abordar | Pessoa do comercial | Pronto | Pronta com ressalvas |
-| [US-0021](stories/1-a-fazer/US-0021-comercial-metricas-do-novo-fluxo.md) | Ajustar as Métricas ao novo fluxo de abordagem | Pessoa do comercial | A fazer | Não pronta |
+| [US-0021](stories/5-pronto/US-0021-comercial-metricas-do-novo-fluxo.md) | Ajustar as Métricas ao novo fluxo de abordagem | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0022](stories/5-pronto/US-0022-comercial-bant-da-oportunidade.md) | Qualificar a oportunidade pelo BANT, do começo ao fim | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0023](stories/5-pronto/US-0023-comercial-etapa-qualificacao.md) | Qualificar a empresa antes de abordar | Pessoa do comercial | Pronto | Pronta |
 | [US-0024](stories/5-pronto/US-0024-comercial-ia-propoe-bant-pelo-mcp.md) | IA propõe evidências de BANT pela assinatura do Claude | Pessoa do comercial | Pronto | Pronta |

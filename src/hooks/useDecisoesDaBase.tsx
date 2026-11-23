@@ -26,6 +26,8 @@ export function useDecisoesDaBase() {
     qc.invalidateQueries({ queryKey: ['receita-ficha'] });
     qc.invalidateQueries({ queryKey: ['receita-empresas'] });
     qc.invalidateQueries({ queryKey: ['receita-empresas-total'] });
+    // As Métricas contam a triagem da Base (US-0021).
+    qc.invalidateQueries({ queryKey: ['receita-decisoes'] });
   };
 
   const desfazer = useMutation({

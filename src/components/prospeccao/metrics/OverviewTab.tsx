@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useHideValues } from '@/contexts/HideValuesContext';
 import { formatCurrency } from '@/lib/formatters';
 import { formatRate, formatRatio } from '@/lib/prospecting/metrics';
+import { DIAS_PARADA_EM_ABORDAR } from '@/lib/prospecting/qualificacaoMetrics';
 import { cn } from '@/lib/utils';
 import type {
   ListHealthData,
@@ -23,8 +24,8 @@ import type {
 import { corDaTaxa, plural } from './format';
 import { GargaloBadge, Painel } from './parts';
 
-/** O indicador do topo que carrega o selo quando a passagem é o gargalo. */
-const GARGALO_NO_INDICADOR: Record<SafraRateKey, MetricKey> = {
+/** O indicador do topo que carrega o selo quando a passagem é o gargalo (a da Qualificação não tem cartão). */
+const GARGALO_NO_INDICADOR: Partial<Record<SafraRateKey, MetricKey>> = {
   resposta: 'conversas',
   agendamento: 'feitas',
   comparecimento: 'feitas',
@@ -97,7 +98,7 @@ const valorDe = (values: MetricValue[], key: MetricKey) =>
 
 function Indicadores(props: OverviewTabProps) {
   const { values, weekly, bottleneck, showDelta, onOpenMetric } = props;
-  const gargalo = bottleneck ? GARGALO_NO_INDICADOR[bottleneck] : null;
+  const gargalo = bottleneck ? GARGALO_NO_INDICADOR[bottleneck] ?? null : null;
   return (
     <div className="flex flex-wrap gap-3">
       {indicadoresDe(props).map((i) => {
@@ -254,13 +255,48 @@ function Sinal({ delta, texto }: { delta: number; texto: string }) {
   );
 }
 
-const PASSOS: ReadonlyArray<{ label: string; count: (s: SafraCounts) => number; rate: SafraRateKey | null }> = [
-  { label: 'Ativados', count: (s) => s.ativados, rate: null },
-  { label: 'Responderam', count: (s) => s.conversas, rate: 'resposta' },
-  { label: 'Agendaram reunião', count: (s) => s.agendadas, rate: 'agendamento' },
-  { label: 'Fizeram reunião', count: (s) => s.feitas, rate: 'comparecimento' },
-  { label: 'Qualificados', count: (s) => s.qualificadas, rate: 'qualificacao' },
-  { label: 'Ganhos', count: (s) => s.ganhos, rate: 'fechamento' },
+interface PassoDaJornada {
+  label: string;
+  count: (s: SafraCounts) => number;
+  rate: SafraRateKey | null;
+}
+
+interface GrupoDaJornada {
+  titulo: string;
+  /** O topo do grupo: a barra de cada passo compara com ele. */
+  base: (s: SafraCounts) => number;
+  vazio: string;
+  passos: readonly PassoDaJornada[];
+}
+
+/**
+ * Duas safras, uma em cima da outra (US-0021): as empresas movidas para qualificação no
+ * período e quantas já saíram para A abordar; e os contatos ativados no período e até onde
+ * chegaram. Cada barra compara com o topo do próprio grupo.
+ */
+const GRUPOS: readonly GrupoDaJornada[] = [
+  {
+    titulo: 'Qualificação · empresas movidas no período',
+    base: (s) => s.movidas,
+    vazio: 'Nenhuma empresa movida para qualificação no período.',
+    passos: [
+      { label: 'Movidas para qualificação', count: (s) => s.movidas, rate: null },
+      { label: 'Saíram para A abordar', count: (s) => s.paraAbordar, rate: 'abordar' },
+    ],
+  },
+  {
+    titulo: 'Abordagem · contatos ativados no período',
+    base: (s) => s.ativados,
+    vazio: 'Nenhum contato recebeu o 1º toque no período.',
+    passos: [
+      { label: 'Ativados', count: (s) => s.ativados, rate: null },
+      { label: 'Responderam', count: (s) => s.conversas, rate: 'resposta' },
+      { label: 'Agendaram reunião', count: (s) => s.agendadas, rate: 'agendamento' },
+      { label: 'Fizeram reunião', count: (s) => s.feitas, rate: 'comparecimento' },
+      { label: 'Oportunidade qualificada', count: (s) => s.qualificadas, rate: 'qualificacao' },
+      { label: 'Ganhos', count: (s) => s.ganhos, rate: 'fechamento' },
+    ],
+  },
 ];
 
 interface JornadaProps {
@@ -270,40 +306,84 @@ interface JornadaProps {
 }
 
 /**
- * Os ativados no período e até onde cada um chegou, até hoje. A barra compara com o topo;
- * a taxa, com a etapa anterior — é ela que aponta onde o contato para.
+ * A jornada do período (US-0021): a Qualificação e a Abordagem, cada uma com a própria safra.
+ * A barra compara com o topo do grupo; a taxa, com a etapa anterior — é ela que aponta onde
+ * a conta ou o contato para.
  */
 function Jornada(props: JornadaProps) {
-  const { safra, rates, bottleneck } = props;
-  const descricao = safra.ativados
-    ? `${plural(safra.ativados, 'contato', 'contatos')} com 1º toque no período, em ${plural(safra.contas, 'conta', 'contas')} (${formatRatio(safra.ativados, safra.contas)} por conta). Onde cada um chegou até hoje.`
-    : 'Nenhum contato recebeu o 1º toque no período.';
+  const { safra } = props;
+  const contatos = safra.ativados
+    ? ` ${plural(safra.ativados, 'contato ativado', 'contatos ativados')} em ${plural(safra.contas, 'conta', 'contas')} (${formatRatio(safra.ativados, safra.contas)} por conta).`
+    : '';
   return (
     <Painel
-      title="Jornada dos ativados no período"
-      description={descricao}
+      title="Jornada no período"
+      description={`Onde cada uma chegou até hoje.${contatos}`}
       actions={<span className="text-xs text-muted-foreground">% sobre a etapa anterior</span>}
     >
-      <ol className="flex flex-col gap-2.5">
-        {PASSOS.map((passo, i) => {
-          const n = passo.count(safra);
-          const largura = safra.ativados ? `${(n / safra.ativados) * 100}%` : '0%';
-          return (
-            <li
-              key={passo.label}
-              className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_2.5rem_4rem] items-center gap-3 sm:grid-cols-[150px_minmax(0,1fr)_48px_96px] sm:gap-4"
-            >
-              <span className="text-sm">{passo.label}</span>
-              <span className="h-7 overflow-hidden rounded-md bg-muted" aria-hidden="true">
-                <span className={cn('block h-full rounded-md', i === 0 ? 'bg-foreground' : 'bg-primary')} style={{ width: largura }} />
-              </span>
-              <span className="text-right font-mono text-[15px] font-medium tabular-nums">{n}</span>
-              <TaxaDaJornada rate={rates.find((r) => r.key === passo.rate)} gargalo={!!passo.rate && passo.rate === bottleneck} />
-            </li>
-          );
-        })}
-      </ol>
+      <div className="flex flex-col gap-5">
+        {GRUPOS.map((g) => <GrupoDaJornadaNaTela key={g.titulo} grupo={g} {...props} />)}
+      </div>
     </Painel>
+  );
+}
+
+// A faixa mais estreita ainda precisa caber o número.
+const LARGURA_MINIMA = 18;
+
+/** Largura da faixa em % da largura do topo do grupo. */
+const larguraDe = (n: number, topo: number) => Math.max(LARGURA_MINIMA, Math.min(100, topo ? (n / topo) * 100 : 0));
+
+/** Trapézio centrado: a faixa vai da largura da etapa (em cima) à da seguinte (embaixo). */
+function recorteDoTrapezio(cima: number, baixo: number): string {
+  const l1 = (100 - cima) / 2;
+  const l2 = (100 - baixo) / 2;
+  return `polygon(${l1}% 0, ${100 - l1}% 0, ${100 - l2}% 100%, ${l2}% 100%)`;
+}
+
+function corDaFaixa(primeira: boolean, gargalo: boolean): string {
+  if (gargalo) return 'bg-warning text-warning-foreground';
+  return primeira ? 'bg-foreground text-background' : 'bg-primary text-primary-foreground';
+}
+
+/**
+ * O grupo como funil (revisão de 23/11/2026): cada etapa é uma faixa com a largura
+ * proporcional ao número, que fica dentro dela, e que se estreita até a largura da etapa
+ * seguinte. A queda aparece no formato; a etapa do gargalo fica em amarelo.
+ */
+function GrupoDaJornadaNaTela(props: JornadaProps & { grupo: GrupoDaJornada }) {
+  const { grupo, safra, rates, bottleneck } = props;
+  const topo = grupo.base(safra);
+  const larguras = grupo.passos.map((p) => larguraDe(p.count(safra), topo));
+  return (
+    <section className="flex flex-col gap-2.5" aria-label={grupo.titulo}>
+      <h3 className="ui-label">{grupo.titulo}</h3>
+      {topo === 0 ? (
+        <p className="text-sm text-muted-foreground">{grupo.vazio}</p>
+      ) : (
+        <ol className="flex flex-col gap-[3px]">
+          {grupo.passos.map((passo, i) => {
+            const n = passo.count(safra);
+            const gargalo = !!passo.rate && passo.rate === bottleneck;
+            return (
+              <li
+                key={passo.label}
+                className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_4rem] items-center gap-3 sm:grid-cols-[170px_minmax(0,1fr)_96px] sm:gap-4"
+              >
+                <span className="text-sm">{passo.label}</span>
+                <span
+                  className={cn('flex h-11 items-center justify-center font-mono text-[15px] font-semibold tabular-nums', corDaFaixa(i === 0, gargalo))}
+                  style={{ clipPath: recorteDoTrapezio(larguras[i], larguras[i + 1] ?? larguras[i]) }}
+                >
+                  {n.toLocaleString('pt-BR')}
+                </span>
+                <TaxaDaJornada rate={rates.find((r) => r.key === passo.rate)} gargalo={gargalo} />
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }
 
@@ -371,9 +451,19 @@ interface PrecisaDeAcaoProps {
 
 function acoesDe(props: PrecisaDeAcaoProps): Acao[] {
   const { health, awaiting, onOpenList } = props;
-  const { overdue, coverage } = health;
-  const nunca = coverage.nuncaAbordadas;
-  const daLista = coverage.naLista ? ` (${formatRate(nunca / coverage.naLista)} da lista)` : '';
+  const { overdue, paradas, bant } = health;
+  const abrirParadas = () =>
+    onOpenList({
+      title: `Em A abordar sem 1º toque há mais de ${DIAS_PARADA_EM_ABORDAR} dias`,
+      description: 'Desde quando estão em A abordar, as mais antigas primeiro: aborde, ou registre a Perda.',
+      items: paradas,
+    });
+  const abrirBant = () =>
+    onOpenList({
+      title: 'BANT abaixo da meta da etapa',
+      description: 'Oportunidades em andamento com a nota do BANT abaixo da meta da etapa, as mais distantes primeiro.',
+      items: bant.abaixoDaMeta,
+    });
   const abrirVencidos = () =>
     onOpenList({
       title: 'Tarefa vencida',
@@ -402,12 +492,18 @@ function acoesDe(props: PrecisaDeAcaoProps): Acao[] {
       cta: <BotaoDaAcao onClick={abrirSemQualificacao}>Revisar</BotaoDaAcao>,
     },
     {
-      key: 'nunca-abordadas',
-      count: nunca,
-      text: `${nunca === 1 ? 'conta cadastrada nunca abordada' : 'contas cadastradas nunca abordadas'}${daLista}`,
+      key: 'paradas',
+      count: paradas.length,
+      text: `${paradas.length === 1 ? 'oportunidade' : 'oportunidades'} em A abordar sem 1º toque há mais de ${DIAS_PARADA_EM_ABORDAR} dias`,
       alert: false,
-      // Sem link desde 18/11/2026: a lista de contas saiu da tela Empresas (US-0021 revê as Métricas).
-      cta: null,
+      cta: <BotaoDaAcao onClick={abrirParadas}>Ver</BotaoDaAcao>,
+    },
+    {
+      key: 'bant',
+      count: bant.abaixoDaMeta.length,
+      text: bant.abaixoDaMeta.length === 1 ? 'oportunidade com BANT abaixo da meta da etapa' : 'oportunidades com BANT abaixo da meta da etapa',
+      alert: false,
+      cta: <BotaoDaAcao onClick={abrirBant}>Ver</BotaoDaAcao>,
     },
   ].filter((a) => a.count > 0);
 }

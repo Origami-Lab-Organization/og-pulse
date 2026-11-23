@@ -1,5 +1,6 @@
 import { tabela } from '@/services/prospectingTables';
 import type { EmpresaParaDecidir } from '@/types/decisoesDaBase';
+import type { DecisaoDasMetricas } from '@/types/prospectMetrics';
 import type { DecisaoDaBase, MotivoDoDescarte } from '@/types/relacao';
 
 /**
@@ -56,4 +57,13 @@ export async function decidirNaBase(nova: NovaDecisao): Promise<string[]> {
   const { data, error } = await tabela('prospect_decisoes_da_base').insert(linhas).select('id');
   if (error) throw error;
   return ((data ?? []) as Array<{ id: string }>).map((d) => d.id);
+}
+
+/** As decisões do tenant, desde sempre, para as Métricas (US-0021); poucas linhas por tenant. */
+export async function fetchDecisoesParaMetricas(): Promise<DecisaoDasMetricas[]> {
+  const { data, error } = await tabela('prospect_decisoes_da_base')
+    .select('decisao, motivo, decidida_por, decidida_em, desfeita_em, voltar_em, prospect_id')
+    .order('decidida_em');
+  if (error) throw error;
+  return (data ?? []) as DecisaoDasMetricas[];
 }

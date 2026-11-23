@@ -99,8 +99,8 @@ export interface TaskListArgs {
   limite: number;
 }
 
-/** Quebra de Canais nas métricas: os mesmos dois recortes da aba. */
-export type CorteDeCanal = 'lever' | 'owner';
+/** Quebra de Canais nas métricas: os mesmos três recortes da aba. */
+export type CorteDeCanal = 'lever' | 'owner' | 'tipo_conta';
 
 export interface PedidoDeMetricas {
   selecao: PeriodSelection;

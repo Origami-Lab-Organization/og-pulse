@@ -5,6 +5,7 @@ import type {
   Milestone,
   ProspectMilestones,
   ProspectStageChangeDB,
+  SaidaDaQualificacao,
   StageChangeSource,
 } from '@/types/prospectMetrics';
 import { localDay } from './periods';
@@ -95,6 +96,23 @@ function perdaDe(prospect: ProspectWithCompany, doContato: ProspectStageChangeDB
 
 const ganhoDe = (prospect: ProspectWithCompany) => (prospect.stage === ETAPA_GANHO ? prospect.won_on : null);
 
+// A etapa Qualificação existe desde 19/11/2026 (US-0023): antes dela, nenhum contato tem esses marcos.
+const ETAPA_QUALIFICACAO: ProspectStage = 'qualificacao';
+
+const maisAntiga = (mudancas: ProspectStageChangeDB[]) =>
+  mudancas.filter(hasRealDate).sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))[0] ?? null;
+
+/** A 1ª entrada em Qualificação com data real (US-0021). */
+function entradaNaQualificacao(doContato: ProspectStageChangeDB[]): string | null {
+  return maisAntiga(doContato.filter((m) => m.to_stage === ETAPA_QUALIFICACAO))?.occurred_on ?? null;
+}
+
+/** A 1ª saída da Qualificação: para A abordar (ou adiante) ou para a Perda. */
+function saidaDaQualificacao(doContato: ProspectStageChangeDB[]): SaidaDaQualificacao | null {
+  const saida = maisAntiga(doContato.filter((m) => m.from_stage === ETAPA_QUALIFICACAO && m.to_stage !== ETAPA_QUALIFICACAO));
+  return saida ? { date: saida.occurred_on, para: saida.to_stage, reason: saida.discard_reason } : null;
+}
+
 export function buildMilestones(
   prospects: ProspectWithCompany[],
   respostas: ActivityLite[],
@@ -117,6 +135,8 @@ export function buildMilestones(
       ganho: ganhoDe(prospect),
       valor: ganhoDe(prospect) ? prospect.won_value : null,
       perda: perdaDe(prospect, doContato),
+      qualificacao: entradaNaQualificacao(doContato),
+      saidaDaQualificacao: saidaDaQualificacao(doContato),
     };
   });
 }

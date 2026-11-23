@@ -1,4 +1,4 @@
-import type { ProspectActivityDB, ProspectActivityWithOwner, ProspectWithCompany } from '@/types/prospect';
+import type { ProspectActivityWithOwner, ProspectWithCompany } from '@/types/prospect';
 
 /**
  * O funil de prospecção fria, na definição do documento do time.
@@ -99,50 +99,11 @@ export function calculateProspectingFunnel(
   };
 }
 
-export interface AccountCoverage {
-  /** Contas da lista que receberam atividade no período. */
-  abertas: number;
-  /** Tamanho da lista a abordar: toda conta com ao menos um contato cadastrado. */
-  naLista: number;
-  /** abertas ÷ naLista. `null` quando não há lista — nunca 0%, que seria lido como fracasso. */
-  taxa: number | null;
-  /** Contas que nunca receberam atividade nenhuma, em nenhum período. */
-  nuncaAbordadas: number;
-}
+// A "Cobertura da lista" (contas cadastradas trabalhadas e nunca abordadas) saiu em 23/11/2026:
+// a lista de contas saiu da tela, e a triagem da Base e o "A abordar parado" ocupam o lugar
+// (US-0021, `qualificacaoMetrics.ts`).
 
-/**
- * Cobertura de contas: do que está na lista, quanto de fato virou trabalho.
- *
- * Fica fora do funil de propósito. O funil mede o que acontece DEPOIS de abrir a conta;
- * esta taxa mede se a lista está sendo consumida — uma lista grande e parada produz um
- * funil de aparência saudável com volume minúsculo, e só este número denuncia isso.
- *
- * `nuncaAbordadas` não olha o período: é a dívida acumulada da lista, e o número que
- * responde "o que eu ainda nem comecei".
- */
-export function calculateAccountCoverage(
-  prospects: ProspectWithCompany[],
-  activities: ReadonlyArray<Pick<ProspectActivityDB, 'prospect_id'>>,
-): AccountCoverage {
-  const tocadosNoPeriodo = new Set(activities.map((a) => a.prospect_id));
-
-  const naLista = new Set(prospects.map((p) => p.company_id));
-  const abertas = new Set(
-    prospects.filter((p) => tocadosNoPeriodo.has(p.id)).map((p) => p.company_id),
-  );
-  const jaTocadasAlgumaVez = new Set(
-    prospects.filter((p) => p.activity_count > 0).map((p) => p.company_id),
-  );
-
-  return {
-    abertas: abertas.size,
-    naLista: naLista.size,
-    taxa: taxa(abertas.size, naLista.size),
-    nuncaAbordadas: naLista.size - jaTocadasAlgumaVez.size,
-  };
-}
-
-export type ProspectCut = 'lever' | 'owner';
+export type ProspectCut = 'lever' | 'owner' | 'tipo_conta';
 
 export interface CutRow {
   key: string;
@@ -153,7 +114,7 @@ export interface CutRow {
   qualificadas: number;
 }
 
-/** O mesmo funil quebrado por alavanca ou responsável. */
+/** O mesmo funil quebrado por alavanca, responsável ou tipo de conta. */
 export function funnelByCut(
   prospects: ProspectWithCompany[],
   activities: ProspectActivityWithOwner[],
@@ -184,11 +145,12 @@ export function funnelByCut(
     .sort((a, b) => b.contatos - a.contatos);
 }
 
-/** O grupo de quem não tem valor no recorte: sem alavanca ou sem responsável. */
+/** O grupo de quem não tem valor no recorte: sem alavanca, sem responsável ou sem tipo de conta. */
 export const SEM_RECORTE = '—';
 
 export function cutValue(prospect: ProspectWithCompany, cut: ProspectCut): string {
   if (cut === 'lever') return prospect.lever?.trim() || SEM_RECORTE;
+  if (cut === 'tipo_conta') return prospect.company?.tipo_conta ?? SEM_RECORTE;
   return prospect.owner_id ?? SEM_RECORTE;
 }
 
