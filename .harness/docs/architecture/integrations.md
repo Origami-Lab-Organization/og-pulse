@@ -43,11 +43,12 @@ sources:
   - supabase/functions/empresas-receita/index.ts
   - scripts/receita/sincronizar-base.ts
   - scripts/receita/vps/preparar-vps.sql
+  - scripts/receita/vps/esquema.sql
 ---
 
 # Mapa de Integrações
 
-> Derivado do código em 2026-08-31; transcrição de reunião acrescentada em 2026-09-24 e ligada à tela em 2026-10-21; Conta Azul incluído em 2026-10-01; base da Receita na VPS em 2026-11-16 (`empresas-receita`, ADR-0053).
+> Derivado do código em 2026-08-31; transcrição de reunião acrescentada em 2026-09-24 e ligada à tela em 2026-10-21; Conta Azul incluído em 2026-10-01; base da Receita na VPS em 2026-11-16, filtros, busca e faturamento estimado em 2026-11-17, distância de Formiga em 2026-11-18 (`empresas-receita`, ADR-0053).
 > Quem chama quem, com que credencial.
 
 ## Visão geral
@@ -147,7 +148,7 @@ flowchart LR
 | Amplitude, modo **produto** (autocapture + session replay 100%) | `startProductAnalytics`, chamado por `AuthContext.applyEmployeeResult` **só com funcionário ativo**; cala a vitrine e herda seu device id; `setOptOut(true)` no `signOut` | Gravação de sessão e eventos nomeados da área logada (`AlocacaoPage`/`EmployeeAllocationPanel`). Nunca roda antes do login | idem |
 | Reconhecimento facial | `src/lib/faceRecognition.ts:1-12` | **100% local no browser** (`@vladmandic/face-api`), threshold 0.6; só os pesos vêm da CDN jsDelivr | — |
 | Microsoft Graph — transcrição do Teams (ADR-0052) | Edge Function `teams-transcripts-sync` (cron de 10 em 10 min) | `getAllTranscripts` por organizador e o `/content` em WebVTT de cada transcrição de reunião vinculada ao projeto. Contrato: `.harness/integrations/teams-transcricao.md` | App próprio "Pulse — Transcrições", client credentials: `MICROSOFT_TRANSCRIPTS_CLIENT_ID`/`_SECRET`, permissão de aplicação `OnlineMeetingTranscript.Read.All` limitada por application access policy do Teams |
-| Base da Receita (VPS própria, ADR-0053) | Edge Function `empresas-receita` (leitura) e `scripts/receita/sincronizar-base.ts` (carga, pelo túnel SSH) | Matrizes ativas, médias e grandes, com RAIS e dívida ativa da PGFN, já recortadas em `pulse.empresas` para a tela Empresas. **O Supabase não guarda nada dela** (plano gratuito). Contrato: `.harness/integrations/base-receita-vps.md` | `RECEITA_DB_URL` (usuário `pulse_api`, só leitura, 5 s por consulta) e `RECEITA_DB_CA` (autoridade própria que emitiu o certificado da VPS; TLS conferido, driver `deno-postgres`) na função; `pulse_leitura` e `pulse_carga` só pelo túnel, em arquivos locais fora do repo |
+| Base da Receita (VPS própria, ADR-0053) | Edge Function `empresas-receita` (leitura) e `scripts/receita/sincronizar-base.ts` (carga, pelo túnel SSH) | Matrizes ativas fora ME e EPP, sem órgãos públicos, condomínios, igrejas, partidos e candidatos, com RAIS, dívida ativa da PGFN, setor e ramo da CNAE e faturamento estimado (RAIS × receita por pessoa da classe e do porte do IBGE, combinada com o capital social a partir de R$ 10 mi; sem RAIS, modelo de empresas parecidas ou o piso do porte) e distância de Formiga em linha reta (sedes municipais do IBGE) já calculados, recortadas em `pulse.empresas` para a tela Empresas (tabela e índices em `scripts/receita/vps/esquema.sql`, aplicado pela carga). **O Supabase não guarda nada dela** (plano gratuito). Contrato: `.harness/integrations/base-receita-vps.md` | `RECEITA_DB_URL` (usuário `pulse_api`, só leitura, 5 s por consulta) e `RECEITA_DB_CA` (autoridade própria que emitiu o certificado da VPS; TLS conferido, driver `deno-postgres`) na função; `pulse_leitura` e `pulse_carga` só pelo túnel, em arquivos locais fora do repo |
 | Worker de transcrição (VM própria, ADR-0039, plano B) | `apps/transcription-worker/worker.py` | Puxa job pendente de `meeting_transcriptions`, baixa a gravação do OneDrive pela URL pré-autenticada e devolve o texto. **Não expõe porta** (só conexão de saída) e **não recebe credencial do Graph** | `SUPABASE_SERVICE_ROLE_KEY` na VM; `HF_TOKEN` para a separação de vozes (pyannote) |
 | SMTP do Supabase Auth | `create-employee-user`, `resend-employee-invite`, `request-first-access`, `register-tenant` | Convites, recovery links e confirmação de e-mail do autocadastro (`resend` tipo `signup`, redireciona para `/boas-vindas`) | interno Supabase |
 
@@ -226,12 +227,17 @@ sessão de quem pode pedir transcrição no projeto, restrito a ele) traz a
 transcrição pronta do Teams das reuniões vinculadas, com a credencial do app próprio; o token do app só vai
 para URL de `graph.microsoft.com`. Sem os secrets do app, responde `nao_configurado` e não faz nada.
 
-**Empresas da Receita** (ADR-0053) — `empresas-receita`: a tela Comercial > Empresas lê uma
-página da base da Receita, que mora numa VPS. Valida a sessão dentro (`verify_jwt=false`),
-confere `has_capability(..., 'prospeccao:ler')` no tenant da pessoa (401/403) e só então
-consulta o Postgres da VPS com `pulse_api`. A ordem vem de uma lista fechada (nada do
-cliente vira SQL) e a paginação vai até as 10 mil primeiras de cada ordem. Erro do banco
-vira 503, com só o nome do erro no log: a mensagem do driver pode trazer o endereço da VPS.
+**Empresas da Receita** (ADR-0053) — `empresas-receita`: a tela Comercial > Empresas lê a
+base da Receita, que mora numa VPS. Valida a sessão dentro (`verify_jwt=false`), confere
+`has_capability(..., 'prospeccao:ler')` no tenant da pessoa (401/403) e só então consulta o
+Postgres da VPS com `pulse_api`. Três modos: a página filtrada (até as 10 mil primeiras de
+cada ordem), o total filtrado (conta até 100 mil) e a busca de CNAE por código ou descrição
+(US-0003); página e total aceitam a busca por nome, CNPJ ou cidade (US-0005), com o
+termo sempre como parâmetro. A ordem por faturamento estimado (US-0006) lê em duas partes,
+primeiro as estimadas, por um índice parcial, e depois as que só têm o piso do porte, pelo
+CNPJ, para um filtro quase todo de piso não percorrer o índice inteiro. Ordem e filtros vêm de listas fechadas e viram parâmetros, nunca texto de SQL;
+valor fora da lista é 400. Erro do banco vira 503, com só o nome do erro no log: a mensagem
+do driver pode trazer o endereço da VPS.
 
 **Seed** — `seed-admin` (protegido por `SEED_SECRET_TOKEN` — `index.ts:17`),
 `seed-demo-tenant` (ver ponto de atenção 1).

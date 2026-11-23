@@ -1,14 +1,16 @@
 import { valuesAreHidden } from '@/lib/hideValuesStore';
 import { HIDDEN_VALUE_MASK } from '@/lib/formatters';
-import { industrySignal } from '@/lib/prospecting/industria';
+import { divisaoDoCnae, nomeDoRamo } from '@/lib/prospecting/cnae';
 import type { FitFront } from '@/types/receita';
+import type { BaseDoFaturamento } from '@/types/filtrosReceita';
+import type { FaturamentoBase } from '@/types/prospect';
 
 /**
  * Empresas da base da Receita (US-0002, ADR-0053) — o que a tela Empresas lista em
- * "A classificar". Vem da RPC `listar_empresas_receita`; aqui só há regra de exibição.
+ * "A classificar". Vem da Edge Function `empresas-receita`; aqui só há regra de exibição.
  */
 
-export type OrdemReceita = 'fit' | 'nome' | 'funcionarios' | 'idade';
+export type OrdemReceita = 'fit' | 'nome' | 'distancia' | 'faturamento' | 'funcionarios' | 'idade';
 
 export interface OrdenacaoReceita {
   ordem: OrdemReceita;
@@ -27,25 +29,45 @@ export interface EmpresaReceita {
   municipio: string | null;
   uf: string | null;
   data_inicio_atividade: string | null;
+  /** Capital social declarado na Receita, em reais; nulo ou zero quando não informado. */
+  capital_social: number | null;
+  /** Km em linha reta da sede de Formiga à sede do município (US-0015); nulo sem município reconhecido. */
+  distancia_km: number | null;
   funcionarios: number | null;
   divida_total: number | null;
   divida_ajuizada: number | null;
   fit_previo: number;
   fit_frente: FitFront;
   faturamento_estimado: number | null;
+  /** De onde vem o faturamento estimado (US-0006). */
+  faturamento_base: BaseDoFaturamento | null;
+  /** Faturamento que o time informou na Prospecção; prevalece sobre a estimativa (US-0006). */
+  faturamento_informado?: number | null;
+  faturamento_informado_base?: FaturamentoBase | null;
+  /** Entrou na lista só por uma atividade secundária (filtro com "Incluir atividade secundária"). */
+  pela_secundaria?: boolean;
 }
 
 export interface PaginaReceita {
-  /** Nulo quando a base ainda não foi carregada. */
-  total: number | null;
+  /** Tamanho da base inteira; nulo quando ela ainda não foi carregada. */
+  totalDaBase: number | null;
   carregadaEm: string | null;
   linhas: EmpresaReceita[];
 }
 
+/** Total da lista filtrada (US-0003). A contagem para em 100 mil: `limitado` = há mais. */
+export interface TotalReceita {
+  total: number | null;
+  limitado: boolean;
+}
+
+/** Começam do menor: nome de A a Z e as empresas mais perto de Formiga. */
+const COMECAM_CRESCENTES: ReadonlySet<OrdemReceita> = new Set<OrdemReceita>(['nome', 'distancia']);
+
 /** Clicar na mesma coluna inverte; coluna nova começa pelo que mais interessa. */
 export function alternarOrdenacao(atual: OrdenacaoReceita, ordem: OrdemReceita): OrdenacaoReceita {
   if (atual.ordem === ordem) return { ordem, crescente: !atual.crescente };
-  return { ordem, crescente: ordem === 'nome' };
+  return { ordem, crescente: COMECAM_CRESCENTES.has(ordem) };
 }
 
 const MINUSCULAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'em', 'para', 'com']);
@@ -76,9 +98,9 @@ export function anosDeOperacao(abertura: string | null, hoje: Date = new Date())
   return hoje.getFullYear() - ano - (passouAniversario ? 0 : 1);
 }
 
-/** O ramo da indústria pelo CNAE principal (mesma tabela da nota de fit). */
+/** O ramo (divisão da CNAE) pelo CNAE principal, de qualquer setor (US-0003). */
 export function ramoDaEmpresa(cnaePrincipal: string): string | null {
-  return industrySignal({ cnaePrincipal: { codigo: cnaePrincipal, descricao: '' }, cnaesSecundarios: [] }).ramo;
+  return nomeDoRamo(divisaoDoCnae(cnaePrincipal));
 }
 
 export type SituacaoDaDivida = { tipo: 'sem' } | { tipo: 'cobranca' | 'ajuizada'; valor: number };
