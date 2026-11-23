@@ -1,77 +1,65 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { PortfolioCard } from './PortfolioCard';
-import { PortfolioProject } from '@/hooks/usePortfolioProjects';
-import { PortfolioStage } from '@/types/portfolio';
+import type { PortfolioProject } from '@/hooks/usePortfolioProjects';
+import type { PortfolioAlert, PortfolioBoardColumnId } from '@/types/portfolio';
 import { cn } from '@/lib/utils';
 
 interface PortfolioColumnProps {
-  id: PortfolioStage;
+  id: PortfolioBoardColumnId;
   label: string;
-  color: string;
+  /** Regra da coluna em uma linha (quando o projeto entra e sai). */
+  rule: string;
   projects: PortfolioProject[];
-  canEditProject?: (project: PortfolioProject) => boolean;
-  onRemoveProject?: (project: PortfolioProject) => void;
+  /** Hoje, `yyyy-MM-dd`. */
+  today: string;
+  canDragProject?: (project: PortfolioProject) => boolean;
   hideValues?: boolean;
+  alertsOf?: (project: PortfolioProject) => PortfolioAlert[];
 }
 
-export function PortfolioColumn({
-  id,
-  label,
-  color,
-  projects,
-  canEditProject = () => false,
-  onRemoveProject,
-  hideValues,
-}: PortfolioColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({
-    id,
-    data: {
-      type: 'column',
-      stage: id,
-    },
-  });
+/** Coluna do quadro do portfólio, com rolagem própria para a página não crescer (US-0035). */
+export function PortfolioColumn(props: PortfolioColumnProps) {
+  const { id, label, rule, projects, today, canDragProject = () => false, hideValues, alertsOf = () => [] } = props;
+  const { setNodeRef, isOver } = useDroppable({ id, data: { type: 'column', column: id } });
 
   return (
-    <div
+    <section
       ref={setNodeRef}
+      aria-label={label}
       className={cn(
-        'flex flex-col rounded-lg border border-border bg-card transition-colors',
-        isOver && 'border-primary/50 bg-primary/5'
+        'flex max-h-[calc(100vh-22rem)] min-h-[16rem] min-w-0 flex-col rounded-lg border border-border bg-muted/30 transition-colors',
+        isOver && 'border-primary/50 bg-primary/5',
       )}
     >
-      {/* Column Header */}
-      <div className={cn('px-3 py-2 rounded-t-lg', color)}>
-        <div className="flex items-center justify-between">
-          <h3 className="font-medium text-sm truncate">{label}</h3>
-          <span className="flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-background/50 text-xs font-medium">
-            {projects.length}
-          </span>
-        </div>
+      <div className="flex items-center justify-between gap-2 rounded-t-lg bg-muted px-4 py-3 text-muted-foreground">
+        <h3 className="truncate text-base font-medium">{label}</h3>
+        <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-background/60 px-1.5 text-xs font-medium">
+          {projects.length}
+        </span>
       </div>
-
-      {/* Column Content */}
-      <div className="p-2">
-        <SortableContext items={projects.map(p => p.id)} strategy={verticalListSortingStrategy}>
+      <p className="px-4 pt-2 text-xs text-muted-foreground">{rule}</p>
+      <div className="flex-1 overflow-y-auto p-2">
+        <SortableContext items={projects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
             {projects.length === 0 ? (
-              <div className="py-8 text-center text-xs text-muted-foreground">
-                Nenhum projeto
-              </div>
+              <p className="py-8 text-center text-xs text-muted-foreground">Nenhum projeto</p>
             ) : (
               projects.map((project) => (
                 <PortfolioCard
                   key={project.id}
                   project={project}
-                  canEdit={canEditProject(project)}
-                  onRemove={onRemoveProject}
+                  column={id}
+                  today={today}
+                  canDrag={canDragProject(project)}
                   hideValues={hideValues}
+                  alerts={alertsOf(project)}
                 />
               ))
             )}
           </div>
         </SortableContext>
       </div>
-    </div>
+    </section>
   );
 }

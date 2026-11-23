@@ -12,23 +12,25 @@ import type {
 const costsKey = (projectId: string | undefined) => ['project-costs', projectId];
 
 /** Lista os custos ativos (não excluídos) do projeto, mais recentes primeiro. */
+/** Custos ativos (não excluídos) do projeto, com os meses dos recorrentes. Também usado pelo portfólio. */
+export async function fetchProjectCostItems(projectId: string): Promise<ProjectCostDB[]> {
+  const { data, error } = await supabase
+    .from('project_costs')
+    // Meses do custo recorrente: o gráfico mensal da aba Despesas os distribui (US-0026).
+    .select('*, months:project_cost_months(month_number, planned_value, actual_value, invoice_date)')
+    .eq('project_id', projectId)
+    .is('deleted_at', null)
+    .order('cost_date', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as unknown as ProjectCostDB[];
+}
+
 export const useProjectCostItems = (projectId: string | undefined) => {
   return useQuery({
     queryKey: costsKey(projectId),
-    queryFn: async () => {
-      if (!projectId) return [];
-      const { data, error } = await supabase
-        .from('project_costs')
-        // Meses do custo recorrente: o gráfico mensal da aba Despesas os distribui (US-0026).
-        .select('*, months:project_cost_months(month_number, planned_value, actual_value, invoice_date)')
-        .eq('project_id', projectId)
-        .is('deleted_at', null)
-        .order('cost_date', { ascending: false })
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as unknown as ProjectCostDB[];
-    },
+    queryFn: () => (projectId ? fetchProjectCostItems(projectId) : Promise.resolve([])),
     enabled: !!projectId,
   });
 };

@@ -34,25 +34,26 @@ export interface BatchUpsertTimesheetInput {
   description?: string;
 }
 
+/** Horas lançadas no projeto inteiro, com a pessoa de cada hora. Também usado pelo portfólio. */
+export function fetchProjectTimesheets(projectId: string): Promise<ProjectTimesheetDB[]> {
+  // O projeto inteiro, desde o início: passa de 1000 linhas e o custo sairia menor.
+  return todasAsPaginas<ProjectTimesheetDB>((de, ate) =>
+    supabase
+      .from('project_timesheets')
+      // A pessoa vem do vínculo da própria hora, como na aba Equipe: `project.members`
+      // pode vir sem a linha da pessoa (TD-0014, US-0027).
+      .select('*, project_member:project_members(employee_id)')
+      .eq('project_id', projectId)
+      .order('work_date', { ascending: false })
+      .order('id')
+      .range(de, ate),
+  );
+}
+
 export const useProjectTimesheets = (projectId: string | undefined) => {
   return useQuery({
     queryKey: ['project-timesheets', projectId],
-    queryFn: async () => {
-      if (!projectId) return [];
-
-      // O projeto inteiro, desde o início: passa de 1000 linhas e o custo sairia menor.
-      return todasAsPaginas<ProjectTimesheetDB>((de, ate) =>
-        supabase
-          .from('project_timesheets')
-          // A pessoa vem do vínculo da própria hora, como na aba Equipe: `project.members`
-          // pode vir sem a linha da pessoa (TD-0014, US-0027).
-          .select('*, project_member:project_members(employee_id)')
-          .eq('project_id', projectId)
-          .order('work_date', { ascending: false })
-          .order('id')
-          .range(de, ate),
-      );
-    },
+    queryFn: () => (projectId ? fetchProjectTimesheets(projectId) : Promise.resolve([])),
     enabled: !!projectId,
   });
 };

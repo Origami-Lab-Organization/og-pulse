@@ -8,6 +8,17 @@
 
 ## Aberto
 
+- TD-0031 (aberto na US-0034/US-0036, 23/11/2026): a margem bruta do portfólio e o sino de
+  margem dos cards calculam o forecast de **cada projeto ativo no cliente**
+  (`src/services/portfolioForecastService.ts` + `usePortfolioForecasts`), carregando projeto,
+  alocações, horas, custos e orçamento de um por um. Foi escolhido para dar o MESMO número da
+  aba Financeiro (US-0025/US-0026/US-0031) sem duplicar a regra em SQL. Custo: muitas
+  consultas por abertura do portfólio (cerca de 6 por projeto ativo), com cache de 5 min.
+  Próximo passo: medir o tempo com o portfólio real; se pesar, uma função no banco
+  (`SECURITY INVOKER`, para o RLS continuar sendo a barreira) que devolva, por projeto e mês, o
+  planejado e o realizado, e o TS aplica a regra do forecast em cima. Decisão de arquitetura:
+  pede ADR.
+
 - TD-0030 (achado no typecheck da entrega do Meu Kanban, 21/10): `npx tsc -p
   tsconfig.app.json --noEmit` falha na HEAD com um erro so, em
   `src/pages/JornadaConfiguracoes.tsx:63`: o objeto montado a partir do formulario tem todos os

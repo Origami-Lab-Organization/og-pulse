@@ -6,6 +6,7 @@
  */
 import { AppLayout } from '@/components/layout/AppLayout';
 import { FinancialSettingsForm } from '@/components/settings/FinancialSettingsForm';
+import { PortfolioGoalsForm } from '@/components/settings/PortfolioGoalsForm';
 
 export default function AdminFinanceiro() {
   return (
@@ -14,7 +15,10 @@ export default function AdminFinanceiro() {
       description="Os percentuais que a fórmula de markup do orçamento aplica sobre o custo para chegar ao preço de venda."
       breadcrumbs={[{ label: 'Configurações', href: '/admin' }, { label: 'Financeiro' }]}
     >
-      <FinancialSettingsForm />
+      <div className="space-y-6">
+        <FinancialSettingsForm />
+        <PortfolioGoalsForm />
+      </div>
     </AppLayout>
   );
 }

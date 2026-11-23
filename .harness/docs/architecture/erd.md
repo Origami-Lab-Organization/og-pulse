@@ -49,10 +49,15 @@ sources:
   - supabase/migrations/20261009140000_prospect_title.sql
   - supabase/migrations/20261013120000_lei_do_bem_automatica.sql
   - supabase/migrations/20261013130000_receita_preserva_regime.sql
+  - supabase/migrations/20261124120000_metas_do_portfolio.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
   - src/types/portfolio.ts
+# 23/11/2026: portfolio_goals (20261124120000, US-0036) — metas do portfolio por tenant e ano,
+# PK (tenant_id, year); conferido contra PortfolioGoals (src/types/portfolio.ts) e ensaiado com RLS
+# num Postgres local. Os tipos novos de src/types/portfolio.ts (colunas do quadro, KPIs, alcance)
+# sao de tela e nao entram no diagrama; portfolio_stage segue nas linhas 1-15.
 # Conferido contra a fonte em 17/09/2026: ProspectStage = 9 valores (6 do funil +
 # 3 desfechos), batendo com o CHECK de 20260917115000; prospect_activities.attachments
 # confere com 20260917180000. Constantes de transicao de UI em src/types/prospect.ts
@@ -410,6 +415,7 @@ erDiagram
     projects ||--o{ project_costs : ""
     suppliers |o--o{ project_costs : "supplier_id"
     employees ||--o{ projects : "manager_id"
+    tenants ||--o{ portfolio_goals : "metas por ano"
 
     budgets {
         enum status "budget_status: draft..active"
@@ -433,11 +439,17 @@ erDiagram
         numeric actual_amount ""
         text original_currency ""
     }
+    portfolio_goals {
+        int year "PK com tenant_id"
+        numeric revenue_target ""
+        numeric gross_margin_target_percent "0 a 100"
+    }
 ```
 
 Fontes: `budgets` L578, `budget_roles` L402, `budget_versions` L530,
 `projects` L4582, `project_installments` L3559, `project_costs` L3357
-(tabela unificada de custos — ADR-0003/0004).
+(tabela unificada de custos — ADR-0003/0004), `portfolio_goals` (metas do portfólio,
+US-0036; leitura `portfolio:ler`, escrita `configuracao:editar`).
 
 Obs.: `projects.budget_id` existe como coluna, mas **não há FK declarada** nos
 Relationships do types.ts (L4582).

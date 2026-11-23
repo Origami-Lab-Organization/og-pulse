@@ -1,202 +1,184 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Building2, Calendar, Layers, User } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Building2, User, Calendar, Layers, History, Lock, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { PortfolioProject } from '@/hooks/usePortfolioProjects';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { clientLabel, projectKindOf } from '@/lib/projectKind';
+import { daysToEnd, isNoRevenueProject, receivedOf } from '@/lib/portfolioBoard';
+import type { PortfolioProject } from '@/hooks/usePortfolioProjects';
+import { PORTFOLIO_BOARD_COLUMN, type PortfolioAlert, type PortfolioBoardColumnId } from '@/types/portfolio';
 
 interface PortfolioCardProps {
   project: PortfolioProject;
-  canEdit?: boolean;
-  onRemove?: (project: PortfolioProject) => void;
+  column: PortfolioBoardColumnId;
+  /** Hoje, `yyyy-MM-dd`. */
+  today: string;
+  /** Pode arrastar o card (permissão sobre o projeto). */
+  canDrag?: boolean;
+  hideValues?: boolean;
+  /** Pendências do projeto: o sino aparece com o número (US-0037). */
+  alerts?: PortfolioAlert[];
+}
+
+const shortDate = (date: string) => format(parseISO(date), 'dd/MM/yy');
+
+function closingText(endDate: string, today: string): string {
+  const left = daysToEnd(endDate, today);
+  if (left > 1) return `termina em ${left} dias (${shortDate(endDate)})`;
+  if (left === 1) return `termina amanhã (${shortDate(endDate)})`;
+  return left === 0 ? 'termina hoje' : `terminou em ${shortDate(endDate)}`;
+}
+
+function rangeText(project: PortfolioProject): string {
+  const start = project.start_date ? shortDate(project.start_date) : '—';
+  if (project.is_continuous) return `${start} → Contínuo`;
+  return `${start} → ${project.end_date ? shortDate(project.end_date) : 'Sem previsão'}`;
+}
+
+/** Linha de datas do card; no Encerramento, quanto falta para o fim ou quando terminou. */
+function periodText(project: PortfolioProject, column: PortfolioBoardColumnId, today: string): string {
+  if (column === PORTFOLIO_BOARD_COLUMN.CLOSING && project.end_date) return closingText(project.end_date, today);
+  return rangeText(project);
+}
+
+interface RevenueBlockProps {
+  project: PortfolioProject;
   hideValues?: boolean;
 }
 
-export function PortfolioCard({ project, canEdit = false, onRemove, hideValues }: PortfolioCardProps) {
+/** Recebimento: valor do contrato, % recebido e barra. */
+function RevenueBlock(props: RevenueBlockProps) {
+  const { project, hideValues } = props;
+  if (isNoRevenueProject(project)) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        Sem receita
+      </span>
+    );
+  }
+  const totalValue = project.total_value || 0;
+  const receivedValue = receivedOf(project);
+  const progressPercent = totalValue > 0 ? Math.round((receivedValue / totalValue) * 100) : 0;
+  const money = (value: number) => (hideValues ? '•••••' : formatCurrency(value));
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="cursor-default">
+          <span className="ol-label text-[10px] text-muted-foreground">Recebimento</span>
+          <div className="mb-1.5 mt-0.5 flex items-center justify-between text-sm">
+            <span className="font-medium tabular-nums text-foreground">{money(totalValue)}</span>
+            <span className="text-muted-foreground">{hideValues ? '•••' : `${progressPercent}%`}</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            {!hideValues && <div className="h-full rounded-full bg-primary" style={{ width: `${progressPercent}%` }} />}
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="space-y-0.5 text-xs">
+        <p>Valor do contrato: {money(totalValue)}</p>
+        <p>Valor recebido: {money(receivedValue)}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+interface AlertBellProps {
+  alerts: PortfolioAlert[];
+}
+
+/** Sino com a contagem de pendências; a lista aparece ao passar o mouse ou focar. */
+function AlertBell(props: AlertBellProps) {
+  const { alerts } = props;
+  const label = `${alerts.length} ${alerts.length === 1 ? 'pendência' : 'pendências'}`;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          aria-label={`${label}: ${alerts.map((a) => a.text).join('; ')}`}
+          className="relative -mr-1 -mt-1 inline-grid h-8 w-8 shrink-0 place-items-center rounded-md text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Bell className="h-[18px] w-[18px]" />
+          <span className="absolute -right-0.5 top-0 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-destructive px-1 text-[11px] font-bold leading-none text-destructive-foreground ring-2 ring-card">
+            {alerts.length}
+          </span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-[280px] space-y-1 text-xs">
+        <p className="font-semibold">{label}</p>
+        {alerts.map((alert) => (
+          <p key={alert.text}>• {alert.text}</p>
+        ))}
+        <p className="text-muted-foreground">Abra o projeto para resolver.</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+const dragClassName = (canDrag: boolean, isDragging: boolean) => {
+  if (!canDrag) return 'cursor-pointer hover:shadow-md';
+  return isDragging ? 'cursor-grabbing opacity-50 shadow-lg' : 'cursor-grab hover:shadow-md';
+};
+
+/** Card do quadro do portfólio (US-0035): sem lixeira nem selos; abre o projeto ao clicar. */
+export function PortfolioCard(props: PortfolioCardProps) {
+  const { project, column, today, canDrag = false, hideValues, alerts = [] } = props;
   const navigate = useNavigate();
-  const { employee } = useAuth();
-  const isAdmin = employee?.isAdmin ?? false;
-  const isCompletedLocked = project.portfolio_stage === 'completed' && !isAdmin;
-  const isPermissionLocked = !canEdit;
-  const isLocked = isCompletedLocked || isPermissionLocked;
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: project.id,
-    disabled: isLocked,
-    data: {
-      type: 'project',
-      project,
-    },
+    disabled: !canDrag,
+    data: { type: 'project', project },
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  const isNoRevenue = project.service?.billing_type === 'no_revenue';
-  const installments = project.installments || [];
-  // Valor do contrato, não a soma das parcelas: as duas telas do projeto precisam
-  // mostrar o mesmo número. A soma das parcelas divergia quando o portfólio estava
-  // filtrado por ano.
-  const totalValue = project.total_value || 0;
-
-  const receivedValue = installments
-    .filter(i => i.status === 'received')
-    .reduce((sum, i) => sum + Number(i.value), 0);
-  const progressPercent = totalValue > 0 ? Math.round((receivedValue / totalValue) * 100) : 0;
-
-  const clientName = clientLabel(
-    project.client?.trading_name || project.client?.company_name,
-    projectKindOf(project),
-  );
+  const clientName = clientLabel(project.client?.trading_name || project.client?.company_name, projectKindOf(project));
   const managerName = project.manager?.nome || 'Gerente não definido';
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (isDragging) return;
-    navigate(`/projects/${project.id}`);
-  };
-
-  const dragProps = isLocked ? {} : { ...attributes, ...listeners };
+  const dragProps = canDrag ? { ...attributes, ...listeners } : {};
 
   return (
     <Card
       ref={setNodeRef}
-      style={style}
-      className={`p-3 transition-all ${
-        isLocked
-          ? 'cursor-default'
-          : isDragging
-          ? 'cursor-grabbing opacity-50 shadow-lg rotate-2'
-          : 'cursor-grab hover:shadow-md'
-      }`}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        'p-4 transition-all',
+        dragClassName(canDrag, isDragging),
+      )}
       {...dragProps}
-      onClick={handleClick}
+      onClick={() => {
+        if (!isDragging) navigate(`/projects/${project.id}`);
+      }}
     >
-      <div className="flex items-start justify-between gap-1.5 mb-2">
-        <h4 className="font-medium text-sm text-foreground line-clamp-2 flex-1">
-          {project.name}
-        </h4>
-        <div className="flex items-center gap-1 shrink-0">
-          {isAdmin && onRemove && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-5 w-5 text-muted-foreground hover:text-destructive"
-                  onClick={(e) => { e.stopPropagation(); onRemove(project); }}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                Remover projeto
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {isLocked && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Lock className="h-3 w-3 text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                {isCompletedLocked
-                  ? 'Apenas administradores podem alterar projetos concluídos'
-                  : 'Você só pode alterar projetos em que é PM'}
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <h4 className="line-clamp-2 text-[0.95rem] font-medium text-foreground">{project.name}</h4>
+        {alerts.length > 0 && <AlertBell alerts={alerts} />}
       </div>
 
-      <div className="space-y-1.5 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <Building2 className="h-3 w-3 flex-shrink-0" />
+      <div className="space-y-1 text-sm text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-2">
+          <Building2 className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">{clientName}</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <User className="h-3 w-3 flex-shrink-0" />
+        <div className="flex min-w-0 items-center gap-2">
+          <User className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">{managerName}</span>
         </div>
         {project.service?.name && (
-          <div className="flex items-center gap-1.5">
-            <Layers className="h-3 w-3 flex-shrink-0" />
+          <div className="flex min-w-0 items-center gap-2">
+            <Layers className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{project.service.name}</span>
           </div>
         )}
       </div>
 
-      {project.prospect_id && (
-        <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-          <History className="h-3 w-3" />
-          <span>Origem comercial na Prospecção</span>
-        </div>
-      )}
-
-      <div className="mt-3 pt-2 border-t border-border">
-        {isNoRevenue ? (
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-800 dark:text-gray-400 font-medium">
-              Sem receita
-            </span>
-          </div>
-        ) : (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="cursor-default">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Recebimento</span>
-                <div className="flex items-center justify-between text-xs mb-1.5 mt-0.5">
-                  <span className="font-medium text-foreground">{hideValues ? '•••••' : formatCurrency(totalValue)}</span>
-                  <span className="text-muted-foreground">{hideValues ? '•••' : `${progressPercent}%`}</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  {!hideValues && (
-                    <div
-                      className="h-full bg-primary rounded-full transition-all duration-300"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  )}
-                </div>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs space-y-0.5">
-              <p>Valor do contrato: {hideValues ? '•••••' : formatCurrency(totalValue)}</p>
-              <p>Valor recebido: {hideValues ? '•••••' : formatCurrency(receivedValue)}</p>
-              <p>Percentual: {hideValues ? '•••' : `${progressPercent}%`}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-        <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
-          <Calendar className="h-3 w-3 shrink-0" />
-          <span>
-            {project.start_date
-              ? format(parseISO(project.start_date), "dd/MM/yy", { locale: ptBR })
-              : '—'
-            }
-          </span>
-          <span>→</span>
-          <span className={!project.is_continuous && !project.end_date ? 'text-amber-500 dark:text-amber-400' : ''}>
-            {project.is_continuous
-              ? 'Contínuo'
-              : project.end_date
-                ? format(parseISO(project.end_date), "dd/MM/yy", { locale: ptBR })
-                : 'Sem previsão'
-            }
-          </span>
+      <div className="mt-3 border-t border-border pt-2">
+        <RevenueBlock project={project} hideValues={hideValues} />
+        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Calendar className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{periodText(project, column, today)}</span>
         </div>
       </div>
     </Card>

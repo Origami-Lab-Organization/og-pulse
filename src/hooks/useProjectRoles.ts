@@ -22,7 +22,7 @@ import { invalidateAllocationQueries } from '@/lib/allocationInvalidation';
 
 // ─── Aggregate raw rows → one entry per employee ──────────────────────────────
 
-function groupAllocations(raw: ProjectAllocationWithEmployee[]): ProjectAllocation[] {
+export function groupAllocations(raw: ProjectAllocationWithEmployee[]): ProjectAllocation[] {
   const map = new Map<string, ProjectAllocation>();
 
   for (const row of raw) {

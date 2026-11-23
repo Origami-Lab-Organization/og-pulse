@@ -287,3 +287,20 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 #### Decisões pendentes do épico
 
 Nenhuma. O clique na barra (US-0028) não existia: o atalho para as seções está na rosca e continua lá.
+
+### Portfólio de projetos (aberto em 2026-11-23)
+
+Redesenho da tela Projetos › Portfólio: indicadores com período e metas, quadro por fase com
+cards compactos, sino de pendências, modo planejamento, encerramento com renovação, visão do
+membro e permissões por capacidade. Protótipo publicado em
+https://claude.ai/artifact/TAaDNbHEnW1nASwtTaGPPk.
+
+| ID | História | Persona | Status | Prontidão |
+|---|---|---|---|---|
+| [US-0034](stories/4-em-desenvolvimento/US-0034-projetos-indicadores-do-portfolio-com-periodo.md) | Indicadores do portfólio com o período e as metas | GP ou admin | Em desenvolvimento | Pronta |
+| [US-0035](stories/4-em-desenvolvimento/US-0035-projetos-quadro-do-portfolio-por-fase.md) | Quadro do portfólio por fase, sem rolagem longa | GP ou admin | Em desenvolvimento | Pronta |
+| [US-0036](stories/4-em-desenvolvimento/US-0036-projetos-metas-e-margem-do-portfolio.md) | Metas de receita e margem bruta do portfólio | Admin | Em desenvolvimento | Pronta |
+| [US-0037](stories/4-em-desenvolvimento/US-0037-projetos-sino-de-pendencias-no-card.md) | Sino de pendências no card e pendências na Visão Geral | GP | Em desenvolvimento | Pronta |
+
+As telas de planejamento, encerramento com renovação, visão do membro e permissões estão no
+protótipo e aguardam a validação do Victor para virar histórias.
