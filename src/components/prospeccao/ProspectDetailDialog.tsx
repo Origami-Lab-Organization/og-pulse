@@ -32,6 +32,7 @@ import {
   type ProspectActivityWithOwner,
   type ProspectCompanyDB,
   type ProspectTaskDB,
+  type ProspectStage,
   type ProspectWithCompany,
   type TipoDeConta,
 } from '@/types/prospect';
@@ -39,6 +40,7 @@ import type { ReceitaSnapshot } from '@/types/receita';
 import { CompanyFitSection } from './CompanyFitSection';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
 import { BotoesDeSalvar } from './FichaDaOportunidade';
+import { EstudoDaConta } from './estudo/EstudoDaConta';
 import { OpportunityCompanyCard } from './OpportunityCompanyCard';
 import { OpportunityContactsCard } from './OpportunityContactsCard';
 import { OpportunityHeader } from './OpportunityHeader';
@@ -52,13 +54,15 @@ import { ProspectTaskComposer } from './ProspectTaskComposer';
 import { ProspectTaskTimeline } from './ProspectTaskTimeline';
 import { RegisterMeetingDialog } from './RegisterMeetingDialog';
 
-type Aba = 'registros' | 'tarefas' | 'arquivos';
+type Aba = 'registros' | 'tarefas' | 'arquivos' | 'estudo';
+const ETAPA_QUALIFICACAO: ProspectStage = 'qualificacao';
 
 interface ProspectDetailDialogProps {
   prospect: ProspectWithCompany | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDiscard: (prospect: ProspectWithCompany) => void;
+  /** Registrar a Perda; `motivoSugerido` vem do BANT marcado como 'Não atende' (US-0022). */
+  onDiscard: (prospect: ProspectWithCompany, motivoSugerido?: string | null) => void;
   /** Registrar ou corrigir o ganho — abre o diálogo de data e valor. */
   onWin: (prospect: ProspectWithCompany) => void;
   /** Abre a ficha completa da empresa (sócios, fomento, site, outras oportunidades e contatos). */
@@ -153,6 +157,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
           atividades={atividades}
           carregandoAtividades={isLoading}
           somenteLeitura={somenteLeitura}
+          onSugerirPerda={(motivo) => onDiscard(prospect, motivo)}
         />
 
         {!painel.aberto && <TrilhoDoPainel onAbrir={painel.abrir} />}
@@ -394,17 +399,21 @@ interface PainelDeAtividadeProps {
   atividades: ProspectActivityWithOwner[];
   carregandoAtividades: boolean;
   somenteLeitura: boolean;
+  onSugerirPerda: (motivo: string | null) => void;
 }
 
 function PainelDeAtividade(props: PainelDeAtividadeProps) {
   const { prospect, open, atividades, carregandoAtividades, somenteLeitura } = props;
   const { data: tarefas = [], isLoading: carregandoTarefas } = useProspectTasks(prospect.id);
   const arquivos = useArquivosDaOportunidade(prospect.id, atividades, carregandoAtividades);
-  const [aba, setAba] = useState<Aba>('registros');
 
   // Só pelo id: o objeto é recarregado a cada escrita e não pode tirar a pessoa da aba.
+  // Na Qualificação, o trabalho é o estudo da conta: a ficha abre nele (US-0023).
+  const abaInicial: Aba = prospect.stage === ETAPA_QUALIFICACAO ? 'estudo' : 'registros';
+  const [aba, setAba] = useState<Aba>(abaInicial);
   useEffect(() => {
-    if (open) setAba('registros');
+    if (open) setAba(abaInicial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir ou trocar de oportunidade
   }, [open, prospect.id]);
 
   // Já vem ordenada por prazo (fetchProspectTasks): a primeira pendente é a mais urgente.
@@ -424,6 +433,9 @@ function PainelDeAtividade(props: PainelDeAtividadeProps) {
           </TabsTrigger>
           <TabsTrigger value="arquivos" className={GATILHO_DA_ABA}>
             Arquivos <Contagem n={arquivos.itens.length} />
+          </TabsTrigger>
+          <TabsTrigger value="estudo" className={GATILHO_DA_ABA}>
+            Estudo da conta
           </TabsTrigger>
         </TabsList>
       </div>
@@ -464,6 +476,12 @@ function PainelDeAtividade(props: PainelDeAtividadeProps) {
             <ProspectFilesUploader prospectId={prospect.id} />
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent value="estudo" className={CONTEUDO_DA_ABA}>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <EstudoDaConta prospect={prospect} somenteLeitura={somenteLeitura} onSugerirPerda={props.onSugerirPerda} />
+        </div>
       </TabsContent>
     </Tabs>
   );

@@ -84,8 +84,11 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0017](stories/2-em-refinamento/US-0017-comercial-anel-e-tier-saem.md) | Anel e Tier saem da Prospecção | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0018](stories/1-a-fazer/US-0018-comercial-refinar-faturamento-estimado.md) | Refinar o faturamento estimado | Pessoa do comercial | A fazer | Não pronta |
 | [US-0019](stories/4-em-desenvolvimento/US-0019-comercial-marca-de-relacionamento.md) | Ver a relação da Origami com cada empresa | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
-| [US-0020](stories/1-a-fazer/US-0020-comercial-estudo-da-conta.md) | Estudar a conta antes de abordar | Pessoa do comercial | A fazer | Não pronta |
+| [US-0020](stories/4-em-desenvolvimento/US-0020-comercial-estudo-da-conta.md) | Estudar a conta antes de abordar | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
 | [US-0021](stories/1-a-fazer/US-0021-comercial-metricas-do-novo-fluxo.md) | Ajustar as Métricas ao novo fluxo de abordagem | Pessoa do comercial | A fazer | Não pronta |
+| [US-0022](stories/4-em-desenvolvimento/US-0022-comercial-bant-da-oportunidade.md) | Qualificar a oportunidade pelo BANT, do começo ao fim | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
+| [US-0023](stories/4-em-desenvolvimento/US-0023-comercial-etapa-qualificacao.md) | Qualificar a empresa antes de abordar | Pessoa do comercial | Em desenvolvimento | Pronta |
+| [US-0024](stories/4-em-desenvolvimento/US-0024-comercial-ia-propoe-bant-pelo-mcp.md) | IA propõe evidências de BANT pela assinatura do Claude | Pessoa do comercial | Em desenvolvimento | Pronta |
 
 #### Ordem de implementação proposta
 
@@ -137,6 +140,16 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
   (US-0008, que absorve a US-0009 e a US-0016) → ver a relação da Origami com a empresa
   (US-0019) → estudar a conta, com pessoas, influência e desk research por IA (US-0020, ADR
   novo revisando o 0042). Alavanca é o canal de chegada: definida ao abordar.
+- Qualificação e BANT (19/11): fluxo Selecionar → **Qualificação** (etapa nova da oportunidade,
+  antes de A abordar, numa aba "Em qualificação" da tela Empresas; o Pipeline começa em A
+  abordar; US-0023) → A abordar → … → Oportunidade qualificada → Ganho ou Perda. O
+  BANT acompanha o mesmo cartão: letras em quatro estados (não sei, indício, confirmado, não
+  atende), nota de 0 a 100 e meta por etapa; só a entrada em "Oportunidade qualificada" exige
+  nota 75 e nenhum "Não atende" (US-0022). O desk research com IA propõe indícios, e a pessoa
+  aceita.
+- IA na qualificação (19/11, ADR-0054): a IA propõe evidências de BANT com fonte e a pessoa
+  aceita ou recusa. Fase 1 pela assinatura do Claude, via MCP (US-0024); fase 2 dentro do
+  Pulse, com chave de API, quando o volume justificar.
 - Filtros da tela Empresas (18/11, revisão da US-0004): só o ícone, com selo da quantidade de
   filtros ativos, abre os filtros numa gaveta por cima da lista em qualquer tela; o painel ao
   lado da lista saiu.

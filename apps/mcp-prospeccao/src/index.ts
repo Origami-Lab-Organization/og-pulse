@@ -50,6 +50,7 @@ import * as fmt from './format.js';
 import { inicioDaLeitura, relatorioDeMetricas } from './metricas.js';
 import { PulseNotAuthenticatedError } from './supabase.js';
 import type { PeriodPreset, PeriodSelection } from '@/types/prospectMetrics';
+import { bantDaOportunidade, oQueFaltaParaQualificar, rotuloDoEstado } from '@/lib/prospecting/bant';
 import type { CompanyFields, CompanyMatch, CompanyTarget, ContactFields, CorteDeCanal, TaskListArgs } from './types.js';
 
 // ── Vocabulário fechado, derivado das mesmas constantes da tela ─────────────
@@ -129,6 +130,7 @@ const INSTRUCOES = [
   'Prospecção (este servidor) é o quadro comercial de ponta a ponta: do primeiro toque ao fechamento. Todo pedido comercial pelo chat — empresa, contato, atividade, reunião, venda ou perda — é feito aqui.',
   'Cada contato termina em Ganho (fechamos negócio: mark_contact_won, com data e valor, de Reunião feita em diante) ou Perda (discard_contact, com motivo de lista fechada). Nenhum desfecho é automático: quem decide é a pessoa.',
   'Antes de cadastrar, confira duplicidade com check_company_duplicates e list_contacts. Não chute valores: list_prospecting_options traz etapas, canais, alavancas, motivos de perda e responsáveis válidos.',
+  'O fluxo começa na tela Empresas: a empresa escolhida entra em Qualificação, onde é estudada (desk research, site, LinkedIn, Instagram, pessoas em comum) antes de ir para A abordar. Cada oportunidade tem um BANT (Budget, Authority, Need, Timing): leia com get_bant e proponha evidências com propose_bant_evidence, sempre com a fonte. Você só sugere; quem aceita ou recusa é a pessoa, na tela. Para entrar em Oportunidade qualificada, o BANT precisa de nota 75 e nenhum "Não atende".',
   'Ao falar com a pessoa, use Prospecção, Ganho, Perda e Oportunidade qualificada — nunca "lead", "CRM" ou "funil".',
 ].join('\n');
 
@@ -147,6 +149,13 @@ const camposDeEmpresa = {
     .nullable()
     .optional()
     .describe(`Tipo de conta pelo faturamento: ${TIPOS_DE_CONTA.map((t) => `${t.value} (${t.label}, ${t.faixa})`).join(', ')}. null apaga.`),
+  funcionarios_informados: z
+    .number()
+    .int()
+    .min(0)
+    .nullable()
+    .optional()
+    .describe('Funcionários confirmados pelo time (ex.: LinkedIn); prevalece sobre a RAIS na tela Empresas. null volta a valer a RAIS.'),
   notes: z.string().max(4000).optional().describe('Observações sobre a empresa.'),
   client_id: uuid('client_id')
     .optional()
@@ -215,6 +224,43 @@ server.tool(
     const contagem = await db.contarContatos(empresas.map((e) => e.id));
     const linhas = empresas.map((e) => fmt.empresaResumo(e, contagem.get(e.id) ?? 0));
     return [`**${empresas.length} empresa(s):**`, '', ...linhas].join('\n');
+  }),
+);
+
+// ── BANT (US-0022) e IA pela assinatura do Claude (US-0024) ─────────────────
+//
+// A IA lê o BANT e PROPÕE evidências com a fonte; a pessoa aceita ou recusa na tela do Pulse.
+// Nenhuma proposta conta no BANT antes do aceite (decisão de 19/11/2026).
+
+const LETRAS = ['B', 'A', 'N', 'T'] as const;
+const ESTADOS_PROPOSTOS = ['indicio', 'confirmado', 'nao_atende'] as const;
+
+server.tool(
+  'get_bant',
+  'BANT de uma oportunidade (Budget, Authority, Need, Timing): o estado de cada letra com a evidência atual, a nota de 0 a 100, a meta da etapa, as propostas esperando decisão e as recusadas. Leia antes de propor evidências, para não repetir o que já existe nem o que foi recusado. Use com get_company (Receita, sócios, site, fomento) para o contexto da empresa.',
+  { prospect_id: uuid('prospect_id') },
+  executar(async ({ prospect_id }) => {
+    const [oportunidade, evidencias] = await Promise.all([db.buscarContato(prospect_id), db.evidenciasBant(prospect_id)]);
+    const bant = bantDaOportunidade(oportunidade, evidencias);
+    return [`**${oportunidade.company?.name ?? oportunidade.contact_name}** · ${getProspectStageLabel(oportunidade.stage)}`, '', fmt.bantDaOportunidadeTexto(bant, evidencias)].join('\n');
+  }),
+);
+
+server.tool(
+  'propose_bant_evidence',
+  'Propõe UMA evidência de BANT para a pessoa aceitar ou recusar no Pulse (a IA sugere, nunca decide). Use depois de um desk research (notícias, site, vagas, posts públicos) ou da leitura de notas e registros da oportunidade. Uma chamada por evidência, cada uma com a fonte (link, ou "registro de 20/11"). B = porte e verba; A = quem decide e como chegar; N = dor que resolvemos; T = por que agora. "confirmado" só quando o cliente disse (reunião, conversa, e-mail registrado); sinal público é "indicio"; sinal contra é "nao_atende". Não proponha dado pessoal que não seja profissional e ligado à empresa.',
+  {
+    prospect_id: uuid('prospect_id'),
+    letra: z.enum(LETRAS).describe('B, A, N ou T.'),
+    estado: z.enum(ESTADOS_PROPOSTOS).describe('indicio (sinal público), confirmado (o cliente disse) ou nao_atende (sinal contra).'),
+    texto: z.string().trim().min(5).max(2000).describe('O que a evidência diz, em uma ou duas frases, em português.'),
+    fonte: z.string().trim().min(3).max(500).describe('Link da fonte, ou a referência ("registro de 20/11", "reunião de 20/11").'),
+  },
+  executar(async ({ prospect_id, letra, estado, texto, fonte }) => {
+    const oportunidade = await db.buscarContato(prospect_id);
+    exigirEditavel(oportunidade);
+    await db.proporEvidenciaBant({ prospect_id, letra, estado, texto, fonte });
+    return `💡 Proposta de ${letra} → ${rotuloDoEstado(estado)} registrada em ${oportunidade.company?.name ?? oportunidade.contact_name}. Ela só conta no BANT depois que alguém aceitar na aba "Estudo da conta" da oportunidade.`;
   }),
 );
 
@@ -671,6 +717,7 @@ server.tool(
     exigirEditavel(contato);
     exigirAberto(contato);
     if (contato.stage === etapa) return `${contato.contact_name} já está em "${getProspectStageLabel(etapa)}".`;
+    if (etapa === ETAPA_QUALIFICADA) await exigirBantParaQualificar(contato);
     const comRelato = etapa === ETAPA_REUNIAO_FEITA && !!relato_reuniao;
     if (comRelato) {
       await db.registrarAtividade({ prospectId: prospect_id, channel: formato_reuniao, notes: relato_reuniao, gotResponse: true, activityDate: data });
@@ -681,6 +728,14 @@ server.tool(
     return `✅ ${contato.contact_name}: ${getProspectStageLabel(contato.stage)} → **${getProspectStageLabel(etapa)}**${quando}.${registro}`;
   }),
 );
+
+const ETAPA_QUALIFICADA: ProspectStage = 'qualificado';
+
+/** A mesma regra da tela (US-0022): nota 75 e nenhum "Não atende" para entrar em Oportunidade qualificada. */
+async function exigirBantParaQualificar(p: ProspectWithCompany): Promise<void> {
+  const falta = oQueFaltaParaQualificar(bantDaOportunidade(p, await db.evidenciasBant(p.id)));
+  if (falta) throw new db.ProspeccaoError(`${p.contact_name} ainda não pode ir para Oportunidade qualificada. ${falta} Veja o BANT com get_bant.`);
+}
 
 function exigirAberto(p: ProspectWithCompany): void {
   if (!isProspectClosed(p.stage)) return;

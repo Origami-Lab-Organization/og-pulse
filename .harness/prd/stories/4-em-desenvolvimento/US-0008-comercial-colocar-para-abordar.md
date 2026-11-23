@@ -163,6 +163,8 @@ US-0016), arquivadas em 18/11/2026.
   US-0011 (abas da classificação), arquivada.
 - O botão e a ação passam a se chamar "Mover para abordar" (antes, "Colocar para abordar"),
   na validação da US-0019 (18/11).
+- 19/11/2026 (US-0023): a empresa entra em **Qualificação**, não mais direto em A abordar; o
+  botão vira "Mover para qualificação", e "Devolver para a lista" vale também na Qualificação.
 - "Devolver para a lista" no menu da oportunidade em A abordar, com a regra do Desfazer, para
   não usar "Excluir oportunidade", que apaga histórico (18/11).
 - "Importar CNPJs" fica na tela Empresas, para a empresa que não está na base (uso raro); o

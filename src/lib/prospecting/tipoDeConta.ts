@@ -24,5 +24,7 @@ export function faturamentoDaSugestao(e: Pick<EmpresaReceita, 'faturamento_infor
 /** Por que não há sugestão, para a janela explicar. */
 export function motivoSemSugestao(e: Pick<EmpresaReceita, 'faturamento_informado' | 'faturamento_estimado' | 'faturamento_base'>): string {
   const valor = faturamentoDaSugestao(e);
-  return valor == null ? 'Só com o piso do porte: sem faturamento para sugerir.' : 'Abaixo de R$ 10 mi, fora das faixas de Satélite, Ponte e Âncora.';
+  return valor == null
+    ? 'Sem faturamento estimado para sugerir. Escolha o tipo.'
+    : 'Faturamento abaixo de R$ 10 mi: nenhuma faixa se aplica. Escolha a mais próxima.';
 }

@@ -46,6 +46,8 @@ import {
 } from '@/types/prospect';
 import { ProspectAdvanceButton } from './ProspectAdvanceButton';
 import { OpportunityOutcomeStrip } from './OpportunityOutcomeStrip';
+import { useBant } from '@/hooks/useBant';
+import { LetrasDoBant } from './bant/LetrasDoBant';
 import { ProspectStageStepper } from './ProspectStageStepper';
 
 interface OpportunityHeaderProps {
@@ -96,6 +98,7 @@ export function OpportunityHeader(props: OpportunityHeaderProps) {
               {getProspectStageLabel(prospect.stage)}
             </Badge>
             {props.somenteLeitura && <Badge variant="outline">Somente leitura</Badge>}
+            <BantNoCabecalho prospect={prospect} />
             <DialogDescription className="text-sm">{subtitulo(prospect, atividades, props.responsavel)}</DialogDescription>
             <Indicadores prospect={prospect} atividades={atividades} comValor={!encerrada} />
           </div>
@@ -273,7 +276,8 @@ function AcoesDeEtapa(props: OpportunityHeaderProps) {
 }
 
 const ETAPA_GANHO: ProspectStage = 'ganho';
-const ETAPA_A_ABORDAR: ProspectStage = 'a_abordar';
+/** Antes do primeiro toque, dá para devolver a empresa para a lista (US-0008, US-0023). */
+const ETAPAS_DEVOLVIVEIS = new Set<ProspectStage>(['qualificacao', 'a_abordar']);
 /** Perda, e o "Sem resposta" das linhas antigas: os dois reabrem em "A abordar". */
 const PERDIDO = new Set<ProspectStage>(['descartado', 'sem_resposta']);
 
@@ -296,7 +300,7 @@ function MenuDaOportunidade(props: OpportunityHeaderProps) {
         <ItensDeGanho {...props} />
         <ItensDePerda {...props} />
         {!somenteLeitura && <ItensDeVolta stage={prospect.stage} onVoltar={props.onVoltar} />}
-        {!somenteLeitura && prospect.stage === ETAPA_A_ABORDAR && (
+        {!somenteLeitura && ETAPAS_DEVOLVIVEIS.has(prospect.stage) && (
           <DropdownMenuItem onSelect={props.onDevolver}>
             <CornerUpLeft className="mr-2 h-4 w-4" aria-hidden="true" />
             Devolver para a lista
@@ -373,4 +377,11 @@ function ItensDePerda(props: OpportunityHeaderProps) {
       Registrar perda
     </DropdownMenuItem>
   );
+}
+
+/** As letras do BANT ao lado da etapa (US-0022); o detalhe fica na aba "Estudo da conta". */
+function BantNoCabecalho({ prospect }: { prospect: ProspectWithCompany }) {
+  const { bant, isLoading } = useBant(prospect);
+  if (isLoading) return null;
+  return <LetrasDoBant bant={bant} />;
 }

@@ -8,6 +8,8 @@
  */
 
 export type ProspectStage =
+  /** Empresa escolhida na base, em estudo antes da abordagem (19/11/2026, US-0023). */
+  | 'qualificacao'
   | 'a_abordar'
   | 'em_cadencia'
   | 'respondeu'
@@ -37,6 +39,12 @@ interface ProspectStageMeta {
 }
 
 export const PROSPECT_STAGE_META: Record<ProspectStage, ProspectStageMeta> = {
+  qualificacao: {
+    id: 'qualificacao',
+    label: 'Qualificação',
+    color: 'bg-info-subtle text-info-emphasis',
+    stallDays: 10,
+  },
   a_abordar: {
     id: 'a_abordar',
     label: 'A abordar',
@@ -107,6 +115,7 @@ export const PROSPECT_STAGE_META: Record<ProspectStage, ProspectStageMeta> = {
  * de fato aconteceu, e sem ela a taxa de comparecimento não existe.
  */
 export const PROSPECT_FUNNEL_STAGES: readonly ProspectStage[] = [
+  'qualificacao',
   'a_abordar',
   'em_cadencia',
   'respondeu',
@@ -121,9 +130,13 @@ export const PROSPECT_FUNNEL_STAGES: readonly ProspectStage[] = [
  */
 export const PROSPECT_OUTCOME_STAGES: readonly ProspectStage[] = ['ganho', 'descartado'];
 
-/** As colunas do Kanban: o trabalho e, no fim, os dois desfechos. */
+/**
+ * As colunas do Kanban: o trabalho e, no fim, os dois desfechos. A Qualificação fica fora
+ * (19/11/2026): é trabalho sobre a empresa e mora na tela Empresas, aba "Em qualificação"; o
+ * Pipeline começa em A abordar, quando há conversa a conduzir.
+ */
 export const PROSPECT_BOARD_STAGES: readonly ProspectStage[] = [
-  ...PROSPECT_FUNNEL_STAGES,
+  ...PROSPECT_FUNNEL_STAGES.filter((etapa) => etapa !== 'qualificacao'),
   ...PROSPECT_OUTCOME_STAGES,
 ];
 
@@ -172,6 +185,7 @@ export const PROSPECT_KANBAN_COLUMNS: readonly ProspectStageMeta[] =
  * dura do módulo: o card avança por evento verificável, nunca por impressão.
  */
 export const PROSPECT_MANUAL_STAGES: readonly ProspectStage[] = [
+  'qualificacao',
   'a_abordar',
   'reuniao_agendada',
   'reuniao_feita',
@@ -186,6 +200,8 @@ export const PROSPECT_MANUAL_STAGES: readonly ProspectStage[] = [
  * para "Reunião agendada" descreveria um funil que não aconteceu.
  */
 export const PROSPECT_NEXT_STAGE: Partial<Record<ProspectStage, ProspectStage>> = {
+  // Qualificada, a empresa vira abordagem (US-0023); não qualificada, arquiva (Perda).
+  qualificacao: 'a_abordar',
   a_abordar: 'em_cadencia',
   em_cadencia: 'respondeu',
   respondeu: 'reuniao_agendada',
@@ -321,6 +337,8 @@ export interface ProspectCompanyDB {
   tier: string | null;
   /** Âncora, Ponte ou Satélite (US-0008); nulo = ainda não classificada. */
   tipo_conta?: TipoDeConta | null;
+  /** Funcionários confirmados pelo time; prevalece sobre a RAIS (US-0020). Nulo = não informado. */
+  funcionarios_informados?: number | null;
   client_id: string | null;
   notes: string | null;
   /** Faturamento anual em reais, informado pelo time (01/10/2026). A Receita não informa. */

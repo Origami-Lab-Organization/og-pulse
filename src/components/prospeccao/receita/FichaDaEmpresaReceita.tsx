@@ -45,7 +45,7 @@ const PENDENTES = 'Regime tributário, site, fomento público e contratos com o 
 /**
  * Ficha de uma empresa da base da Receita (US-0007): tudo que a base sabe, para decidir sem
  * sair da lista. Gaveta à direita; Esc, o "x" ou um clique fora fecham e devolvem o foco à
- * linha. No rodapé, "Mover para abordar" (US-0008).
+ * linha. No rodapé, "Mover para qualificação" (US-0008, US-0023).
  */
 export function FichaDaEmpresaReceita({ cnpj, onFechar }: FichaDaEmpresaReceitaProps) {
   const ficha = useFichaReceita(cnpj);
@@ -90,14 +90,14 @@ function Conteudo({ ficha }: { ficha: ReturnType<typeof useFichaReceita> }) {
   );
 }
 
-/** Mover para abordar (US-0008): só com `prospeccao:editar` e sem oportunidade em andamento. */
+/** Mover para qualificação (US-0008, US-0023): só com `prospeccao:editar` e sem oportunidade em andamento. */
 function Rodape({ empresa, emAndamento }: { empresa: EmpresaDaFicha; emAndamento: boolean }) {
   const { can } = useAuth();
   const [colocando, setColocando] = useState(false);
   if (emAndamento || !can('prospeccao:editar')) return null;
   return (
     <div className="border-t bg-card px-5 py-4">
-      <Button className="w-full" onClick={() => setColocando(true)}>Mover para abordar</Button>
+      <Button className="w-full" onClick={() => setColocando(true)}>Mover para qualificação</Button>
       <ColocarParaAbordarDialog empresas={[empresa]} aberta={colocando} onAbertaChange={setColocando} />
     </div>
   );
@@ -273,7 +273,10 @@ function Tamanho({ empresa }: { empresa: EmpresaDaFicha }) {
   return (
     <Secao titulo="Tamanho">
       <Itens>
-        <Item rotulo="Funcionários">{empresa.funcionarios != null ? empresa.funcionarios.toLocaleString('pt-BR') : traco}</Item>
+        <Item rotulo="Funcionários">
+          {empresa.funcionarios != null ? empresa.funcionarios.toLocaleString('pt-BR') : traco}
+          {empresa.funcionarios_do_time && <span className="text-muted-foreground"> · confirmados pelo time</span>}
+        </Item>
         <Item rotulo="Unidades com funcionários">{empresa.unidades_com_funcionarios ?? traco}</Item>
         <Item rotulo="Filiais ativas">{empresa.filiais_ativas.toLocaleString('pt-BR')}</Item>
         <Item rotulo="Capital social">{empresa.capital_social ? reaisCurtos(Number(empresa.capital_social)) : traco}</Item>
@@ -300,7 +303,7 @@ function Faturamento({ empresa }: { empresa: EmpresaDaFicha }) {
   return (
     <div className="mt-3 rounded-md border px-3 py-2.5">
       <p className="text-[13px]"><span className="font-mono text-[15px] font-semibold">{textoDoFaturamento(Number(valor), base)}</span> · faturamento {ROTULO_DA_BASE[base]}</p>
-      <p className="mt-1 text-[12.5px] leading-snug text-muted-foreground">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social)}</p>
+      <p className="mt-1 text-[12.5px] leading-snug text-muted-foreground">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social, empresa.funcionarios_do_time)}</p>
       {lucroRealProvavel(Number(valor), base) && <Aviso>{AVISO_LUCRO_REAL}</Aviso>}
     </div>
   );

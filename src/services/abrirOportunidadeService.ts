@@ -11,6 +11,7 @@ import {
   type ItemParaAbordar,
   type OportunidadeEmAndamento,
   type ProspectCompanyDB,
+  type ProspectStage,
   type ResultadoParaAbordar,
 } from '@/types/prospect';
 
@@ -26,6 +27,7 @@ import {
 
 const CALCULADO: FaturamentoBase = 'calculado';
 const CANAL_PADRAO = 'email';
+const ETAPA_DE_ENTRADA: ProspectStage = 'qualificacao';
 // Entre consultas à Receita, como na importação: a BrasilAPI limita as consultas por minuto.
 const PAUSA_ENTRE_CONSULTAS_MS = 1200;
 const ESPERA_DO_LIMITE_MS = 60_000;
@@ -60,7 +62,13 @@ async function criarEmpresa(input: AbrirOportunidadeInput): Promise<ProspectComp
   const receita = await consultarReceita(input.cnpj);
   const faturamento = input.faturamentoEstimado ? { faturamento_anual: input.faturamentoEstimado, faturamento_anual_base: CALCULADO } : {};
   const empresa = await prospectCompanyService.create(
-    { name: receita.nomeFantasia ?? receita.razaoSocial, cnpj: input.cnpj, segment: receita.segmento, tipo_conta: input.tipoConta, ...faturamento },
+    {
+      name: receita.nomeFantasia ?? receita.razaoSocial,
+      cnpj: input.cnpj,
+      segment: receita.segmento,
+      tipo_conta: input.tipoConta,
+      ...faturamento,
+    },
     input.tenantId,
     input.employeeId,
   );
@@ -91,6 +99,8 @@ export async function abrirOportunidadeDaBase(input: AbrirOportunidadeInput): Pr
     primary_channel: CANAL_PADRAO,
     owner_id: input.ownerId,
     created_by: input.employeeId,
+    // Da base, a empresa entra em Qualificação: é estudada antes da abordagem (US-0023).
+    stage: ETAPA_DE_ENTRADA,
   });
   return { aberta: true, prospect, empresaCriada: !existente };
 }

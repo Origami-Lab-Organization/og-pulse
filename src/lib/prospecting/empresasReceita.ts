@@ -47,6 +47,12 @@ export interface EmpresaReceita {
   faturamento_informado_base?: FaturamentoBase | null;
   /** Entrou na lista só por uma atividade secundária (filtro com "Incluir atividade secundária"). */
   pela_secundaria?: boolean;
+  /** Natureza jurídica (código da Receita); entra no faturamento recalculado (US-0020). */
+  natureza_juridica?: string | null;
+  /** Funcionários confirmados pelo time na Prospecção (US-0020); nulo = vale a RAIS. */
+  funcionarios_informados?: number | null;
+  /** `funcionarios` veio do time, não da RAIS (US-0020). */
+  funcionarios_do_time?: boolean;
   /** Relação da Origami com a empresa (US-0019); nula sem relação, ausente se não carregou. */
   relacao?: RelacaoDaEmpresa | null;
 }

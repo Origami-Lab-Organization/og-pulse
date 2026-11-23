@@ -150,13 +150,16 @@ interface Contexto {
   oportunidades: OportunidadeParaSituacao[];
 }
 
+/** Ainda sem toque: em Qualificação (19/11/2026) ou em A abordar. */
+const ETAPAS_NA_FILA: readonly ProspectStage[] = ['qualificacao', 'a_abordar'];
+
 /** Em ordem de prioridade: a primeira regra que se aplica decide a situação. */
 const REGRAS: ReadonlyArray<[CompanyProspectStatus, (c: Contexto) => boolean]> = [
   ['cliente', (c) => c.temCliente || c.etapas.some((e) => ETAPAS_DE_CLIENTE.includes(e))],
   ['em_conversa', (c) => c.etapas.some((e) => ETAPAS_EM_CONVERSA.includes(e))],
   ['pediu_para_parar', (c) => c.oportunidades.some(pediuParaParar)],
   ['em_cadencia', (c) => c.etapas.includes('em_cadencia')],
-  ['na_fila', (c) => c.etapas.includes('a_abordar')],
+  ['na_fila', (c) => c.etapas.some((e) => ETAPAS_NA_FILA.includes(e))],
   ['sem_contato', (c) => c.oportunidades.length === 0],
 ];
 
