@@ -1,11 +1,11 @@
 # US-0032 — O card de forecast diz o que significa
 
-- **Status:** A fazer
+- **Status:** Pronta para desenvolver
 - **Tipo:** bug
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
 - **Prioridade:** 8
-- **Aprovada por / em:** —
+- **Aprovada por / em:** Victor Couto, 23/11/2026
 - **Relacionadas:** US-0031
 
 ## Descrição
