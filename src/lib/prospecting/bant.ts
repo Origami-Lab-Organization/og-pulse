@@ -113,13 +113,19 @@ function letraDoBant(letra: LetraBant, evidencias: EvidenciaBantDB[], indicios: 
   return { letra, estado: indicio ? INDICIO : NAO_SEI, evidencia: null, indicio };
 }
 
+const notaDe = (pontos: number) => Math.round((pontos / PONTOS_MAXIMOS) * 100);
+
+/** Os pontos só das evidências aceitas: o indício do Pulse não comprova nada (US-0038). */
+const pontosComprovados = (lista: LetraDoBant[]) => lista.reduce((soma, l) => soma + (l.evidencia ? PONTOS[l.estado] : 0), 0);
+
 export function bantDaOportunidade(p: ProspectWithCompany, evidencias: EvidenciaBantDB[]): BantDaOportunidade {
   const indicios = indiciosDoPulse(p);
   const lista = LETRAS_BANT.map(({ letra }) => letraDoBant(letra, evidencias, indicios));
   const pontos = lista.reduce((soma, l) => soma + PONTOS[l.estado], 0);
   return {
     letras: Object.fromEntries(lista.map((l) => [l.letra, l])) as Record<LetraBant, LetraDoBant>,
-    nota: Math.round((pontos / PONTOS_MAXIMOS) * 100),
+    nota: notaDe(pontos),
+    notaComprovada: notaDe(pontosComprovados(lista)),
     meta: metaDaEtapa(p.stage),
     temNaoAtende: lista.some((l) => l.estado === NAO_ATENDE),
     propostas: evidencias.filter((e) => e.situacao === PROPOSTA),
@@ -128,13 +134,14 @@ export function bantDaOportunidade(p: ProspectWithCompany, evidencias: Evidencia
 
 /**
  * O que impede a entrada em "Oportunidade qualificada", em português; nulo quando pode entrar.
- * Ex.: "Nota 63: confirme mais uma letra (precisa de 75)".
+ * Conta só a nota comprovada (US-0038): os indícios do Pulse são pista, não prova. A mesma regra
+ * mora no banco (migration 20261124100000), que recusa com a mesma conta.
  */
 export function oQueFaltaParaQualificar(bant: BantDaOportunidade): string | null {
   const contra = Object.values(bant.letras).filter((l) => l.estado === NAO_ATENDE).map((l) => l.letra);
   if (contra.length) return `${contra.join(', ')} marcado como "Não atende". Revise antes de qualificar, ou registre a Perda.`;
-  if (bant.nota >= NOTA_PARA_QUALIFICAR) return null;
-  return `BANT ${bant.nota}: precisa de ${NOTA_PARA_QUALIFICAR} (três letras confirmadas, ou duas confirmadas e duas com indício).`;
+  if (bant.notaComprovada >= NOTA_PARA_QUALIFICAR) return null;
+  return `Nota comprovada ${bant.notaComprovada}: para qualificar, ${NOTA_PARA_QUALIFICAR} só com evidências aceitas — os indícios do Pulse não contam. Registre três letras confirmadas, ou duas confirmadas e duas com indício.`;
 }
 
 /** "Não atende" sugere a Perda com o motivo da lista fechada; Authority não tem motivo próprio. */

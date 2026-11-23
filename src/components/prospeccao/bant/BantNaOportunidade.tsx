@@ -46,6 +46,7 @@ export function BantNaOportunidade(props: BantNaOportunidadeProps) {
       </div>
       <p className="text-xs text-muted-foreground">
         {bant.meta != null && `Meta em ${getProspectStageLabel(prospect.stage)}: ${bant.meta}. `}
+        {bant.notaComprovada !== bant.nota && `Comprovada por evidências: ${bant.notaComprovada}. `}
         {falta ? `Para "Oportunidade qualificada": ${falta}` : 'Pronta para "Oportunidade qualificada".'}
       </p>
       {bant.propostas.length > 0 && <Propostas propostas={bant.propostas} podeEditar={podeEditar} />}
