@@ -1,0 +1,1203 @@
+<title>Portfólio de Projetos</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: casca do Pulse (trilho de ícones à esquerda + cabeçalho com título e ações) sob a barra do protótipo; portfólio em 4 colunas com rolagem interna; projeto com migalhas, etapas no topo e abas sublinhadas. Tokens = Origami UI v1.1 (src/index.css). */
+:root {
+  --background: hsl(60 33.3% 97.6%);
+  --foreground: hsl(0 0% 14.5%);
+  --card: hsl(0 0% 100%);
+  --muted: hsl(65 25% 90.6%);
+  --muted-soft: hsl(65 25% 90.6% / .45);
+  --muted-foreground: hsl(75 4.9% 32.2%);
+  --border: hsl(67 20.5% 84.7%);
+  --primary: hsl(159 82.8% 22.7%);
+  --primary-hover: hsl(160 82.2% 17.6%);
+  --primary-foreground: hsl(0 0% 100%);
+  --success-subtle: hsl(150 46.7% 94.1%);
+  --success-emphasis: hsl(159 82.8% 22.7%);
+  --warning: hsl(26 90.5% 37.1%);
+  --warning-subtle: hsl(43 87.5% 90.6%);
+  --warning-emphasis: hsl(23 82.5% 31.4%);
+  --destructive: hsl(17 88.3% 40.4%);
+  --destructive-subtle: hsl(12 78.9% 92.5%);
+  --destructive-emphasis: hsl(15 79.1% 33.7%);
+  --info-subtle: hsl(205 45.8% 90.6%);
+  --info-emphasis: hsl(200 71% 28.4%);
+  --neutral-dot: hsl(75 4.9% 45%);
+  --proto: hsl(0 0% 14.5%);
+  --proto-fg: hsl(60 33.3% 97.6%);
+  --shadow-2: 0 4px 12px hsl(0 0% 14.5% / .10), 0 1px 3px hsl(0 0% 14.5% / .06);
+  --shadow-3: 0 16px 40px hsl(0 0% 14.5% / .18), 0 4px 12px hsl(0 0% 14.5% / .08);
+  --focus: 0 0 0 3px hsl(159 81.5% 29.6% / .35);
+  --overlay: hsl(0 0% 10% / .38);
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: hsl(0 0% 10.2%); --foreground: hsl(65 42.9% 94.5%); --card: hsl(0 0% 14.5%);
+    --muted: hsl(60 2.2% 18%); --muted-soft: hsl(60 2.2% 18% / .6); --muted-foreground: hsl(64 9.2% 70.2%);
+    --border: hsl(60 3.6% 22%);
+    --primary: hsl(159 80.2% 54.5%); --primary-hover: hsl(159 82.2% 64.7%); --primary-foreground: hsl(0 0% 14.5%);
+    --success-subtle: hsl(159 45% 14%); --success-emphasis: hsl(159 80.2% 54.5%);
+    --warning: hsl(36 89.6% 62.2%); --warning-subtle: hsl(36 50% 16%); --warning-emphasis: hsl(36 89.6% 62.2%);
+    --destructive: hsl(16 84.7% 61.6%); --destructive-subtle: hsl(16 50% 16%); --destructive-emphasis: hsl(16 84.7% 61.6%);
+    --info-subtle: hsl(199 40% 18%); --info-emphasis: hsl(199 52.6% 57.8%);
+    --neutral-dot: hsl(64 9.2% 60%);
+    --proto: hsl(60 3.6% 22%); --proto-fg: hsl(65 42.9% 94.5%);
+    --overlay: hsl(0 0% 0% / .55); --focus: 0 0 0 3px hsl(159 80.2% 54.5% / .4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --background: hsl(0 0% 10.2%); --foreground: hsl(65 42.9% 94.5%); --card: hsl(0 0% 14.5%);
+  --muted: hsl(60 2.2% 18%); --muted-soft: hsl(60 2.2% 18% / .6); --muted-foreground: hsl(64 9.2% 70.2%);
+  --border: hsl(60 3.6% 22%);
+  --primary: hsl(159 80.2% 54.5%); --primary-hover: hsl(159 82.2% 64.7%); --primary-foreground: hsl(0 0% 14.5%);
+  --success-subtle: hsl(159 45% 14%); --success-emphasis: hsl(159 80.2% 54.5%);
+  --warning: hsl(36 89.6% 62.2%); --warning-subtle: hsl(36 50% 16%); --warning-emphasis: hsl(36 89.6% 62.2%);
+  --destructive: hsl(16 84.7% 61.6%); --destructive-subtle: hsl(16 50% 16%); --destructive-emphasis: hsl(16 84.7% 61.6%);
+  --info-subtle: hsl(199 40% 18%); --info-emphasis: hsl(199 52.6% 57.8%);
+  --neutral-dot: hsl(64 9.2% 60%);
+  --proto: hsl(60 3.6% 22%); --proto-fg: hsl(65 42.9% 94.5%);
+  --overlay: hsl(0 0% 0% / .55); --focus: 0 0 0 3px hsl(159 80.2% 54.5% / .4);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: 15px; line-height: 1.45; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 6px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted-foreground); }
+.muted { color: var(--muted-foreground); }
+.small { font-size: 13px; }
+svg.lucide { width: 16px; height: 16px; stroke-width: 1.75; flex: none; }
+
+/* Barra do protótipo (fora do Pulse) */
+.proto { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--proto); color: var(--proto-fg); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--proto); }
+.proto-in { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding-block: 6px; font-size: 13px; }
+.proto-tag { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+.proto nav { display: flex; flex-wrap: wrap; gap: 2px; }
+.proto nav a { text-decoration: none; padding: 3px 9px; border-radius: 999px; opacity: .75; }
+.proto nav a[aria-current="page"] { background: var(--proto-fg); color: var(--proto); opacity: 1; font-weight: 600; }
+.proto label { opacity: .85; margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.proto select { background: transparent; border: 1px solid currentColor; border-radius: 6px; padding: 2px 6px; }
+.proto select option { color: #222; }
+
+/* Casca do Pulse */
+.shell { display: grid; grid-template-columns: 64px minmax(0, 1fr); min-height: calc(100vh - 40px); }
+.rail { border-right: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; align-items: center; gap: 6px; padding-block: 14px; }
+.rail .logo { width: 28px; height: 28px; border-radius: 8px; background: var(--primary); margin-bottom: 14px; }
+.rail span { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; color: var(--muted-foreground); }
+.rail span.on { background: var(--success-subtle); color: var(--primary); }
+.rail svg.lucide { width: 20px; height: 20px; }
+.content { min-width: 0; display: flex; flex-direction: column; }
+.apphead { display: flex; align-items: center; gap: 12px; padding-block: 14px; border-bottom: 1px solid var(--border); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); min-height: 64px; }
+.apphead h1 { font-size: 21px; margin: 0; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; }
+.apphead .sub { color: var(--muted-foreground); font-size: 16px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apphead .right { margin-left: auto; display: flex; align-items: center; gap: 16px; color: var(--muted-foreground); }
+.apphead .right svg.lucide { width: 20px; height: 20px; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--muted); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--muted-foreground); }
+main { flex: 1; padding-block: 24px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 20px; align-content: start; }
+.foot { border-top: 1px solid var(--border); padding-block: 14px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); font-size: 13px; color: var(--muted-foreground); display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.foot span:first-child { margin-right: auto; }
+
+/* Componentes */
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 8px 14px; font-weight: 500; font-size: 14px; }
+.btn:hover { background: var(--muted-soft); }
+.btn-primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+.section { padding: 18px 20px; display: grid; gap: 12px; }
+.section h3 { margin: 0; font-size: 16px; font-weight: 600; }
+
+/* Indicadores (faixa do Pulse) */
+.kpibar-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: -10px; }
+.eye { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted-foreground); border: 0; background: transparent; padding: 4px 6px; border-radius: 6px; }
+.eye:hover { color: var(--foreground); background: var(--muted-soft); }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.kpi { position: relative; padding: 14px 20px; min-width: 0; border-right: 1px solid var(--border); display: grid; gap: 2px; align-content: start; }
+.kpi:last-child { border-right: 0; }
+.khead { display: flex; align-items: center; gap: 4px; }
+.tip { position: relative; display: inline-flex; }
+.tip-btn { border: 0; background: transparent; padding: 2px; border-radius: 50%; color: var(--muted-foreground); display: inline-grid; place-items: center; }
+.tip-btn svg.lucide { width: 14px; height: 14px; }
+.tip-box { position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); width: max-content; max-width: 260px; background: var(--foreground); color: var(--background); font-size: 12.5px; line-height: 1.4; padding: 8px 10px; border-radius: 8px; box-shadow: var(--shadow-3); z-index: 15; visibility: hidden; opacity: 0; transition: opacity .12s; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.tip:hover .tip-box, .tip-btn:focus-visible + .tip-box { visibility: visible; opacity: 1; }
+.kpi:first-child .tip-box { left: -8px; transform: none; }
+.kpi:last-child .tip-box { left: auto; right: -8px; transform: none; }
+.kpi .big { font-family: var(--font-mono); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; overflow-wrap: anywhere; }
+.kpi .sub { font-size: 14px; color: var(--muted-foreground); }
+.kpi .target { font-size: 13px; color: var(--muted-foreground); }
+.bar { height: 6px; border-radius: 999px; background: var(--muted); overflow: hidden; margin-top: 6px; }
+.bar > span { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+
+/* Filtros */
+.filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch; }
+.sel { position: relative; display: flex; }
+.sel select { appearance: none; border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 11px 40px 11px 16px; font-size: 16px; min-width: 0; }
+.sel svg.lucide { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted-foreground); }
+.search { flex: 1 1 260px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 0 16px; min-width: 0; }
+.search input { border: 0; background: transparent; padding: 11px 0; font-size: 16px; flex: 1; min-width: 0; }
+.search input:focus { outline: none; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--card); }
+.seg button { border: 0; background: transparent; padding: 0 16px; font-size: 16px; font-weight: 500; color: var(--muted-foreground); }
+.seg button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted-foreground); align-items: center; margin-top: -6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 16px; height: 11px; border-radius: 3px; border: 2px solid; display: inline-block; }
+.ldot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+/* Kanban */
+.board { display: grid; grid-template-columns: repeat(4, minmax(260px, 1fr)); gap: 18px; overflow-x: auto; padding-bottom: 4px; }
+.col { background: var(--muted-soft); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; max-height: 720px; min-width: 0; }
+.col-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 13px 16px; background: var(--muted); border-radius: 12px 12px 0 0; }
+.col-head h2 { font-size: 17px; margin: 0; font-weight: 500; color: var(--muted-foreground); }
+.count { min-width: 26px; height: 26px; border-radius: 50%; background: var(--background); display: grid; place-items: center; font-size: 14px; color: var(--muted-foreground); }
+.col-rule { font-size: 12.5px; color: var(--muted-foreground); padding: 8px 16px 0; margin: 0; }
+.col-body { overflow-y: auto; padding: 10px; display: grid; gap: 10px; align-content: start; }
+.card { position: relative; text-align: left; width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 14px; display: grid; gap: 6px; }
+.card:hover { box-shadow: var(--shadow-2); }
+.card.late { border: 2px solid var(--destructive); padding: 15px 15px 13px; }
+.card.decide { border: 2px solid var(--warning); padding: 15px 15px 13px; }
+.card .name { font-size: 17px; font-weight: 500; padding-right: 34px; text-wrap: balance; }
+.bell { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; color: var(--foreground); }
+.bell svg.lucide { width: 19px; height: 19px; }
+.bell b { position: absolute; top: 1px; right: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--destructive); color: var(--card); font-size: 11px; font-weight: 700; display: grid; place-items: center; line-height: 1; box-shadow: 0 0 0 2px var(--card); }
+.meta { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--muted-foreground); min-width: 0; }
+.meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta.sm { font-size: 13px; }
+.meta.sm svg.lucide { width: 14px; height: 14px; }
+.card hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0 4px; width: 100%; }
+.recv { display: grid; gap: 4px; }
+.recv .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 15px; }
+.recv .row b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.mini { height: 6px; border-radius: 999px; background: var(--muted); overflow: hidden; }
+.mini > span { display: block; height: 100%; background: var(--primary); }
+.alert-line { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.alert-line.late { color: var(--destructive-emphasis); }
+.alert-line.decide { color: var(--warning-emphasis); }
+.empty { font-size: 14px; color: var(--muted-foreground); text-align: center; padding: 24px 8px; margin: 0; }
+.dot-ok { background: var(--primary); } .dot-warn { background: var(--warning); } .dot-bad { background: var(--destructive); } .dot-neutral { background: var(--neutral-dot); }
+
+/* Projeto */
+.ptop { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; }
+.crumb { display: flex; align-items: center; gap: 8px; }
+.crumb a { text-decoration: none; }
+.ptitle { font-size: 30px; font-weight: 700; margin: 6px 0 0; letter-spacing: -.015em; text-wrap: balance; }
+.pmeta { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-top: 10px; font-size: 16px; color: var(--muted-foreground); }
+.pmeta span { display: inline-flex; align-items: center; gap: 8px; }
+.pmeta span:first-child { color: var(--foreground); }
+.stepper { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.step { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-foreground); display: inline-flex; align-items: center; gap: 6px; padding: 5px 0; }
+.step::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--neutral-dot); }
+.step.done { color: var(--primary); }
+.step.done::before { display: none; }
+.step.on { background: var(--primary); color: var(--primary-foreground); padding: 5px 14px; border-radius: 999px; }
+.step.on::before { background: var(--primary-foreground); }
+.sep { width: 26px; height: 1px; background: var(--border); }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px 26px; border-bottom: 1px solid var(--border); }
+.tab { font-size: 16px; padding: 12px 2px; color: var(--muted-foreground); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab.on { color: var(--primary); border-color: var(--primary); font-weight: 500; }
+.tab.off { text-decoration: line-through; opacity: .5; }
+.split { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
+.railp { padding: 14px; display: grid; gap: 4px; }
+.rail-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; border: 0; background: transparent; text-align: left; width: 100%; }
+.rail-item:hover:not([disabled]) { background: var(--muted-soft); }
+.check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); flex: none; display: grid; place-items: center; color: var(--primary-foreground); }
+.check.on { background: var(--primary); border-color: var(--primary); }
+.check svg.lucide { width: 13px; height: 13px; stroke-width: 3; }
+.rail-item .t { display: grid; }
+.rail-item small { color: var(--muted-foreground); font-size: 13px; }
+table.cmp { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.cmp th { text-align: right; font-weight: 600; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-foreground); padding: 8px; border-bottom: 1px solid var(--border); }
+table.cmp th:first-child, table.cmp td:first-child { text-align: left; }
+table.cmp td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+table.cmp td:first-child { font-family: var(--font-sans); }
+table.cmp tr.total td { font-weight: 700; border-bottom: 0; }
+.scroll-x { overflow-x: auto; }
+.callout { border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; }
+.callout p { margin: 0; }
+.callout-warn { background: var(--warning-subtle); color: var(--warning-emphasis); }
+.callout-bad { background: var(--destructive-subtle); color: var(--destructive-emphasis); }
+.callout-ok { background: var(--success-subtle); color: var(--success-emphasis); }
+.callout-info { background: var(--info-subtle); color: var(--info-emphasis); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.range { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.range input { flex: 1 1 200px; accent-color: var(--primary); }
+.deliv { display: grid; gap: 8px; }
+.deliv label { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; }
+.deliv input { width: 18px; height: 18px; accent-color: var(--primary); }
+.pend { display: grid; gap: 8px; }
+.pend-item { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 14px; border-radius: 8px; border-left: 4px solid; background: var(--muted-soft); }
+.pend-item.late { border-color: var(--destructive); }
+.pend-item.decide { border-color: var(--warning); }
+.pend-item.info { border-color: var(--info-emphasis); }
+.pend-item .grow { flex: 1 1 260px; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.stat { padding: 18px 20px; display: grid; gap: 4px; }
+.stat .big { font-family: var(--font-mono); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.matrix td, .matrix th { text-align: center; font-family: var(--font-sans); }
+.matrix td:first-child { text-align: left; }
+.yes { color: var(--success-emphasis); font-weight: 600; }
+.no { color: var(--muted-foreground); }
+.cond { color: var(--warning-emphasis); font-weight: 600; }
+.form { display: grid; gap: 16px; max-width: 560px; }
+.form label { display: grid; gap: 6px; font-weight: 500; }
+.form input { border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+.form small { color: var(--muted-foreground); font-weight: 400; }
+
+/* Projeto em planejamento: dados do projeto, só as abas que se planejam e o checklist sempre à direita */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.since { margin: 8px 0 0; font-size: 15px; color: var(--muted-foreground); }
+.btn-ghost { border-color: transparent; background: transparent; color: var(--muted-foreground); padding: 6px 8px; }
+.btn-ghost:hover { color: var(--foreground); }
+.btn-block { width: 100%; justify-content: center; }
+.btn[disabled]:hover { background: var(--card); } .btn-primary[disabled]:hover { background: var(--primary); }
+.icon-btn { border: 0; background: transparent; color: var(--muted-foreground); width: 32px; height: 32px; border-radius: 6px; display: inline-grid; place-items: center; flex: none; }
+.icon-btn:hover { background: var(--muted-soft); color: var(--destructive-emphasis); }
+.tag { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--muted); color: var(--muted-foreground); white-space: nowrap; }
+.pdata-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 20px; border-bottom: 1px solid var(--border); }
+.pdata-head h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.pdata-wrap { overflow: hidden; }
+.pdata { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 0 -1px -1px 0; }
+.pdata > div { padding: 14px 20px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-width: 0; display: grid; gap: 3px; align-content: start; }
+.pdata dt { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-foreground); display: flex; align-items: center; gap: 6px; }
+.pdata dt svg.lucide { width: 14px; height: 14px; }
+.pdata dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.pdata dd small { display: block; font-weight: 400; color: var(--muted-foreground); font-size: 13px; }
+.pdata .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+.tipwrap { position: relative; text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.tipbox { position: absolute; left: 0; top: calc(100% + 6px); width: max-content; background: var(--foreground); color: var(--background); font-family: var(--font-mono); font-size: 12.5px; font-weight: 400; line-height: 1.6; padding: 8px 10px; border-radius: 8px; box-shadow: var(--shadow-3); z-index: 15; visibility: hidden; opacity: 0; transition: opacity .12s; }
+.tipwrap:hover .tipbox, .tipwrap:focus-visible .tipbox { visibility: visible; opacity: 1; }
+.work { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+.ptabs { display: flex; gap: 4px 26px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.ptab { font-size: 16px; padding: 12px 2px; color: var(--muted-foreground); border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: transparent; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.ptab:hover { color: var(--foreground); }
+.ptab[aria-selected="true"] { color: var(--primary); border-color: var(--primary); font-weight: 500; }
+.ptab .tdot { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; background: var(--primary); color: var(--primary-foreground); }
+.ptab .tdot svg.lucide { width: 11px; height: 11px; stroke-width: 3; }
+.ppanel { padding-top: 20px; display: grid; gap: 16px; }
+.intro { margin: 0; color: var(--muted-foreground); max-width: 70ch; }
+.intro b { color: var(--foreground); font-weight: 600; }
+.list { display: grid; }
+.li { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--border); min-width: 0; }
+.li:first-child { border-top: 0; }
+.li .grow { flex: 1 1 auto; min-width: 0; display: grid; gap: 1px; }
+.li .grow span:first-child { font-weight: 500; overflow-wrap: anywhere; }
+.li .grow small { color: var(--muted-foreground); font-size: 13px; }
+.li .val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.li .when { font-family: var(--font-mono); font-size: 13px; color: var(--muted-foreground); white-space: nowrap; min-width: 86px; }
+.li.none { color: var(--muted-foreground); justify-content: center; padding: 22px 20px; font-size: 14px; }
+.list-foot { display: flex; justify-content: space-between; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--muted-soft); font-size: 14px; flex-wrap: wrap; }
+.list-foot b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.addform { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 14px 20px; border-top: 1px solid var(--border); background: var(--muted-soft); }
+.addform:last-child { border-radius: 0 0 12px 12px; }
+.fld { display: grid; gap: 4px; font-size: 13px; font-weight: 500; flex: 1 1 160px; min-width: 0; }
+.fld.wide { flex: 3 1 260px; }
+.fld.narrow { flex: 0 1 130px; }
+.fld input, .fld select, .hours { border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 8px 10px; font-size: 15px; font-weight: 400; min-width: 0; width: 100%; }
+.err { margin: 0; padding: 0 20px 12px; color: var(--destructive-emphasis); font-size: 13px; font-weight: 500; background: var(--muted-soft); }
+.hours-cell { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; }
+.hours { width: 76px; text-align: right; font-family: var(--font-mono); padding: 6px 8px; }
+.okr { padding: 16px 20px; border-top: 1px solid var(--border); display: grid; gap: 8px; }
+.okr:first-child { border-top: 0; }
+.okr-head { display: flex; align-items: flex-start; gap: 10px; }
+.okr-head .grow { flex: 1; font-weight: 600; overflow-wrap: anywhere; }
+.okr ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.okr li { display: flex; align-items: center; gap: 8px; font-size: 14px; padding-left: 2px; }
+.okr li::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); flex: none; }
+.okr li span { flex: 1; overflow-wrap: anywhere; }
+.okr .nokr { font-size: 13px; color: var(--warning-emphasis); font-weight: 500; }
+.okr form { display: flex; gap: 8px; }
+.okr form input { flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 6px 10px; font-size: 14px; }
+.okr .icon-btn { width: 28px; height: 28px; }
+.ck { position: sticky; top: 52px; display: grid; }
+.ck-top { padding: 16px 18px 12px; display: grid; gap: 8px; }
+.ck-top h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.ck-top .bar { margin-top: 0; }
+.ck-top .bar > span { transition: width .3s ease; }
+.ck-group { padding: 4px 8px 8px; display: grid; gap: 2px; }
+.ck-group .label { padding: 8px 10px 4px; font-size: 11px; }
+.ck-item { display: flex; align-items: flex-start; gap: 12px; padding: 9px 10px; border-radius: 8px; border: 0; background: transparent; text-align: left; width: 100%; }
+.ck-item:hover { background: var(--muted-soft); }
+.ck-item[aria-current="true"] { background: var(--muted); }
+.ck-item .check { border-color: var(--neutral-dot); margin-top: 1px; transition: background .2s, border-color .2s; }
+.ck-item .check.opt { border-style: dashed; }
+.ck-item .check.on { border-color: var(--primary); border-style: solid; }
+.ck-item .t { display: grid; min-width: 0; }
+.ck-item .t span { font-weight: 500; }
+.ck-item small { color: var(--muted-foreground); font-size: 13px; }
+.ck-item.just small { color: var(--success-emphasis); font-weight: 500; }
+.ck-sec { border-top: 1px solid var(--border); padding: 14px 18px; display: grid; gap: 10px; }
+table.res { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.res th { text-align: right; font-weight: 600; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-foreground); padding: 0 0 6px; }
+table.res th:first-child, table.res td:first-child { text-align: left; }
+table.res td { padding: 4px 0; text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+table.res td:first-child { font-family: var(--font-sans); color: var(--muted-foreground); }
+table.res tr.total td { font-weight: 700; border-top: 1px solid var(--border); padding-top: 8px; color: var(--foreground); }
+.worse { color: var(--warning-emphasis); }
+.ck-cta { border-top: 1px solid var(--border); padding: 14px 18px 16px; display: grid; gap: 10px; }
+.ck-cta p { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+.ck-cta p b { color: var(--foreground); }
+.ck-cta .callout { padding: 12px 14px; font-size: 14px; }
+.dialog ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.dialog li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.dialog li svg.lucide { margin-top: 2px; }
+.dialog li.ok svg.lucide { color: var(--success-emphasis); }
+.dialog li.pend svg.lucide { color: var(--warning-emphasis); }
+.proto .scen[hidden] { display: none; }
+@media (max-width: 1100px) { .work { grid-template-columns: minmax(0, 1fr); } .ck { position: static; order: -1; } .ck-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .ck-groups { grid-template-columns: minmax(0, 1fr); } .li { flex-wrap: wrap; padding-inline: 16px; } .addform, .okr, .pdata > div { padding-inline: 16px; } }
+
+/* Diálogo e aviso */
+.overlay { position: fixed; inset: 0; background: var(--overlay); display: grid; place-items: center; z-index: 50; padding: 16px; }
+.dialog { background: var(--card); border-radius: 12px; box-shadow: var(--shadow-3); max-width: 500px; width: 100%; padding: 22px; display: grid; gap: 12px; }
+.dialog h2 { margin: 0; font-size: 18px; }
+.dialog p { margin: 0; }
+.toast { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--foreground); color: var(--background); padding: 11px 15px; border-radius: 8px; box-shadow: var(--shadow-3); z-index: 60; max-width: min(440px, calc(100vw - 32px)); font-size: 14px; }
+
+@media (max-width: 1100px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi:nth-child(2) { border-right: 0; } .kpi:nth-child(-n+2) { border-bottom: 1px solid var(--border); } .split { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 700px) {
+  .shell { grid-template-columns: minmax(0, 1fr); } .rail { display: none; }
+  .kpis, .grid2, .grid3 { grid-template-columns: minmax(0, 1fr); } .kpi { border-right: 0; border-bottom: 1px solid var(--border); }
+  .apphead .sub { display: none; } .proto label { margin-left: 0; } .ptitle { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="proto">
+  <div class="proto-in">
+    <span class="proto-tag">Protótipo · dados de exemplo · hoje 23/11/2026</span>
+    <nav aria-label="Telas do protótipo">
+      <a href="#portfolio">Portfólio</a>
+      <a href="#planejamento">Projeto em planejamento</a>
+      <a href="#execucao">Em Entrega de Valor</a>
+      <a href="#encerramento">Em Encerramento</a>
+      <a href="#membro">Visão do membro</a>
+      <a href="#permissoes">Permissões</a>
+      <a href="#metas">Configurações · metas</a>
+    </nav>
+    <label for="role">Ver como
+      <select id="role">
+        <option value="gp">GP do projeto (Victor)</option>
+        <option value="admin">Admin de projetos</option>
+        <option value="gerente">Gerente de outro projeto</option>
+        <option value="membro">Membro da equipe</option>
+      </select>
+    </label>
+    <label for="scenario" class="scen" style="margin-left:0" hidden>Exemplo
+      <select id="scenario">
+        <option value="inicio">Começando o planejamento</option>
+        <option value="pronto">Obrigatórios prontos</option>
+        <option value="acima">Equipe acima do orçado</option>
+      </select>
+    </label>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Menu do Pulse">
+    <i class="logo" aria-hidden="true"></i>
+    <span title="Dashboard"><i data-lucide="layout-grid"></i></span>
+    <span title="Meu Espaço"><i data-lucide="user"></i></span>
+    <span title="Comercial"><i data-lucide="kanban"></i></span>
+    <span class="on" title="Projetos"><i data-lucide="folder-kanban"></i></span>
+    <span title="Análises"><i data-lucide="bar-chart-3"></i></span>
+    <span title="Financeiro"><i data-lucide="wallet"></i></span>
+    <span title="Clientes"><i data-lucide="building-2"></i></span>
+    <span title="Pessoas"><i data-lucide="users"></i></span>
+    <span title="Ponto Eletrônico"><i data-lucide="timer"></i></span>
+    <span title="Configurações"><i data-lucide="settings"></i></span>
+    <span title="Ajuda"><i data-lucide="help-circle"></i></span>
+  </nav>
+  <div class="content">
+    <header class="apphead">
+      <h1 id="ttl"></h1><span class="sub" id="sub"></span>
+      <div class="right"><i data-lucide="bell"></i><i data-lucide="pen-square"></i><span class="avatar" aria-hidden="true">VC</span></div>
+    </header>
+    <main id="app" aria-live="polite"></main>
+    <footer class="foot"><span>© 2026 Origami Lab. Todos os direitos reservados.</span><span>Termos de uso</span><span>Privacidade</span><span>Ajuda</span></footer>
+  </div>
+</div>
+<div id="layer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+<script>
+(function () {
+  const TODAY = '2026-11-23';
+  const ME = 'Victor Couto';
+  const state = { role: 'gp', hide: false, year: '2026', scope: 'mine', q: '', plan: null, close: null, openId: 'compete',
+    // Metas do portfólio: provisórias em Configurações até virem da Estratégia.
+    goals: { '2026': { revenue: 900000, margin: 50 }, '2025': { revenue: 400000, margin: 50 } } };
+
+  const BRL = (v) => state.hide ? 'R$ •••' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const PCT = (v) => state.hide ? '•••' : `${v.toFixed(1).replace('.', ',')}%`;
+  const BR = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+  const BR2 = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(2, 4)}`;
+  const MY = (d) => `${['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][Number(d.slice(5, 7)) - 1]}/${d.slice(0, 4)}`;
+  const days = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+  const addDays = (d, n) => new Date(Date.parse(d) + n * 86400000).toISOString().slice(0, 10);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const I = (n) => `<i data-lucide="${n}"></i>`;
+
+  // Projetos de exemplo. stage: planejamento | entrega | concluido (Encerramento é derivado da data).
+  const projects = [
+    { id: 'portal', name: 'Portal do Cliente', client: 'Acme Logística', gp: ME, line: 'Product Studio', stage: 'planejamento', start: '2026-12-01', end: '2027-05-31', contract: 120000, forecast: null, target: 55, ready: 3, inst: [['2026-12-10', 20000, 'pendente'], ['2027-02-10', 50000, 'pendente'], ['2027-05-10', 50000, 'pendente']] },
+    { id: 'syngular', name: 'Lei do Bem Syngular', client: 'Syngular Id', gp: 'Aline Ferreira Almeida', line: 'Financiamento de Inovação', stage: 'planejamento', start: '2026-10-26', end: '2030-08-02', contract: 96000, forecast: null, target: 55, ready: 4, inst: [['2027-01-10', 24000, 'pendente']] },
+    { id: 'notas', name: 'Projeto Envio de Notas e Boletos', client: 'UNIFOR-MG', gp: 'Italo Cesar Castro', line: 'Programa de Inovação', stage: 'planejamento', start: '2026-10-05', end: '2027-03-30', contract: 64000, forecast: null, target: 55, ready: 1, stale: true, inst: [['2026-12-15', 16000, 'pendente']] },
+    { id: 'compete', name: 'Compete Minas', client: 'FAPEMIG', gp: ME, line: 'Financiamento de Inovação', stage: 'entrega', start: '2026-10-23', end: '2028-10-23', contract: 143400, forecast: 61, target: 55, inst: [['2026-11-10', 12000, 'vencida'], ['2026-12-10', 12000, 'pendente']] },
+    { id: 'avante', name: 'Lei do Bem Avante', client: 'Avante Soluções Digitais', gp: 'Aline Ferreira Almeida', line: 'Financiamento de Inovação', stage: 'entrega', start: '2026-10-27', end: '2027-01-02', contract: 8672.59, forecast: 52, target: 55, renewal: null, inst: [['2026-11-05', 8672.59, 'recebida']] },
+    { id: 'tecno', name: 'TecnoFlow', client: 'Tecno2000 Indústria e Comércio', gp: ME, line: 'Product Studio', stage: 'entrega', start: '2026-05-01', end: '2026-12-31', contract: 105000, forecast: 38, target: 55, renewal: null, inst: [['2026-06-10', 50000, 'recebida'], ['2026-09-10', 50000, 'recebida'], ['2026-12-10', 5000, 'pendente']] },
+    { id: 'rumo', name: 'Rumo Digital', client: 'Cooperativa Rumo', gp: 'Italo Cesar Castro', line: 'Product Studio', stage: 'entrega', start: '2026-03-02', end: '2027-03-01', contract: 210000, forecast: 58, target: 55, inst: [['2026-04-10', 70000, 'recebida'], ['2026-08-10', 70000, 'recebida'], ['2027-02-10', 70000, 'pendente']] },
+    { id: 'agro', name: 'AgroDados', client: 'Agro Sul', gp: ME, line: 'Programa de Inovação', stage: 'entrega', start: '2026-02-01', end: '2027-01-31', contract: 180000, forecast: 57, target: 55, inst: [['2026-03-10', 60000, 'recebida'], ['2026-07-10', 60000, 'recebida'], ['2026-11-10', 60000, 'vencida']] },
+    { id: 'paraiso', name: 'Projeto Fator S | UFLA (Paraíso)', client: 'SEBRAE-MG', gp: ME, line: 'Programa de Inovação', stage: 'entrega', start: '2026-10-19', end: '2026-11-17', contract: 10179, forecast: 53.3, target: 55, renewal: null, inst: [['2026-11-10', 10179, 'vencida']] },
+    { id: 'retifica', name: 'Cobrança Automática', client: 'Retífica Formiguense', gp: 'Italo Cesar Castro', line: 'Product Studio', stage: 'concluido', start: '2026-01-15', end: '2026-08-30', doneAt: '2026-09-05', contract: 32640, forecast: 61, target: 55, inst: [['2026-04-10', 16320, 'recebida'], ['2026-08-10', 16320, 'recebida']] },
+    { id: 'crm', name: 'Origami CRM', client: 'Origami Lab', gp: 'Guilherme Valadares Pereira', line: 'Ventures', stage: 'concluido', start: '2026-06-26', end: '2026-12-26', doneAt: '2026-10-30', contract: 0, forecast: null, target: 55, inst: [] },
+    { id: 'velho', name: 'Mapa de Oportunidades', client: 'Haoma', gp: ME, line: 'Consultoria', stage: 'concluido', start: '2025-03-01', end: '2025-09-30', doneAt: '2025-10-06', contract: 48000, forecast: 59, target: 55, inst: [['2025-05-10', 24000, 'recebida'], ['2025-09-10', 24000, 'recebida']] },
+  ];
+  const byId = (id) => projects.find((x) => x.id === id);
+
+  const toneOf = (p) => {
+    if (p.forecast == null) return 'neutral';
+    if (p.forecast >= p.target) return 'ok';
+    return p.target - p.forecast <= p.target * 0.1 ? 'warn' : 'bad';
+  };
+  const TONE = { ok: 'na meta', warn: 'até 10% abaixo da meta', bad: 'mais de 10% abaixo da meta', neutral: 'sem forecast' };
+  const columnOf = (p) => {
+    if (p.stage === 'planejamento') return 'planejamento';
+    if (p.stage === 'concluido') return 'concluido';
+    return days(TODAY, p.end) <= 20 ? 'encerramento' : 'entrega';
+  };
+  const received = (p) => p.inst.filter((i) => i[2] === 'recebida').reduce((s, i) => s + i[1], 0);
+  const renewalOpen = (p) => p.stage === 'entrega' && p.renewal == null && days(TODAY, p.end) <= 45;
+  const delivDue = (p) => addDays(p.end, 7);
+  // Custo projetado no fim, derivado do forecast: receita × (1 − margem) (sem comissão no exemplo).
+  const projectedCost = (p) => p.forecast == null ? null : p.contract * (1 - p.forecast / 100);
+
+  // Pendências: "late" = algo atrasado (borda vermelha); "decide" = decisão pendente (borda âmbar).
+  function alertsOf(p) {
+    if (p.stage === 'concluido') return [];
+    const list = [];
+    p.inst.filter((i) => i[2] === 'vencida').forEach((i) => list.push({ level: 'late', text: `Parcela de ${BR(i[0])} vencida há ${days(i[0], TODAY)} dias (${BRL(i[1])})`, action: 'Registrar recebimento', go: 'execucao' }));
+    if (p.stage === 'planejamento' && p.stale) list.push({ level: 'late', text: 'Planejamento parado há mais de 30 dias', action: 'Abrir o planejamento', go: 'planejamento' });
+    if (p.stage === 'planejamento' && p.sentForApproval) list.push({ level: 'decide', text: 'Planejamento abaixo do orçado aguardando aprovação do admin', action: 'Ver orçado × planejado', go: 'planejamento' });
+    if (columnOf(p) === 'encerramento' && TODAY > p.end) {
+      const due = delivDue(p);
+      list.push({ level: TODAY > due ? 'late' : 'decide', text: `Entregáveis de encerramento (OKRs, value book e case) até ${BR(due)}`, action: 'Ver entregáveis', go: 'encerramento' });
+    }
+    if (renewalOpen(p)) list.push({ level: 'decide', text: `Decidir a renovação: o projeto termina em ${BR(p.end)}`, action: 'Decidir renovação', go: columnOf(p) === 'encerramento' ? 'encerramento' : 'renovacao' });
+    const tone = toneOf(p);
+    if ((tone === 'warn' || tone === 'bad') && can.finance(p)) list.push({ level: tone === 'bad' ? 'late' : 'decide', text: `Margem projetada de ${PCT(p.forecast)} contra a meta de ${p.target}% (${TONE[tone]})`, action: 'Ver Financeiro', go: 'financeiro' });
+    return list;
+  }
+  const alertLevel = (p) => { const a = alertsOf(p); return a.some((x) => x.level === 'late') ? 'late' : a.length ? 'decide' : ''; };
+
+  // Permissões (decisão 4 de 23/11/2026).
+  const isGpOf = (p) => state.role === 'gp' && p.gp === ME;
+  const can = {
+    portfolio: () => state.role !== 'membro',
+    edit: (p) => state.role === 'admin' || (isGpOf(p) && p.stage !== 'concluido'),
+    finance: (p) => state.role === 'admin' || state.role === 'gerente' || isGpOf(p),
+    approve: () => state.role === 'admin',
+  };
+
+  // ---------- Portfólio ----------
+  function viewPortfolio() {
+    if (!can.portfolio()) {
+      return `<div class="panel section"><h3>Sem acesso ao portfólio</h3><p class="muted" style="margin:0">O membro da equipe vê os projetos em que está alocado em Meu Espaço, sem dados financeiros. Veja a tela "Visão do membro".</p></div>`;
+    }
+    const y = state.year;
+    const scoped = projects.filter((p) => state.scope === 'all' || p.gp === ME)
+      .filter((p) => !state.q || (p.name + p.client + p.gp).toLowerCase().includes(state.q.toLowerCase()));
+    const active = scoped.filter((p) => p.stage !== 'concluido');
+    const carteira = active.reduce((s, p) => s + p.contract, 0);
+    const aFaturar = active.reduce((s, p) => s + p.contract - received(p), 0);
+    const instY = scoped.flatMap((p) => p.inst).filter((i) => i[0].startsWith(y));
+    const prevY = instY.reduce((s, i) => s + i[1], 0);
+    const recY = instY.filter((i) => i[2] === 'recebida').reduce((s, i) => s + i[1], 0);
+    const goal = state.goals[y] || { revenue: 0, margin: 0 };
+    // Margem bruta do portfólio: (receita − custo projetado) ÷ receita dos projetos ativos com forecast.
+    const withF = active.filter((p) => p.forecast != null && p.contract > 0);
+    const revF = withF.reduce((s, p) => s + p.contract, 0);
+    const costF = withF.reduce((s, p) => s + projectedCost(p), 0);
+    const pmargin = revF ? (revF - costF) / revF * 100 : 0;
+    const inTarget = withF.filter((p) => toneOf(p) === 'ok').length;
+    const mTone = pmargin >= goal.margin ? 'ok' : goal.margin - pmargin <= goal.margin * 0.1 ? 'warn' : 'bad';
+    const revTone = prevY >= goal.revenue ? 'ok' : prevY >= goal.revenue * 0.9 ? 'warn' : 'bad';
+    const TONE_COLOR = { ok: 'var(--success-emphasis)', warn: 'var(--warning-emphasis)', bad: 'var(--destructive-emphasis)' };
+    const mColor = TONE_COLOR[mTone];
+    const revColor = TONE_COLOR[revTone];
+    const revPct = goal.revenue ? Math.round(prevY / goal.revenue * 100) : 0;
+    const recPct = prevY ? Math.round(recY / prevY * 100) : 0;
+    // Rótulo do indicador com um "i" que abre a explicação (passar o mouse ou focar).
+    const kpiHead = (label, id, tip) => `<span class="khead"><span class="label">${label}</span><span class="tip"><button type="button" class="tip-btn" aria-label="Sobre ${label}" aria-describedby="${id}">${I('info')}</button><span class="tip-box" role="tooltip" id="${id}">${tip}</span></span></span>`;
+
+    const cols = [
+      ['planejamento', 'Planejamento', 'Sai com o planejamento mínimo pronto e o ok do GP ou do admin.'],
+      ['entrega', 'Entrega de Valor', 'Os que pedem atenção aparecem primeiro.'],
+      ['encerramento', 'Encerramento', 'Últimos 20 dias e a semana dos entregáveis.'],
+      ['concluido', 'Concluído', `Concluídos em ${y}.`],
+    ];
+    const rank = (p) => ({ late: 0, decide: 1, '': 2 }[alertLevel(p)]) - alertsOf(p).length / 10;
+    const board = cols.map(([key, title, rule]) => {
+      let list = scoped.filter((p) => columnOf(p) === key);
+      if (key === 'concluido') list = list.filter((p) => (p.doneAt || '').startsWith(y));
+      list.sort((a, b) => rank(a) - rank(b) || a.end.localeCompare(b.end));
+      return `<section class="col" aria-label="${title}">
+        <div class="col-head"><h2>${title}</h2><span class="count">${list.length}</span></div>
+        <p class="col-rule">${rule}</p>
+        <div class="col-body">${list.map(card).join('') || '<p class="empty">Nenhum projeto</p>'}</div>
+      </section>`;
+    }).join('');
+
+    return `
+      <div class="kpibar-top"><span class="label">${state.scope === 'mine' ? 'Meus projetos' : 'Todos os projetos'} · ${y}</span>
+        <button class="eye" id="eye" aria-pressed="${state.hide}">${I(state.hide ? 'eye' : 'eye-off')}${state.hide ? 'Mostrar valores' : 'Ocultar valores'}</button></div>
+      <section class="panel kpis" aria-label="Indicadores do portfólio">
+        <div class="kpi">${kpiHead('Carteira ativa', 'k1', `Contrato total dos projetos em Planejamento, Entrega de Valor e Encerramento. Não depende do ano.`)}<span class="big">${BRL(carteira)}</span>
+          <span class="sub">${active.length} projetos em andamento</span></div>
+        <div class="kpi">${kpiHead(`Receita esperada em ${y}`, 'k2', `Parcelas que vencem em ${y}. Meta do ano: ${BRL(goal.revenue)}, definida em Configurações (depois virá da Estratégia).`)}<span class="big">${BRL(prevY)}</span>
+          <span class="sub" style="color:${revColor};font-weight:600">${state.hide ? '•••' : revPct + '%'} da meta</span></div>
+        <div class="kpi">${kpiHead(`Recebido em ${y}`, 'k3', `Das parcelas que vencem em ${y}, as já recebidas. Ainda falta receber ${BRL(prevY - recY)} em ${y}.`)}<span class="big">${BRL(recY)}</span>
+          <span class="sub">${state.hide ? '•••' : recPct + '%'} do esperado</span></div>
+        <div class="kpi">${kpiHead('Margem bruta do portfólio', 'k4', `Receita menos custo projetado dos projetos ativos, ponderada pelo valor de cada um. ${inTarget} de ${withF.length} projetos estão na meta de margem deles.`)}<span class="big" style="color:${mColor}">${PCT(pmargin)}</span>
+          <span class="sub">meta ${state.hide ? '•••' : goal.margin + '%'}</span></div>
+      </section>
+      <div class="filters" role="search">
+        <label class="sel"><span class="sr" hidden>Ano</span><select id="year" aria-label="Ano"><option${y === '2026' ? ' selected' : ''}>2026</option><option${y === '2025' ? ' selected' : ''}>2025</option></select>${I('chevron-down')}</label>
+        <div class="seg" role="group" aria-label="Alcance">
+          <button data-scope="mine" aria-pressed="${state.scope === 'mine'}">Meus projetos</button>
+          <button data-scope="all" aria-pressed="${state.scope === 'all'}">Todos</button>
+        </div>
+        <label class="sel"><select aria-label="Cliente"><option>Todos os clientes</option></select>${I('chevron-down')}</label>
+        <label class="sel"><select aria-label="Linha de serviço"><option>Todas as linhas</option></select>${I('chevron-down')}</label>
+        <label class="search">${I('search')}<input id="q" type="search" placeholder="Buscar por projeto, cliente ou GP..." value="${esc(state.q)}" aria-label="Buscar"></label>
+      </div>
+      <div class="board">${board}</div>`;
+  }
+
+  function card(p) {
+    const col = columnOf(p);
+    const tone = toneOf(p);
+    const rec = received(p);
+    const pct = p.contract ? Math.round(rec / p.contract * 100) : 0;
+    const alerts = alertsOf(p);
+    let when = `${BR2(p.start)} → ${BR2(p.end)}`;
+    if (col === 'planejamento') when += ` · ${p.id === 'portal' ? planReqDone() : p.ready} de 4 obrigatórios`;
+    if (col === 'encerramento') { const left = days(TODAY, p.end); when = left >= 0 ? `termina em ${left} dias (${BR2(p.end)})` : `terminou em ${BR2(p.end)}`; }
+    const target = col === 'planejamento' ? 'planejamento' : col === 'encerramento' ? 'encerramento' : 'execucao';
+    const n = alerts.length;
+    const bellTitle = n ? `${n} ${n === 1 ? 'pendência' : 'pendências'}: ${alerts.map((a) => a.text).join('; ')}` : '';
+    return `<button class="card" data-open="${target}" data-id="${p.id}" aria-label="Abrir ${esc(p.name)}${n ? '. ' + esc(bellTitle) : ''}">
+      ${n ? `<span class="bell" title="${esc(bellTitle)}">${I('bell')}<b>${n}</b></span>` : ''}
+      <span class="name">${esc(p.name)}</span>
+      <span class="meta">${I('building-2')}<span>${esc(p.client)}</span></span>
+      <span class="meta">${I('user')}<span>${esc(p.gp)}</span></span>
+      <span class="meta">${I('layers')}<span>${esc(p.line)}</span></span>
+      <hr>
+      ${p.contract ? `<span class="recv"><span class="label">Recebimento</span><span class="row"><b>${BRL(rec)}</b><span class="muted">${state.hide ? '•••' : pct + '%'}</span></span><span class="mini"><span style="width:${pct}%"></span></span></span>` : '<span class="muted small">Sem receita</span>'}
+      <span class="meta sm">${I('calendar')}<span>${when}</span></span>
+    </button>`;
+  }
+
+  // Painel do topo da Visão Geral: o que o card sinalizou, com a ação de cada item.
+  function pendingPanel(p) {
+    const items = alertsOf(p).map((a) => `<div class="pend-item ${a.level}"><span class="grow"><b>${a.level === 'late' ? 'Fora do planejado' : 'Requer atenção'}:</b> ${a.text}</span>${can.edit(p) ? `<button class="btn" data-go="${a.go}" data-id="${p.id}">${a.action}</button>` : '<span class="small muted">Só o GP ou o admin resolvem.</span>'}</div>`);
+    if (!items.length) return `<div class="callout callout-ok"><p><b>Nada pendente neste projeto.</b></p></div>`;
+    return `<section class="panel section" aria-label="Pendências e decisões"><h3>Pendências e decisões</h3><div class="pend">${items.join('')}</div></section>`;
+  }
+
+  // ---------- Projeto: cabeçalho comum (como o Pulse) ----------
+  function head(p, stepOn, crumbRoot = 'Portfólio', metaHtml = null) {
+    const steps = ['Planejamento', 'Entrega de Valor', 'Encerramento', 'Concluído'];
+    const idx = steps.indexOf(stepOn);
+    const stepper = steps.map((s, i) => `<span class="step ${i < idx ? 'done' : i === idx ? 'on' : ''}">${i < idx ? I('check') : ''}${s}</span>`).join('<i class="sep"></i>');
+    return `<div class="ptop">
+        <div style="min-width:0"><div class="crumb label"><a href="#${crumbRoot === 'Portfólio' ? 'portfolio' : 'membro'}">${crumbRoot}</a>${I('chevron-right')}<span>${esc(p.name)}</span></div>
+          <h2 class="ptitle">${esc(p.name)}</h2>
+          ${metaHtml || `<div class="pmeta"><span>${I('building-2')}${esc(p.client)}</span><span>${I('user')}${esc(p.gp)}</span><span>${I('calendar')}${MY(p.start)} - ${MY(p.end)}</span></div>`}</div>
+        <div class="stepper" aria-label="Fase do projeto">${stepper}</div>
+      </div>`;
+  }
+  const tabsRow = (tabs, on, off = []) => `<div class="tabs" role="tablist">${tabs.map((t) => `<span class="tab ${t === on ? 'on' : ''}">${t}</span>`).join('')}${off.map((t) => `<span class="tab off" title="Não aparece para o membro">${t}</span>`).join('')}</div>`;
+
+  // ---------- Planejamento ----------
+  // O que vem da venda (Oportunidade ganha + orçamento). Receita e comissão não mudam no planejamento.
+  const PLAN = {
+    months: 6, wonAt: '2026-11-18', budgetRef: 'ORC-0142 · versão 3', since: '2026-11-19',
+    budget: { revenue: 120000, commission: 6000, labor: 52000, costs: 8000 },
+    // Custo hora fica só no cálculo; a tela mostra o total da equipe, não o custo de cada pessoa.
+    people: [
+      { id: 'victor', name: 'Victor Couto', role: 'Gerente do projeto', rate: 160 },
+      { id: 'ana', name: 'Ana Souza', role: 'Consultora', rate: 120 },
+      { id: 'bruno', name: 'Bruno Lima', role: 'Analista', rate: 85 },
+      { id: 'carla', name: 'Carla Mendes', role: 'Designer', rate: 110 },
+      { id: 'diego', name: 'Diego Rocha', role: 'Desenvolvedor', rate: 130 },
+    ],
+    monthsList: [['2026-12', 'dez/2026'], ['2027-01', 'jan/2027'], ['2027-02', 'fev/2027'], ['2027-03', 'mar/2027'], ['2027-04', 'abr/2027'], ['2027-05', 'mai/2027']],
+    costCats: ['Fornecedor', 'Licença ou software', 'Viagem', 'Material', 'Outro'],
+    shRoles: ['Patrocinador', 'Ponto focal', 'Usuário-chave', 'Aprovador'],
+  };
+  let seq = 100;
+  const nid = () => ++seq;
+  const OKR1 = () => ({ id: nid(), text: 'Clientes da Acme acompanham as próprias entregas sem ligar para a central', krs: [{ id: nid(), text: '70% dos clientes ativos usando o portal em 90 dias' }, { id: nid(), text: 'Ligações para a central caem 40% até mai/2027' }] });
+  const PLAN_SCENARIOS = {
+    inicio: () => ({ okrs: [OKR1()], milestones: [], team: [], costs: [], stakeholders: [] }),
+    pronto: () => ({
+      okrs: [OKR1(), { id: nid(), text: 'Equipe de atendimento da Acme resolve chamados mais rápido', krs: [{ id: nid(), text: 'Tempo médio de resposta abaixo de 4 h' }] }],
+      milestones: [{ id: nid(), name: 'Descoberta e protótipo aprovados', date: '2027-01-15' }, { id: nid(), name: 'Primeira versão no ar para 20 clientes', date: '2027-03-31' }, { id: nid(), name: 'Portal aberto a todos os clientes', date: '2027-05-20' }],
+      team: [{ pid: 'victor', hpm: 16 }, { pid: 'ana', hpm: 30 }, { pid: 'diego', hpm: 24 }],
+      costs: [], stakeholders: [{ id: nid(), name: 'Marina Lopes', cargo: 'Diretora de atendimento', papel: 'Patrocinador' }],
+    }),
+  };
+  PLAN_SCENARIOS.acima = () => { const s = PLAN_SCENARIOS.pronto(); s.team = [{ pid: 'victor', hpm: 20 }, { pid: 'ana', hpm: 40 }, { pid: 'diego', hpm: 40 }]; s.costs = [{ id: nid(), desc: 'Hospedagem e banco de dados', cat: 'Licença ou software', month: '2026-12', value: 4800 }]; return s; };
+
+  function planState() {
+    if (!state.plan) state.plan = { tab: 'objetivos', approval: null, done: false, err: null, justDone: null, d: PLAN_SCENARIOS.inicio() };
+    return state.plan;
+  }
+  const person = (pid) => PLAN.people.find((x) => x.id === pid);
+  const NUM = (v) => v.toLocaleString('pt-BR');
+  const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+  const monthLabel = (m) => (PLAN.monthsList.find((x) => x[0] === m) || [m, m])[1];
+  const planEditable = () => can.edit(byId('portal')) && !planState().done;
+
+  function planNumbers() {
+    const d = planState().d;
+    const B = PLAN.budget;
+    const hours = d.team.reduce((s, t) => s + t.hpm * PLAN.months, 0);
+    const labor = d.team.reduce((s, t) => s + t.hpm * PLAN.months * person(t.pid).rate, 0);
+    const costs = d.costs.reduce((s, c) => s + c.value, 0);
+    const res = (o) => o.revenue - o.commission - o.labor - o.costs;
+    const planned = { revenue: B.revenue, commission: B.commission, labor, costs };
+    return { hours, labor, costs, resB: res(B), resP: res(planned), mgB: res(B) / B.revenue * 100, mgP: res(planned) / B.revenue * 100 };
+  }
+
+  // Checklist: derivado do que foi preenchido nas abas, nunca marcado à mão.
+  function planChecklist() {
+    const d = planState().d;
+    const n = planNumbers();
+    const krs = d.okrs.reduce((s, o) => s + o.krs.length, 0);
+    const withoutKr = d.okrs.filter((o) => o.krs.length === 0).length;
+    const people = d.team.filter((t) => t.hpm > 0).length;
+    const last = d.milestones.map((m) => m.date).sort().pop();
+    return [
+      { k: 'objetivos', label: 'Objetivos', req: true, done: d.okrs.some((o) => o.krs.length > 0),
+        sub: d.okrs.length === 0 ? 'Pelo menos 1 objetivo com 1 resultado-chave'
+          : krs === 0 ? `${plural(d.okrs.length, 'objetivo', 'objetivos')} sem resultado-chave`
+          : `${plural(d.okrs.length, 'objetivo', 'objetivos')} · ${plural(krs, 'resultado-chave', 'resultados-chave')}${withoutKr ? ` · ${withoutKr} sem KR` : ''}` },
+      { k: 'roadmap', label: 'Roadmap', req: true, done: d.milestones.length > 0,
+        sub: d.milestones.length === 0 ? 'Pelo menos 1 marco dentro do período' : `${plural(d.milestones.length, 'marco', 'marcos')} · último em ${BR(last)}` },
+      { k: 'equipe', label: 'Equipe', req: true, done: people > 0,
+        sub: people === 0 ? 'Pelo menos 1 pessoa com horas' : `${plural(people, 'pessoa', 'pessoas')} · ${NUM(n.hours)} h no período` },
+      { k: 'stakeholders', label: 'Stakeholders', req: true, done: d.stakeholders.length > 0,
+        sub: d.stakeholders.length === 0 ? 'Pelo menos 1 pessoa do cliente' : `${plural(d.stakeholders.length, 'pessoa', 'pessoas')} da Acme` },
+      { k: 'custos', label: 'Custos', req: false, done: d.costs.length > 0,
+        sub: d.costs.length === 0 ? 'Fornecedores, licenças, viagens…' : `${plural(d.costs.length, 'custo', 'custos')} · ${BRL(n.costs)}` },
+    ];
+  }
+  const planReqDone = () => planChecklist().filter((i) => i.req && i.done).length;
+
+  function viewPlanning() {
+    const p = byId('portal');
+    if (state.role === 'membro') return memberBlocked();
+    const s = planState();
+    p.sentForApproval = s.approval === 'sent';
+    const items = planChecklist();
+    const since = s.done ? 'Entrou em Entrega de Valor hoje, 23/11/2026' : `Em planejamento há ${days(PLAN.since, TODAY)} dias · começa em ${BR(p.start)}`;
+    return `${head(p, s.done ? 'Entrega de Valor' : 'Planejamento', 'Portfólio', `<p class="since">${since}</p>`)}
+      ${planData(p)}
+      <div class="work">${planTabs(items)}${planChecklistView(items)}</div>`;
+  }
+
+  // Dados do projeto: o que veio da venda, só leitura no planejamento.
+  function planData(p) {
+    const instList = p.inst.map(([d, v]) => `${BR2(d)} · ${BRL(v)}`).join('<br>');
+    return `<section class="panel pdata-wrap" aria-labelledby="pdata-t">
+      <div class="pdata-head"><h3 id="pdata-t">Dados do projeto</h3>
+        <div class="actions">
+          <button class="eye" id="eye" aria-pressed="${state.hide}">${I(state.hide ? 'eye' : 'eye-off')}${state.hide ? 'Mostrar valores' : 'Ocultar valores'}</button>
+          ${planEditable() ? `<button class="btn btn-ghost" id="edit-data">${I('pencil')}Editar</button>` : ''}
+        </div></div>
+      <dl class="pdata">
+        <div><dt>${I('building-2')}Cliente</dt><dd>${esc(p.client)}</dd></div>
+        <div><dt>${I('user')}Gerente do projeto</dt><dd>${esc(p.gp)}</dd></div>
+        <div><dt>${I('layers')}Linha de serviço</dt><dd>${esc(p.line)}</dd></div>
+        <div><dt>${I('calendar')}Período</dt><dd>${BR(p.start)} a ${BR(p.end)}<small>${PLAN.months} meses</small></dd></div>
+        <div><dt>${I('file-signature')}Valor do contrato</dt><dd class="num">${BRL(p.contract)}</dd></div>
+        <div><dt>${I('receipt')}Recebimento</dt><dd><span class="tipwrap" tabindex="0" aria-describedby="inst-tip">${p.inst.length} parcelas<span class="tipbox" role="tooltip" id="inst-tip">${instList}</span></span><small>1ª em ${BR(p.inst[0][0])}</small></dd></div>
+        <div><dt>${I('handshake')}Origem</dt><dd>Ganha em ${BR(PLAN.wonAt)}<small>${esc(PLAN.budgetRef)}</small></dd></div>
+      </dl>
+    </section>`;
+  }
+
+  // Abas: só o que se planeja, na ordem em que se pensa o projeto.
+  const PLAN_TABS = [['objetivos', 'Objetivos'], ['roadmap', 'Roadmap'], ['equipe', 'Equipe'], ['stakeholders', 'Stakeholders'], ['custos', 'Custos']];
+  function planTabs(items) {
+    const s = planState();
+    const done = Object.fromEntries(items.map((i) => [i.k, i.done]));
+    const tabs = PLAN_TABS.map(([k, t]) => `<button class="ptab" role="tab" id="ptab-${k}" aria-controls="ppanel" aria-selected="${s.tab === k}" tabindex="${s.tab === k ? 0 : -1}" data-ptab="${k}">${t}${done[k] ? `<span class="tdot" aria-label="preenchido">${I('check')}</span>` : ''}</button>`).join('');
+    const panels = { objetivos: tabObjetivos, roadmap: tabRoadmap, equipe: tabEquipe, custos: tabCustos, stakeholders: tabStakeholders };
+    return `<div><div class="ptabs" role="tablist" aria-label="O que planejar">${tabs}</div>
+      <div class="ppanel" role="tabpanel" id="ppanel" aria-labelledby="ptab-${s.tab}">${panels[s.tab]()}</div></div>`;
+  }
+  const errFor = (f) => { const e = planState().err; return e && e.form === f ? `<p class="err" role="alert">${esc(e.msg)}</p>` : ''; };
+  const delBtn = (kind, id, what) => planEditable() ? `<button class="icon-btn" data-del="${kind}" data-id="${id}" aria-label="Remover ${esc(what)}">${I('x')}</button>` : '';
+  const readNote = () => planEditable() ? '' : `<div class="callout callout-info"><p>${planState().done ? 'Planejamento concluído. Mudanças daqui em diante ficam registradas como replanejamento.' : 'Você só lê este planejamento. Quem edita é o GP do projeto ou o admin.'}</p></div>`;
+
+  function tabObjetivos() {
+    const d = planState().d;
+    const err = planState().err;
+    const list = d.okrs.length ? d.okrs.map((o) => `<div class="okr">
+        <div class="okr-head"><span class="grow">${esc(o.text)}</span>${delBtn('okr', o.id, 'objetivo')}</div>
+        ${o.krs.length ? `<ul>${o.krs.map((k) => `<li><span>${esc(k.text)}</span>${delBtn('kr', k.id, 'resultado-chave')}</li>`).join('')}</ul>` : '<span class="nokr">Sem resultado-chave: o objetivo só conta com pelo menos 1.</span>'}
+        ${planEditable() ? `<form data-form="kr" data-okr="${o.id}"><label class="sr" for="kr-${o.id}">Novo resultado-chave</label><input id="kr-${o.id}" name="text" placeholder="Novo resultado-chave (como medir que deu certo)"><button class="btn" type="submit">${I('plus')}Adicionar</button></form>` : ''}
+        ${err && err.form === 'kr' && err.okr === o.id ? `<p class="err" role="alert" style="padding:0;background:none">${esc(err.msg)}</p>` : ''}
+      </div>`).join('') : '<div class="li none">Nenhum objetivo ainda.</div>';
+    return `<p class="intro"><b>Por que este projeto existe.</b> Escreva o resultado que o cliente quer e como vocês vão medir. No encerramento, é isto que se apresenta ao cliente.</p>
+      ${readNote()}
+      <section class="panel">${list}
+        ${planEditable() ? `<form class="addform" data-form="okr"><label class="fld wide">Novo objetivo<input name="text" placeholder="Ex.: Reduzir o tempo de faturamento da Acme"></label><button class="btn btn-primary" type="submit">${I('plus')}Adicionar objetivo</button></form>${errFor('okr')}` : ''}
+      </section>`;
+  }
+
+  function tabRoadmap() {
+    const p = byId('portal');
+    const ms = [...planState().d.milestones].sort((a, b) => a.date.localeCompare(b.date));
+    const list = ms.length ? ms.map((m) => `<div class="li"><span class="when">${BR(m.date)}</span><span class="grow"><span>${esc(m.name)}</span></span>${delBtn('ms', m.id, 'marco')}</div>`).join('') : '<div class="li none">Nenhum marco ainda.</div>';
+    return `<p class="intro"><b>Quando cada entrega acontece.</b> Marque as entregas que o cliente reconhece, dentro do período do projeto (${BR(p.start)} a ${BR(p.end)}).</p>
+      ${readNote()}
+      <section class="panel"><div class="list">${list}</div>
+        ${planEditable() ? `<form class="addform" data-form="ms"><label class="fld wide">Marco<input name="name" placeholder="Ex.: Protótipo aprovado pelo cliente"></label><label class="fld narrow">Data<input name="date" type="date" min="${p.start}" max="${p.end}"></label><button class="btn btn-primary" type="submit">${I('plus')}Adicionar marco</button></form>${errFor('ms')}` : ''}
+      </section>`;
+  }
+
+  function tabEquipe() {
+    const n = planNumbers();
+    const team = planState().d.team;
+    const ed = planEditable();
+    const avail = PLAN.people.filter((x) => !team.some((t) => t.pid === x.id));
+    const list = team.length ? team.map((t) => {
+      const pp = person(t.pid);
+      return `<div class="li"><span class="grow"><span>${esc(pp.name)}</span><small>${esc(pp.role)}</small></span>
+        <span class="hours-cell">${ed ? `<label class="sr" for="h-${t.pid}">Horas por mês de ${esc(pp.name)}</label><input class="hours" id="h-${t.pid}" type="number" min="0" max="176" step="1" inputmode="numeric" data-hpm="${t.pid}" value="${t.hpm}">` : `<b class="mono">${t.hpm}</b>`} h/mês</span>
+        <span class="val muted small" style="min-width:64px;text-align:right">${NUM(t.hpm * PLAN.months)} h</span>${delBtn('team', t.pid, pp.name)}</div>`;
+    }).join('') : '<div class="li none">Ninguém na equipe ainda.</div>';
+    return `<p class="intro"><b>Quem trabalha e quanto.</b> Informe as horas por mês de cada pessoa; o custo da equipe é calculado com o custo hora de cada uma e entra no resultado planejado ao lado.</p>
+      ${readNote()}
+      <section class="panel"><div class="list">${list}</div>
+        <div class="list-foot"><span>${plural(team.filter((t) => t.hpm > 0).length, 'pessoa', 'pessoas')} · <b>${NUM(n.hours)} h</b> em ${PLAN.months} meses</span><span>Custo da equipe <b>${BRL(n.labor)}</b> <span class="muted">· orçado ${BRL(PLAN.budget.labor)}</span></span></div>
+        ${ed && avail.length ? `<form class="addform" data-form="team"><label class="fld wide">Pessoa<select name="pid">${avail.map((x) => `<option value="${x.id}">${esc(x.name)} · ${esc(x.role)}</option>`).join('')}</select></label><label class="fld narrow">Horas por mês<input name="hpm" type="number" min="1" max="176" inputmode="numeric" placeholder="Ex.: 20"></label><button class="btn btn-primary" type="submit">${I('plus')}Adicionar à equipe</button></form>${errFor('team')}` : ''}
+      </section>`;
+  }
+
+  function tabCustos() {
+    const n = planNumbers();
+    const B = PLAN.budget;
+    const cs = [...planState().d.costs].sort((a, b) => a.month.localeCompare(b.month));
+    const list = cs.length ? cs.map((c) => `<div class="li"><span class="when">${monthLabel(c.month)}</span><span class="grow"><span>${esc(c.desc)}</span><small>${esc(c.cat)}</small></span><span class="val">${BRL(c.value)}</span>${delBtn('cost', c.id, c.desc)}</div>`).join('') : '<div class="li none">Nenhum custo informado. Se o projeto não tem custo além da equipe, não precisa fazer nada aqui.</div>';
+    return `<p class="intro"><b>O que o projeto gasta além da equipe.</b> Fornecedores, licenças, viagens e materiais, no mês em que acontecem. É opcional: preencha só se existir.</p>
+      ${readNote()}
+      ${B.costs > 0 && !cs.length ? `<div class="callout callout-warn"><p>O orçamento vendido previa <b>${BRL(B.costs)}</b> de custos. Se eles continuam valendo, informe aqui; senão o resultado planejado fica melhor do que o real.</p></div>` : ''}
+      <section class="panel"><div class="list">${list}</div>
+        ${cs.length ? `<div class="list-foot"><span>${plural(cs.length, 'custo', 'custos')}</span><span>Total <b>${BRL(n.costs)}</b> <span class="muted">· orçado ${BRL(B.costs)}</span></span></div>` : ''}
+        ${planEditable() ? `<form class="addform" data-form="cost"><label class="fld wide">Descrição<input name="desc" placeholder="Ex.: Licença do serviço de mapas"></label><label class="fld">Tipo<select name="cat">${PLAN.costCats.map((c) => `<option>${c}</option>`).join('')}</select></label><label class="fld narrow">Mês<select name="month">${PLAN.monthsList.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label><label class="fld narrow">Valor (R$)<input name="value" inputmode="decimal" placeholder="0,00"></label><button class="btn btn-primary" type="submit">${I('plus')}Adicionar custo</button></form>${errFor('cost')}` : ''}
+      </section>`;
+  }
+
+  function tabStakeholders() {
+    const p = byId('portal');
+    const sh = planState().d.stakeholders;
+    const list = sh.length ? sh.map((x) => `<div class="li"><span class="grow"><span>${esc(x.name)}</span><small>${esc(x.cargo || 'Cargo não informado')}</small></span><span class="tag">${esc(x.papel)}</span>${delBtn('sh', x.id, x.name)}</div>`).join('') : '<div class="li none">Nenhum stakeholder informado.</div>';
+    return `<p class="intro"><b>Quem é quem na ${esc(p.client)}.</b> Patrocinador, ponto focal e quem aprova as entregas. A pessoa fica no cadastro do cliente e serve para os próximos projetos também.</p>
+      ${readNote()}
+      <section class="panel"><div class="list">${list}</div>
+        ${planEditable() ? `<form class="addform" data-form="sh"><label class="fld">Nome<input name="name" placeholder="Nome da pessoa"></label><label class="fld">Cargo<input name="cargo" placeholder="Ex.: Diretora de operações"></label><label class="fld narrow">Papel no projeto<select name="papel">${PLAN.shRoles.map((r) => `<option>${r}</option>`).join('')}</select></label><button class="btn btn-primary" type="submit">${I('plus')}Adicionar</button></form>${errFor('sh')}` : ''}
+      </section>`;
+  }
+
+  // Checklist sempre presente: atualiza enquanto a pessoa preenche as abas.
+  function planChecklistView(items) {
+    const s = planState();
+    const n = planNumbers();
+    const B = PLAN.budget;
+    const req = items.filter((i) => i.req);
+    const opt = items.filter((i) => !i.req);
+    const reqDone = req.filter((i) => i.done).length;
+    const allReq = reqDone === req.length;
+    const below = n.resP < n.resB;
+    const ed = planEditable();
+    const item = (i) => `<button class="ck-item ${s.justDone === i.k ? 'just' : ''}" data-ptab="${i.k}" aria-current="${s.tab === i.k}">
+        <span class="check ${i.done ? 'on' : ''} ${i.req ? '' : 'opt'}" aria-hidden="true">${i.done ? I('check') : ''}</span>
+        <span class="t"><span>${i.label}<span class="sr">${i.done ? ' — preenchido' : i.req ? ' — pendente' : ' — opcional, não informado'}</span></span><small>${s.justDone === i.k ? 'Pronto · ' : ''}${esc(i.sub)}</small></span></button>`;
+    const cell = (v, worse) => `<td class="${worse ? 'worse' : ''}">${BRL(v)}</td>`;
+
+    let cta;
+    if (s.done) {
+      cta = `<div class="callout callout-ok"><p><b>Planejamento concluído.</b> O projeto está em Entrega de Valor e passa a comparar o planejado com o executado.</p></div><button class="btn btn-block" data-go="execucao" data-id="portal">Ver o projeto em Entrega de Valor</button>`;
+    } else if (!ed) {
+      cta = `<p>${allReq ? 'Obrigatórios prontos.' : `Faltam ${req.length - reqDone} obrigatórios.`} Quem conclui é o GP do projeto ou o admin.</p>`;
+    } else if (!allReq) {
+      cta = `<button class="btn btn-primary btn-block" disabled>Concluir planejamento</button>`;
+    } else if (below && s.approval !== 'approved') {
+      if (s.approval === 'sent') {
+        cta = can.approve()
+          ? `<p><b>O GP pediu aprovação.</b> O resultado planejado ficou ${BRL(n.resB - n.resP)} abaixo do orçado.</p><button class="btn btn-primary btn-block" id="approve">Aprovar e concluir</button><button class="btn btn-block" id="reject">Devolver ao GP</button>`
+          : `<div class="callout callout-warn"><p><b>Aguardando o admin.</b> Você pode continuar ajustando: se o resultado voltar ao orçado, conclui sem aprovação.</p></div>`;
+      } else {
+        cta = `<div class="callout callout-warn"><p>O resultado planejado está <b>${BRL(n.resB - n.resP)}</b> abaixo do orçado. Ajuste a equipe ou os custos, ou peça a aprovação do admin.</p></div><button class="btn btn-primary btn-block" id="send">Pedir aprovação do admin</button>`;
+      }
+    } else {
+      cta = `<button class="btn btn-primary btn-block" id="finish">Concluir planejamento</button>`;
+    }
+
+    return `<aside class="panel ck" aria-label="Checklist do planejamento">
+      <div class="ck-top"><span class="label">Checklist do planejamento</span>
+        <h2>${reqDone} de ${req.length} obrigatórios</h2>
+        <div class="bar" role="progressbar" aria-label="Obrigatórios concluídos" aria-valuemin="0" aria-valuemax="${req.length}" aria-valuenow="${reqDone}"><span style="width:${reqDone / req.length * 100}%"></span></div></div>
+      <div class="ck-groups">
+        <div class="ck-group"><span class="label">Obrigatórios</span>${req.map(item).join('')}</div>
+        <div class="ck-group"><span class="label">Opcionais · informe se houver</span>${opt.map(item).join('')}</div>
+      </div>
+      <div class="ck-sec"><span class="label">Resultado planejado</span>
+        <table class="res"><thead><tr><th scope="col"><span class="sr">Linha</span></th><th scope="col">Orçado</th><th scope="col">Planejado</th></tr></thead><tbody>
+          <tr><td>Equipe</td><td>${BRL(B.labor)}</td>${cell(n.labor, n.labor > B.labor)}</tr>
+          <tr><td>Custos</td><td>${BRL(B.costs)}</td>${cell(n.costs, n.costs > B.costs)}</tr>
+          <tr class="total"><td>Resultado</td><td>${BRL(n.resB)}</td>${cell(n.resP, below)}</tr>
+          <tr><td>Margem</td><td>${PCT(n.mgB)}</td><td class="${below ? 'worse' : ''}">${PCT(n.mgP)}</td></tr>
+        </tbody></table></div>
+      <div class="ck-cta">${cta}</div>
+    </aside>`;
+  }
+
+  // Item que acabou de ficar pronto ganha um "Pronto ·" por alguns segundos: o retorno de que o checklist acompanhou.
+  function planAfterChange(before, focusSel) {
+    const s = planState();
+    const flipped = planChecklist().find((i) => i.done && !before.find((b) => b.k === i.k).done);
+    s.justDone = flipped ? flipped.k : null;
+    if (flipped) setTimeout(() => { if (s.justDone === flipped.k) { s.justDone = null; if (current() === 'planejamento') render(); } }, 2600);
+    render();
+    if (focusSel) document.querySelector(focusSel)?.focus();
+  }
+
+  function planFinishDialog(asAdmin) {
+    const s = planState();
+    const items = planChecklist();
+    const n = planNumbers();
+    const B = PLAN.budget;
+    const optEmpty = items.filter((i) => !i.req && !i.done);
+    const lines = items.map((i) => {
+      if (i.done) return `<li class="ok">${I('check-circle-2')}<span><b>${i.label}</b> · ${esc(i.sub)}</span></li>`;
+      const why = i.k === 'custos'
+        ? (B.costs > 0 ? `nenhum informado. O orçamento previa ${BRL(B.costs)}; sem eles, o planejado considera só a equipe.` : 'nenhum informado. O planejado considera só a equipe.')
+        : 'nenhum informado.';
+      return `<li class="pend">${I('circle-dashed')}<span><b>${i.label}</b> · ${why}</span></li>`;
+    }).join('');
+    const body = `<p>O projeto vai para <b>Entrega de Valor</b> com resultado planejado de <b>${BRL(n.resP)}</b> (margem ${PCT(n.mgP)})${asAdmin ? ', abaixo do orçado, com a sua aprovação' : ''}.</p>
+      <ul>${lines}</ul>
+      ${optEmpty.length ? `<p class="small muted">${optEmpty.length === 1 ? 'O item opcional acima ficou vazio' : 'Os itens opcionais acima ficaram vazios'}. Confirme que o projeto não tem ${optEmpty.map((i) => i.label.toLowerCase()).join(' nem ')}, ou volte para informar.</p>` : ''}
+      <p class="small muted">A equipe passa a lançar horas e é avisada no sistema. Mudanças no planejamento daqui em diante ficam registradas como replanejamento.</p>`;
+    const okLabel = optEmpty.length ? 'Confirmar e concluir' : (asAdmin ? 'Aprovar e concluir' : 'Concluir planejamento');
+    dialog('Concluir o planejamento?', body, okLabel, () => {
+      s.done = true; if (asAdmin) s.approval = 'approved';
+      const p = byId('portal'); p.stage = 'entrega'; p.forecast = Math.round(n.mgP * 10) / 10; p.ready = 4; p.sentForApproval = false;
+      toast('Portal do Cliente está em Entrega de Valor. A equipe foi avisada.'); render();
+    }, optEmpty.length ? `Informar ${optEmpty[0].label.toLowerCase()}` : 'Voltar', optEmpty.length ? () => { s.tab = optEmpty[0].k; render(); document.getElementById(`ptab-${optEmpty[0].k}`)?.focus(); } : null);
+  }
+
+  function planSubmit(f) {
+    const s = planState(); const d = s.d; const p = byId('portal');
+    const kind = f.dataset.form; const v = (n) => (f.elements[n]?.value || '').trim();
+    const before = planChecklist();
+    const fail = (msg, extra = {}) => { s.err = { form: kind, msg, ...extra }; render(); document.querySelector(`[data-form="${kind}"]${extra.okr ? `[data-okr="${extra.okr}"]` : ''} input`)?.focus(); };
+    if (kind === 'okr') {
+      if (!v('text')) return fail('Escreva o objetivo.');
+      const o = { id: nid(), text: v('text'), krs: [] }; d.okrs.push(o);
+      s.err = null; planAfterChange(before, `#kr-${o.id}`); toast('Objetivo adicionado. Agora o resultado-chave dele.'); return;
+    }
+    if (kind === 'kr') {
+      const okr = Number(f.dataset.okr);
+      if (!v('text')) return fail('Escreva o resultado-chave.', { okr });
+      d.okrs.find((o) => o.id === okr).krs.push({ id: nid(), text: v('text') });
+      s.err = null; planAfterChange(before, `#kr-${okr}`); return;
+    }
+    if (kind === 'ms') {
+      if (!v('name')) return fail('Dê um nome ao marco.');
+      if (!v('date')) return fail('Informe a data do marco.');
+      if (v('date') < p.start || v('date') > p.end) return fail(`A data precisa estar dentro do período do projeto (${BR(p.start)} a ${BR(p.end)}).`);
+      d.milestones.push({ id: nid(), name: v('name'), date: v('date') });
+    }
+    if (kind === 'team') {
+      const h = Math.round(Number(v('hpm')));
+      if (!(h > 0 && h <= 176)) return fail('Informe as horas por mês, entre 1 e 176.');
+      d.team.push({ pid: v('pid'), hpm: h });
+    }
+    if (kind === 'cost') {
+      const val = Number(v('value').replace(/\./g, '').replace(',', '.'));
+      if (!v('desc')) return fail('Descreva o custo.');
+      if (!(val > 0)) return fail('Informe um valor maior que zero.');
+      d.costs.push({ id: nid(), desc: v('desc'), cat: v('cat'), month: v('month'), value: val });
+    }
+    if (kind === 'sh') {
+      if (!v('name')) return fail('Informe o nome da pessoa.');
+      d.stakeholders.push({ id: nid(), name: v('name'), cargo: v('cargo'), papel: v('papel') });
+    }
+    s.err = null; planAfterChange(before, `[data-form="${kind}"] input, [data-form="${kind}"] select`);
+  }
+
+  function planDelete(kind, id) {
+    const d = planState().d; const before = planChecklist();
+    if (kind === 'okr') d.okrs = d.okrs.filter((o) => String(o.id) !== id);
+    if (kind === 'kr') d.okrs.forEach((o) => { o.krs = o.krs.filter((x) => String(x.id) !== id); });
+    if (kind === 'ms') d.milestones = d.milestones.filter((x) => String(x.id) !== id);
+    if (kind === 'team') d.team = d.team.filter((x) => x.pid !== id);
+    if (kind === 'cost') d.costs = d.costs.filter((x) => String(x.id) !== id);
+    if (kind === 'sh') d.stakeholders = d.stakeholders.filter((x) => String(x.id) !== id);
+    planAfterChange(before);
+  }
+
+  // ---------- Entrega de Valor: Visão Geral com pendências ----------
+  function viewExecution() {
+    if (state.role === 'membro') return viewMember();
+    let p = byId(state.openId);
+    if (!p || columnOf(p) !== 'entrega') p = byId('compete');
+    const fin = can.finance(p);
+    const tone = toneOf(p);
+    return `${head(p, 'Entrega de Valor')}
+      ${tabsRow(['Visão Geral', 'Objetivos', 'Roadmap', 'Equipe', 'Custos', 'Financeiro', 'Stakeholders', 'Atividades', 'Arquivos', 'E-mails', 'Reuniões'], 'Visão Geral')}
+      ${pendingPanel(p)}
+      ${fin ? `<div class="grid3">
+        <div class="panel stat"><span class="label">Custo planejado</span><span class="big">${BRL(p.contract * 0.45)}</span><span class="small muted">aprovado ao concluir o planejamento</span></div>
+        <div class="panel stat"><span class="label">Custo executado</span><span class="big">${BRL(p.contract * 0.12)}</span><span class="small muted">medido desde ${BR(p.start)}</span></div>
+        <div class="panel stat"><span class="label">Forecast · fim do projeto</span><span class="big" style="color:${{ ok: 'var(--success-emphasis)', warn: 'var(--warning-emphasis)', bad: 'var(--destructive-emphasis)', neutral: 'inherit' }[tone]}">${p.forecast == null ? '—' : PCT(p.forecast)}</span><span class="small muted">meta ${p.target}% · ${TONE[tone]}</span></div>
+      </div>` : ''}
+      <p class="small muted" style="margin:0">Na Entrega de Valor o projeto compara o planejado com o executado; o orçado fica como referência do planejamento. ${can.edit(p) ? 'Você pode editar este projeto.' : 'Você só lê este projeto.'}</p>`;
+  }
+
+  // ---------- Encerramento ----------
+  function closeState() {
+    if (!state.close) state.close = { deliv: [false, false, false], concluded: false };
+    return state.close;
+  }
+  function viewClosing() {
+    const p = byId('paraiso');
+    if (state.role === 'membro') return memberBlocked();
+    const s = closeState();
+    const editable = can.edit(p) && !s.concluded;
+    const due = delivDue(p);
+    const left = days(TODAY, due);
+    const all = s.deliv.every(Boolean);
+    const names = ['Apresentação dos resultados (OKRs) ao cliente', 'Value book do projeto', 'Case interno do projeto'];
+    const renewal = p.renewal == null
+      ? `<section class="panel section"><h3>Este projeto vai ter continuidade?</h3>
+          <p class="muted small" style="margin:0">O aviso vai ao GP 45 dias antes do fim. Para projetos com menos de 45 dias, como este, o aviso vai no início. Vale para conta Âncora, Ponte ou Satélite.</p>
+          <div class="actions"><button class="btn btn-primary" data-renew="op" ${editable ? '' : 'disabled'}>Abrir Oportunidade de renovação</button><button class="btn" data-renew="end" ${editable ? '' : 'disabled'}>Confirmar que encerra</button></div></section>`
+      : p.renewal === 'op'
+        ? `<div class="callout callout-ok"><p><b>Oportunidade de renovação aberta</b> para SEBRAE-MG no Pipeline da Prospecção, com o GP como responsável.</p></div>`
+        : `<div class="callout callout-info"><p><b>Encerramento confirmado pelo GP.</b> Nenhuma Oportunidade de renovação foi aberta.</p></div>`;
+
+    return `${head(p, s.concluded ? 'Concluído' : 'Encerramento')}
+      ${tabsRow(['Visão Geral', 'Objetivos', 'Roadmap', 'Equipe', 'Custos', 'Financeiro', 'Stakeholders', 'Atividades', 'Arquivos', 'E-mails', 'Reuniões'], 'Visão Geral')}
+      ${s.concluded ? '' : pendingPanel(p)}
+      ${s.concluded ? '' : renewal}
+      <section class="panel section"><h3>Entregáveis de encerramento · ${s.deliv.filter(Boolean).length} de 3</h3>
+        <p class="small muted" style="margin:0">Obrigatórios para concluir. Prazo: ${BR(due)}, uma semana depois da data de fim (${left === 1 ? 'amanhã' : left >= 0 ? `em ${left} dias` : `há ${-left} dias`}).</p>
+        <div class="deliv">${names.map((n, i) => `<label><input type="checkbox" data-deliv="${i}" ${s.deliv[i] ? 'checked' : ''} ${editable ? '' : 'disabled'}><span>${n}</span></label>`).join('')}</div>
+        ${s.concluded
+          ? `<div class="callout callout-ok"><p><b>Projeto concluído em 23/11/2026.</b> Daqui em diante só o admin edita ou reabre.</p></div>`
+          : `<div class="actions"><button class="btn btn-primary" id="conclude" ${editable && all ? '' : 'disabled'}>Concluir projeto</button><span class="small muted">${!can.edit(p) ? 'Só o GP do projeto ou o admin concluem.' : all ? 'Tudo pronto.' : 'Marque os três entregáveis para concluir.'}</span></div>`}
+      </section>`;
+  }
+
+  // ---------- Membro ----------
+  function memberBlocked() {
+    return `<div class="panel section"><h3>Tela do GP e do admin</h3><p class="muted" style="margin:0">Com o papel "Membro da equipe", veja a tela "Visão do membro": é o que a pessoa alocada enxerga de um projeto.</p></div>`;
+  }
+  function viewMember() {
+    const p = byId('compete');
+    return `${head(p, 'Entrega de Valor', 'Meus projetos')}
+      ${tabsRow(['Visão Geral', 'Objetivos', 'Roadmap', 'Equipe', 'Stakeholders', 'Atividades', 'Arquivos', 'E-mails', 'Reuniões'], 'Visão Geral', ['Custos', 'Financeiro'])}
+      <div class="grid2">
+        <section class="panel section"><h3>O projeto</h3>
+          <p style="margin:0">Aumentar a competitividade de 40 empresas mineiras com diagnóstico e plano de inovação.</p>
+          <p class="small muted" style="margin:0">Fase: Entrega de Valor · termina em ${BR(p.end)}</p>
+          <h3>Próximos marcos</h3>
+          <p style="margin:0" class="small">12/12 · Diagnóstico das 10 primeiras empresas<br>20/02 · Relatório do 1º ciclo</p></section>
+        <section class="panel section"><h3>Minhas horas no projeto</h3>
+          <div class="grid2"><div><span class="label">Nov/26 planejado</span><div class="mono" style="font-size:22px;font-weight:600">40 h</div></div><div><span class="label">Nov/26 lançado</span><div class="mono" style="font-size:22px;font-weight:600">26 h</div></div></div>
+          <h3>Equipe</h3><p class="small" style="margin:0">Victor Couto · GP<br>Ana Souza · Consultora (você)<br>Bruno Lima · Analista</p>
+          <p class="small muted" style="margin:0">O membro vê quem está na equipe e o papel de cada um, mas não as horas nem o custo dos outros.</p></section>
+      </div>
+      <section class="panel section"><h3>O que o membro não vê</h3>
+        <p class="small" style="margin:0">Valor do contrato, parcelas e recebimentos, comissão, custo da equipe e custo/hora (inclusive o próprio), custos, margem, forecast, P&amp;L e orçamento. Também não acessa o portfólio.</p></section>`;
+  }
+
+  // ---------- Permissões ----------
+  function viewPermissions() {
+    const Y = '<span class="yes">sim</span>', N = '<span class="no">não</span>';
+    const C = (t) => `<span class="cond">${t}</span>`;
+    const rows = [
+      ['Ver o portfólio', Y, Y, Y, N],
+      ['Ver dados financeiros do projeto', Y, Y, Y, N],
+      ['Editar o planejamento (objetivos, roadmap, equipe, custos, stakeholders)', Y, N, Y, N],
+      ['Concluir o planejamento', C('se dentro do orçado'), N, Y, N],
+      ['Aprovar planejamento abaixo do orçado', N, N, Y, N],
+      ['Editar dados do projeto em execução', Y, N, Y, N],
+      ['Decidir renovação (abrir Oportunidade ou confirmar encerramento)', Y, N, Y, N],
+      ['Concluir o projeto', C('com os 3 entregáveis'), N, C('com os 3 entregáveis'), N],
+      ['Editar ou reabrir projeto concluído', N, N, Y, N],
+      ['Excluir projeto', N, N, C('só sem lançamentos; senão arquiva'), N],
+      ['Ver objetivos, roadmap, equipe, atividades, arquivos, reuniões', Y, Y, Y, Y],
+      ['Lançar as próprias horas', Y, N, Y, Y],
+      ['Definir metas do portfólio (receita do ano, margem bruta)', N, N, Y, N],
+    ];
+    return `<section class="panel section"><div class="scroll-x"><table class="cmp matrix">
+        <thead><tr><th>Ação</th><th>GP do projeto</th><th>Gerente de outro projeto</th><th>Admin de projetos</th><th>Membro da equipe</th></tr></thead>
+        <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div>
+      <p class="small muted" style="margin:0">Fases: Planejamento → Entrega de Valor → Encerramento → Concluído. Ninguém arrasta card entre colunas: a fase muda por ação no projeto (concluir planejamento, concluir projeto) ou pela data (Encerramento nos últimos 20 dias).</p></section>`;
+  }
+
+  // ---------- Configurações: metas ----------
+  function viewGoals() {
+    const g = state.goals[state.year];
+    const admin = state.role === 'admin';
+    return `<section class="panel section"><h3>Metas do portfólio · ${state.year}</h3>
+      <div class="callout callout-info"><p>Provisório: estas metas vão passar a vir da Estratégia quando ela estiver no Pulse. A meta de margem de cada projeto continua nas configurações financeiras (55%, com vigência).</p></div>
+      <form class="form" id="goals">
+        <label>Meta de receita do ano<input id="g-rev" inputmode="decimal" value="${g.revenue.toLocaleString('pt-BR')}" ${admin ? '' : 'disabled'}><small>Comparada com a receita esperada no ano (parcelas que vencem no ano).</small></label>
+        <label>Meta de margem bruta do portfólio (%)<input id="g-mg" inputmode="decimal" value="${g.margin}" ${admin ? '' : 'disabled'}><small>Comparada com (receita − custo projetado) ÷ receita dos projetos ativos.</small></label>
+        <div class="actions"><button class="btn btn-primary" type="submit" ${admin ? '' : 'disabled'}>Salvar metas</button>${admin ? '' : '<span class="small muted">Só o admin define as metas.</span>'}</div>
+      </form></section>`;
+  }
+
+  // ---------- Infra ----------
+  const VIEWS = {
+    portfolio: [viewPortfolio, 'Portfólio de Projetos', 'Projetos em execução, receita do ano e margem do portfólio.'],
+    planejamento: [viewPlanning, '', ''], execucao: [viewExecution, '', ''], encerramento: [viewClosing, '', ''],
+    membro: [viewMember, '', ''],
+    permissoes: [viewPermissions, 'Quem pode o quê', 'Decisão de 23/11/2026, aplicada no banco por capacidade.'],
+    metas: [viewGoals, 'Configurações', 'Metas do portfólio'],
+  };
+  const app = document.getElementById('app');
+  const layer = document.getElementById('layer');
+  const current = () => (VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'portfolio');
+  const icons = () => { try { window.lucide && window.lucide.createIcons(); } catch (e) { /* ícones são opcionais */ } };
+
+  function render() {
+    const v = current();
+    const [fn, ttl, sub] = VIEWS[v];
+    document.querySelectorAll('.proto nav a').forEach((a) => a.setAttribute('aria-current', a.getAttribute('href') === '#' + v ? 'page' : 'false'));
+    document.getElementById('ttl').textContent = ttl;
+    document.getElementById('sub').textContent = sub;
+    document.querySelector('.proto .scen').hidden = v !== 'planejamento';
+    app.innerHTML = fn();
+    icons();
+  }
+  function toast(msg) {
+    const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+    layer.appendChild(t); setTimeout(() => t.remove(), 3200);
+  }
+  function dialog(title, body, okLabel, onOk, backLabel = 'Voltar', onBack = null) {
+    layer.innerHTML = `<div class="overlay"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-t"><h2 id="dlg-t">${title}</h2>${body}<div class="actions" style="justify-content:flex-end"><button class="btn" id="dlg-no">${backLabel}</button><button class="btn btn-primary" id="dlg-ok">${okLabel}</button></div></div></div>`;
+    const close = () => { layer.innerHTML = ''; };
+    document.getElementById('dlg-no').onclick = () => { close(); if (onBack) onBack(); };
+    document.getElementById('dlg-ok').onclick = () => { close(); onOk(); };
+    layer.querySelector('.overlay').addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    icons();
+    document.getElementById('dlg-ok').focus();
+  }
+  const go = (target, id) => {
+    if (id) state.openId = id;
+    const map = { renovacao: 'execucao', financeiro: 'execucao' };
+    if (target === 'financeiro') toast('Abriria a aba Financeiro do projeto.');
+    if (target === 'renovacao') toast('Abriria a decisão de renovação (igual à da tela Em Encerramento).');
+    location.hash = map[target] || target;
+    if (location.hash.slice(1) === current()) render();
+  };
+
+  document.getElementById('role').addEventListener('change', (e) => { state.role = e.target.value; if (state.plan) state.plan.err = null; render(); });
+  document.getElementById('scenario').addEventListener('change', (e) => {
+    state.plan = null; const s = planState(); s.d = PLAN_SCENARIOS[e.target.value]();
+    const p = byId('portal'); p.stage = 'planejamento'; p.forecast = null; p.sentForApproval = false;
+    render(); toast('Exemplo recarregado.');
+  });
+  window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+
+  app.addEventListener('click', (e) => {
+    const t = e.target.closest('button, [data-open]');
+    if (!t) return;
+    if (t.id === 'eye') { state.hide = !state.hide; render(); return; }
+    if (t.dataset.scope) { state.scope = t.dataset.scope; render(); return; }
+    if (t.dataset.open) { state.openId = t.dataset.id; location.hash = t.dataset.open; render(); return; }
+    if (t.dataset.go) { go(t.dataset.go, t.dataset.id); return; }
+    if (t.dataset.ptab) {
+      const s = planState(); s.tab = t.dataset.ptab; s.err = null; render();
+      if (t.classList.contains('ptab')) document.getElementById(`ptab-${s.tab}`)?.focus();
+      else document.getElementById('ppanel')?.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (t.dataset.del) { planDelete(t.dataset.del, t.dataset.id); return; }
+    if (t.id === 'edit-data') { toast('Abriria o formulário do projeto (período, GP, contrato e parcelas).'); return; }
+    if (t.id === 'send') { planState().approval = 'sent'; toast('Pedido de aprovação enviado ao admin, com o orçado × planejado.'); render(); return; }
+    if (t.id === 'reject') { planState().approval = null; toast('Planejamento devolvido ao GP com a observação do admin.'); render(); return; }
+    if (t.id === 'approve') { planFinishDialog(true); return; }
+    if (t.id === 'finish') { planFinishDialog(false); return; }
+    if (t.dataset.renew) {
+      const op = t.dataset.renew === 'op';
+      dialog(op ? 'Abrir Oportunidade de renovação?' : 'Confirmar que o projeto encerra?', op ? '<p>Abre uma Oportunidade para SEBRAE-MG no Pipeline da Prospecção, com o GP como responsável e o projeto atual como origem.</p>' : '<p>Nenhuma Oportunidade de renovação será aberta. O projeto segue para os entregáveis de encerramento.</p>', op ? 'Abrir Oportunidade' : 'Confirmar encerramento', () => {
+        byId('paraiso').renewal = t.dataset.renew;
+        toast(op ? 'Oportunidade de renovação aberta no Pipeline.' : 'Encerramento confirmado.'); render();
+      });
+      return;
+    }
+    if (t.id === 'conclude') {
+      dialog('Concluir o projeto?', '<p>Apresentação dos OKRs, value book e case estão marcados como feitos. Depois de concluído, só o admin edita ou reabre.</p>', 'Concluir projeto', () => {
+        closeState().concluded = true; const p = byId('paraiso'); p.stage = 'concluido'; p.doneAt = TODAY;
+        toast('Projeto concluído.'); render();
+      });
+    }
+  });
+  app.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.id === 'year') { state.year = t.value; render(); }
+    if (t.dataset.hpm) {
+      const before = planChecklist();
+      planState().d.team.find((x) => x.pid === t.dataset.hpm).hpm = Math.max(0, Math.min(176, Math.round(Number(t.value) || 0)));
+      planAfterChange(before, `#h-${t.dataset.hpm}`);
+    }
+    if (t.dataset.deliv) { closeState().deliv[Number(t.dataset.deliv)] = t.checked; render(); }
+  });
+  app.addEventListener('input', (e) => {
+    if (e.target.id === 'q') { state.q = e.target.value; const pos = e.target.selectionStart; render(); const q = document.getElementById('q'); q.focus(); q.setSelectionRange(pos, pos); }
+  });
+  // Setas do teclado entre as abas do planejamento (padrão de tablist).
+  app.addEventListener('keydown', (e) => {
+    if (!e.target.classList.contains('ptab') || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const s = planState(); const keys = PLAN_TABS.map(([k]) => k); const i = keys.indexOf(s.tab);
+    s.tab = keys[e.key === 'Home' ? 0 : e.key === 'End' ? keys.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + keys.length) % keys.length];
+    s.err = null; render(); document.getElementById(`ptab-${s.tab}`)?.focus();
+  });
+  app.addEventListener('submit', (e) => {
+    if (e.target.dataset.form) { e.preventDefault(); planSubmit(e.target); return; }
+    if (e.target.id !== 'goals') return;
+    e.preventDefault();
+    const rev = Number(document.getElementById('g-rev').value.replace(/\./g, '').replace(',', '.'));
+    const mg = Number(document.getElementById('g-mg').value.replace(',', '.'));
+    if (!(rev > 0) || !(mg > 0 && mg < 100)) { toast('Informe uma receita maior que zero e uma margem entre 0 e 100.'); return; }
+    state.goals[state.year] = { revenue: rev, margin: mg };
+    toast('Metas salvas. O portfólio já usa os valores novos.'); render();
+  });
+  render();
+  window.addEventListener('load', icons);
+})();
+</script>
