@@ -250,7 +250,7 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 | [US-0025](stories/4-em-desenvolvimento/US-0025-projetos-custo-do-projeto-igual-em-todas-as-abas.md) | O custo do projeto é o mesmo em todas as abas | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0026](stories/4-em-desenvolvimento/US-0026-projetos-grafico-de-custos-mostra-todos-os-meses.md) | O gráfico de custos mostra todos os meses do projeto | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0027](stories/4-em-desenvolvimento/US-0027-projetos-mao-de-obra-mostra-horas-lancadas.md) | A seção Mão de Obra mostra as horas lançadas | GP ou admin | Em desenvolvimento | Pronta com ressalvas |
-| [US-0028](stories/3-pronta-para-desenvolver/US-0028-projetos-grafico-planejado-x-realizado-so-com-totais.md) | O gráfico Planejado × Realizado mostra só os totais | GP ou admin | Pronta para desenvolver | Pronta com ressalvas |
+| [US-0028](stories/4-em-desenvolvimento/US-0028-projetos-grafico-planejado-x-realizado-so-com-totais.md) | O gráfico Planejado × Realizado mostra só os totais | GP ou admin | Em desenvolvimento | Pronta com ressalvas |
 | [US-0029](stories/3-pronta-para-desenvolver/US-0029-projetos-total-dos-custos-lancados.md) | Ver o total dos custos lançados | GP ou admin | Pronta para desenvolver | Pronta |
 | [US-0030](stories/3-pronta-para-desenvolver/US-0030-projetos-lancamento-so-dentro-do-periodo.md) | Lançar horas e custos só dentro do período do projeto | GP ou admin | Pronta para desenvolver | Pronta |
 
@@ -277,5 +277,5 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 
 #### Decisões pendentes do épico
 
-1. **US-0028:** o que acontece ao clicar numa barra do gráfico, sem séries por
-   categoria.
+Nenhuma. O clique na barra (US-0028) não existia: o atalho para as seções está na rosca e
+continua lá.

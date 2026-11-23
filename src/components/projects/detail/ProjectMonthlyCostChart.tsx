@@ -208,12 +208,10 @@ export function ProjectMonthlyCostChart({ months, isLoading = false, onCategoryC
                   />
                   <Tooltip content={(props) => <BarTooltip {...props} formatCurrency={formatCurrency} />} cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} />
                   <Legend iconType="circle" iconSize={8} />
-                  {/* Planejado (tons neutros) e Realizado (verde da marca),
-                      cada um empilhado por Mão de Obra + Outros custos. */}
-                  <Bar stackId="planned" dataKey="plannedLabor"  name="Planejado · MO"     fill="hsl(var(--muted-foreground) / 0.55)" radius={[0, 0, 0, 0]} />
-                  <Bar stackId="planned" dataKey="plannedOthers" name="Planejado · Outros"  fill="hsl(var(--muted-foreground) / 0.25)" radius={[4, 4, 0, 0]} />
-                  <Bar stackId="realized" dataKey="realizedLabor"  name="Realizado · MO"     fill="hsl(var(--primary-deep))" radius={[0, 0, 0, 0]} />
-                  <Bar stackId="realized" dataKey="realizedOthers" name="Realizado · Outros"  fill="hsl(var(--primary-deep) / 0.45)" radius={[4, 4, 0, 0]} />
+                  {/* Só os totais do mês (US-0028): Planejado em tom neutro e Realizado no
+                      verde da marca. A quebra MO / Outros fica no tooltip. */}
+                  <Bar dataKey="planned" name="Planejado" fill="hsl(var(--muted-foreground) / 0.55)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="realized" name="Realizado" fill="hsl(var(--primary-deep))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
