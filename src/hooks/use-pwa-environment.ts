@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { assinarConectividade, estaOnline } from '@/lib/conectividade';
 
 const MOBILE_QUERY = '(max-width: 767px)';
 const STANDALONE_QUERY = '(display-mode: standalone)';
@@ -10,7 +11,8 @@ function getStandalone() {
 export function usePwaEnvironment() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
   const [isStandalone, setIsStandalone] = useState(getStandalone);
-  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  // Online conferido (src/lib/conectividade.ts), não o `navigator.onLine` cru, que dá offline falso.
+  const isOnline = useSyncExternalStore(assinarConectividade, estaOnline);
 
   useEffect(() => {
     const mobile = window.matchMedia(MOBILE_QUERY);
@@ -18,17 +20,12 @@ export function usePwaEnvironment() {
     const sync = () => {
       setIsMobile(mobile.matches);
       setIsStandalone(getStandalone());
-      setIsOnline(navigator.onLine);
     };
     mobile.addEventListener('change', sync);
     standalone.addEventListener('change', sync);
-    window.addEventListener('online', sync);
-    window.addEventListener('offline', sync);
     return () => {
       mobile.removeEventListener('change', sync);
       standalone.removeEventListener('change', sync);
-      window.removeEventListener('online', sync);
-      window.removeEventListener('offline', sync);
     };
   }, []);
 
