@@ -104,18 +104,17 @@ com plano abaixo da meta na faixa verde, o aviso "Plano abaixo da meta (X%)". Se
 custo, "EAC", "burn-rate" nem "plan". O aviso do rodapé da aba (`FinancialAlertBanner`) só
 aparece na faixa vermelha.
 
-**Teste desatualizado:** `src/test/financial-kpi-cards.test.tsx` ("Margem planejada abaixo
-da meta") ainda espera fundo vermelho quando só o plano está abaixo da meta, que é a regra
-antiga. Não foi reescrito porque os testes estão desativados no Harness; o CI não roda
-`npm test`.
+**Teste do card:** `src/test/financial-kpi-cards.test.tsx` reescrito para as regras novas a
+pedido do Victor (23/11/2026): 18 testes (faixas, limite de 10%, plano abaixo da meta, "Projeto
+encerrado", sem valores de custo, ocultar valores, sem custo planejado), todos passando com
+`npx vitest run src/test/financial-kpi-cards.test.tsx`. O CI não roda `npm test`.
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
 | 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). Script: 56% e 55% → verde; 53,3% e 49,5% → amarelo; 49,4% → vermelho; sem meta ou sem custo → neutro. |
-| 2 | Pendente: conferir na tela num projeto com forecast acima da meta e plano abaixo. |
+| 2 | Teste do card (verde com "Plano abaixo da meta (21%)"). Falta conferir na tela. |
 | 3 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
 | 3b | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
-| 4 | Pendente: conferir na tela num projeto sem custo planejado. |
-| 5 | Pendente: conferir com "ocultar valores". |
+| 4 | Teste do card ("—", "sem custo planejado para projetar", neutro). Falta conferir na tela. |
+| 5 | Teste do card (percentuais e aviso ocultos). Falta conferir na tela. |
 
-Testes automatizados não escritos: testes desativados no Harness por decisão do time.
