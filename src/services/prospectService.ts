@@ -3,6 +3,7 @@ import { todasAsPaginas } from '@/lib/paginacao';
 import type { ProspectAttachment } from '@/lib/prospectAttachments';
 import { discardUpdate, reopenUpdate } from '@/lib/prospecting/transitions';
 import {
+  PROSPECT_OUTCOME_STAGES,
   toISODate,
   type PendingTaskLite,
   type ProspectActivityWithOwner,
@@ -12,6 +13,8 @@ import {
   type ProspectTaskDB,
   type ProspectWithCompany,
 } from '@/types/prospect';
+import { fetchEvidenciasBant } from '@/services/bantService';
+import { bantDaOportunidade, oQueFaltaParaQualificar } from '@/lib/prospecting/bant';
 import type { ActivityLite, ProspectStageChangeDB } from '@/types/prospectMetrics';
 
 /**
@@ -51,6 +54,8 @@ export interface CreateProspectInput {
   estimated_value?: number | null;
   notes?: string | null;
   created_by?: string | null;
+  /** Etapa de entrada; ausente = A abordar (padrão do banco). A base entra em Qualificação. */
+  stage?: ProspectStage;
 }
 
 /**
@@ -170,7 +175,24 @@ export async function removeOpportunityContact(prospectId: string, contactId: st
  * segundo dono da mesma regra. Para VOLTAR (`previousStagesOf`, 01/10/2026), qualquer etapa
  * de trabalho passa: é correção, e a atividade registrada continua valendo.
  */
+/** A oportunidade ainda não tem o BANT para entrar em "Oportunidade qualificada" (US-0022). */
+export class BantInsuficiente extends Error {}
+
+const ETAPA_QUALIFICADA: ProspectStage = 'qualificado';
+
+/**
+ * Regra do BANT na entrada em "Oportunidade qualificada": nota 75 e nenhum "Não atende". Voltar
+ * de Ganho ou Perda para ela é correção e não passa pela regra (como o "Voltar para…").
+ */
+async function exigirBantParaQualificar(id: string): Promise<void> {
+  const oportunidade = await fetchProspectById(id);
+  if (!oportunidade || PROSPECT_OUTCOME_STAGES.includes(oportunidade.stage)) return;
+  const falta = oQueFaltaParaQualificar(bantDaOportunidade(oportunidade, await fetchEvidenciasBant(id)));
+  if (falta) throw new BantInsuficiente(falta);
+}
+
 export async function updateProspectStage(id: string, stage: ProspectStage, occurredOn?: string): Promise<void> {
+  if (stage === ETAPA_QUALIFICADA) await exigirBantParaQualificar(id);
   const { error } = occurredOn
     ? await rpc('set_prospect_stage', { p_prospect_id: id, p_stage: stage, p_occurred_on: occurredOn })
     : await tabela('prospects').update({ stage }).eq('id', id);

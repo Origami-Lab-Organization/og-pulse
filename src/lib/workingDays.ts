@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { addDays, format } from 'date-fns';
 
 export interface Holiday {
   holiday_type: string;
@@ -26,4 +26,35 @@ export function countWorkingDays(start: Date, end: Date, holidays: Holiday[]): n
     current.setDate(current.getDate() + 1);
   }
   return count;
+}
+
+/**
+ * Último dia útil da semana de trabalho (seg–sex) que começa em `weekStart`.
+ *
+ * É a partir dele que a semana pode ser enviada: com feriado na sexta, o envio abre na quinta.
+ * Quem diz o que é feriado é quem chama — a grade passa o mesmo critério que pinta a célula de
+ * feriado, então o dia que aparece como feriado é o dia que não segura o envio.
+ *
+ * Semana inteira de feriado não tem dia útil: devolve a sexta, que é a regra sem feriado.
+ */
+export function ultimoDiaUtilDaSemana(weekStart: Date, ehFeriado: (dia: Date) => boolean): Date {
+  for (let i = 4; i >= 0; i--) {
+    const dia = addDays(weekStart, i);
+    if (!ehFeriado(dia)) return dia;
+  }
+  return addDays(weekStart, 4);
+}
+
+/**
+ * Hoje já é dia de enviar a semana corrente? Na semana comum é só a sexta; com feriado na
+ * sexta, vale da quinta em diante. Fim de semana nunca é dia de envio.
+ */
+export function ehDiaDeEnvio(
+  hoje: Date,
+  inicioDaSemanaCorrente: Date,
+  ehFeriado: (dia: Date) => boolean,
+): boolean {
+  const diaDaSemana = hoje.getDay();
+  if (diaDaSemana === 0 || diaDaSemana === 6) return false;
+  return ultimoDiaUtilDaSemana(inicioDaSemanaCorrente, ehFeriado) <= hoje;
 }

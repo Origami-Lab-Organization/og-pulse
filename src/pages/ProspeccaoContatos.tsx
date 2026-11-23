@@ -150,6 +150,7 @@ function useDialogosDeContato(linhas: ContactRow[], cards: ProspectWithCompany[]
   const [levando, setLevando] = useState<ProspectContactWithCompany | null>(null);
   const [cardAberto, setCardAberto] = useState<string | null>(null);
   const [descartando, setDescartando] = useState<ProspectWithCompany | null>(null);
+
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
 
   return {
@@ -211,7 +212,7 @@ function Dialogos({ dialogos }: { dialogos: DialogosDeContato }) {
         prospect={d.descartando}
         open={!!d.descartando}
         onOpenChange={(aberto) => !aberto && d.setDescartando(null)}
-      />
+       />
 
       <ProspectWonDialog
         prospect={d.ganhando}
