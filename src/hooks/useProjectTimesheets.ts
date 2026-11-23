@@ -13,6 +13,8 @@ export interface ProjectTimesheetDB {
   cost_per_hour: number | null;
   created_at: string;
   created_by: string | null;
+  /** Pessoa da hora, pelo vínculo gravado no lançamento (não pela equipe carregada no projeto). */
+  project_member?: { employee_id: string } | null;
 }
 
 export interface CreateTimesheetInput {
@@ -41,7 +43,9 @@ export const useProjectTimesheets = (projectId: string | undefined) => {
       return todasAsPaginas<ProjectTimesheetDB>((de, ate) =>
         supabase
           .from('project_timesheets')
-          .select('*')
+          // A pessoa vem do vínculo da própria hora, como na aba Equipe: `project.members`
+          // pode vir sem a linha da pessoa (TD-0014, US-0027).
+          .select('*, project_member:project_members(employee_id)')
           .eq('project_id', projectId)
           .order('work_date', { ascending: false })
           .order('id')
