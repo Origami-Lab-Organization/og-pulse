@@ -1,6 +1,6 @@
 # US-0033 — Ver o P&L realizado ao lado do projetado
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
@@ -87,6 +87,20 @@ planejada, outros custos planejados e resultado. Não há como ver o resultado r
 
 ## Implementação
 
+`ProjectPnLBridge.tsx` recebe as duas versões (`projected` e `realized`, tipo `PnLValues`) e
+alterna com um `ToggleGroup` Projetado / Realizado, no padrão da rosca da aba Despesas;
+abre em Projetado. Realizado: "Recebido" (parcelas recebidas, `kpiData.revenueActual`),
+"Comissão paga" (`kpiData.commissionActual`), mão de obra e outras despesas realizadas da
+regra única (`useProjectCostSummary`, US-0025) e resultado. Resultado negativo aparece com
+sinal e em `text-destructive`/`bg-destructive`. As barras das duas versões são
+proporcionais ao valor do contrato.
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
+| 2 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
+| 3 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
+| 4 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080): R$ 0,00 · R$ 0,00 · R$ 3.671,67 · R$ 1.083,60 · −R$ 4.755,27. |
+| 5 | Pendente: conferir com "ocultar valores". |
+
+Testes automatizados não escritos: testes desativados no Harness por decisão do time.
