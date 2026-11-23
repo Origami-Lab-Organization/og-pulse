@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { todasAsPaginas } from '@/lib/paginacao';
+import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 
 export interface ProjectTimesheetDB {
   id: string;
@@ -110,7 +111,7 @@ export const useCreateTimesheet = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao registrar timesheet',
-        description: error.message,
+        description: mensagemParaUsuario(error),
         variant: 'destructive',
       });
     },
@@ -150,7 +151,7 @@ export const useUpsertTimesheet = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao atualizar timesheet',
-        description: error.message,
+        description: mensagemParaUsuario(error),
         variant: 'destructive',
       });
     },
@@ -190,7 +191,7 @@ export const useBatchUpsertTimesheets = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao salvar timesheets',
-        description: error.message,
+        description: mensagemParaUsuario(error),
         variant: 'destructive',
       });
     },
@@ -233,7 +234,7 @@ export const useClearWeekProjectTimesheets = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao limpar horas',
-        description: error.message,
+        description: mensagemParaUsuario(error),
         variant: 'destructive',
       });
     },
@@ -266,7 +267,7 @@ export const useDeleteTimesheet = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao remover timesheet',
-        description: error.message,
+        description: mensagemParaUsuario(error),
         variant: 'destructive',
       });
     },

@@ -92,6 +92,10 @@ export function ProjectCostsTab({
   }, [canSeeLaborBreakdown]);
 
   const { data: projectCosts = [] } = useProjectCostItems(project.id);
+  const projectPeriod = useMemo(
+    () => ({ startDate: project.start_date, endDate: project.end_date, isContinuous: project.is_continuous }),
+    [project.start_date, project.end_date, project.is_continuous],
+  );
   // Cards, gráfico mensal e rosca: regra única do custo do projeto (US-0025/US-0026) — o
   // mesmo número da Visão Geral e do Financeiro, e a soma dos meses igual aos cards.
   const costSummary = useProjectCostSummary(project);
@@ -162,6 +166,7 @@ export function ProjectCostsTab({
           costs={projectCosts}
           canManage={isEditable || canEditActuals}
           isAdmin={isAdmin}
+          projectPeriod={projectPeriod}
         />
       </div>
     </div>

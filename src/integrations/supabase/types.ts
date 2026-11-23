@@ -4037,6 +4037,7 @@ export type Database = {
           monthly_amount_brl: number | null
           notes: string | null
           original_currency: string
+          paid_at: string | null
           planned_amount: number
           planned_amount_brl: number
           project_id: string
@@ -4064,6 +4065,7 @@ export type Database = {
           monthly_amount_brl?: number | null
           notes?: string | null
           original_currency?: string
+          paid_at?: string | null
           planned_amount?: number
           planned_amount_brl?: number
           project_id: string
@@ -4091,6 +4093,7 @@ export type Database = {
           monthly_amount_brl?: number | null
           notes?: string | null
           original_currency?: string
+          paid_at?: string | null
           planned_amount?: number
           planned_amount_brl?: number
           project_id?: string

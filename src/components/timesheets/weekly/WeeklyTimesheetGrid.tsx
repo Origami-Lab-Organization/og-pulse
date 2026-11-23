@@ -53,6 +53,7 @@ import { useHolidays, isHoliday } from '@/hooks/useHolidays';
 import { useTimesheetPrefill } from '@/hooks/useTimesheetPrefill';
 import { computeAdaptiveHints, AdaptiveRow } from '@/lib/timesheetDistribution';
 import { diasTravadosPelaSaida, linhaDeProjetoVisivelNaSemana } from '@/lib/saidaDeEquipe';
+import { datesOutsideProjectPeriod } from '@/lib/projectPeriod';
 import { ehDiaDeEnvio, ultimoDiaUtilDaSemana } from '@/lib/workingDays';
 import type { SaveStatusInfo } from '@/hooks/useCellAutosave';
 import { toast } from 'sonner';
@@ -242,9 +243,15 @@ export function WeeklyTimesheetGrid({
     for (const project of projects) {
       const member = project.members[0];
       if (!member) continue;
-      const set = new Set<string>(
-        diasTravadosPelaSaida(project, weekDays.map((d) => d.date))
-      );
+      const dates = weekDays.map((d) => d.date);
+      // Dias fora do período do projeto também travam: o banco recusa lançamento neles (US-0030).
+      const set = new Set<string>([
+        ...diasTravadosPelaSaida(project, dates),
+        ...datesOutsideProjectPeriod(
+          { startDate: project.startDate, endDate: project.endDate, isContinuous: project.isContinuous },
+          dates,
+        ),
+      ]);
       for (const e of timesheetEntries) {
         if (e.projectMemberId === member.memberId && e.isLocked) set.add(e.workDate);
       }

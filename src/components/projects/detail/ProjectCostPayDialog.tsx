@@ -40,7 +40,7 @@ export function ProjectCostPayDialog({
   useEffect(() => {
     if (!open || !cost) return;
     setActualAmount(Number(cost.planned_amount));
-    setPaidDate(cost.cost_date ?? todayISO());
+    setPaidDate(cost.paid_at ?? todayISO());
   }, [open, cost]);
 
   const plannedBrl = cost ? Number(cost.planned_amount_brl) : 0;
@@ -55,7 +55,8 @@ export function ProjectCostPayDialog({
         id: cost.id,
         projectId,
         actualAmount,
-        costDate: paidDate,
+        // Só a data do pagamento: a data do custo fica como foi lançada (US-0030).
+        paidAt: paidDate,
         currency: cost.original_currency,
         exchangeRate: rate,
         status: 'paid',

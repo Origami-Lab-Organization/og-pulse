@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { toBRL } from '@/lib/projectCosts';
+import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import type {
   ProjectCostDB,
   CreateProjectCostInput,
@@ -55,6 +56,7 @@ export const useAddProjectCost = () => {
             input.actualAmount != null ? toBRL(input.actualAmount, rate) : null,
           notes: input.notes?.trim() || null,
           status: input.status ?? 'planned',
+          paid_at: input.paidAt ?? null,
         })
         .select()
         .single();
@@ -69,7 +71,7 @@ export const useAddProjectCost = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao adicionar custo',
-        description: error.message,
+        description: mensagemParaUsuario(error),
         variant: 'destructive',
       });
     },
@@ -88,6 +90,7 @@ export const useUpdateProjectCost = () => {
       if (input.costDate !== undefined) updates.cost_date = input.costDate;
       if (input.notes !== undefined) updates.notes = input.notes?.trim() || null;
       if (input.status !== undefined) updates.status = input.status;
+      if (input.paidAt !== undefined) updates.paid_at = input.paidAt;
 
       // Valores monetários e moeda são recalculados juntos para manter
       // os campos *_brl consistentes com a taxa informada.
@@ -132,7 +135,7 @@ export const useUpdateProjectCost = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao atualizar custo',
-        description: error.message,
+        description: mensagemParaUsuario(error),
         variant: 'destructive',
       });
     },
@@ -159,7 +162,7 @@ export const useCancelProjectCost = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao cancelar custo',
-        description: error.message,
+        description: mensagemParaUsuario(error),
         variant: 'destructive',
       });
     },
@@ -187,7 +190,7 @@ export const useDeleteProjectCost = () => {
     onError: (error: Error) => {
       toast({
         title: 'Erro ao excluir custo',
-        description: error.message,
+        description: mensagemParaUsuario(error),
         variant: 'destructive',
       });
     },
