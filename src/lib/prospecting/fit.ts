@@ -113,10 +113,17 @@ function consultoriaPontos(empresa: ProspectCompanyDB, fomento: FundingSignals |
   ];
 }
 
+/** Nome de cada frente na tela. Exportado para quem mostra só a frente, sem os motivos. */
+export const ROTULO_DA_FRENTE: Record<FitFront, string> = {
+  software: 'Indústria · software e integração',
+  financiamento: 'Financiamento de inovação',
+  consultoria: 'Consultoria',
+};
+
 const FRENTES: Array<{ frente: FitFront; rotulo: string; pontos: (e: ProspectCompanyDB, f: FundingSignals | null) => Pontos }> = [
-  { frente: 'software', rotulo: 'Indústria · software e integração', pontos: (e) => softwarePontos(e) },
-  { frente: 'financiamento', rotulo: 'Financiamento de inovação', pontos: financiamentoPontos },
-  { frente: 'consultoria', rotulo: 'Consultoria', pontos: consultoriaPontos },
+  { frente: 'software', rotulo: ROTULO_DA_FRENTE.software, pontos: (e) => softwarePontos(e) },
+  { frente: 'financiamento', rotulo: ROTULO_DA_FRENTE.financiamento, pontos: financiamentoPontos },
+  { frente: 'consultoria', rotulo: ROTULO_DA_FRENTE.consultoria, pontos: consultoriaPontos },
 ];
 
 export function companyFit(empresa: ProspectCompanyDB, fomento: FundingSignals | null = null): CompanyFit[] | null {
