@@ -5,6 +5,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
+import { useDevolverParaALista } from '@/hooks/useDevolverParaALista';
 import { useEmployeeDirectory } from '@/hooks/useEmployeeDirectory';
 import { useProspectActivities } from '@/hooks/useProspectActivities';
 import { useSaveCardCompany } from '@/hooks/useProspectCompanies';
@@ -31,12 +32,15 @@ import {
   type ProspectActivityWithOwner,
   type ProspectCompanyDB,
   type ProspectTaskDB,
+  type ProspectStage,
   type ProspectWithCompany,
+  type TipoDeConta,
 } from '@/types/prospect';
 import type { ReceitaSnapshot } from '@/types/receita';
 import { CompanyFitSection } from './CompanyFitSection';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
 import { BotoesDeSalvar } from './FichaDaOportunidade';
+import { EstudoDaConta } from './estudo/EstudoDaConta';
 import { OpportunityCompanyCard } from './OpportunityCompanyCard';
 import { OpportunityContactsCard } from './OpportunityContactsCard';
 import { OpportunityHeader } from './OpportunityHeader';
@@ -50,15 +54,19 @@ import { ProspectTaskComposer } from './ProspectTaskComposer';
 import { ProspectTaskTimeline } from './ProspectTaskTimeline';
 import { RegisterMeetingDialog } from './RegisterMeetingDialog';
 
-type Aba = 'registros' | 'tarefas' | 'arquivos';
+type Aba = 'registros' | 'tarefas' | 'arquivos' | 'estudo';
+const ETAPA_QUALIFICACAO: ProspectStage = 'qualificacao';
 
 interface ProspectDetailDialogProps {
   prospect: ProspectWithCompany | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDiscard: (prospect: ProspectWithCompany) => void;
+  /** Registrar a Perda; `motivoSugerido` vem do BANT marcado como 'Não atende' (US-0022). */
+  onDiscard: (prospect: ProspectWithCompany, motivoSugerido?: string | null) => void;
   /** Registrar ou corrigir o ganho — abre o diálogo de data e valor. */
   onWin: (prospect: ProspectWithCompany) => void;
+  /** Abre a ficha completa da empresa (sócios, fomento, site, outras oportunidades e contatos). */
+  onOpenCompany?: (companyId: string) => void;
 }
 
 /**
@@ -103,6 +111,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
   const reabrir = useReopenProspect();
   const moverEtapa = useUpdateProspectStage();
   const excluir = useDeleteProspect();
+  const devolver = useDevolverParaALista();
   const { can } = useAuth();
   const [reuniaoAberta, setReuniaoAberta] = useState(false);
   const [projetoAberto, setProjetoAberto] = useState(false);
@@ -130,6 +139,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
           excluir.mutate({ id: prospect.id });
           onOpenChange(false);
         }}
+        onDevolver={() => devolver.mutate(prospect, { onSuccess: () => onOpenChange(false) })}
         onCriarProjeto={() => setProjetoAberto(true)}
       />
 
@@ -147,6 +157,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
           atividades={atividades}
           carregandoAtividades={isLoading}
           somenteLeitura={somenteLeitura}
+          onSugerirPerda={(motivo) => onDiscard(prospect, motivo)}
         />
 
         {!painel.aberto && <TrilhoDoPainel onAbrir={painel.abrir} />}
@@ -197,6 +208,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
               receitaAchada={edicao.receitaDaEdicao}
               podeEditar={!somenteLeitura}
               onEditar={edicao.abrirEmpresa}
+              onVerFicha={props.onOpenCompany && prospect.company_id ? () => props.onOpenCompany?.(prospect.company_id) : undefined}
               rodape={
                 <BotoesDeSalvar
                   rotulo="Salvar empresa"
@@ -387,17 +399,21 @@ interface PainelDeAtividadeProps {
   atividades: ProspectActivityWithOwner[];
   carregandoAtividades: boolean;
   somenteLeitura: boolean;
+  onSugerirPerda: (motivo: string | null) => void;
 }
 
 function PainelDeAtividade(props: PainelDeAtividadeProps) {
   const { prospect, open, atividades, carregandoAtividades, somenteLeitura } = props;
   const { data: tarefas = [], isLoading: carregandoTarefas } = useProspectTasks(prospect.id);
   const arquivos = useArquivosDaOportunidade(prospect.id, atividades, carregandoAtividades);
-  const [aba, setAba] = useState<Aba>('registros');
 
   // Só pelo id: o objeto é recarregado a cada escrita e não pode tirar a pessoa da aba.
+  // Na Qualificação, o trabalho é o estudo da conta: a ficha abre nele (US-0023).
+  const abaInicial: Aba = prospect.stage === ETAPA_QUALIFICACAO ? 'estudo' : 'registros';
+  const [aba, setAba] = useState<Aba>(abaInicial);
   useEffect(() => {
-    if (open) setAba('registros');
+    if (open) setAba(abaInicial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir ou trocar de oportunidade
   }, [open, prospect.id]);
 
   // Já vem ordenada por prazo (fetchProspectTasks): a primeira pendente é a mais urgente.
@@ -417,6 +433,9 @@ function PainelDeAtividade(props: PainelDeAtividadeProps) {
           </TabsTrigger>
           <TabsTrigger value="arquivos" className={GATILHO_DA_ABA}>
             Arquivos <Contagem n={arquivos.itens.length} />
+          </TabsTrigger>
+          <TabsTrigger value="estudo" className={GATILHO_DA_ABA}>
+            Estudo da conta
           </TabsTrigger>
         </TabsList>
       </div>
@@ -457,6 +476,12 @@ function PainelDeAtividade(props: PainelDeAtividadeProps) {
             <ProspectFilesUploader prospectId={prospect.id} />
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent value="estudo" className={CONTEUDO_DA_ABA}>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <EstudoDaConta prospect={prospect} somenteLeitura={somenteLeitura} onSugerirPerda={props.onSugerirPerda} />
+        </div>
       </TabsContent>
     </Tabs>
   );
@@ -568,6 +593,7 @@ function rascunhoInicial(prospect: ProspectWithCompany): Record<string, string> 
     company_segment: comoTexto(empresa?.segment),
     company_ring: comoTexto(empresa?.ring),
     company_tier: comoTexto(empresa?.tier),
+    company_tipo_conta: comoTexto(empresa?.tipo_conta),
     company_faturamento: numeroComoTexto(empresa?.faturamento_anual),
     company_faturamento_base: empresa?.faturamento_anual_base ?? FATURAMENTO_BASE_PADRAO,
     primary_channel: prospect.primary_channel,
@@ -588,6 +614,7 @@ function empresaDoRascunho(rascunho: Record<string, string>, empresa: ProspectCo
     segment: ouNulo(rascunho.company_segment),
     ring: ouNulo(rascunho.company_ring),
     tier: ouNulo(rascunho.company_tier),
+    tipo_conta: (ouNulo(rascunho.company_tipo_conta) as TipoDeConta | null),
     client_id: empresa.client_id,
     notes: empresa.notes,
     faturamento_anual: Number(rascunho.company_faturamento) || null,

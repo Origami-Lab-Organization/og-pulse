@@ -1,12 +1,13 @@
 # US-0016 — Classificar a conta como Âncora, Ponte ou Satélite
 
-- **Status:** Em refinamento
+- **Status:** Arquivada
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresas da Receita
 - **Prioridade:** 3
 - **Aprovada por / em:** —
 - **Relacionadas:** US-0003, US-0006, US-0008, US-0017
+- **Motivo do arquivamento:** incorporada à US-0008 ("Colocar empresas para abordar") em 2026-11-18, depois da validação da tela pelo Victor.
 
 ## Descrição
 

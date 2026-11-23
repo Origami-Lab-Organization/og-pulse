@@ -150,7 +150,7 @@ function PapelNaDecisao(props: { prospectId: string; vinculo: ProspectOpportunit
 }
 
 /** O telefone por extenso, que é o que se disca; e-mail e redes, só pelo ícone (o endereço vai no título). */
-function MeiosDeContato({ pessoa }: { pessoa: ProspectOpportunityContact['contact'] }) {
+export function MeiosDeContato({ pessoa }: { pessoa: ProspectOpportunityContact['contact'] }) {
   if (!pessoa) return <span className="flex-1" />;
   const instagram = urlDoInstagram(pessoa.instagram_url);
   return (

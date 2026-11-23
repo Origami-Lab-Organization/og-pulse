@@ -11,3 +11,11 @@ export interface EmployeeDirectoryEntry {
   email: string | null;
   status: string | null;
 }
+
+/** Quem pode ser responsável por uma oportunidade (RPC `get_prospeccao_responsaveis`). */
+export interface ResponsavelDaProspeccao {
+  id: string;
+  nome: string;
+  cargo: string | null;
+  foto_url: string | null;
+}

@@ -1,54 +1,59 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { FileUp } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { BulkCompanyImportDialog } from '@/components/prospeccao/BulkCompanyImportDialog';
-import { ContasDaProspeccao } from '@/components/prospeccao/ContasDaProspeccao';
 import { AbasDaLista } from '@/components/prospeccao/ListaDeCadastro';
+import { EmQualificacao } from '@/components/prospeccao/qualificacao/EmQualificacao';
+import { useEmQualificacao } from '@/hooks/useEmQualificacao';
 import { EmpresasDaReceita } from '@/components/prospeccao/receita/EmpresasDaReceita';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProspectCompanies } from '@/hooks/useProspectCompanies';
 
-type AbaDeEmpresas = 'classificar' | 'prospeccao';
+type AbaDeEmpresas = 'base' | 'qualificacao';
 
-const ABA_PROSPECCAO: AbaDeEmpresas = 'prospeccao';
+const ABA_QUALIFICACAO: AbaDeEmpresas = 'qualificacao';
 
 const ABAS: ReadonlyArray<{ valor: AbaDeEmpresas; rotulo: string }> = [
-  { valor: 'classificar', rotulo: 'A classificar' },
-  { valor: ABA_PROSPECCAO, rotulo: 'Na Prospecção' },
+  { valor: 'base', rotulo: 'Base de empresas' },
+  { valor: ABA_QUALIFICACAO, rotulo: 'Em qualificação' },
 ];
 
 /**
- * Empresas (16/11/2026, US-0002, ADR-0053): a base da Receita para achar contas novas, e as
- * contas que já estão na Prospecção.
+ * Empresas (16/11/2026, US-0002, ADR-0053): achar e qualificar contas, em duas abas (19/11/2026,
+ * US-0023). "Base de empresas" é o filtro da base da Receita; a empresa escolhida, com o tipo de conta, vai
+ * para "Em qualificação", onde é estudada (BANT, desk research). Qualificada, vai para A abordar
+ * no Pipeline de Oportunidades. A aba fica na URL (`?aba=qualificacao`).
  *
- * A aba fica na URL (`?aba=prospeccao`) para o voltar do navegador e o link das notificações
- * de gatilho (`?empresa=<id>`) caírem no lugar certo.
+ * Link antigo das notificações de gatilho (`?empresa=<id>`) segue para o Pipeline, que abre a
+ * ficha da empresa.
  */
 export default function ProspeccaoEmpresas() {
   const { can } = useAuth();
   const [importando, setImportando] = useState(false);
   const [params, setParams] = useSearchParams();
-  const { data: contas = [] } = useProspectCompanies();
-
-  const aba: AbaDeEmpresas = params.get('aba') === ABA_PROSPECCAO || params.has('empresa') ? ABA_PROSPECCAO : 'classificar';
+  const empresaDoLink = params.get('empresa');
+  const { lista: emQualificacao } = useEmQualificacao();
+  const aba: AbaDeEmpresas = params.get('aba') === ABA_QUALIFICACAO ? ABA_QUALIFICACAO : 'base';
   const trocarDeAba = (nova: AbaDeEmpresas) =>
     setParams((atual) => {
-      if (nova === ABA_PROSPECCAO) atual.set('aba', nova);
+      if (nova === ABA_QUALIFICACAO) atual.set('aba', nova);
       else atual.delete('aba');
       return atual;
     });
 
+  if (empresaDoLink) return <Navigate to={`/comercial/prospeccao?empresa=${encodeURIComponent(empresaDoLink)}`} replace />;
+
   return (
     <AppLayout
       title="Empresas"
-      description="As médias e grandes empresas do país e as contas que já estão na Prospecção"
+      description="Ache as contas na base da Receita e qualifique antes de abordar"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Empresas' }]}
       actions={
         can('prospeccao:editar') && (
-          <Button onClick={() => setImportando(true)}>
-            <FileUp className="mr-2 h-4 w-4" aria-hidden="true" />
+          // Uso raro (empresa fora da base): botão discreto, de contorno (18/11/2026).
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-[13px]" onClick={() => setImportando(true)}>
+            <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
             Importar CNPJs
           </Button>
         )
@@ -60,11 +65,11 @@ export default function ProspeccaoEmpresas() {
           rotulo="Empresas"
           abas={ABAS}
           valor={aba}
-          contagem={{ prospeccao: contas.length }}
+          contagem={{ qualificacao: emQualificacao.length }}
           onChange={trocarDeAba}
         />
         <div role="tabpanel" aria-label={ABAS.find((a) => a.valor === aba)?.rotulo}>
-          {aba === ABA_PROSPECCAO ? <ContasDaProspeccao /> : <EmpresasDaReceita />}
+          {aba === ABA_QUALIFICACAO ? <EmQualificacao /> : <EmpresasDaReceita />}
         </div>
       </div>
     </AppLayout>

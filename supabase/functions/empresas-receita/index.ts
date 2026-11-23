@@ -10,10 +10,10 @@
 // Deno — testado em 16/11/2026, estoura o tempo de conexão.
 //
 // Corpo (US-0003, US-0005), por modo:
-//   pagina (padrão): { ordem, crescente, pagina, filtros, busca? } → { carregada_em, total_da_base, linhas[] }
+//   pagina (padrão): { ordem, crescente, pagina, filtros, busca? } → { carregada_em, total_da_base, linhas[] (com relacao), relacao_indisponivel }
 //   total:           { modo: 'total', filtros, busca? }            → { total, limitado }  (conta até 100 mil)
 //   cnaes:           { modo: 'cnaes', termo }                      → { cnaes: [{ codigo, descricao }] }
-//   ficha:           { modo: 'ficha', cnpj }                       → { empresa, contato, socios[], oportunidades[] }  (US-0007)
+//   ficha:           { modo: 'ficha', cnpj }                       → { empresa, contato, socios[], oportunidades[], relacao, historico }  (US-0007, US-0019)
 // A página e o total vêm separados: a lista aparece sem esperar a contagem.
 // `busca` (US-0005): só números, a partir de 5, procura o começo do CNPJ e ignora os filtros
 // (os 14 de uma filial acham a matriz); outro texto, a partir de 3 letras, procura no nome e
@@ -21,6 +21,8 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+import { raizDoCnpj, RELACOES, relacaoDaEmpresa } from "../_shared/relacao.ts";
+import type { DadosDaRelacao, RelacaoDaEmpresa } from "../_shared/relacaoTipos.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,6 +54,13 @@ const ORDENS: Record<string, string> = {
   "funcionarios:asc": "e.funcionarios ASC NULLS LAST, e.cnpj ASC",
   "idade:desc": "e.data_inicio_atividade ASC NULLS LAST, e.cnpj ASC",
   "idade:asc": "e.data_inicio_atividade DESC NULLS FIRST, e.cnpj DESC",
+  // Capital social (18/11/2026): zero é "não declarado" e fica no fim, com os nulos.
+  "capital:desc": "nullif(e.capital_social, 0) DESC NULLS LAST, e.cnpj DESC",
+  "capital:asc": "nullif(e.capital_social, 0) ASC NULLS LAST, e.cnpj ASC",
+  // Relação com a Origami (US-0019): grupo_relacao vem calculado na página (1 = cliente ativo …
+  // 4 = abordada sem sucesso, 5 = sem relação); dentro do grupo, pelo fit.
+  "relacao:desc": "e.grupo_relacao ASC, e.fit_previo DESC, e.funcionarios DESC NULLS LAST, e.cnpj DESC",
+  "relacao:asc": "e.grupo_relacao DESC, e.fit_previo DESC, e.funcionarios DESC NULLS LAST, e.cnpj DESC",
 };
 
 class Recusa extends Error {
@@ -188,7 +197,13 @@ interface Filtros {
   divida: string;
   comEmail: boolean;
   comTelefone: boolean;
+  /** Relação com a Origami (US-0019). */
+  relacoes: string[];
+  /** Raízes de CNPJ com as relações marcadas, calculadas antes da consulta; nulo sem filtro. */
+  raizes: string[] | null;
 }
+
+const RELACAO_VALIDA = new Set<string>(RELACOES.map((r) => r.valor));
 
 function listaDe(valor: unknown, aceito: (v: string) => boolean, nome: string): string[] {
   if (valor === undefined) return [];
@@ -231,6 +246,8 @@ function lerFiltros(valor: unknown): Filtros {
     divida,
     comEmail: f.comEmail === true,
     comTelefone: f.comTelefone === true,
+    relacoes: listaDe(f.relacoes, (v) => RELACAO_VALIDA.has(v), "relação com a Origami"),
+    raizes: null,
   };
 }
 
@@ -296,6 +313,7 @@ function condicoes(f: Filtros, inicio: number, extra?: (c: Condicoes) => string)
   c.e(DIVIDAS[f.divida]);
   if (f.comEmail) c.e("e.tem_email");
   if (f.comTelefone) c.e("e.tem_telefone");
+  if (f.raizes) c.e(f.raizes.length ? `e.cnpj_basico = ANY(${c.param(f.raizes)}::bpchar[])` : "false");
   // "Entrou pela atividade secundária": casou no filtro, mas não pelo CNAE principal.
   const pelaSecundaria = f.secundaria && principal.length ? `NOT (${principal.map((p) => `(${p})`).join(" AND ")})` : "false";
   return { where: c.where(), valores: c.valores, pelaSecundaria };
@@ -368,20 +386,35 @@ function condicoesDaBusca(filtros: Filtros, busca: Busca | null, inicio: number)
 // ---------- pedidos ----------
 
 type Pedido =
-  | { modo: "pagina"; ordem: string; porFaturamento: boolean; crescente: boolean; pagina: number; filtros: Filtros; busca: Busca | null }
+  | {
+    modo: "pagina";
+    ordem: string;
+    porFaturamento: boolean;
+    porRelacao: boolean;
+    crescente: boolean;
+    pagina: number;
+    filtros: Filtros;
+    busca: Busca | null;
+  }
   | { modo: "total"; filtros: Filtros; busca: Busca | null }
   | { modo: "cnaes"; termo: string }
   | { modo: "ficha"; cnpj: string };
 
-function lerPagina(corpo: Record<string, unknown>, filtros: Filtros, busca: Busca | null): Pedido {
-  const ordem = `${corpo.ordem ?? "fit"}:${corpo.crescente === true ? "asc" : "desc"}`;
+function lerNumeroDaPagina(corpo: Record<string, unknown>): number {
   const pagina = Number(corpo.pagina ?? 0);
-  if (!ORDENS[ordem]) throw new Recusa("Ordem desconhecida.", 400);
   if (!Number.isInteger(pagina) || pagina < 0 || pagina > ULTIMA_PAGINA) {
     throw new Recusa("A lista vai até as 10 mil primeiras empresas. Use os filtros.", 400);
   }
+  return pagina;
+}
+
+function lerPagina(corpo: Record<string, unknown>, filtros: Filtros, busca: Busca | null): Pedido {
+  const ordem = `${corpo.ordem ?? "fit"}:${corpo.crescente === true ? "asc" : "desc"}`;
+  if (!ORDENS[ordem]) throw new Recusa("Ordem desconhecida.", 400);
+  const pagina = lerNumeroDaPagina(corpo);
   const porFaturamento = corpo.ordem === "faturamento";
-  return { modo: "pagina", ordem: ORDENS[ordem], porFaturamento, crescente: corpo.crescente === true, pagina, filtros, busca };
+  const porRelacao = corpo.ordem === "relacao";
+  return { modo: "pagina", ordem: ORDENS[ordem], porFaturamento, porRelacao, crescente: corpo.crescente === true, pagina, filtros, busca };
 }
 
 function lerTermo(corpo: Record<string, unknown>): Pedido {
@@ -425,8 +458,9 @@ const e_ = (where: string, condicao: string) => (where ? `${where} AND ${condica
  * piso, pelo CNPJ — o mesmo desempate da ordem. Se a faixa marcada não inclui o piso, a
  * segunda parte não roda.
  */
-function empresasDaPagina(p: Extract<Pedido, { modo: "pagina" }>, where: string, pelaSecundaria: string, poucas: boolean): string {
-  const colunas = `e.*, ${pelaSecundaria} AS pela_secundaria`;
+function empresasDaPagina(p: Extract<Pedido, { modo: "pagina" }>, where: string, pelaSecundaria: string, poucas: boolean, rel: SqlDaRelacao): string {
+  const colunas = `e.*, ${pelaSecundaria} AS pela_secundaria, ${rel.grupo} AS grupo_relacao`;
+  if (p.porRelacao && !poucas) return porRelacaoEmDuasPartes(p, where, colunas, rel);
   if (poucas) {
     return `WITH filtradas AS MATERIALIZED (SELECT ${colunas} FROM pulse.empresas e ${where})
             SELECT * FROM filtradas e ORDER BY ${p.ordem} LIMIT $1 OFFSET $2`;
@@ -434,6 +468,10 @@ function empresasDaPagina(p: Extract<Pedido, { modo: "pagina" }>, where: string,
   if (!p.porFaturamento) {
     return `SELECT ${colunas} FROM pulse.empresas e ${where} ORDER BY ${p.ordem} LIMIT $1 OFFSET $2`;
   }
+  return porFaturamentoEmDuasPartes(p, where, colunas);
+}
+
+function porFaturamentoEmDuasPartes(p: Extract<Pedido, { modo: "pagina" }>, where: string, colunas: string): string {
   const ate = "($1::int + $2::int)";
   const estimadas = `SELECT ${colunas} FROM pulse.empresas e ${e_(where, SO_ESTIMADAS)} ORDER BY ${p.ordem} LIMIT ${ate}`;
   const piso = `SELECT ${colunas} FROM pulse.empresas e ${e_(where, "e.faturamento_base = 'piso'")} ORDER BY e.cnpj ${p.crescente ? "ASC" : "DESC"} LIMIT ${ate}`;
@@ -442,26 +480,238 @@ function empresasDaPagina(p: Extract<Pedido, { modo: "pagina" }>, where: string,
   return `SELECT * FROM (${partes}) e ORDER BY ${p.ordem} LIMIT $1 OFFSET $2`;
 }
 
-type LinhaDaPagina = Record<string, unknown> & { cnpj: string };
+/** Grupo da relação de cada empresa, em SQL, a partir das raízes de cada relação (parâmetros). */
+interface SqlDaRelacao {
+  grupo: string;
+  /** Condição "tem relação com a Origami". */
+  comRelacao: string;
+  valores: unknown[];
+}
+
+const SEM_RELACAO = 5;
+
+/** Fora da ordem por relação, o grupo é constante e não pesa na consulta. */
+function sqlDaRelacao(relacoes: Map<string, RelacaoDaEmpresa> | null, porRelacao: boolean, inicio: number): SqlDaRelacao {
+  if (!porRelacao) return { grupo: String(SEM_RELACAO), comRelacao: "false", valores: [] };
+  const todas = [...(relacoes ?? new Map<string, RelacaoDaEmpresa>())];
+  const grupos = RELACOES.map((r) => todas.filter(([, x]) => x.relacao === r.valor).map(([raiz]) => raiz));
+  const param = (i: number) => "$" + String(inicio + i);
+  const casos = grupos.map((_, i) => `WHEN e.cnpj_basico = ANY(${param(i)}::bpchar[]) THEN ${i + 1}`).join(" ");
+  return {
+    grupo: `CASE ${casos} ELSE ${SEM_RELACAO} END`,
+    comRelacao: `e.cnpj_basico = ANY(${param(grupos.length)}::bpchar[])`,
+    valores: [...grupos, grupos.flat()],
+  };
+}
 
 /**
- * O faturamento que o time informou na Prospecção prevalece sobre a estimativa (US-0006): é o
- * único jeito de acertar quem fatura muito acima da média do ramo. Lido com a sessão da
+ * Por relação, sem um filtro que pegue poucas (US-0019): as empresas com relação são poucas e
+ * saem pelo índice de cnpj_basico; as outras, pelo índice do fit. Como no faturamento, a parte
+ * sem relação traz só até o fim da página, e o sentido da ordem decide qual parte vem antes.
+ */
+function porRelacaoEmDuasPartes(p: Extract<Pedido, { modo: "pagina" }>, where: string, colunas: string, rel: SqlDaRelacao): string {
+  const ate = "($1::int + $2::int)";
+  const comRelacao = `SELECT ${colunas} FROM pulse.empresas e ${e_(where, rel.comRelacao)}`;
+  const semRelacao = `SELECT ${colunas} FROM pulse.empresas e ${e_(where, `NOT (${rel.comRelacao})`)}
+    ORDER BY e.fit_previo DESC, e.funcionarios DESC NULLS LAST, e.cnpj DESC LIMIT ${ate}`;
+  return `SELECT * FROM ((${comRelacao}) UNION ALL (${semRelacao})) e ORDER BY ${p.ordem} LIMIT $1 OFFSET $2`;
+}
+
+type LinhaDaPagina = Record<string, unknown> & { cnpj: string };
+
+interface DoTimeNaEmpresa {
+  cnpj: string;
+  faturamento_anual: number | null;
+  faturamento_anual_base: string | null;
+  funcionarios_informados: number | null;
+}
+
+function comODoTime(l: LinhaDaPagina, t: DoTimeNaEmpresa | undefined): LinhaDaPagina {
+  if (!t) return l;
+  const faturamento = t.faturamento_anual == null
+    ? {}
+    : { faturamento_informado: Number(t.faturamento_anual), faturamento_informado_base: t.faturamento_anual_base };
+  return { ...l, ...faturamento, funcionarios_informados: t.funcionarios_informados };
+}
+
+/**
+ * O que o time informou na Prospecção prevalece sobre a base: o faturamento (US-0006), o único
+ * jeito de acertar quem fatura muito acima da média do ramo, e os funcionários confirmados
+ * (US-0020), que a tela usa no lugar da RAIS e no faturamento estimado. Lido com a sessão da
  * pessoa, então a RLS só deixa ver as empresas do tenant dela. Falha aqui não derruba a lista.
  */
 async function comFaturamentoDoTime(sessao: SupabaseClient, linhas: LinhaDaPagina[]): Promise<LinhaDaPagina[]> {
   if (!linhas.length) return linhas;
   const { data, error } = await sessao
     .from("prospect_companies")
-    .select("cnpj, faturamento_anual, faturamento_anual_base")
+    .select("cnpj, faturamento_anual, faturamento_anual_base, funcionarios_informados")
     .in("cnpj", linhas.map((l) => l.cnpj.trim()))
-    .not("faturamento_anual", "is", null);
+    .or("faturamento_anual.not.is.null,funcionarios_informados.not.is.null");
   if (error || !data) return linhas;
-  const doTime = new Map(data.map((r) => [r.cnpj as string, r]));
-  return linhas.map((l) => {
-    const t = doTime.get(l.cnpj.trim());
-    return t ? { ...l, faturamento_informado: Number(t.faturamento_anual), faturamento_informado_base: t.faturamento_anual_base } : l;
-  });
+  const doTime = new Map((data as DoTimeNaEmpresa[]).map((r) => [r.cnpj, r]));
+  return linhas.map((l) => comODoTime(l, doTime.get(l.cnpj.trim())));
+}
+
+// ---------- relação com a Origami (US-0019) ----------
+
+// O PostgREST devolve no máximo mil linhas por vez: lê de mil em mil.
+const LOTE = 1000;
+
+// deno-lint-ignore no-explicit-any
+async function todas<T>(consulta: (de: number, ate: number) => PromiseLike<{ data: any[] | null; error: unknown }>): Promise<T[]> {
+  const linhas: T[] = [];
+  for (let de = 0; ; de += LOTE) {
+    const { data, error } = await consulta(de, de + LOTE - 1); // harness-ok: paginação, cada volta lê o lote seguinte
+    if (error) throw error;
+    linhas.push(...((data ?? []) as T[]));
+    if (!data || data.length < LOTE) return linhas;
+  }
+}
+
+interface EmpresaDoTenant { id: string; cnpj: string | null; client_id: string | null }
+interface ClienteDoTenant { id: string; cnpj: string | null }
+interface OportunidadeDoTenant {
+  id: string; company_id: string; title: string | null; stage: string; owner_id: string | null;
+  discard_reason: string | null; closed_at: string | null; discarded_at: string | null; won_on: string | null; created_at: string;
+}
+interface ProjetoDoTenant {
+  id: string; name: string; status: string; client_id: string | null; prospect_id: string | null;
+  start_date: string | null; end_date: string | null;
+}
+
+const dia = (valor: string | null | undefined) => (valor ? valor.slice(0, 10) : null);
+
+/** Lê clientes, empresas da Prospecção, oportunidades e projetos do tenant, com a RLS da pessoa. */
+async function lerDoTenant(sessao: SupabaseClient) {
+  const [empresas, clientes, oportunidades, projetos] = await Promise.all([
+    todas<EmpresaDoTenant>((de, ate) => sessao.from("prospect_companies").select("id, cnpj, client_id").not("cnpj", "is", null).range(de, ate)),
+    todas<ClienteDoTenant>((de, ate) => sessao.from("clients").select("id, cnpj").not("cnpj", "is", null).range(de, ate)),
+    todas<OportunidadeDoTenant>((de, ate) =>
+      sessao.from("prospects")
+        .select("id, company_id, title, stage, owner_id, discard_reason, closed_at, discarded_at, won_on, created_at")
+        .range(de, ate)
+    ),
+    todas<ProjetoDoTenant>((de, ate) => sessao.from("projects").select("id, name, status, client_id, prospect_id, start_date, end_date").range(de, ate)),
+  ]);
+  return { empresas, clientes, oportunidades, projetos };
+}
+
+type DoTenant = Awaited<ReturnType<typeof lerDoTenant>>;
+
+function dataDaOportunidade(o: OportunidadeDoTenant): string | null {
+  return dia(o.closed_at ?? o.discarded_at ?? o.won_on ?? o.created_at);
+}
+
+/**
+ * Junta tudo pela raiz do CNPJ: a base só tem matrizes, e o cliente pode estar cadastrado com o
+ * CNPJ de uma filial (hipótese da US-0019). A ordem importa: clientes e empresas antes das
+ * oportunidades, e elas antes dos projetos, que chegam pelo cliente ou pela oportunidade.
+ */
+class Agrupador {
+  private readonly porRaiz = new Map<string, DadosDaRelacao>();
+  private readonly projetosVistos = new Set<string>();
+  private readonly raizDaEmpresa = new Map<string, string>();
+  private readonly raizesDoCliente = new Map<string, Set<string>>();
+  private readonly raizDaOportunidade = new Map<string, string>();
+
+  private dados(raiz: string): DadosDaRelacao {
+    const d = this.porRaiz.get(raiz) ?? { cliente: false, projetos: [], oportunidades: [] };
+    this.porRaiz.set(raiz, d);
+    return d;
+  }
+
+  private ligarCliente(clienteId: string, raiz: string) {
+    this.raizesDoCliente.set(clienteId, (this.raizesDoCliente.get(clienteId) ?? new Set()).add(raiz));
+    this.dados(raiz).cliente = true;
+  }
+
+  cliente(c: ClienteDoTenant) {
+    const raiz = raizDoCnpj(c.cnpj);
+    if (raiz) this.ligarCliente(c.id, raiz);
+  }
+
+  empresa(e: EmpresaDoTenant) {
+    const raiz = raizDoCnpj(e.cnpj);
+    if (!raiz) return;
+    this.raizDaEmpresa.set(e.id, raiz);
+    if (e.client_id) this.ligarCliente(e.client_id, raiz);
+  }
+
+  oportunidade(o: OportunidadeDoTenant) {
+    const raiz = this.raizDaEmpresa.get(o.company_id);
+    if (!raiz) return;
+    this.raizDaOportunidade.set(o.id, raiz);
+    const { id, title, stage, owner_id, discard_reason } = o;
+    this.dados(raiz).oportunidades.push({ id, title, stage, owner_id, discard_reason, data: dataDaOportunidade(o) });
+  }
+
+  projeto(p: ProjetoDoTenant) {
+    const raizes = new Set(this.raizesDoCliente.get(p.client_id ?? "") ?? []);
+    const pelaOportunidade = this.raizDaOportunidade.get(p.prospect_id ?? "");
+    if (pelaOportunidade) raizes.add(pelaOportunidade);
+    const projeto = { id: p.id, name: p.name, status: p.status, data: dia(p.end_date ?? p.start_date) };
+    raizes.forEach((raiz) => this.anotarProjeto(raiz, projeto));
+  }
+
+  private anotarProjeto(raiz: string, projeto: DadosDaRelacao["projetos"][number]) {
+    const chave = `${raiz}:${projeto.id}`;
+    if (this.projetosVistos.has(chave)) return;
+    this.projetosVistos.add(chave);
+    this.dados(raiz).projetos.push(projeto);
+  }
+
+  resultado(): Map<string, DadosDaRelacao> {
+    return this.porRaiz;
+  }
+}
+
+function agrupar({ empresas, clientes, oportunidades, projetos }: DoTenant): Map<string, DadosDaRelacao> {
+  const g = new Agrupador();
+  clientes.forEach((c) => g.cliente(c));
+  empresas.forEach((e) => g.empresa(e));
+  oportunidades.forEach((o) => g.oportunidade(o));
+  projetos.forEach((p) => g.projeto(p));
+  return g.resultado();
+}
+
+async function dadosDaRelacao(sessao: SupabaseClient): Promise<Map<string, DadosDaRelacao>> {
+  return agrupar(await lerDoTenant(sessao));
+}
+
+function relacoesPorRaiz(dados: Map<string, DadosDaRelacao>): Map<string, RelacaoDaEmpresa> {
+  const hoje = new Date();
+  const mapa = new Map<string, RelacaoDaEmpresa>();
+  for (const [raiz, d] of dados) {
+    const r = relacaoDaEmpresa(d, hoje);
+    if (r) mapa.set(raiz, r);
+  }
+  return mapa;
+}
+
+/** A relação de todas as empresas do tenant; nulo se a leitura falhar (cenário 9). */
+async function relacoesSeguras(sessao: SupabaseClient): Promise<Map<string, RelacaoDaEmpresa> | null> {
+  try {
+    return relacoesPorRaiz(await dadosDaRelacao(sessao));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Com o filtro de relação, a lista de raízes entra na consulta da VPS (índice de cnpj_basico).
+ * Sem os dados do tenant, o filtro não acha ninguém, e a resposta avisa (cenário 9).
+ */
+function comRaizes(filtros: Filtros, relacoes: Map<string, RelacaoDaEmpresa> | null): Filtros {
+  if (!filtros.relacoes.length) return filtros;
+  if (!relacoes) return { ...filtros, raizes: [] };
+  const marcadas = new Set(filtros.relacoes);
+  return { ...filtros, raizes: [...relacoes].filter(([, r]) => marcadas.has(r.relacao)).map(([raiz]) => raiz) };
+}
+
+/** A relação de cada linha da página; sem os dados, a lista aparece sem ela. */
+function comRelacao(linhas: LinhaDaPagina[], relacoes: Map<string, RelacaoDaEmpresa> | null): LinhaDaPagina[] {
+  if (!relacoes) return linhas;
+  return linhas.map((l) => ({ ...l, relacao: relacoes.get(l.cnpj.slice(0, 8)) ?? null }));
 }
 
 // Até aqui, a página separa as empresas filtradas antes de ordenar.
@@ -483,30 +733,41 @@ async function saoPoucas(cliente: Cliente, pedido: Extract<Pedido, { modo: "pagi
   return Number(r.rows[0]?.n ?? 0) <= POUCAS;
 }
 
-async function pagina(cliente: Cliente, pedido: Extract<Pedido, { modo: "pagina" }>, sessao: SupabaseClient) {
+async function pagina(cliente: Cliente, pedidoOriginal: Extract<Pedido, { modo: "pagina" }>, sessao: SupabaseClient) {
+  const relacoes = await relacoesSeguras(sessao);
+  const pedido = { ...pedidoOriginal, filtros: comRaizes(pedidoOriginal.filtros, relacoes) };
   const { ordem, pagina, filtros, busca } = pedido;
   const { where, valores, pelaSecundaria } = condicoesDaBusca(filtros, busca, 3);
   const poucas = await saoPoucas(cliente, pedido);
+  const rel = sqlDaRelacao(relacoes, pedido.porRelacao, 3 + valores.length);
   const linhas = await cliente.queryObject(
     `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, c.descricao AS cnae_descricao,
           e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.capital_social::float8 AS capital_social, e.distancia_km, e.funcionarios,
           e.divida_total::float8 AS divida_total, e.divida_ajuizada::float8 AS divida_ajuizada,
-          e.fit_previo, e.fit_frente, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base, e.pela_secundaria
-     FROM (${empresasDaPagina(pedido, where, pelaSecundaria, poucas)}) e
+          e.fit_previo, e.fit_frente, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base, e.pela_secundaria,
+          e.natureza_juridica
+     FROM (${empresasDaPagina(pedido, where, pelaSecundaria, poucas, rel)}) e
      LEFT JOIN public.cnaes c ON c.codigo = e.cnae_principal
     ORDER BY ${ordem}`,
-    [POR_PAGINA, pagina * POR_PAGINA, ...valores],
+    [POR_PAGINA, pagina * POR_PAGINA, ...valores, ...rel.valores],
   );
   const base = await lerBase(cliente);
   const comDoTime = await comFaturamentoDoTime(sessao, linhas.rows as LinhaDaPagina[]);
-  return { carregada_em: base?.carregada_em ?? null, total_da_base: base?.total ?? null, linhas: comDoTime };
+  return {
+    carregada_em: base?.carregada_em ?? null,
+    total_da_base: base?.total ?? null,
+    linhas: comRelacao(comDoTime, relacoes),
+    relacao_indisponivel: relacoes === null,
+  };
 }
 
 // A contagem para em 100 mil: a lista navega só até 10 mil, e contar 2 milhões passaria de 2 s.
 const TETO_DA_CONTAGEM = 100_000;
 
-async function total(cliente: Cliente, { filtros, busca }: Extract<Pedido, { modo: "total" }>) {
-  const { where, valores } = condicoesDaBusca(filtros, busca, 2);
+async function total(cliente: Cliente, pedido: Extract<Pedido, { modo: "total" }>, sessao: SupabaseClient) {
+  const relacoes = pedido.filtros.relacoes.length ? await relacoesSeguras(sessao) : null;
+  const filtros = comRaizes(pedido.filtros, relacoes);
+  const { where, valores } = condicoesDaBusca(filtros, pedido.busca, 2);
   if (!where) {
     const base = await lerBase(cliente);
     return { total: base?.total ?? null, limitado: false };
@@ -574,19 +835,35 @@ async function oportunidadesDaEmpresa(sessao: SupabaseClient, cnpj: string) {
   return data ?? [];
 }
 
+/** Relação e histórico da empresa (US-0019, cenário 7); falha aqui não derruba a ficha. */
+async function relacaoDaFicha(sessao: SupabaseClient, cnpj: string) {
+  try {
+    const dados = (await dadosDaRelacao(sessao)).get(cnpj.slice(0, 8)) ?? { cliente: false, projetos: [], oportunidades: [] };
+    return { relacao: relacaoDaEmpresa(dados, new Date()), historico: dados, relacao_indisponivel: false };
+  } catch {
+    return { relacao: null, historico: null, relacao_indisponivel: true };
+  }
+}
+
 async function ficha(cliente: Cliente, { cnpj }: Extract<Pedido, { modo: "ficha" }>, sessao: SupabaseClient) {
   const r = await cliente.queryObject<LinhaDaPagina>(FICHA, [cnpj]);
   if (!r.rows.length) throw new Recusa("Empresa não encontrada na base.", 404);
   const [empresa] = await comFaturamentoDoTime(sessao, r.rows);
   const socios = await cliente.queryObject(SOCIOS, [cnpj.slice(0, 8), ADMINISTRAM]);
   const contato = await cliente.queryObject("SELECT email, telefone_1, telefone_2 FROM pulse.contatos WHERE cnpj = $1", [cnpj]);
-  return { empresa, contato: contato.rows[0] ?? null, socios: socios.rows, oportunidades: await oportunidadesDaEmpresa(sessao, cnpj) };
+  return {
+    empresa,
+    contato: contato.rows[0] ?? null,
+    socios: socios.rows,
+    oportunidades: await oportunidadesDaEmpresa(sessao, cnpj),
+    ...(await relacaoDaFicha(sessao, cnpj)),
+  };
 }
 
 async function responder(pedido: Pedido, sessao: SupabaseClient) {
   const cliente = await baseDaReceita().connect();
   try {
-    if (pedido.modo === "total") return await total(cliente, pedido);
+    if (pedido.modo === "total") return await total(cliente, pedido, sessao);
     if (pedido.modo === "cnaes") return await cnaes(cliente, pedido);
     if (pedido.modo === "ficha") return await ficha(cliente, pedido, sessao);
     return await pagina(cliente, pedido, sessao);

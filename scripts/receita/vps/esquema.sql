@@ -103,3 +103,8 @@ CREATE INDEX IF NOT EXISTS empresas_fat_estimado_asc_idx ON pulse.empresas (fatu
 ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS distancia_km integer;
 CREATE INDEX IF NOT EXISTS empresas_distancia_asc_idx ON pulse.empresas (distancia_km ASC NULLS LAST, cnpj ASC);
 CREATE INDEX IF NOT EXISTS empresas_distancia_desc_idx ON pulse.empresas (distancia_km DESC NULLS LAST, cnpj DESC);
+
+-- Ordem por capital social (18/11/2026): capital zero é o "não declarado" da Receita e fica no
+-- fim, com os nulos, nos dois sentidos.
+CREATE INDEX IF NOT EXISTS empresas_capital_desc_idx ON pulse.empresas ((nullif(capital_social, 0)) DESC NULLS LAST, cnpj DESC);
+CREATE INDEX IF NOT EXISTS empresas_capital_asc_idx ON pulse.empresas ((nullif(capital_social, 0)) ASC NULLS LAST, cnpj ASC);

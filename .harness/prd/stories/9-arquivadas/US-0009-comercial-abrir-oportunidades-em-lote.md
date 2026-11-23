@@ -1,12 +1,13 @@
 # US-0009 — Abrir oportunidades em lote
 
-- **Status:** Em refinamento
+- **Status:** Arquivada
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Empresas da Receita
 - **Prioridade:** 3
 - **Aprovada por / em:** —
 - **Relacionadas:** US-0008
+- **Motivo do arquivamento:** incorporada à US-0008 ("Colocar empresas para abordar") em 2026-11-18, depois da validação da tela pelo Victor.
 
 ## Descrição
 

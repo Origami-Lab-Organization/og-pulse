@@ -66,7 +66,7 @@ export const schema = z.object({
   company_ring: z.string().optional(),
   company_tier: z.string().optional(),
   company_faturamento: z.number().min(0).optional(),
-  company_faturamento_base: z.enum(['estimado', 'apurado']).optional(),
+  company_faturamento_base: z.enum(['estimado', 'apurado', 'calculado']).optional(),
   // Empresa que já é cliente da carteira (escolhida no seletor).
   company_client_id: z.string().optional(),
 });

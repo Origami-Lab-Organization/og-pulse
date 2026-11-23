@@ -1,3 +1,6 @@
+import type { EmpresaReceita } from '@/lib/prospecting/empresasReceita';
+import type { Relacao } from '@/types/relacao';
+
 /**
  * Filtros da base da Receita (US-0003). O mesmo formato vai no corpo da Edge Function
  * `empresas-receita`, que aceita só os valores destas listas fechadas.
@@ -76,6 +79,8 @@ export interface FiltrosReceita {
   divida: FiltroDeDivida;
   comEmail: boolean;
   comTelefone: boolean;
+  /** Relação com a Origami (US-0019). */
+  relacoes: Relacao[];
 }
 
 /** Um CNAE achado pelo código ou pela descrição, para o campo de CNAE. */
@@ -99,3 +104,10 @@ export type BuscaReceita =
   | { tipo: 'curta'; aviso: string }
   | { tipo: 'cnpj'; digitos: string }
   | { tipo: 'texto'; termo: string };
+
+/** Seleção da lista para mover para abordar (US-0008): vale entre páginas e filtros. */
+export interface SelecaoDaLista {
+  marcadas: ReadonlySet<string>;
+  /** Marca ou desmarca estas empresas (uma linha, ou a página inteira). */
+  onMarcar: (empresas: EmpresaReceita[], marcar: boolean) => void;
+}
