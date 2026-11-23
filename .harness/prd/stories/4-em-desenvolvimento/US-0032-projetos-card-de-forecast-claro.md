@@ -31,12 +31,14 @@ plan restante".
 
 ## Critérios de aceite
 
-**Cenário 1: a cor segue o forecast**
+**Cenário 1: a cor segue o forecast, em três faixas**
 
-- **Dado** um projeto com meta de margem;
-- **Quando** o forecast está na meta ou acima;
+- **Dado** um projeto com meta de margem de 55%;
+- **Quando** o forecast está na meta ou acima (55% ou mais);
 - **Então** o card fica no tom normal (verde no número);
-- **E** quando o forecast está abaixo da meta, o card fica em destaque negativo (vermelho).
+- **E** com o forecast até 10% da meta abaixo dela (de 49,5% até 55%), o card fica amarelo;
+- **E** com o forecast mais de 10% da meta abaixo dela (abaixo de 49,5%), o card fica
+  vermelho, e só então aparece o aviso "Margem projetada abaixo da meta" no rodapé da aba.
 
 **Cenário 2: plano abaixo da meta vira aviso, não cor**
 
@@ -46,14 +48,20 @@ plan restante".
 - **E** mostra o aviso escrito "Plano abaixo da meta (15,5%)", com a margem planejada do
   projeto.
 
-**Cenário 3: o texto explica a conta**
+**Cenário 3: o texto diz o estado, sem repetir custos**
 
 - **Dado** um projeto com custo planejado;
 - **Quando** abro o card;
-- **Então** ele mostra o custo final estimado e de onde vem, no formato "Custo final
-  estimado R$ X = R$ Y já gasto + R$ Z ainda planejado" (a conta é da US-0031);
-- **E** mostra a meta, por exemplo "meta 55%";
+- **Então** ele mostra a margem projetada e a meta com a faixa, por exemplo "meta 55% · até
+  10% abaixo da meta";
+- **E** não repete valores de custo, que já estão nos outros cards;
 - **E** não usa "EAC", "burn-rate" nem "plan".
+
+**Cenário 3b: projeto encerrado**
+
+- **Dado** um projeto cuja data de fim já passou;
+- **Quando** abro o card;
+- **Então** ele informa "Projeto encerrado".
 
 **Cenário 4: sem custo planejado**
 
@@ -70,6 +78,10 @@ plan restante".
 ## Decisões (Victor Couto, 23/11/2026)
 
 - Forecast acima da meta com plano abaixo: card verde, com aviso escrito.
+- O card não mostra valores de custo (já estão na tela); só informa quando o projeto está
+  encerrado.
+- Forecast até 10% da meta abaixo dela: amarelo; mais de 10%: vermelho. "10% da meta" é
+  relativo ao valor da meta (meta 55% → limite 49,5%).
 
 ## Contexto técnico
 
@@ -84,13 +96,13 @@ plan restante".
 
 ## Implementação
 
-`FinancialKpiCards.tsx`: o card de forecast fica vermelho só quando o forecast está abaixo da
-meta. Com o forecast na meta ou acima e a margem planejada abaixo, o card fica verde e mostra
-"Plano abaixo da meta (X%)". O texto passa a ser "margem projetada no fim do projeto" e
-"Custo final estimado R$ X = R$ Y já gasto + R$ Z ainda planejado" (ou "· projeto encerrado"
-depois da data de fim), seguido de "meta N% · na meta ou acima / abaixo da meta". Sem
-"EAC", "burn-rate" nem "plan". As parcelas do custo vêm do forecast da US-0031
-(`spent`, `remaining`, `projectEnded`).
+`FinancialKpiCards.tsx`: a faixa do card vem de `forecastTone` (`src/lib/projectForecast.ts`):
+`ok` (petróleo, número verde), `warning` (`bg-warning`, até 10% da meta abaixo), `critical`
+(`bg-destructive`, mais de 10% abaixo) e `neutral` (sem meta ou sem custo planejado). O card
+mostra a margem projetada, "Projeto encerrado" depois da data de fim e "meta N% · faixa";
+com plano abaixo da meta na faixa verde, o aviso "Plano abaixo da meta (X%)". Sem valores de
+custo, "EAC", "burn-rate" nem "plan". O aviso do rodapé da aba (`FinancialAlertBanner`) só
+aparece na faixa vermelha.
 
 **Teste desatualizado:** `src/test/financial-kpi-cards.test.tsx` ("Margem planejada abaixo
 da meta") ainda espera fundo vermelho quando só o plano está abaixo da meta, que é a regra
@@ -99,9 +111,10 @@ antiga. Não foi reescrito porque os testes estão desativados no Harness; o CI 
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| 1 | Pendente: conferir na tela (Paraíso: forecast 53,3% abaixo da meta de 55% → vermelho). |
+| 1 | Script: 56% e 55% → verde; 53,3% e 49,5% → amarelo; 49,4% → vermelho; sem meta ou sem custo → neutro. Falta conferir na tela (Paraíso: 53,3% → amarelo). |
 | 2 | Pendente: conferir na tela num projeto com forecast acima da meta e plano abaixo. |
 | 3 | Pendente: conferir o texto na tela. |
+| 3b | Pendente: conferir na tela (Paraíso, encerrado em 17/11). |
 | 4 | Pendente: conferir na tela num projeto sem custo planejado. |
 | 5 | Pendente: conferir com "ocultar valores". |
 

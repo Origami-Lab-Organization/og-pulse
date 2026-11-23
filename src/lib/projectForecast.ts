@@ -3,7 +3,7 @@ import { ptBR } from 'date-fns/locale';
 import { bucketTotal, monthKeyOf } from '@/lib/projectMonthlyCosts';
 import type { ContractCurvePoint } from '@/components/projects/detail/financial/ProjectContractCurveChart';
 import type { ProjectCostMonth } from '@/types/projectCostSummary';
-import type { ForecastInstallment, ProjectForecast } from '@/types/projectForecast';
+import type { ForecastInstallment, ForecastTone, ProjectForecast } from '@/types/projectForecast';
 
 /**
  * Forecast e curva de contrato da aba Financeiro (US-0031), sobre os meses de calendário da
@@ -134,4 +134,17 @@ export function buildContractCurve(input: {
 
   const todayMonth = months.find((month) => month.key === todayKey);
   return { points, todayLabel: todayMonth ? monthLabel(todayMonth.key) : null };
+}
+
+/** Tolerância abaixo da meta para o amarelo: 10% do valor da meta (decisão de 23/11/2026). */
+export const FORECAST_WARNING_RATIO = 0.1;
+
+/**
+ * Faixa do forecast (US-0032). Ex.: meta 55% → verde a partir de 55%, amarelo de 49,5% até
+ * 55%, vermelho abaixo de 49,5%.
+ */
+export function forecastTone(forecastMargin: number, marginTarget: number, hasCostPlanned: boolean): ForecastTone {
+  if (!hasCostPlanned || marginTarget <= 0) return 'neutral';
+  if (forecastMargin >= marginTarget) return 'ok';
+  return marginTarget - forecastMargin <= marginTarget * FORECAST_WARNING_RATIO ? 'warning' : 'critical';
 }

@@ -7,7 +7,7 @@ import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { useBudget } from '@/hooks/useBudgets';
 import { useProjectCommissions } from '@/hooks/useProjectCommissions';
 import { useProjectCostSummary } from '@/hooks/useProjectCostSummary';
-import { buildContractCurve, buildProjectForecast } from '@/lib/projectForecast';
+import { buildContractCurve, buildProjectForecast, forecastTone } from '@/lib/projectForecast';
 import { FinancialKpiCards } from './financial/FinancialKpiCards';
 import { ProjectPnLBridge } from './financial/ProjectPnLBridge';
 import { ProjectContractCurveChart } from './financial/ProjectContractCurveChart';
@@ -119,13 +119,14 @@ export function ProjectFinancialTab({
         list.push(`Parcela ${inst.installment_number} vencida há ${days} ${days === 1 ? 'dia' : 'dias'}`);
       }
     });
-    if (marginTarget > 0 && forecast.forecastMargin < marginTarget) {
+    // Só na faixa vermelha (mais de 10% abaixo da meta), como o card (US-0032).
+    if (forecastTone(forecast.forecastMargin, marginTarget, costData.totalPlanned > 0) === 'critical') {
       list.push(
         `Margem projetada (${forecast.forecastMargin.toFixed(0)}%) abaixo da meta (${marginTarget.toFixed(0)}%)`,
       );
     }
     return list;
-  }, [project.installments, forecast.forecastMargin, marginTarget]);
+  }, [project.installments, forecast.forecastMargin, marginTarget, costData.totalPlanned]);
 
   // Resumo de faturamento (rodapé da tabela de parcelas).
   const revenueGap = Math.max(0, kpiData.revenuePlanned - kpiData.revenueActual);
@@ -153,8 +154,6 @@ export function ProjectFinancialTab({
         marginTarget={marginTarget}
         forecastMargin={forecast.forecastMargin}
         forecastCost={forecast.forecastCost}
-        forecastSpent={forecast.spent}
-        forecastRemaining={forecast.remaining}
         projectEnded={forecast.projectEnded}
         hasCostPlanned={hasCostPlanned}
         onNavigateToExpenses={onNavigateToTab ? () => onNavigateToTab('costs') : undefined}
