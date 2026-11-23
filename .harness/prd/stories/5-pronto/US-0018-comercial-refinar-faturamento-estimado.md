@@ -1,6 +1,6 @@
 # US-0018 — Refinar o faturamento estimado
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Empresas da Receita
@@ -179,9 +179,9 @@ O faturamento apurado ou estimado pelo time leva o selo verde, com quem informou
 | Cenário | Prova (teste ou evidência) |
 |---|---|
 | 1 e 2 | `scripts/receita/calibrar-por-setor.ts` (lê só "apurado" e "estimado"); rodado em 23/11/2026: 3 casos cruzados com a base, todos subestimados (2, 17 e 24 vezes), nenhum setor com 5 casos, nada calibrado; testes desativados |
-| 3 | conferência manual em 19/11/2026: R$ 120 mi no Presumido de 2024 → R$ 78 mi, com o motivo; tela a validar |
+| 3 | conferência manual em 19/11/2026 (R$ 120 mi no Presumido → R$ 78 mi) e tela validada pelo Victor em 23/11/2026 (31 empresas do Pulse no Presumido acima de R$ 78 mi, ex.: Indústria Alltec) |
 | 4 | conferência manual: capital de R$ 50 mi sem RAIS → base "capital", selo médio; SPE e holding ficam no modelo; carga de 23/11/2026 com o ok do Victor: 22.460 empresas pelo capital (6.216 âncora, 14.093 ponte, 2.151 satélite) |
-| 5 | conferência manual: RAIS → média (sem setor calibrado), modelo e piso → baixa; tela a validar |
+| 5 | tela validada pelo Victor em 23/11/2026: selo no hover da lista e na ficha, vermelho/amarelo/verde; faturamento do time verde com autoria e histórico |
 | 6 | o tipo de conta gravado não é recalculado; a sugestão nova só aparece ao mover |
 
 - Estimativa: base `capital` e fator do setor em `faturamentoEstimado.ts`
@@ -201,3 +201,5 @@ O faturamento apurado ou estimado pelo time leva o selo verde, com quem informou
   `empresas-receita` devolve as últimas 10 mudanças por empresa; autoria e selo do informado em
   `confiancaDoFaturamento.ts` (`autoriaDoFaturamento`, `seloDoInformado`); cores e hover em
   `SeloDeConfianca.tsx`; histórico na ficha (`HistoricoDoFaturamento`).
+
+Validação: Victor Couto, 23/11/2026 ("testei, tudo passou"), os 11 cenários de teste da revisão; testes automatizados desativados neste ciclo.
