@@ -32,15 +32,17 @@ interface Passagem {
 }
 
 const PASSAGENS: readonly Passagem[] = [
+  // Da safra das movidas para qualificação no período (US-0021); as demais, da safra dos ativados.
+  { key: 'abordar', label: 'Qualificação → A abordar', formula: 'saíram para A abordar ÷ movidas', parte: (s) => s.paraAbordar, base: (s) => s.movidas },
   { key: 'resposta', label: 'Resposta', formula: 'conversas ÷ ativados', parte: (s) => s.conversas, base: (s) => s.ativados },
   { key: 'agendamento', label: 'Agendamento', formula: 'agendadas ÷ conversas', parte: (s) => s.agendadas, base: (s) => s.conversas },
   { key: 'comparecimento', label: 'Comparecimento', formula: 'feitas ÷ agendadas', parte: (s) => s.feitas, base: (s) => s.agendadas },
-  { key: 'qualificacao', label: 'Qualificação', formula: 'qualificadas ÷ feitas', parte: (s) => s.qualificadas, base: (s) => s.feitas },
+  { key: 'qualificacao', label: 'Oportunidade qualificada', formula: 'qualificadas ÷ feitas', parte: (s) => s.qualificadas, base: (s) => s.feitas },
   { key: 'fechamento', label: 'Fechamento', formula: 'ganhos ÷ qualificadas', parte: (s) => s.ganhos, base: (s) => s.qualificadas },
 ];
 
 /**
- * As cinco passagens da safra. Diferente do quadro por safra mensal, a taxa aparece mesmo
+ * As passagens da safra. Diferente do quadro por safra mensal, a taxa aparece mesmo
  * com base pequena — marcada, para a pessoa ver o número e saber quanto confiar nele.
  */
 export function stageRates(s: SafraCounts): StageRate[] {
@@ -145,6 +147,7 @@ const rotuloEmAndamento = (series: SeriesPoint[]) => series.find((p) => p.bucket
 const verbo = (n: number, um: string, varios: string) => (n === 1 ? um : varios);
 
 const CONSELHO: Record<SafraRateKey, string> = {
+  abordar: 'Veja na aba "Em qualificação" o que está parado no estudo e decida: abordar, "Não agora" ou Perda.',
   resposta: 'Revise a lista e a mensagem de abertura antes de aumentar o volume.',
   agendamento: 'Revise o convite para a reunião e o momento em que ele é feito na conversa.',
   comparecimento: 'Confirme a reunião na véspera e reagende logo quem faltou.',
@@ -153,6 +156,7 @@ const CONSELHO: Record<SafraRateKey, string> = {
 };
 
 const FRASE_DO_GARGALO: Record<SafraRateKey, (r: StageRate) => string> = {
+  abordar: ({ parte, base }) => `Das ${base} empresas movidas para qualificação, ${parte} ${verbo(parte, 'saiu', 'saíram')} para A abordar.`,
   resposta: (r) => `Só ${formatRate(r.rate)} dos ativados responderam.`,
   agendamento: ({ parte, base }) => `Das ${base} conversas, ${parte} ${verbo(parte, 'virou', 'viraram')} reunião agendada.`,
   comparecimento: ({ parte, base }) => `${base - parte} de ${base} reuniões agendadas não aconteceram.`,

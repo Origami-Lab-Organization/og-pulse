@@ -1,9 +1,9 @@
 import { useState, type CSSProperties } from 'react';
-import { Progress } from '@/components/ui/progress';
-import { formatRate, formatRatio, type AccountCoverage } from '@/lib/prospecting/metrics';
+import { Link } from 'react-router-dom';
+import { formatRatio } from '@/lib/prospecting/metrics';
 import { GRAIN_OPTIONS, formatDay } from '@/lib/prospecting/periods';
 import { cn } from '@/lib/utils';
-import type { Grain, MetricDefinition, MetricKey, MetricValue, SeriesPoint } from '@/types/prospectMetrics';
+import type { Grain, MetricDefinition, MetricKey, MetricValue, SeriesPoint, TriagemDaBase } from '@/types/prospectMetrics';
 import { formatNumber, plural } from './format';
 import { Painel, Segmentado } from './parts';
 
@@ -11,8 +11,9 @@ import { Painel, Segmentado } from './parts';
 const METRICAS_DA_EVOLUCAO: readonly MetricKey[] = [
   'ativados',
   'atividades',
+  'movidas',
+  'para_abordar',
   'contas',
-  'empresas',
   'contatos',
   'conversas',
   'agendadas',
@@ -36,18 +37,19 @@ interface EffortTabProps {
   series: SeriesPoint[];
   grain: Grain;
   onGrainChange: (grain: Grain) => void;
-  coverage: AccountCoverage;
+  /** Triagem da Base no período (US-0021, no lugar da "Cobertura da lista"). */
+  triagem: TriagemDaBase;
   historyStart: string | null;
   onOpenMetric: (definition: MetricDefinition) => void;
 }
 
-/** "Estou fazendo volume?": o que foi feito no período, como isso evolui e quanto da lista já foi trabalhado. */
+/** "Estou fazendo volume?": o que foi feito no período, como isso evolui e como a Base está sendo triada. */
 export function EffortTab(props: EffortTabProps) {
-  const { values, coverage, onOpenMetric } = props;
+  const { values, triagem, onOpenMetric } = props;
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 md:grid-cols-2">
-        {gruposDe(values, coverage).map((g) => (
+        {gruposDe(values).map((g) => (
           <Painel key={g.title} title={g.title} description={g.question} className="gap-3 px-5 py-4">
             <div className="grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-4">
               {g.items.map((item) => (
@@ -58,7 +60,7 @@ export function EffortTab(props: EffortTabProps) {
         ))}
       </div>
       <Evolucao {...props} />
-      <Cobertura coverage={coverage} />
+      <Triagem triagem={triagem} />
     </div>
   );
 }
@@ -76,20 +78,22 @@ interface ItemDoGrupo {
 const porCada = (parte: number | null, total: number | null, rotulo: string) =>
   parte !== null && total ? `${formatRatio(parte, total)} ${rotulo}` : 'no período';
 
-function gruposDe(values: MetricValue[], coverage: AccountCoverage) {
+function gruposDe(values: MetricValue[]) {
   const n = (k: MetricKey) => valorDe(values, k).current;
   const contas = n('contas') ?? 0;
+  // O topo agora é a Qualificação (US-0021): a empresa entra na Prospecção ao ser movida da Base.
   const listas: ItemDoGrupo[] = [
-    { key: 'empresas', label: 'Empresas cadastradas', sub: n('empresas') === null ? 'não se aplica à alavanca' : 'no período' },
-    { key: 'contatos', label: 'Contatos cadastrados', sub: porCada(n('contatos'), n('empresas'), 'por empresa') },
+    { key: 'movidas', label: 'Movidas para qualificação', sub: 'no período' },
+    { key: 'para_abordar', label: 'Saíram para A abordar', sub: 'no período' },
+    { key: 'contatos', label: 'Contatos cadastrados', sub: porCada(n('contatos'), n('movidas'), 'por empresa movida') },
   ];
   const prospeccao: ItemDoGrupo[] = [
-    { key: 'contas', label: 'Contas abertas', sub: coverage.naLista ? `${formatRate(contas / coverage.naLista)} da lista` : 'no período' },
+    { key: 'contas', label: 'Contas abertas', sub: 'com 1º toque no período' },
     { key: 'ativados', label: 'Contatos ativados', sub: porCada(n('ativados'), contas, 'por conta') },
     { key: 'atividades', label: 'Atividades', sub: porCada(n('atividades'), n('ativados'), 'por ativado') },
   ];
   return [
-    { title: 'Construção da lista', question: 'Estou alimentando o topo?', items: listas },
+    { title: 'Qualificação', question: 'Estou alimentando o topo?', items: listas },
     { title: 'Prospecção', question: 'Estou prospectando de verdade?', items: prospeccao },
   ];
 }
@@ -291,30 +295,50 @@ function Legenda() {
   );
 }
 
-/**
- * Cobertura de contas — fica fora da jornada porque responde outra pergunta: não "como
- * converte", e sim "a lista está sendo consumida". Uma lista parada produz taxas de
- * aparência saudável com volume minúsculo, e só este número denuncia isso.
- */
-function Cobertura({ coverage }: { coverage: AccountCoverage }) {
-  const percentual = coverage.taxa === null ? 0 : Math.round(coverage.taxa * 100);
-  const nunca = coverage.nuncaAbordadas;
+const LINK_DE_RETOMAR = '/comercial/empresas?relacao=retomar';
+
+interface NumeroDaTriagemProps {
+  valor: number;
+  rotulo: string;
+}
+
+function NumeroDaTriagem(props: NumeroDaTriagemProps) {
+  const { valor, rotulo } = props;
   return (
-    <Painel title="Cobertura da lista" description="Quanto das empresas com contato cadastrado foi trabalhado no período." className="gap-3.5">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-mono text-[1.75rem] font-medium tabular-nums">{formatRate(coverage.taxa)}</span>
-        <span className="text-sm text-muted-foreground">
-          {coverage.abertas} de {plural(coverage.naLista, 'conta', 'contas')} trabalhadas no período
-        </span>
+    <div className="flex flex-col gap-1">
+      <span className="font-mono text-[1.625rem] font-medium leading-tight tracking-tight tabular-nums">{valor}</span>
+      <span className="text-xs text-foreground">{rotulo}</span>
+    </div>
+  );
+}
+
+/**
+ * Triagem da Base (US-0021, no lugar da "Cobertura da lista"): o que o time decidiu sobre as
+ * empresas da base no período — mover, descartar ou "Não agora" — e o que está esperando
+ * retomar hoje. A decisão não tem alavanca nem tipo de conta: com esses filtros, não se aplica.
+ */
+function Triagem({ triagem }: { triagem: TriagemDaBase }) {
+  if (!triagem.applies) {
+    return <Painel title="Triagem da base" description="Não se aplica ao filtro de alavanca ou de tipo de conta: a decisão sobre a empresa da base não tem nenhum dos dois." className="gap-2" />;
+  }
+  const motivos = triagem.porMotivo.map((m) => `${m.label} (${m.count})`).join(' · ');
+  return (
+    <Painel title="Triagem da base" description="O que o time decidiu sobre as empresas da Base de empresas no período." className="gap-3.5">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-4">
+        <NumeroDaTriagem valor={triagem.movidas} rotulo="Movidas para qualificação" />
+        <NumeroDaTriagem valor={triagem.descartadas} rotulo="Descartadas" />
+        <NumeroDaTriagem valor={triagem.naoAgora} rotulo={'Marcadas "Não agora"'} />
       </div>
-      <Progress value={percentual} className="h-2.5" aria-label={`Cobertura da lista: ${formatRate(coverage.taxa)}`} />
-      {nunca > 0 && (
-        // Sem "Ver contas" desde 18/11/2026: a lista de contas saiu da tela Empresas (US-0021).
-        <p className="text-sm">
-          <span className="font-mono font-medium tabular-nums">{nunca}</span>{' '}
-          {nunca === 1 ? 'conta nunca foi abordada' : 'contas nunca foram abordadas'}
-        </p>
-      )}
+      {motivos && <p className="text-xs text-muted-foreground">Descarte por motivo: {motivos}.</p>}
+      <p className="flex flex-wrap items-baseline gap-x-2 border-t pt-3 text-sm">
+        <span className="font-mono font-medium tabular-nums">{triagem.retomarAgora}</span>
+        <span>{triagem.retomarAgora === 1 ? 'empresa esperando retomar agora' : 'empresas esperando retomar agora'}</span>
+        {triagem.retomarAgora > 0 && (
+          <Link to={LINK_DE_RETOMAR} className="text-primary underline underline-offset-[3px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            Ver na Base de empresas
+          </Link>
+        )}
+      </p>
     </Painel>
   );
 }

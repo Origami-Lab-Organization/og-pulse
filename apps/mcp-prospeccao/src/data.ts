@@ -13,7 +13,7 @@
  */
 
 import { discardUpdate, reopenUpdate } from '@/lib/prospecting/transitions';
-import type { ActivityLite, MetricsSource, ProspectStageChangeDB } from '@/types/prospectMetrics';
+import type { ActivityLite, DecisaoDasMetricas, MetricsSource, ProspectStageChangeDB } from '@/types/prospectMetrics';
 import {
   PROSPECT_FUNNEL_STAGES,
   sortProspectTasks,
@@ -550,13 +550,13 @@ export interface DadosDasMetricas extends MetricsSource {
 /**
  * O que a aba Métricas lê (`useProspectMetricsData`), com as mesmas consultas: contatos,
  * empresas, todas as respostas (a 1ª pode ser antiga), atividades desde `desde`, histórico de
- * etapa e tarefas pendentes. Tudo sob a RLS e o tenant da sessão.
+ * etapa, tarefas pendentes, decisões da Base e evidências de BANT. Tudo sob a RLS e o tenant da sessão.
  */
 export async function dadosDasMetricas(desde: string): Promise<DadosDasMetricas> {
   const eu = await currentEmployee();
   const supabase = await getSupabase();
   const doTenant = (tabela: string, colunas: string) => supabase.from(tabela).select(colunas).eq('tenant_id', eu.tenantId);
-  const [prospects, companies, responses, activities, changes, tarefasPendentes] = await Promise.all([
+  const [prospects, companies, responses, activities, changes, tarefasPendentes, decisoes, evidencias] = await Promise.all([
     todasAsPaginas<ProspectWithCompany>((de, ate) => doTenant('prospects', PROSPECT_SELECT).order('id').range(de, ate)),
     todasAsPaginas<ProspectCompanyDB>((de, ate) => doTenant('prospect_companies', '*').order('id').range(de, ate)),
     todasAsPaginas<ActivityLite>((de, ate) =>
@@ -573,8 +573,17 @@ export async function dadosDasMetricas(desde: string): Promise<DadosDasMetricas>
     todasAsPaginas<PendingTaskLite>((de, ate) =>
       doTenant('prospect_tasks', 'prospect_id, due_date, description').is('done_at', null).order('id').range(de, ate),
     ),
+    // US-0021: a triagem da Base e a saúde do BANT, como na tela.
+    todasAsPaginas<DecisaoDasMetricas>((de, ate) =>
+      doTenant('prospect_decisoes_da_base', 'decisao, motivo, decidida_por, decidida_em, desfeita_em, voltar_em, prospect_id')
+        .order('id')
+        .range(de, ate),
+    ),
+    todasAsPaginas<EvidenciaBantDB>((de, ate) =>
+      doTenant('prospect_bant_evidencias', '*').neq('situacao', 'recusada').order('id').range(de, ate),
+    ),
   ]);
-  return { prospects, companies, responses, activities, changes, tarefasPendentes };
+  return { prospects, companies, responses, activities, changes, tarefasPendentes, decisoes, evidencias };
 }
 
 // --------------------------------------------------------------------------

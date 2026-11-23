@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { SEM_RECORTE, formatRate } from '@/lib/prospecting/metrics';
 import { MIN_SAMPLE } from '@/lib/prospecting/periodMetrics';
 import { cn } from '@/lib/utils';
-import { getLeverLabel } from '@/types/prospect';
+import { getLeverLabel, getTipoDeContaLabel } from '@/types/prospect';
 import type { CutSafraRow, LeverConcentration } from '@/types/prospectMetrics';
 import { plural } from './format';
 import { Painel, Segmentado } from './parts';
 
-type CorteDeCanal = 'lever' | 'owner';
+type CorteDeCanal = 'lever' | 'owner' | 'tipo_conta';
 
 interface CorteMeta {
   label: string;
@@ -19,6 +19,8 @@ interface CorteMeta {
 const CORTE_META: Record<CorteDeCanal, CorteMeta> = {
   lever: { label: 'Alavanca', titulo: 'Por alavanca', semValor: 'Sem alavanca', nome: (key) => getLeverLabel(key) ?? key },
   owner: { label: 'Responsável', titulo: 'Por responsável', semValor: 'Sem responsável', nome: (key, dono) => dono(key) },
+  // US-0021: Âncora, Ponte e Satélite pedem abordagens diferentes; o recorte mostra se convertem diferente.
+  tipo_conta: { label: 'Tipo de conta', titulo: 'Por tipo de conta', semValor: 'Sem tipo', nome: (key) => getTipoDeContaLabel(key) ?? key },
 };
 
 const CORTES: ReadonlyArray<{ value: CorteDeCanal; label: string }> = (Object.keys(CORTE_META) as CorteDeCanal[]).map(
@@ -39,16 +41,17 @@ const COLUNAS: ReadonlyArray<{ key: Contagem; label: string }> = [
 interface ChannelsTabProps {
   byLever: CutSafraRow[];
   byOwner: CutSafraRow[];
+  byTipo: CutSafraRow[];
   concentration: LeverConcentration | null;
   ownerName: (id: string) => string;
 }
 
-/** "De onde vem o resultado?": os ativados do período por alavanca ou por responsável. */
+/** "De onde vem o resultado?": os ativados do período por alavanca, responsável ou tipo de conta. */
 export function ChannelsTab(props: ChannelsTabProps) {
-  const { byLever, byOwner, concentration, ownerName } = props;
+  const { byLever, byOwner, byTipo, concentration, ownerName } = props;
   const [corte, setCorte] = useState<CorteDeCanal>('lever');
   const meta = CORTE_META[corte];
-  const linhas: Record<CorteDeCanal, CutSafraRow[]> = { lever: byLever, owner: byOwner };
+  const linhas: Record<CorteDeCanal, CutSafraRow[]> = { lever: byLever, owner: byOwner, tipo_conta: byTipo };
   const nomeDo = (key: string) => (key === SEM_RECORTE ? meta.semValor : meta.nome(key, ownerName));
 
   return (

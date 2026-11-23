@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProspectCompanies } from '@/hooks/useProspectCompanies';
+import { fetchEvidenciasBantDoTenant } from '@/services/bantService';
+import { fetchDecisoesParaMetricas } from '@/services/decisoesDaBaseService';
 import {
   fetchActivitiesSince,
   fetchResponseActivities,
@@ -36,12 +38,27 @@ export function useProspectMetricsData(activitiesSince: string) {
     enabled: habilitado,
   });
 
-  const consultas = [empresas, mudancas, respostas, atividades];
+  // Decisões da Base e evidências de BANT (US-0021): as chaves começam por `receita-decisoes` e
+  // `bant`, os prefixos que as mutações de cada uma já invalidam.
+  const decisoes = useQuery({
+    queryKey: ['receita-decisoes', 'metricas', tenantId],
+    queryFn: fetchDecisoesParaMetricas,
+    enabled: habilitado,
+  });
+  const evidencias = useQuery({
+    queryKey: ['bant', 'metricas', tenantId],
+    queryFn: fetchEvidenciasBantDoTenant,
+    enabled: habilitado,
+  });
+
+  const consultas = [empresas, mudancas, respostas, atividades, decisoes, evidencias];
   return {
     companies: empresas.data ?? [],
     changes: mudancas.data ?? [],
     responses: respostas.data ?? [],
     activities: atividades.data ?? [],
+    decisoes: decisoes.data ?? [],
+    evidencias: evidencias.data ?? [],
     isLoading: consultas.some((c) => c.isLoading),
     isError: consultas.some((c) => c.isError),
     refetch: () => consultas.forEach((c) => c.refetch()),

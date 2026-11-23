@@ -19,6 +19,13 @@ export async function fetchEvidenciasBant(prospectId: string): Promise<Evidencia
   return (data ?? []) as unknown as EvidenciaBantDB[];
 }
 
+/** Todas as evidências do tenant, sem as recusadas, para as Métricas (US-0021); a RLS limita ao tenant. */
+export async function fetchEvidenciasBantDoTenant(): Promise<EvidenciaBantDB[]> {
+  const { data, error } = await tabela('prospect_bant_evidencias').select('*').neq('situacao', 'recusada');
+  if (error) throw error;
+  return (data ?? []) as unknown as EvidenciaBantDB[];
+}
+
 /** As evidências de várias oportunidades (o quadro), em lotes para não estourar a URL. */
 export async function fetchEvidenciasBantDe(prospectIds: string[]): Promise<EvidenciaBantDB[]> {
   const lotes: string[][] = [];

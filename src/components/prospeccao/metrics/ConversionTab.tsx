@@ -1,7 +1,18 @@
 import { formatRate } from '@/lib/prospecting/metrics';
 import { MIN_SAMPLE } from '@/lib/prospecting/periodMetrics';
 import { cn } from '@/lib/utils';
-import type { CycleTime, PeriodLosses, SafraPoint, SafraRateKey, StageRate } from '@/types/prospectMetrics';
+import { Button } from '@/components/ui/button';
+import { NOTA_PARA_QUALIFICAR } from '@/lib/prospecting/bant';
+import type {
+  CycleTime,
+  MetricsDrill,
+  PeriodLosses,
+  SafraPoint,
+  SafraRateKey,
+  SaidasDaQualificacao,
+  SaudeDoBant,
+  StageRate,
+} from '@/types/prospectMetrics';
 import { corDaTaxa, formatNumber, plural } from './format';
 import { Painel } from './parts';
 
@@ -12,15 +23,23 @@ interface ConversionTabProps {
   /** Uma por mês de ativação, dos 12 meses até o período. */
   safras: SafraPoint[];
   losses: PeriodLosses;
+  /** As saídas da Qualificação sem ir para A abordar (US-0021). */
+  exits: SaidasDaQualificacao;
+  bant: SaudeDoBant;
+  onOpenList: (drill: MetricsDrill) => void;
 }
 
-/** "O volume vira resultado?": cada passagem, quanto tempo ela leva, as safras e o que se perdeu. */
+/** "O volume vira resultado?": cada passagem, quanto tempo ela leva, as safras, o BANT e o que se perdeu. */
 export function ConversionTab(props: ConversionTabProps) {
-  const { rates, bottleneck, cycles, safras, losses } = props;
+  const { rates, bottleneck, cycles, safras, losses, exits, bant, onOpenList } = props;
   return (
     <div className="flex flex-col gap-5">
       <TaxasPorEtapa rates={rates} bottleneck={bottleneck} />
       <TempoDeCiclo cycles={cycles} />
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        <SaidasDaQualificacaoNaTela exits={exits} />
+        <SaudeDoBantNaTela bant={bant} onOpenList={onOpenList} />
+      </div>
       <div className="grid items-start gap-5 lg:grid-cols-2">
         <Safras safras={safras} />
         <Perdas losses={losses} />
@@ -33,7 +52,7 @@ function TaxasPorEtapa({ rates, bottleneck }: { rates: StageRate[]; bottleneck: 
   return (
     <Painel
       title="Taxas por etapa"
-      description={`Dos ativados no período, até hoje. Cada taxa divide contatos, nunca contas. Com menos de ${MIN_SAMPLE} na base, a taxa fica marcada como amostra pequena.`}
+      description={`A primeira, das empresas movidas para qualificação no período; as demais, dos ativados no período, até hoje (contatos, nunca contas). Com menos de ${MIN_SAMPLE} na base, a taxa fica marcada como amostra pequena.`}
       className="gap-2"
     >
       <ul className="flex flex-col">
@@ -212,6 +231,69 @@ function Perdas({ losses }: { losses: PeriodLosses }) {
         <h3 className="ui-label">Onde perdemos</h3>
         <Barras rotulo="Perdas por etapa" itens={losses.byStage.map((e) => ({ key: e.stage ?? '', label: e.label, count: e.count }))} />
       </div>
+    </Painel>
+  );
+}
+
+/** Por que a empresa saiu da Qualificação sem ir para A abordar: o motivo da Perda, ou "Não agora" (US-0021). */
+function SaidasDaQualificacaoNaTela({ exits }: { exits: SaidasDaQualificacao }) {
+  if (exits.total === 0) {
+    return (
+      <Painel
+        title="Saídas da Qualificação"
+        description='Nenhuma saiu da Qualificação sem ir para A abordar no período. As devolvidas para a lista não deixam registro.'
+        className="gap-2"
+      />
+    );
+  }
+  return (
+    <Painel
+      title="Saídas da Qualificação"
+      description={`${plural(exits.total, 'oportunidade saiu', 'oportunidades saíram')} da Qualificação sem ir para A abordar no período. As devolvidas para a lista não deixam registro.`}
+    >
+      <Barras rotulo="Saídas da Qualificação por motivo" itens={exits.porMotivo.map((m) => ({ key: m.reason, label: m.label, count: m.count }))} />
+    </Painel>
+  );
+}
+
+interface SaudeDoBantNaTelaProps {
+  bant: SaudeDoBant;
+  onOpenList: (drill: MetricsDrill) => void;
+}
+
+/** A nota do BANT das oportunidades em andamento, por etapa, contra a meta de cada uma (US-0021). */
+function SaudeDoBantNaTela(props: SaudeDoBantNaTelaProps) {
+  const { bant, onOpenList } = props;
+  const abaixo = bant.abaixoDaMeta.length;
+  const abrir = () =>
+    onOpenList({
+      title: 'BANT abaixo da meta da etapa',
+      description: 'Oportunidades em andamento com a nota do BANT abaixo da meta da etapa, as mais distantes primeiro.',
+      items: bant.abaixoDaMeta,
+    });
+  return (
+    <Painel
+      title="Saúde do BANT"
+      description={`Nota média das oportunidades em andamento, por etapa. ${plural(bant.chegaram75, 'chegou', 'chegaram')} a ${NOTA_PARA_QUALIFICAR} no período.`}
+    >
+      {bant.porEtapa.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhuma oportunidade em andamento.</p>
+      ) : (
+        <ul className="flex flex-col">
+          {bant.porEtapa.map((e) => (
+            <li key={e.stage} className="grid grid-cols-[minmax(0,1fr)_3rem_5.5rem] items-center gap-3 border-t py-2 text-sm">
+              <span>{e.label} <span className="text-muted-foreground">· {e.quantas}</span></span>
+              <span className={cn('text-right font-mono tabular-nums', e.meta !== null && e.media < e.meta && 'text-warning-emphasis')}>{e.media}</span>
+              <span className="text-right text-xs text-muted-foreground">{e.meta === null ? 'sem meta' : `meta ${e.meta}`}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {abaixo > 0 && (
+        <Button variant="outline" size="sm" className="self-start" onClick={abrir}>
+          {abaixo === 1 ? 'Ver a oportunidade abaixo da meta' : `Ver as ${abaixo} abaixo da meta`}
+        </Button>
+      )}
     </Painel>
   );
 }

@@ -49,7 +49,7 @@ import * as dup from './duplicidade.js';
 import * as fmt from './format.js';
 import { inicioDaLeitura, relatorioDeMetricas } from './metricas.js';
 import { PulseNotAuthenticatedError } from './supabase.js';
-import type { PeriodPreset, PeriodSelection } from '@/types/prospectMetrics';
+import type { FiltroDeTipoDeConta, PeriodPreset, PeriodSelection } from '@/types/prospectMetrics';
 import { bantDaOportunidade, oQueFaltaParaQualificar, rotuloDoEstado } from '@/lib/prospecting/bant';
 import type { CompanyFields, CompanyMatch, CompanyTarget, ContactFields, CorteDeCanal, TaskListArgs } from './types.js';
 
@@ -937,16 +937,17 @@ function selecaoDoPeriodo({ periodo, de, ate }: PedidoDePeriodo): PeriodSelectio
 
 server.tool(
   'get_prospecting_metrics',
-  'Métricas da Prospecção num período — o MESMO cálculo da aba Métricas: números do período com a variação contra o mesmo trecho do período anterior, a jornada dos ativados (até onde chegaram, com as taxas e o gargalo), leituras automáticas, o que precisa de ação, tempo de ciclo, perdas e valor ganho. Com `corte`, quebra os ativados por alavanca ou responsável, como a aba Canais.',
+  'Métricas da Prospecção num período — o MESMO cálculo da aba Métricas: números do período com a variação contra o mesmo trecho do período anterior, a jornada (Qualificação: movidas e saíram para A abordar; Abordagem: ativados e até onde chegaram, com as taxas e o gargalo), leituras automáticas, o que precisa de ação (tarefa vencida, A abordar parado, BANT abaixo da meta), triagem da Base de empresas, saídas da Qualificação, saúde do BANT, tempo de ciclo, perdas e valor ganho. Com `corte`, quebra os ativados por alavanca, responsável ou tipo de conta, como a aba Canais.',
   {
     periodo: z.enum(PERIODOS).default('ultimos_30').describe(`Período: ${descrever(PERIOD_PRESET_OPTIONS)}. Para personalizado, envie de e ate.`),
     de: dataISO.optional().describe('Só para personalizado: início (AAAA-MM-DD).'),
     ate: dataISO.optional().describe('Só para personalizado: fim (AAAA-MM-DD).'),
     responsavel: z.string().optional().describe('Filtra por responsável: "eu", nome ou UUID.'),
     alavanca: z.enum(ALAVANCAS).optional().describe('Filtra por alavanca.'),
-    corte: z.enum(['lever', 'owner']).optional().describe('Quebra os ativados por alavanca (lever) ou responsável (owner).'),
+    tipo_conta: z.enum([...TIPOS, 'sem_tipo'] as [string, ...string[]]).optional().describe('Filtra por tipo de conta: ancora, ponte, satelite ou sem_tipo.'),
+    corte: z.enum(['lever', 'owner', 'tipo_conta']).optional().describe('Quebra os ativados por alavanca (lever), responsável (owner) ou tipo de conta (tipo_conta).'),
   },
-  executar(async ({ periodo, de, ate, responsavel, alavanca, corte }) => {
+  executar(async ({ periodo, de, ate, responsavel, alavanca, tipo_conta, corte }) => {
     const selecao = selecaoDoPeriodo({ periodo, de, ate });
     const [dados, pessoas, ownerId] = await Promise.all([
       db.dadosDasMetricas(inicioDaLeitura(selecao)),
@@ -955,7 +956,7 @@ server.tool(
     ]);
     return relatorioDeMetricas(dados, {
       selecao,
-      filtro: { ownerId, lever: alavanca },
+      filtro: { ownerId, lever: alavanca, tipoConta: tipo_conta as FiltroDeTipoDeConta | undefined },
       corte: corte as CorteDeCanal | undefined,
       pessoas,
     });

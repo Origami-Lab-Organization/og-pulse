@@ -31,9 +31,10 @@ import type {
   SeriesPoint,
   StageLossCount,
 } from '@/types/prospectMetrics';
-import { FUNNEL_STEP_META, calculateAccountCoverage, cutValue, type ProspectCut } from './metrics';
+import { FUNNEL_STEP_META, cutValue, type ProspectCut } from './metrics';
 import { historyStartOf } from './milestones';
 import { bucketKeyOf, isInRange, localDay } from './periods';
+import { abordarParadas, saiuParaAbordar, saudeDoBant, triagemDaBase } from './qualificacaoMetrics';
 
 /**
  * Métricas da Prospecção por período (28/09/2026).
@@ -53,15 +54,30 @@ export const MIN_SAMPLE = 5;
 /** A cadência leva ~12 dias e a reunião vem depois: safra mais nova ainda está amadurecendo. */
 const DIAS_DE_MATURACAO = 21;
 
+const SEM_TIPO = 'sem_tipo';
+
+/** Tipo de conta da empresa (US-0021): um dos tipos, ou "sem tipo". */
+const aceitaTipo = (filtro: MetricFilter, tipo: string | null | undefined) =>
+  !filtro.tipoConta || (filtro.tipoConta === SEM_TIPO ? !tipo : tipo === filtro.tipoConta);
+
 function aceitaContato(filtro: MetricFilter) {
   return (p: ProspectWithCompany) =>
-    (!filtro.ownerId || p.owner_id === filtro.ownerId) && (!filtro.lever || p.lever === filtro.lever);
+    (!filtro.ownerId || p.owner_id === filtro.ownerId) &&
+    (!filtro.lever || p.lever === filtro.lever) &&
+    aceitaTipo(filtro, p.company?.tipo_conta);
 }
 
 /** Empresa não tem alavanca; com responsável, conta as que a pessoa cadastrou. */
 function empresasDoFiltro(fonte: MetricsSource, filtro: MetricFilter) {
   if (filtro.lever) return [];
-  return filtro.ownerId ? fonte.companies.filter((c) => c.created_by === filtro.ownerId) : fonte.companies;
+  const doTipo = fonte.companies.filter((c) => aceitaTipo(filtro, c.tipo_conta));
+  return filtro.ownerId ? doTipo.filter((c) => c.created_by === filtro.ownerId) : doTipo;
+}
+
+/** A decisão da Base não tem alavanca nem tipo de conta; com responsável, conta as que a pessoa tomou. */
+function decisoesDoFiltro(fonte: MetricsSource, filtro: MetricFilter) {
+  if (filtro.lever || filtro.tipoConta) return [];
+  return filtro.ownerId ? fonte.decisoes.filter((x) => x.decidida_por === filtro.ownerId) : fonte.decisoes;
 }
 
 export function buildDataset(
@@ -77,7 +93,10 @@ export function buildDataset(
     milestones,
     activities: fonte.activities.filter((a) => ids.has(a.prospect_id)),
     changes: fonte.changes.filter((c) => ids.has(c.prospect_id)),
+    decisoes: decisoesDoFiltro(fonte, filtro),
+    evidencias: fonte.evidencias.filter((e) => ids.has(e.prospect_id)),
     companiesApply: !filtro.lever,
+    triagemApplies: !filtro.lever && !filtro.tipoConta,
     historyStart: historyStartOf(fonte.changes),
   };
 }
@@ -108,6 +127,24 @@ const doFunil = (indice: number) => ({
 });
 
 export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
+  {
+    key: 'movidas',
+    label: 'Movidas para qualificação',
+    question: 'Estou alimentando o topo?',
+    block: 'lista',
+    needsHistory: false,
+    drillable: true,
+    occurrences: dosMarcos((m) => m.qualificacao),
+  },
+  {
+    key: 'para_abordar',
+    label: 'Saíram para A abordar',
+    question: 'A qualificação está liberando contas para abordar?',
+    block: 'lista',
+    needsHistory: false,
+    drillable: true,
+    occurrences: dosMarcos((m) => (saiuParaAbordar(m) ? m.saidaDaQualificacao?.date ?? null : null)),
+  },
   {
     key: 'empresas',
     label: 'Empresas cadastradas',
@@ -220,7 +257,9 @@ export function metricSeries(d: MetricsDataset, buckets: Bucket[], grain: Grain)
 
 const razao = (parte: number, total: number) => (total >= MIN_SAMPLE ? parte / total : null);
 
-function contarSafra(marcos: ProspectMilestones[]): SafraCounts {
+type SafraDosAtivados = Omit<SafraCounts, 'movidas' | 'paraAbordar'>;
+
+function contarSafra(marcos: ProspectMilestones[]): SafraDosAtivados {
   return {
     contas: new Set(marcos.map((m) => m.prospect.company_id)).size,
     ativados: marcos.length,
@@ -235,9 +274,17 @@ function contarSafra(marcos: ProspectMilestones[]): SafraCounts {
 const safraDe = (d: MetricsDataset, range: PeriodRange) =>
   d.milestones.filter((m) => m.ativado && isInRange(m.ativado, range));
 
-/** A safra do período: os contatos ativados nele e até onde chegaram, até hoje. */
+/**
+ * A safra do período: as movidas para qualificação nele e quantas já saíram para A abordar
+ * (US-0021), e os contatos ativados nele e até onde chegaram, até hoje.
+ */
 export function safraCounts(d: MetricsDataset, periodo: ResolvedPeriod): SafraCounts {
-  return contarSafra(safraDe(d, periodo.elapsed));
+  const movidas = d.milestones.filter((m) => m.qualificacao && isInRange(m.qualificacao, periodo.elapsed));
+  return {
+    movidas: movidas.length,
+    paraAbordar: movidas.filter(saiuParaAbordar).length,
+    ...contarSafra(safraDe(d, periodo.elapsed)),
+  };
 }
 
 export function safraSeries(d: MetricsDataset, buckets: Bucket[], hoje = new Date()): SafraPoint[] {
@@ -277,6 +324,13 @@ interface Ciclo {
 }
 
 const CICLOS: readonly Ciclo[] = [
+  {
+    key: 'tempo_qualificacao',
+    label: 'Tempo em Qualificação',
+    unit: 'dias',
+    quando: (m) => m.saidaDaQualificacao?.date ?? null,
+    valor: (m) => entre(m.qualificacao, m.saidaDaQualificacao?.date ?? null),
+  },
   { key: 'toques', label: 'Toques até responder', unit: 'toques', quando: (m) => m.conversa, valor: (m) => m.toquesAteResponder },
   { key: 'resposta', label: '1º toque → resposta', unit: 'dias', quando: (m) => m.conversa, valor: (m) => entre(m.ativado, m.conversa) },
   {
@@ -398,8 +452,9 @@ export function cutSafra(d: MetricsDataset, periodo: ResolvedPeriod, cut: Prospe
 }
 
 /**
- * Cobertura no período e contatos do quadro com TAREFA vencida. A data da cadência não
- * entra (28/09/2026): é sugestão do sistema, e o aviso é só do que alguém se comprometeu.
+ * O que pede ação e o estado da lista: contatos do quadro com TAREFA vencida (a data da
+ * cadência não entra — é sugestão do sistema, 28/09/2026), A abordar parado, a triagem da
+ * Base no período e a saúde do BANT (US-0021).
  */
 export function listHealth(
   d: MetricsDataset,
@@ -410,10 +465,9 @@ export function listHealth(
   const contatos = d.milestones.map((m) => m.prospect);
   const vencida = (task?: PendingTaskLite) => !!task && isTaskOverdue({ due_date: task.due_date, done_at: null }, hoje);
   return {
-    coverage: calculateAccountCoverage(
-      contatos,
-      d.activities.filter((a) => isInRange(a.activity_date, periodo.elapsed)),
-    ),
+    paradas: abordarParadas(d, hoje),
+    triagem: triagemDaBase(d, periodo.elapsed, hoje),
+    bant: saudeDoBant(d, periodo.elapsed),
     overdue: contatos
       .filter((p) => PROSPECT_FUNNEL_STAGES.includes(p.stage) && vencida(proximaTarefa.get(p.id)))
       .map((prospect) => ({ prospect, task: proximaTarefa.get(prospect.id) as PendingTaskLite }))

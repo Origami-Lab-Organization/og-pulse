@@ -5,8 +5,9 @@
  * `periodMetrics.ts`; aqui ficam só os formatos que elas trocam entre si e com a tela.
  */
 
-import type { AccountCoverage } from '@/lib/prospecting/metrics';
-import type { PendingTaskLite, ProspectCompanyDB, ProspectStage, ProspectWithCompany } from '@/types/prospect';
+import type { EvidenciaBantDB } from '@/types/bant';
+import type { PendingTaskLite, ProspectCompanyDB, ProspectStage, ProspectWithCompany, TipoDeConta } from '@/types/prospect';
+import type { DecisaoDaBase, MotivoDoDescarte } from '@/types/relacao';
 
 export type PeriodPreset =
   | 'esta_semana'
@@ -107,6 +108,17 @@ export interface ProspectMilestones {
   valor: number | null;
   /** A perda vigente: quem foi reaberto deixou de ser perda. */
   perda: LossMilestone | null;
+  /** Entrou em Qualificação (US-0021): a 1ª entrada registrada, com data real. */
+  qualificacao: string | null;
+  /** A 1ª saída da Qualificação: para onde e quando. */
+  saidaDaQualificacao: SaidaDaQualificacao | null;
+}
+
+export interface SaidaDaQualificacao {
+  date: string;
+  para: ProspectStage;
+  /** Motivo da Perda, quando saiu por ela. */
+  reason: string | null;
 }
 
 export interface LossMilestone {
@@ -117,6 +129,8 @@ export interface LossMilestone {
 }
 
 export type MetricKey =
+  | 'movidas'
+  | 'para_abordar'
   | 'empresas'
   | 'contatos'
   | 'contas'
@@ -138,9 +152,24 @@ export interface Occurrence {
   company?: ProspectCompanyDB;
 }
 
+/** Filtro de tipo de conta: um dos tipos, ou as empresas ainda sem tipo (US-0021). */
+export type FiltroDeTipoDeConta = TipoDeConta | 'sem_tipo';
+
 export interface MetricFilter {
   ownerId?: string;
   lever?: string;
+  tipoConta?: FiltroDeTipoDeConta;
+}
+
+/** O mínimo de uma decisão da Base de empresas que as métricas leem (US-0010, US-0021). */
+export interface DecisaoDasMetricas {
+  decisao: DecisaoDaBase;
+  motivo: MotivoDoDescarte | null;
+  decidida_por: string | null;
+  decidida_em: string;
+  desfeita_em: string | null;
+  voltar_em: string | null;
+  prospect_id: string | null;
 }
 
 /** O que as métricas leem, já filtrado por responsável e alavanca. */
@@ -149,8 +178,14 @@ export interface MetricsDataset {
   milestones: ProspectMilestones[];
   activities: ActivityLite[];
   changes: ProspectStageChangeDB[];
+  /** Decisões da Base (descartar, "Não agora"); vazias quando a triagem não se aplica ao filtro. */
+  decisoes: DecisaoDasMetricas[];
+  /** Evidências de BANT das oportunidades do filtro (sem as recusadas). */
+  evidencias: EvidenciaBantDB[];
   /** Empresa não tem alavanca: com esse filtro, "Empresas cadastradas" não se aplica. */
   companiesApply: boolean;
+  /** A triagem da Base não tem alavanca nem tipo de conta: com esses filtros, não se aplica. */
+  triagemApplies: boolean;
   /** Primeiro dia com etapa registrada; antes dele, reunião e qualificação não têm data. */
   historyStart: string | null;
 }
@@ -198,7 +233,7 @@ export interface SafraPoint {
   maturing: boolean;
 }
 
-export type SafraRateKey = 'resposta' | 'agendamento' | 'comparecimento' | 'qualificacao' | 'fechamento';
+export type SafraRateKey = 'abordar' | 'resposta' | 'agendamento' | 'comparecimento' | 'qualificacao' | 'fechamento';
 
 export interface CycleTime {
   key: string;
@@ -231,8 +266,12 @@ export interface CutSafraRow {
   perdas: number;
 }
 
-/** A safra do período em números: os ativados e até onde chegaram, até hoje. */
+/** A safra do período em números: as movidas para qualificação e os ativados, e até onde chegaram. */
 export interface SafraCounts {
+  /** Movidas para qualificação no período (US-0021). */
+  movidas: number;
+  /** Das movidas no período, as que já saíram para A abordar. */
+  paraAbordar: number;
   /** Contas dos ativados — uma conta com dois contatos ativados conta uma vez. */
   contas: number;
   ativados: number;
@@ -305,6 +344,10 @@ export interface MetricsSource {
   /** Todas as atividades a partir do início da evolução. */
   activities: ActivityLite[];
   changes: ProspectStageChangeDB[];
+  /** Decisões da Base de empresas, desde sempre (US-0010). */
+  decisoes: DecisaoDasMetricas[];
+  /** Evidências de BANT, sem as recusadas (US-0022). */
+  evidencias: EvidenciaBantDB[];
 }
 
 export interface StageLossCount {
@@ -331,10 +374,49 @@ export interface SalesSummary {
   ticketMedio: number | null;
 }
 
-/** Estado da lista: cobertura no período e os contatos com tarefa vencida hoje. */
+/** Triagem da Base de empresas no período (US-0021, no lugar da "Cobertura da lista"). */
+export interface TriagemDaBase {
+  /** `false` com filtro de alavanca ou tipo de conta: a decisão da Base não tem nenhum dos dois. */
+  applies: boolean;
+  movidas: number;
+  descartadas: number;
+  porMotivo: DiscardCount[];
+  naoAgora: number;
+  /** "Não agora" com a data já vencida, ainda sem retomar — não depende do período. */
+  retomarAgora: number;
+}
+
+/** As saídas da Qualificação no período sem ir para A abordar: por motivo da Perda e "Não agora". */
+export interface SaidasDaQualificacao {
+  total: number;
+  porMotivo: DiscardCount[];
+}
+
+/** A nota do BANT de uma etapa: média das oportunidades em andamento nela. */
+export interface BantDaEtapa {
+  stage: ProspectStage;
+  label: string;
+  media: number;
+  quantas: number;
+  meta: number | null;
+}
+
+/** Saúde do BANT (US-0021): o que está abaixo da meta e como está a nota por etapa. */
+export interface SaudeDoBant {
+  /** Em andamento com nota abaixo da meta da etapa, as mais distantes primeiro. */
+  abaixoDaMeta: Array<Occurrence & { nota: number; meta: number }>;
+  porEtapa: BantDaEtapa[];
+  /** Com nota 75 ou mais hoje e a última evidência aceita no período. */
+  chegaram75: number;
+}
+
+/** O que pede ação hoje: tarefas vencidas e A abordar parado, mais a triagem e o BANT. */
 export interface ListHealthData {
-  coverage: AccountCoverage;
   overdue: Array<{ prospect: ProspectWithCompany; task: PendingTaskLite }>;
+  /** Em A abordar sem 1º toque há mais de 14 dias (no lugar de "contas nunca abordadas"). */
+  paradas: Occurrence[];
+  triagem: TriagemDaBase;
+  bant: SaudeDoBant;
 }
 
 /** A lista que abre ao clicar num número: quem foi contado. */

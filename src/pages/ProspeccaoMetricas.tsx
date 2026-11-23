@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProspectMetrics } from '@/components/prospeccao/ProspectMetrics';
-import { MetricsFilterBar } from '@/components/prospeccao/metrics/MetricsFilterBar';
 import { useProspects } from '@/hooks/useProspects';
 import { DEFAULT_PERIOD } from '@/lib/prospecting/periods';
 import type { ProspectWithCompany } from '@/types/prospect';
@@ -31,16 +30,8 @@ export default function ProspeccaoMetricas() {
       title="Métricas"
       description="Como o comercial está andando: atividade, conversa, reunião, ganho e perda no período"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Métricas' }]}
-      actions={
-        <MetricsFilterBar
-          selection={periodo}
-          onSelectionChange={setPeriodo}
-          filter={filtro}
-          onFilterChange={setFiltro}
-          prospects={todos}
-        />
-      }
     >
+      {/* Período e filtros moram na barra do conteúdo, acima das abas (revisão de 23/11/2026). */}
       {isLoading ? (
         <Skeleton className="h-96 w-full" />
       ) : (
@@ -50,6 +41,7 @@ export default function ProspeccaoMetricas() {
           selection={periodo}
           onSelectionChange={setPeriodo}
           filter={filtro}
+          onFilterChange={setFiltro}
         />
       )}
     </AppLayout>

@@ -29,7 +29,9 @@ import {
   salesSummary,
 } from '@/lib/prospecting/periodMetrics';
 import { PERIOD_PRESETS, formatDay, formatRangeCompact, resolvePeriod, trendBuckets } from '@/lib/prospecting/periods';
-import { getLeverLabel, nextTaskByProspect } from '@/types/prospect';
+import { NOTA_PARA_QUALIFICAR } from '@/lib/prospecting/bant';
+import { DIAS_PARADA_EM_ABORDAR, saidasDaQualificacao } from '@/lib/prospecting/qualificacaoMetrics';
+import { getLeverLabel, getTipoDeContaLabel, nextTaskByProspect } from '@/types/prospect';
 import type {
   CutSafraRow,
   CycleTime,
@@ -42,6 +44,9 @@ import type {
   Reading,
   ResolvedPeriod,
   SafraCounts,
+  SaidasDaQualificacao,
+  SaudeDoBant,
+  TriagemDaBase,
   SafraRateKey,
   SalesSummary,
   StageRate,
@@ -69,6 +74,7 @@ interface Leitura {
   aguardando: Occurrence[];
   ciclos: CycleTime[];
   perdas: PeriodLosses;
+  saidas: SaidasDaQualificacao;
   comBase: boolean;
 }
 
@@ -95,11 +101,12 @@ function ler(dados: DadosDasMetricas, pedido: PedidoDeMetricas): Leitura {
     aguardando: meetingsAwaitingQualification(dataset),
     ciclos: cycleTimes(dataset, periodo),
     perdas: periodLosses(dataset, periodo),
+    saidas: saidasDaQualificacao(dataset, periodo.elapsed),
     comBase: valores.some((v) => !!v.previous),
   };
 }
 
-/** O relatório inteiro, na ordem da aba: números, jornada, leituras, ação, ciclo, perdas e canais. */
+/** O relatório inteiro, na ordem da aba: números, jornada, leituras, ação, triagem, Qualificação, BANT, ciclo, perdas e canais. */
 export function relatorioDeMetricas(dados: DadosDasMetricas, pedido: PedidoDeMetricas): string {
   const l = ler(dados, pedido);
   const partes = [
@@ -113,6 +120,12 @@ export function relatorioDeMetricas(dados: DadosDasMetricas, pedido: PedidoDeMet
     '',
     ...precisaDeAcao(l),
     '',
+    ...secaoDeTriagem(l.saude.triagem),
+    '',
+    ...secaoDeSaidas(l.saidas),
+    '',
+    ...secaoDoBant(l.saude.bant),
+    '',
     ...tempoDeCiclo(l.ciclos),
     '',
     ...secaoDePerdas(l.perdas),
@@ -123,10 +136,11 @@ export function relatorioDeMetricas(dados: DadosDasMetricas, pedido: PedidoDeMet
 
 function cabecalho(l: Leitura, pedido: PedidoDeMetricas): string[] {
   const { periodo } = l;
-  const { ownerId, lever } = pedido.filtro;
+  const { ownerId, lever, tipoConta } = pedido.filtro;
   const filtros = [
     ownerId ? `responsável ${pedido.pessoas.get(ownerId) ?? ownerId}` : null,
     lever ? `alavanca ${getLeverLabel(lever)}` : null,
+    tipoConta ? `tipo de conta ${getTipoDeContaLabel(tipoConta) ?? 'sem tipo'}` : null,
   ].filter(Boolean);
   const anterior = formatRangeCompact(periodo.previous);
   const comparacao = l.comBase
@@ -175,10 +189,23 @@ function taxaPorExtenso(r: StageRate | undefined, gargalo: boolean): string {
   return `${r.label.toLowerCase()} ${formatRate(r.rate)} (${r.parte} de ${r.base})${marca ? ` · ${marca}` : ''}`;
 }
 
+/** A Qualificação (US-0021): as movidas no período e quantas já saíram para A abordar. */
+function jornadaDaQualificacao(l: Leitura): string[] {
+  const { safra } = l;
+  if (!safra.movidas) return ['**Qualificação no período**', 'Nenhuma empresa movida para qualificação no período (a etapa existe desde 19/11/2026).'];
+  const r = l.taxas.find((t) => t.key === 'abordar');
+  return [
+    `**Qualificação no período** — ${safra.movidas} empresa(s) movida(s) para qualificação.`,
+    `- Saíram para A abordar: **${safra.paraAbordar}** — ${taxaPorExtenso(r, l.gargalo === 'abordar')}`,
+  ];
+}
+
 function jornada(l: Leitura): string[] {
   const { safra } = l;
-  if (!safra.ativados) return ['**Jornada dos ativados no período**', 'Nenhum contato recebeu o 1º toque no período.'];
+  const qualificacao = [...jornadaDaQualificacao(l), ''];
+  if (!safra.ativados) return [...qualificacao, '**Jornada dos ativados no período**', 'Nenhum contato recebeu o 1º toque no período.'];
   return [
+    ...qualificacao,
     `**Jornada dos ativados no período** — ${safra.ativados} contato(s) com 1º toque, em ${safra.contas} conta(s) (${formatRatio(safra.ativados, safra.contas)} por conta). Até onde chegaram até hoje; taxa sobre a etapa anterior, amostra pequena abaixo de ${MIN_SAMPLE}.`,
     ...PASSOS.map((p) => {
       const r = l.taxas.find((t) => t.key === p.rate);
@@ -193,14 +220,18 @@ function secaoDeLeituras(leituras: Reading[]): string[] {
 }
 
 function precisaDeAcao(l: Leitura): string[] {
-  const { overdue, coverage } = l.saude;
-  const daLista = coverage.naLista ? ` (${formatRate(coverage.nuncaAbordadas / coverage.naLista)} da lista)` : '';
+  const { overdue, paradas, bant } = l.saude;
   const itens = [
     overdue.length ? `- ${overdue.length} contato(s) com tarefa vencida — veja com list_prospect_tasks` : null,
     l.aguardando.length
       ? `- ${l.aguardando.length} reunião(ões) feita(s) sem qualificação registrada — ${nomesDe(l.aguardando)}`
       : null,
-    coverage.nuncaAbordadas ? `- ${coverage.nuncaAbordadas} conta(s) cadastrada(s) nunca abordada(s)${daLista}` : null,
+    paradas.length
+      ? `- ${paradas.length} oportunidade(s) em A abordar sem 1º toque há mais de ${DIAS_PARADA_EM_ABORDAR} dias — ${nomesDe(paradas)}`
+      : null,
+    bant.abaixoDaMeta.length
+      ? `- ${bant.abaixoDaMeta.length} oportunidade(s) com BANT abaixo da meta da etapa — ${nomesDe(bant.abaixoDaMeta)}`
+      : null,
   ].filter((i): i is string => i !== null);
   return ['**Precisa de ação**', ...(itens.length ? itens : ['Nada pendente agora.'])];
 }
@@ -211,6 +242,31 @@ const nomesDe = (ocorrencias: Occurrence[]) =>
     .map((o) => o.prospect?.contact_name)
     .filter(Boolean)
     .join(', ') + (ocorrencias.length > 8 ? '…' : '');
+
+/** Triagem da Base no período (US-0021): movidas, descartadas (por motivo), "Não agora" e o que espera retomar. */
+function secaoDeTriagem(t: TriagemDaBase): string[] {
+  if (!t.applies) return ['**Triagem da Base:** não se aplica ao filtro de alavanca ou de tipo de conta.'];
+  const motivos = t.porMotivo.length ? ` (${t.porMotivo.map((m) => `${m.label}: ${m.count}`).join(', ')})` : '';
+  return [
+    '**Triagem da Base no período**',
+    `- Movidas para qualificação: **${t.movidas}** · descartadas: **${t.descartadas}**${motivos} · "Não agora": **${t.naoAgora}**`,
+    `- Esperando retomar agora (data do "Não agora" vencida): **${t.retomarAgora}**`,
+  ];
+}
+
+function secaoDeSaidas(s: SaidasDaQualificacao): string[] {
+  if (s.total === 0) return ['**Saídas da Qualificação sem ir para A abordar:** nenhuma no período (as devolvidas para a lista não deixam registro).'];
+  return [`**Saídas da Qualificação sem ir para A abordar: ${s.total}**`, `- Por motivo: ${s.porMotivo.map((m) => `${m.label} (${m.count})`).join(', ')}`];
+}
+
+function secaoDoBant(b: SaudeDoBant): string[] {
+  const etapas = b.porEtapa.map((e) => `${e.label} ${e.media}${e.meta === null ? '' : ` (meta ${e.meta})`} · ${e.quantas}`).join('; ');
+  return [
+    '**Saúde do BANT** (oportunidades em andamento)',
+    `- Nota média por etapa: ${etapas || 'nenhuma em andamento'}`,
+    `- Abaixo da meta da etapa: **${b.abaixoDaMeta.length}** · chegaram a ${NOTA_PARA_QUALIFICAR} no período: **${b.chegaram75}**`,
+  ];
+}
 
 const UNIDADE_NO_SINGULAR: Record<CycleTime['unit'], string> = { dias: 'dia', toques: 'toque' };
 
@@ -235,6 +291,7 @@ function secaoDePerdas(perdas: PeriodLosses): string[] {
 const TITULO_DO_CORTE: Record<CorteDeCanal, { coluna: string; semValor: string }> = {
   lever: { coluna: 'Alavanca', semValor: 'Sem alavanca' },
   owner: { coluna: 'Responsável', semValor: 'Sem responsável' },
+  tipo_conta: { coluna: 'Tipo de conta', semValor: 'Sem tipo' },
 };
 
 function nomeNoCorte(chave: string, pedido: PedidoDeMetricas): string {
@@ -243,6 +300,7 @@ function nomeNoCorte(chave: string, pedido: PedidoDeMetricas): string {
   const nomes: Record<CorteDeCanal, () => string> = {
     lever: () => getLeverLabel(chave) ?? chave,
     owner: () => pedido.pessoas.get(chave) ?? chave,
+    tipo_conta: () => getTipoDeContaLabel(chave) ?? chave,
   };
   return nomes[corte]();
 }
