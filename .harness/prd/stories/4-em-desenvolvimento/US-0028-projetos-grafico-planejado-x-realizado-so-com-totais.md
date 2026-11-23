@@ -1,6 +1,6 @@
 # US-0028 — O gráfico Planejado × Realizado mostra só os totais
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Custos do projeto
@@ -59,8 +59,8 @@ importa: quanto se planejou e quanto se gastou no mês.
 
 ### Decisões pendentes
 
-- Clicar numa barra hoje rola até a seção da categoria (Mão de Obra ou ledger). Sem
-  séries por categoria, esse atalho sai ou passa a ir para outro lugar?
+- ~~Clicar numa barra hoje rola até a seção da categoria.~~ Resolvido na implementação: as
+  barras nunca tiveram clique; o atalho está na rosca e continua lá (ver Implementação).
 
 ## Contexto técnico
 
@@ -74,6 +74,18 @@ importa: quanto se planejou e quanto se gastou no mês.
 
 ## Implementação
 
+O gráfico mensal (`ProjectMonthlyCostChart`) passa a ter duas séries, Planejado e Realizado,
+com o total do mês (mão de obra + ledger). O tooltip mantém a quebra MO / Outros sob cada
+total.
+
+Sobre o clique na barra (ponto que estava em aberto): na implementação atual as barras não
+têm clique; o atalho para a seção de Mão de Obra ou para a lista de Custos está só na rosca e
+na legenda dela, e continua lá. Nada muda nesse comportamento.
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). |
+| 2 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso); cada barra é o total do mês da US-0026. |
+| 3 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso). |
+
+Testes automatizados não escritos: testes desativados no Harness por decisão do time.
