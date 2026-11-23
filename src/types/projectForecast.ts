@@ -18,3 +18,9 @@ export interface ForecastInstallment {
   value: number;
   status: string;
 }
+
+/**
+ * Faixa do forecast em relação à meta (US-0032): na meta ou acima; até 10% da meta abaixo
+ * dela (amarelo); mais de 10% abaixo (vermelho); sem meta ou sem custo planejado (neutro).
+ */
+export type ForecastTone = 'ok' | 'warning' | 'critical' | 'neutral';

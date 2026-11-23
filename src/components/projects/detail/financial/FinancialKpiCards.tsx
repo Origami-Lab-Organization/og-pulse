@@ -1,6 +1,8 @@
 import { cn } from '@/lib/utils';
 import { ArrowUpRight } from 'lucide-react';
 import { useMaskedCurrency, useMaskedPercent, useHideValues } from '@/contexts/HideValuesContext';
+import { forecastTone } from '@/lib/projectForecast';
+import type { ForecastTone } from '@/types/projectForecast';
 
 interface FinancialKpiCardsProps {
   revenueActual: number;
@@ -13,7 +15,10 @@ interface FinancialKpiCardsProps {
   marginPlanned: number;
   marginTarget: number;
   forecastMargin: number;
-  forecastCost: number;
+  /** Custo final estimado. Não aparece no card (os custos já estão nos outros cards). */
+  forecastCost?: number;
+  /** A data de fim já passou: o custo final é o realizado. */
+  projectEnded?: boolean;
   /** Indica se o projeto tem custo planejado (totalPlanned > 0). Sem custo planejado, o forecast não pode ser projetado. */
   hasCostPlanned?: boolean;
   onNavigateToExpenses?: () => void;
@@ -26,6 +31,17 @@ const bigNumber =
   'font-mono text-[1.625rem] font-semibold leading-none tabular-nums mt-1 truncate';
 const subline = 'font-mono text-[11.5px] text-muted-foreground mt-0.5 truncate';
 
+const FORECAST_TONE_STYLE: Record<ForecastTone, { card: string; number: string; status: string }> = {
+  ok: { card: 'bg-[hsl(var(--brand-slate))] text-white', number: 'text-[hsl(var(--green-300))]', status: 'na meta ou acima' },
+  warning: { card: 'bg-warning text-warning-foreground', number: 'text-warning-foreground', status: 'até 10% abaixo da meta' },
+  critical: {
+    card: 'bg-destructive text-destructive-foreground',
+    number: 'text-destructive-foreground',
+    status: 'mais de 10% abaixo da meta',
+  },
+  neutral: { card: 'bg-[hsl(var(--brand-slate))] text-white', number: 'text-white/70', status: '' },
+};
+
 export function FinancialKpiCards({
   revenueActual,
   revenuePlanned,
@@ -37,7 +53,7 @@ export function FinancialKpiCards({
   marginPlanned,
   marginTarget,
   forecastMargin,
-  forecastCost,
+  projectEnded = false,
   hasCostPlanned = true,
   onNavigateToExpenses,
 }: FinancialKpiCardsProps) {
@@ -46,12 +62,14 @@ export function FinancialKpiCards({
   const hideValues = useHideValues();
 
   const marginAboveTarget = marginActual >= marginTarget;
-  const forecastAboveTarget = forecastMargin >= marginTarget;
   const plannedBelowTarget = marginPlanned < marginTarget;
   const hasMarginTarget = marginTarget > 0;
-  // Sem custo planejado, não há evidência para julgar o forecast — não é "abaixo da meta"
-  // Destaque também quando a margem planejada está abaixo da meta (alerta preventivo)
-  const forecastBelowTarget = hasCostPlanned && hasMarginTarget && (!forecastAboveTarget || plannedBelowTarget);
+  // A cor segue só o forecast × meta, em três faixas (US-0032, decisões de 23/11).
+  const tone = forecastTone(forecastMargin, marginTarget, hasCostPlanned);
+  const toneStyle = FORECAST_TONE_STYLE[tone];
+  // Plano abaixo da meta com forecast acima: card verde, com aviso escrito.
+  const showPlanWarning = tone === 'ok' && plannedBelowTarget;
+  const targetText = hideValues ? '•••' : `${marginTarget.toFixed(0)}%`;
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.25fr]">
@@ -102,75 +120,40 @@ export function FinancialKpiCards({
         </p>
       </div>
 
-      {/* Forecast — superfície de ênfase (petróleo ou destaque negativo) */}
-      <div
-        className={cn(
-          cardBase,
-          'border-transparent',
-          forecastBelowTarget
-            ? 'bg-destructive text-destructive-foreground'
-            : 'bg-[hsl(var(--brand-slate))] text-white',
-        )}
-      >
-        <p
-          className={cn(
-            'truncate text-[10px] font-semibold uppercase tracking-[0.12em]',
-            forecastBelowTarget ? 'text-destructive-foreground/70' : 'text-white/70',
-          )}
-        >
+      {/* Forecast — superfície de ênfase: petróleo (na meta), âmbar (até 10% abaixo) ou
+          destaque negativo (mais de 10% abaixo). Os valores de custo já estão nos outros
+          cards; aqui só a margem projetada e o estado (US-0032). */}
+      <div className={cn(cardBase, 'border-transparent', toneStyle.card)}>
+        <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] opacity-70">
           Forecast · fim do projeto
         </p>
-        <div className="mt-1 flex items-baseline gap-3">
-          <span
-            className={cn(
-              'font-mono text-[1.625rem] font-semibold leading-none tabular-nums',
-              !hasCostPlanned
-                ? 'text-white/70'
-                : forecastBelowTarget
-                  ? 'text-destructive-foreground'
-                  : 'text-[hsl(var(--green-300))]',
-            )}
-          >
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className={cn('font-mono text-[1.625rem] font-semibold leading-none tabular-nums', toneStyle.number)}>
             {hasCostPlanned ? formatPercent(forecastMargin) : '—'}
           </span>
-          <span
-            className={cn(
-              'min-w-0 truncate text-[11.5px]',
-              forecastBelowTarget ? 'text-destructive-foreground/85' : 'text-white/85',
-            )}
-          >
-            {hasCostPlanned ? (
-              <>
-                margem projetada · EAC custo{' '}
-                <b
-                  className={cn(
-                    'font-mono',
-                    forecastBelowTarget ? 'text-destructive-foreground' : 'text-white',
-                  )}
-                >
-                  {formatCurrency(forecastCost)}
-                </b>
-              </>
-            ) : (
-              'sem custo planejado'
-            )}
+          <span className="truncate text-[11.5px] opacity-85">
+            {hasCostPlanned ? 'margem projetada' : 'sem custo planejado para projetar'}
           </span>
         </div>
-        <p
-          className={cn(
-            'mt-0.5 truncate font-mono text-[11.5px]',
-            forecastBelowTarget ? 'text-destructive-foreground/70' : 'text-white/70',
-          )}
-        >
-          {hasCostPlanned ? (
-            <>
-              burn-rate atual + plan restante ·{' '}
-              {forecastAboveTarget ? 'acima da meta ✓' : 'abaixo da meta'}
-            </>
-          ) : (
-            'sem dados para projeção'
-          )}
-        </p>
+        {hasCostPlanned && projectEnded && (
+          <p className="mt-0.5 text-[11.5px] font-semibold">Projeto encerrado</p>
+        )}
+        {hasCostPlanned && (
+          <p className="mt-0.5 text-[11.5px] opacity-85">
+            {hasMarginTarget ? (
+              <>
+                meta {targetText} · {toneStyle.status}
+                {showPlanWarning && (
+                  <>
+                    {' '}· <span className="font-semibold">Plano abaixo da meta ({formatPercent(marginPlanned)})</span>
+                  </>
+                )}
+              </>
+            ) : (
+              'sem meta de margem definida'
+            )}
+          </p>
+        )}
       </div>
     </div>
   );
