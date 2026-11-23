@@ -108,10 +108,10 @@ meses cheios, `monthlyChartData`, `revenueByMonth`).
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| 1 | Script descartável (23/11/2026): curva com Out/26 e Nov/26, mais Dez/26 da parcela. Falta conferir na tela. |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). Script descartável (23/11/2026): curva com Out/26 e Nov/26, mais Dez/26 da parcela. |
 | 2 | Script: em 10/11, gasto R$ 4.755,27 + falta R$ 394,74 = R$ 5.150,01 (margem 49,4%). Falta conferir na tela. |
 | 3 | Por construção: o realizado vem dos meses da US-0026, que incluem os meses fora do período. |
 | 4 | Script: em 23/11 (depois do fim), falta R$ 0,00 e o custo final é o realizado. |
-| 5 | Script: Paraíso em 23/11 dá custo final R$ 4.755,27 e margem 53,3%. Falta conferir na tela. |
+| 5 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). Script: Paraíso em 23/11 dá custo final R$ 4.755,27 e margem 53,3%. |
 
 Testes automatizados não escritos: testes desativados no Harness por decisão do time.
