@@ -1,9 +1,8 @@
 /**
  * Segmentação da empresa lida do texto livre (24/09/2026).
  *
- * `segment`, `ring` e `tier` continuam texto livre no banco: a tela de Empresas precisa de
- * Setor/Subsetor e de Anel/Tier como número para filtrar e ordenar, e esta leitura resolve
- * isso sem migration. A escrita (`formatSegmentInput`) grava sempre "Setor / Subsetor",
+ * `segment` continua texto livre no banco: a tela precisa de Setor/Subsetor, e esta leitura
+ * resolve isso sem migration. A escrita (`formatSegmentInput`) grava sempre "Setor / Subsetor",
  * que é o formato que a leitura reconhece primeiro.
  */
 
@@ -43,17 +42,4 @@ export function formatSegmentInput(entrada: string): string | null {
   const principal = setor.trim();
   if (!principal) return sub || null;
   return sub ? `${principal} / ${sub}` : principal;
-}
-
-/** "1", "Tier 1", "anel 2" → número. Qualquer outra coisa → null. */
-export function parseRank(texto: string | null | undefined): number | null {
-  const match = texto?.match(/^\D*(\d+)\D*$/);
-  const numero = match ? Number(match[1]) : NaN;
-  return numero > 0 ? numero : null;
-}
-
-/** Anel e Tier aceitam inteiro maior que zero ou vazio. */
-export function formatRankInput(entrada: string): string | null {
-  const numero = parseRank(entrada);
-  return numero ? String(numero) : null;
 }

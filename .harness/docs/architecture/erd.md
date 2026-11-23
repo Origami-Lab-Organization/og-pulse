@@ -18,6 +18,7 @@ sources:
   - supabase/migrations/20261118200000_funcionarios_do_time.sql
   - supabase/migrations/20261119120000_qualificacao_e_bant.sql
   - supabase/migrations/20261123120000_historico_do_faturamento.sql
+  - supabase/migrations/20261123160000_anel_e_tier_saem.sql
   - supabase/migrations/20260923120000_prospect_instagram.sql
   - supabase/migrations/20260924120000_prospect_tasks.sql
   - supabase/migrations/20260928120000_prospect_stage_changes.sql
@@ -103,6 +104,8 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 23/11/2026: 20261123160000 — prospect_companies perde ring e tier (US-0017); os valores ficam em
+#  legado_prospeccao.empresas_anel_tier, fora da API. Conferido contra ProspectCompanyDB.
 # 23/11/2026: 20261123120000 — nova tabela prospect_company_faturamentos (FK prospect_companies,
 #  tenants e employees; só SELECT por prospeccao:ler, escrita só pelo gatilho em
 #  prospect_companies; US-0018), conferida contra RegistroDoFaturamento (src/types/filtrosReceita.ts).
@@ -211,8 +214,6 @@ erDiagram
         text cnpj "único por tenant (índice parcial)"
         text linkedin_url "único por tenant (índice parcial)"
         text instagram_url "livre — fora da deduplicação"
-        text ring "Anel — livre, editável no card"
-        text tier "Tier — livre, editável no card"
         text tipo_conta "ancora | ponte | satelite — NULL = sem tipo (US-0008)"
         int funcionarios_informados "confirmados pelo time — NULL = vale a RAIS (US-0020)"
         numeric faturamento_anual "informado pelo time — NULL = não informado"

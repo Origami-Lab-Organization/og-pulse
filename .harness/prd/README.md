@@ -81,7 +81,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0014](stories/1-a-fazer/US-0014-comercial-fit-com-funcionarios-e-divida.md) | Nota de fit considera funcionários e dívida ativa | Pessoa do comercial | A fazer | Não pronta |
 | [US-0015](stories/5-pronto/US-0015-comercial-distancia-de-formiga.md) | Filtrar e ordenar pela distância de Formiga | Pessoa do comercial | Pronto | Pronta |
 | [US-0016](stories/9-arquivadas/US-0016-comercial-tipo-de-conta.md) | Classificar a conta como Âncora, Ponte ou Satélite | Pessoa do comercial | Arquivada (na US-0008) | — |
-| [US-0017](stories/2-em-refinamento/US-0017-comercial-anel-e-tier-saem.md) | Anel e Tier saem da Prospecção | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
+| [US-0017](stories/5-pronto/US-0017-comercial-anel-e-tier-saem.md) | Anel e Tier saem da Prospecção | Pessoa do comercial | Pronto | Pronta |
 | [US-0018](stories/5-pronto/US-0018-comercial-refinar-faturamento-estimado.md) | Refinar o faturamento estimado | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0019](stories/5-pronto/US-0019-comercial-marca-de-relacionamento.md) | Ver a relação da Origami com cada empresa | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0020](stories/5-pronto/US-0020-comercial-estudo-da-conta.md) | Estudar a conta antes de abordar | Pessoa do comercial | Pronto | Pronta com ressalvas |
@@ -199,8 +199,8 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 3. **Tabela de receita por funcionário por setor:** levantar no IBGE e aprovar.
    Ver US-0006.
 4. **Limite de empresas por lote.** Ver US-0009.
-5. **Tabela de conversão do Tier** em tipo de conta, a partir dos valores de produção.
-   Ver US-0017.
+5. ~~**Tabela de conversão do Tier**~~ — decidido em 23/11/2026: pelo faturamento, não pelo
+   número do Tier. Ver US-0017.
 6. **Tipo de conta no lote.** Ver US-0009.
 
 #### A base mapeada (2026-11-15)

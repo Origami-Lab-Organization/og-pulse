@@ -14,11 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { useUpdateProspectCompany } from '@/hooks/useProspectCompanies';
 import { descreverProximaAtividade } from '@/lib/prospecting/companyList';
-import {
-  formatRankInput,
-  formatSegmentInput,
-  segmentToInput,
-} from '@/lib/prospecting/companySegmentation';
+import { formatSegmentInput, segmentToInput } from '@/lib/prospecting/companySegmentation';
 import { COMPANY_STATUS_META, type CompanyRow } from '@/lib/prospecting/companyStatus';
 import { comProtocolo, urlDoInstagram } from '@/lib/prospecting/links';
 import { formatCNPJ } from '@/lib/masks';
@@ -35,7 +31,7 @@ import {
 } from '@/types/prospect';
 import { descreverFaturamento } from '@/lib/prospecting/faturamento';
 import { FaturamentoAnualField } from './FaturamentoAnualField';
-import { AbordagemBadge, SituacaoDot, TierBadge } from './CompanyBadges';
+import { AbordagemBadge, SituacaoDot } from './CompanyBadges';
 import { CompanyOpportunityList } from './CompanyOpportunityList';
 import { Item, LinkExterno, Rodape, Secao } from './FichaDeCadastro';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
@@ -112,12 +108,6 @@ function Cabecalho({ row }: { row: CompanyRow }) {
           <SituacaoDot status={row.status} />
           {situacao.label}
         </span>
-        {row.tier && <TierBadge tier={row.tier} longo />}
-        {row.anel && (
-          <span className="inline-flex h-[26px] items-center rounded-md border border-input px-2.5 text-xs font-semibold text-foreground/80">
-            Anel {row.anel}
-          </span>
-        )}
       </div>
     </DialogHeader>
   );
@@ -158,8 +148,6 @@ function Visualizacao({
         <Secao titulo="Segmentação">
           <Item rotulo="Segmento">{row.setor && [row.setor, row.subsetor].filter(Boolean).join(' / ')}</Item>
           <Item rotulo="Tipo de conta">{getTipoDeContaLabel(company.tipo_conta)}</Item>
-          <Item rotulo="Anel">{row.anel && `Anel ${row.anel}`}</Item>
-          <Item rotulo="Tier">{row.tier && `Tier ${row.tier}`}</Item>
         </Secao>
 
         <SecaoProspeccao row={row} />
@@ -233,7 +221,7 @@ function SecaoProspeccao({ row }: { row: CompanyRow }) {
   );
 }
 
-type Rascunho = Record<'name' | 'cnpj' | 'website' | 'linkedin' | 'instagram' | 'segmento' | 'anel' | 'tier', string>;
+type Rascunho = Record<'name' | 'cnpj' | 'website' | 'linkedin' | 'instagram' | 'segmento', string>;
 
 const CAMPOS: ReadonlyArray<{ chave: keyof Rascunho; rotulo: string; largo?: boolean; placeholder?: string }> = [
   { chave: 'name', rotulo: 'Nome', largo: true },
@@ -242,8 +230,6 @@ const CAMPOS: ReadonlyArray<{ chave: keyof Rascunho; rotulo: string; largo?: boo
   { chave: 'linkedin', rotulo: 'LinkedIn', placeholder: 'linkedin.com/company/…' },
   { chave: 'instagram', rotulo: 'Instagram', placeholder: 'instagram.com/…' },
   { chave: 'segmento', rotulo: 'Segmento', largo: true, placeholder: 'Ex.: Mineração / Agro' },
-  { chave: 'anel', rotulo: 'Anel', placeholder: '1, 2 ou 3' },
-  { chave: 'tier', rotulo: 'Tier', placeholder: '1, 2 ou 3' },
 ];
 
 const CAMPO_CNPJ: keyof Rascunho = 'cnpj';
@@ -278,8 +264,6 @@ function Edicao({ row, onFechar }: { row: CompanyRow; onFechar: () => void }) {
         linkedin_url: rascunho.linkedin.trim() || null,
         instagram_url: rascunho.instagram.trim() || null,
         segment: formatSegmentInput(rascunho.segmento),
-        ring: formatRankInput(rascunho.anel),
-        tier: formatRankInput(rascunho.tier),
         tipo_conta: tipoConta,
         client_id: company.client_id,
         notes: company.notes,
@@ -405,8 +389,6 @@ function rascunhoInicial(row: CompanyRow): Rascunho {
     linkedin: company.linkedin_url ?? '',
     instagram: company.instagram_url ?? '',
     segmento: segmentToInput({ setor: row.setor, subsetor: row.subsetor }),
-    anel: row.anel ? String(row.anel) : '',
-    tier: row.tier ? String(row.tier) : '',
   };
 }
 

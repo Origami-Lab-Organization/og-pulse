@@ -142,7 +142,7 @@ export function calculateAccountCoverage(
   };
 }
 
-export type ProspectCut = 'lever' | 'ring' | 'tier' | 'owner';
+export type ProspectCut = 'lever' | 'owner';
 
 export interface CutRow {
   key: string;
@@ -153,7 +153,7 @@ export interface CutRow {
   qualificadas: number;
 }
 
-/** O mesmo funil quebrado por alavanca, anel, tier ou responsável. */
+/** O mesmo funil quebrado por alavanca ou responsável. */
 export function funnelByCut(
   prospects: ProspectWithCompany[],
   activities: ProspectActivityWithOwner[],
@@ -184,13 +184,11 @@ export function funnelByCut(
     .sort((a, b) => b.contatos - a.contatos);
 }
 
-/** O grupo de quem não tem valor no recorte: sem alavanca, sem anel, sem responsável. */
+/** O grupo de quem não tem valor no recorte: sem alavanca ou sem responsável. */
 export const SEM_RECORTE = '—';
 
 export function cutValue(prospect: ProspectWithCompany, cut: ProspectCut): string {
   if (cut === 'lever') return prospect.lever?.trim() || SEM_RECORTE;
-  if (cut === 'ring') return prospect.company?.ring?.trim() || SEM_RECORTE;
-  if (cut === 'tier') return prospect.company?.tier?.trim() || SEM_RECORTE;
   return prospect.owner_id ?? SEM_RECORTE;
 }
 

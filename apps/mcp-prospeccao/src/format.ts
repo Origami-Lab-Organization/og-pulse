@@ -66,8 +66,6 @@ export function empresaResumo(e: ProspectCompanyDB, contatos?: number): string {
   const detalhes = juntar([
     prefixado('CNPJ', cnpj(e.cnpj)),
     e.segment,
-    prefixado('Anel', e.ring),
-    prefixado('Tier', e.tier),
     getTipoDeContaLabel(e.tipo_conta),
     contatos === undefined ? null : `${contatos} contato(s)`,
   ]);
@@ -80,8 +78,6 @@ export function empresaCompleta(e: ProspectCompanyDB): string {
       ['', `**${e.name}**`],
       ['CNPJ', cnpj(e.cnpj)],
       ['Segmento', e.segment],
-      ['Anel', e.ring],
-      ['Tier', e.tier],
       ['Tipo de conta', getTipoDeContaLabel(e.tipo_conta)],
       ['Funcionários confirmados pelo time', e.funcionarios_informados == null ? null : e.funcionarios_informados.toLocaleString('pt-BR')],
       ['Site', e.website],
