@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { ChevronsRight } from 'lucide-react';
+import { useId, useState, type ReactNode } from 'react';
+import { ChevronRight, ChevronsRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { nomeDoRamo, ramosDosSetores, SETORES } from '@/lib/prospecting/cnae';
@@ -7,10 +7,14 @@ import {
   alternar,
   CAPITAIS,
   comSetores,
+  DISTANCIAS,
+  DIVIDA_QUALQUER,
   DIVIDAS,
+  FATURAMENTOS,
   FUNCIONARIOS,
   IDADES,
   NATUREZAS,
+  rotuloDoCnae,
   temFiltroDeAtividade,
   UFS,
 } from '@/lib/prospecting/filtrosReceita';
@@ -30,14 +34,37 @@ interface PainelDeFiltrosProps {
 const OPCOES_DE_SETOR: ReadonlyArray<Opcao<string>> = SETORES.map((s) => ({ valor: s.letra, rotulo: s.nome }));
 const OPCOES_DE_UF: ReadonlyArray<Opcao<string>> = UFS.map((uf) => ({ valor: uf, rotulo: uf }));
 
+/** Os rótulos das opções marcadas, na ordem das opções. */
+const rotulosDe = <T extends string | number>(opcoes: ReadonlyArray<Opcao<T>>, marcados: readonly T[]) =>
+  opcoes.filter((o) => marcados.includes(o.valor)).map((o) => o.rotulo);
+
+/** "Indústria de transformação +2": o que está marcado, para o título do grupo recolhido. */
+function resumo(rotulos: string[]): string {
+  if (!rotulos.length) return '';
+  return rotulos.length === 1 ? rotulos[0] : `${rotulos[0]} +${rotulos.length - 1}`;
+}
+
+function resumoDaAtividade(f: FiltrosReceita): string {
+  const cnaes = resumo(f.cnaes.map(rotuloDoCnae));
+  return cnaes && f.secundaria ? `${cnaes} · com secundária` : cnaes;
+}
+
+function resumoDoContato(f: FiltrosReceita): string {
+  return resumo([f.comEmail && 'E-mail', f.comTelefone && 'Telefone'].filter((v): v is string => !!v));
+}
+
 /**
  * Filtros da base da Receita (US-0003), à direita da lista. Sem contagem por opção: só o
  * total da lista aparece (decisão de 16/11/2026). Dentro de um grupo, as opções somam; entre
- * grupos, valem todas juntas.
+ * grupos, valem todas juntas. Cada grupo recolhe e mostra no título o que está marcado; só
+ * os grupos com filtro começam abertos (18/11/2026).
  */
 export function PainelDeFiltros(props: PainelDeFiltrosProps) {
   const { filtros: f, onChange, onLimpar, onRecolher, emGaveta = false } = props;
   const mudar = (parcial: Partial<FiltrosReceita>) => onChange({ ...f, ...parcial });
+  const capital = f.capitalMinimo > 0 ? rotulosDe(CAPITAIS, [f.capitalMinimo]) : [];
+  const distancia = f.distanciaMaxima > 0 ? rotulosDe(DISTANCIAS, [f.distanciaMaxima]) : [];
+  const divida = f.divida !== DIVIDA_QUALQUER ? rotulosDe(DIVIDAS, [f.divida]) : [];
 
   return (
     <aside
@@ -55,13 +82,13 @@ export function PainelDeFiltros(props: PainelDeFiltrosProps) {
         </Button>
       </div>
 
-      <Grupo titulo="Setor">
-        <Chips rotulo="Setor" opcoes={OPCOES_DE_SETOR} marcados={f.setores} onAlternar={(v) => onChange(comSetores(f, alternar(f.setores, v)))} />
+      <Grupo titulo="Setor" resumo={resumo(rotulosDe(OPCOES_DE_SETOR, f.setores))}>
+        <Lista rotulo="Setor" opcoes={OPCOES_DE_SETOR} marcados={f.setores} onAlternar={(v) => onChange(comSetores(f, alternar(f.setores, v)))} />
       </Grupo>
-      <Grupo titulo="Ramo">
+      <Grupo titulo="Ramo" resumo={resumo(f.ramos.map((r) => nomeDoRamo(r) ?? r))}>
         <Ramos filtros={f} onAlternar={(v) => mudar({ ramos: alternar(f.ramos, v) })} />
       </Grupo>
-      <Grupo titulo="CNAE">
+      <Grupo titulo="CNAE" resumo={resumoDaAtividade(f)}>
         <CampoCnae valores={f.cnaes} onChange={(cnaes) => mudar({ cnaes })} />
         <Caixa
           rotulo="Incluir atividade secundária"
@@ -70,25 +97,31 @@ export function PainelDeFiltros(props: PainelDeFiltrosProps) {
           onChange={(secundaria) => mudar({ secundaria })}
         />
       </Grupo>
-      <Grupo titulo="Idade da empresa">
-        <Chips rotulo="Idade da empresa" opcoes={IDADES} marcados={f.idades} onAlternar={(v) => mudar({ idades: alternar(f.idades, v) })} />
-      </Grupo>
-      <Grupo titulo="Estado">
+      <Grupo titulo="Estado" resumo={resumo(f.ufs)}>
         <Chips rotulo="Estado" opcoes={OPCOES_DE_UF} marcados={f.ufs} onAlternar={(v) => mudar({ ufs: alternar(f.ufs, v) })} />
       </Grupo>
-      <Grupo titulo="Funcionários (RAIS)">
+      <Grupo titulo="Distância de Formiga" resumo={resumo(distancia)}>
+        <EscolhaUnica rotulo="Distância de Formiga" opcoes={DISTANCIAS} valor={f.distanciaMaxima} onEscolher={(distanciaMaxima) => mudar({ distanciaMaxima })} />
+      </Grupo>
+      <Grupo titulo="Funcionários (RAIS)" resumo={resumo(rotulosDe(FUNCIONARIOS, f.funcionarios))}>
         <Chips rotulo="Funcionários" opcoes={FUNCIONARIOS} marcados={f.funcionarios} onAlternar={(v) => mudar({ funcionarios: alternar(f.funcionarios, v) })} />
       </Grupo>
-      <Grupo titulo="Capital social mínimo">
+      <Grupo titulo="Faturamento estimado" resumo={resumo(rotulosDe(FATURAMENTOS, f.faturamentos))}>
+        <Lista rotulo="Faturamento estimado" opcoes={FATURAMENTOS} marcados={f.faturamentos} onAlternar={(v) => mudar({ faturamentos: alternar(f.faturamentos, v) })} />
+      </Grupo>
+      <Grupo titulo="Capital social mínimo" resumo={resumo(capital)}>
         <EscolhaUnica rotulo="Capital social mínimo" opcoes={CAPITAIS} valor={f.capitalMinimo} onEscolher={(capitalMinimo) => mudar({ capitalMinimo })} />
       </Grupo>
-      <Grupo titulo="Natureza jurídica">
-        <Chips rotulo="Natureza jurídica" opcoes={NATUREZAS} marcados={f.naturezas} onAlternar={(v) => mudar({ naturezas: alternar(f.naturezas, v) })} />
+      <Grupo titulo="Idade da empresa" resumo={resumo(rotulosDe(IDADES, f.idades))}>
+        <Chips rotulo="Idade da empresa" opcoes={IDADES} marcados={f.idades} onAlternar={(v) => mudar({ idades: alternar(f.idades, v) })} />
       </Grupo>
-      <Grupo titulo="Dívida ativa">
+      <Grupo titulo="Natureza jurídica" resumo={resumo(rotulosDe(NATUREZAS, f.naturezas))}>
+        <Lista rotulo="Natureza jurídica" opcoes={NATUREZAS} marcados={f.naturezas} onAlternar={(v) => mudar({ naturezas: alternar(f.naturezas, v) })} />
+      </Grupo>
+      <Grupo titulo="Dívida ativa" resumo={resumo(divida)}>
         <EscolhaUnica rotulo="Dívida ativa" opcoes={DIVIDAS} valor={f.divida} onEscolher={(divida) => mudar({ divida })} />
       </Grupo>
-      <Grupo titulo="Contato público">
+      <Grupo titulo="Contato público" resumo={resumoDoContato(f)}>
         <Caixa rotulo="Tem e-mail" marcada={f.comEmail} onChange={(comEmail) => mudar({ comEmail })} />
         <Caixa rotulo="Tem telefone" marcada={f.comTelefone} onChange={(comTelefone) => mudar({ comTelefone })} />
       </Grupo>
@@ -101,15 +134,42 @@ function Ramos({ filtros, onAlternar }: { filtros: FiltrosReceita; onAlternar: (
     return <p className="text-xs text-muted-foreground">Marque um setor para escolher o ramo.</p>;
   }
   const opcoes = ramosDosSetores(filtros.setores).map((d) => ({ valor: d, rotulo: nomeDoRamo(d) ?? d }));
-  return <Chips rotulo="Ramo" opcoes={opcoes} marcados={filtros.ramos} onAlternar={onAlternar} />;
+  return <Lista rotulo="Ramo" opcoes={opcoes} marcados={filtros.ramos} onAlternar={onAlternar} />;
 }
 
-function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
+/** Grupo que abre e fecha; começa aberto só se já tem filtro marcado. */
+function Grupo({ titulo, resumo: marcado, children }: { titulo: string; resumo: string; children: ReactNode }) {
+  const [aberto, setAberto] = useState(!!marcado);
+  const conteudo = useId();
   return (
-    <section className="flex flex-col gap-2 border-b px-3.5 py-3 last:border-b-0">
-      <h3 className="text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</h3>
-      {children}
+    <section className="border-b last:border-b-0">
+      <h3>
+        <button
+          type="button"
+          aria-expanded={aberto}
+          aria-controls={conteudo}
+          onClick={() => setAberto((a) => !a)}
+          className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
+          <ChevronRight className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', aberto && 'rotate-90')} aria-hidden="true" />
+          <span className="shrink-0 text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</span>
+          {marcado && <span className="ml-auto min-w-0 truncate text-[12px] font-medium text-success-emphasis">{marcado}</span>}
+        </button>
+      </h3>
+      {aberto && <div id={conteudo} className="flex flex-col gap-2 px-3.5 pb-3">{children}</div>}
     </section>
+  );
+}
+
+/** Opções longas: uma por linha, com caixa de marcar, rolando se passar de 16 rem. */
+function Lista<T extends string>(props: { rotulo: string; opcoes: ReadonlyArray<Opcao<T>>; marcados: readonly T[]; onAlternar: (v: T) => void }) {
+  const { rotulo, opcoes, marcados, onAlternar } = props;
+  return (
+    <div role="group" aria-label={rotulo} className="-mr-1.5 flex max-h-64 flex-col gap-1.5 overflow-y-auto pr-1.5">
+      {opcoes.map((o) => (
+        <Caixa key={o.valor} rotulo={o.rotulo} marcada={marcados.includes(o.valor)} onChange={() => onAlternar(o.valor)} />
+      ))}
+    </div>
   );
 }
 
@@ -156,9 +216,9 @@ function EscolhaUnica<T extends string | number>(props: { rotulo: string; opcoes
 function Caixa(props: { rotulo: string; marcada: boolean; desativada?: boolean; onChange: (marcada: boolean) => void }) {
   const { rotulo, marcada, desativada, onChange } = props;
   return (
-    <label className={cn('flex items-center gap-2 text-[13px]', desativada && 'text-muted-foreground')}>
-      <Checkbox checked={marcada} disabled={desativada} onCheckedChange={(v) => onChange(v === true)} />
-      {rotulo}
+    <label className={cn('flex items-start gap-2 text-[13px] leading-snug', desativada && 'text-muted-foreground')}>
+      <Checkbox className="mt-px shrink-0" checked={marcada} disabled={desativada} onCheckedChange={(v) => onChange(v === true)} />
+      <span>{rotulo}</span>
     </label>
   );
 }

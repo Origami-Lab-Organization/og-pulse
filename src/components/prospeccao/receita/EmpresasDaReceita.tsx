@@ -26,6 +26,7 @@ import type { BuscaReceita, FiltrosReceita } from '@/types/filtrosReceita';
 import { cn } from '@/lib/utils';
 import { CaixaDeBusca } from './CaixaDeBusca';
 import { EmpresasReceitaTable } from './EmpresasReceitaTable';
+import { FichaDaEmpresaReceita } from './FichaDaEmpresaReceita';
 import { GavetaDeFiltros } from './GavetaDeFiltros';
 import { PainelDeFiltros } from './PainelDeFiltros';
 
@@ -44,6 +45,7 @@ const ESPERA_DA_DIGITACAO_MS = 300;
 export function EmpresasDaReceita() {
   const [filtros, setFiltros] = useState<FiltrosReceita>(filtrosDoNavegador);
   const painel = usePainelDeFiltros();
+  const [ficha, setFicha] = useState<string | null>(null);
   const [ordenacao, setOrdenacao] = useState(ORDENACAO_PADRAO);
   const [pagina, setPagina] = useState(0);
   const [texto, setTexto] = useState(buscaDoNavegador);
@@ -93,11 +95,12 @@ export function EmpresasDaReceita() {
         </div>
         <div className="overflow-hidden rounded-xl border bg-card">
           <AvisosDaBusca busca={busca} ativos={ativos} primeira={consulta.data?.linhas[0]?.cnpj} />
-          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} />
+          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={setFicha} compacta={painel.larga && painel.aberto} />
           <Rodape contagem={contagem.data} pagina={pagina} onPagina={setPagina} vazia={!consulta.data?.linhas.length} />
         </div>
       </section>
       {painel.larga && painel.aberto && filtrosDoPainel(false)}
+      <FichaDaEmpresaReceita cnpj={ficha} onFechar={() => setFicha(null)} />
       {!painel.larga && (
         <GavetaDeFiltros aberta={painel.aberto} onAbertaChange={painel.definirGaveta} contagem={contagem.data} contando={contagem.isFetching} botao={painel.botao}>
           {filtrosDoPainel(true)}
@@ -172,8 +175,10 @@ function Conteudo(props: {
   ordenacao: typeof ORDENACAO_PADRAO;
   onOrdenar: (ordem: OrdemReceita) => void;
   onLimpar: () => void;
+  onAbrir: (cnpj: string) => void;
+  compacta: boolean;
 }) {
-  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar } = props;
+  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar, onAbrir, compacta } = props;
   if (consulta.isLoading) return <Carregando />;
   if (consulta.error) return <Falha erro={consulta.error} onTentar={() => consulta.refetch()} />;
   if (!consulta.data || consulta.data.totalDaBase == null) {
@@ -188,7 +193,7 @@ function Conteudo(props: {
   const trocando = consulta.isPlaceholderData;
   return (
     <div className={cn('overflow-x-auto transition-opacity', trocando && 'opacity-60')} aria-busy={trocando}>
-      <EmpresasReceitaTable linhas={consulta.data.linhas} ordenacao={ordenacao} onOrdenar={onOrdenar} />
+      <EmpresasReceitaTable linhas={consulta.data.linhas} ordenacao={ordenacao} onOrdenar={onOrdenar} onAbrir={onAbrir} compacta={compacta} />
     </div>
   );
 }

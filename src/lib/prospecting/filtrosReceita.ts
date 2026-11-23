@@ -1,4 +1,5 @@
 import type {
+  FaixaDeFaturamento,
   FaixaDeFuncionarios,
   FaixaDeIdade,
   FiltroDeDivida,
@@ -34,12 +35,29 @@ export const FUNCIONARIOS: ReadonlyArray<Opcao<FaixaDeFuncionarios>> = [
   { valor: 'sem', rotulo: 'Sem informação na RAIS' },
 ];
 
+export const FATURAMENTOS: ReadonlyArray<Opcao<FaixaDeFaturamento>> = [
+  { valor: 'ate10', rotulo: 'Abaixo de R$ 10 mi' },
+  { valor: 'satelite', rotulo: 'R$ 10 a 100 mi (Satélite)' },
+  { valor: 'ponte', rotulo: 'R$ 100 a 300 mi (Ponte)' },
+  { valor: 'ancora', rotulo: 'Acima de R$ 300 mi (Âncora)' },
+];
+
 export const CAPITAIS: ReadonlyArray<Opcao<number>> = [
   { valor: 0, rotulo: 'Qualquer' },
   { valor: 1_000_000, rotulo: 'R$ 1 mi' },
   { valor: 10_000_000, rotulo: 'R$ 10 mi' },
   { valor: 50_000_000, rotulo: 'R$ 50 mi' },
   { valor: 100_000_000, rotulo: 'R$ 100 mi' },
+];
+
+/** Distância de Formiga em linha reta (US-0015), escolha única. */
+export const DISTANCIAS: ReadonlyArray<Opcao<number>> = [
+  { valor: 0, rotulo: 'Qualquer' },
+  { valor: 50, rotulo: 'até 50 km' },
+  { valor: 100, rotulo: 'até 100 km' },
+  { valor: 200, rotulo: 'até 200 km' },
+  { valor: 300, rotulo: 'até 300 km' },
+  { valor: 500, rotulo: 'até 500 km' },
 ];
 
 export const NATUREZAS: ReadonlyArray<Opcao<GrupoDeNatureza>> = [
@@ -71,7 +89,9 @@ export const FILTROS_VAZIOS: FiltrosReceita = {
   idades: [],
   ufs: [],
   funcionarios: [],
+  faturamentos: [],
   capitalMinimo: 0,
+  distanciaMaxima: 0,
   naturezas: [],
   divida: DIVIDA_QUALQUER,
   comEmail: false,
@@ -90,7 +110,9 @@ export function contarFiltros(f: FiltrosReceita): number {
     f.idades.length > 0,
     f.ufs.length > 0,
     f.funcionarios.length > 0,
+    f.faturamentos.length > 0,
     f.capitalMinimo > 0,
+    f.distanciaMaxima > 0,
     f.naturezas.length > 0,
     f.divida !== DIVIDA_QUALQUER,
     f.comEmail || f.comTelefone,
@@ -134,6 +156,7 @@ export function lerFiltrosSalvos(texto: string | null): FiltrosReceita {
   }
   const setores = lista<string>(salvo.setores, new Set('ABCDEFGHIJKLMNOPQRSTU'.split('')));
   const capital = CAPITAIS.find((c) => c.valor === salvo.capitalMinimo)?.valor ?? 0;
+  const distancia = DISTANCIAS.find((d) => d.valor === salvo.distanciaMaxima)?.valor ?? 0;
   const divida = DIVIDAS.find((d) => d.valor === salvo.divida)?.valor ?? DIVIDA_QUALQUER;
   return {
     setores,
@@ -143,7 +166,9 @@ export function lerFiltrosSalvos(texto: string | null): FiltrosReceita {
     idades: lista(salvo.idades, conjunto(IDADES)),
     ufs: lista<string>(salvo.ufs, new Set(UFS)),
     funcionarios: lista(salvo.funcionarios, conjunto(FUNCIONARIOS)),
+    faturamentos: lista(salvo.faturamentos, conjunto(FATURAMENTOS)),
     capitalMinimo: capital,
+    distanciaMaxima: distancia,
     naturezas: lista(salvo.naturezas, conjunto(NATUREZAS)),
     divida,
     comEmail: salvo.comEmail === true,
