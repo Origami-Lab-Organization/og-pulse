@@ -1,8 +1,8 @@
 # US-0031 — O forecast e a curva da aba Financeiro usam todos os meses do projeto
 
-- **Status:** Em refinamento
+- **Status:** A fazer
 - **Tipo:** bug
-- **Prontidão:** NÃO PRONTA
+- **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
 - **Prioridade:** 7
 - **Aprovada por / em:** —
@@ -47,7 +47,7 @@ R$ 4.755,27.
 - **Quando** abro o forecast;
 - **Então** o custo final estimado é: o custo realizado até hoje, mais o que ainda falta do
   planejado do mês atual (planejado do mês − realizado do mês, nunca negativo), mais o
-  planejado dos meses seguintes;
+  planejado dos meses seguintes até a data de fim;
 - **E** a margem projetada é (contrato − comissão planejada − custo final estimado) ÷
   contrato.
 
@@ -57,27 +57,26 @@ R$ 4.755,27.
 - **Quando** abro o forecast;
 - **Então** ele entra no custo realizado, como na aba Despesas (US-0026).
 
-**Cenário 4: o Paraíso**
+**Cenário 4: projeto que já passou da data de fim**
 
-- **Dado** o Paraíso com os lançamentos de 23/11/2026;
+- **Dado** um projeto cuja data de fim já passou;
+- **Quando** abro o forecast;
+- **Então** o planejado que não foi lançado não conta mais;
+- **E** o custo final estimado é igual ao custo realizado.
+
+**Cenário 5: o Paraíso**
+
+- **Dado** o Paraíso (fim em 17/11/2026) com os lançamentos de 23/11/2026;
 - **Quando** abro a aba Financeiro;
-- **Então** o forecast deixa de mostrar 88% e passa a mostrar a margem da regra do cenário 2
-  (valor depende da decisão pendente abaixo).
+- **Então** o forecast mostra custo final estimado R$ 4.755,27 e margem projetada ≈ 53,3%,
+  no lugar de 88%.
 
 ## Decisões (Victor Couto, 23/11/2026)
 
 - No mês atual, o forecast conta o realizado até hoje mais o que ainda falta do planejado
   do mês.
-
-## Pontos em aberto
-
-### Decisões pendentes
-
-- **Projeto que já passou da data de fim.** O Paraíso terminou em 17/11, e hoje é 23/11.
-  Pela regra do cenário 2, o que ainda falta do planejado de novembro (≈ R$ 394,74 de horas
-  planejadas e não lançadas) entra no custo final: forecast ≈ **49,4%**. Se, depois da data
-  de fim, o que não foi lançado não conta mais, o custo final é o realizado: forecast ≈
-  **53,3%**. Qual das duas? A resposta muda o cenário 4.
+- Depois da data de fim do projeto, o planejado que não foi lançado não conta mais: o custo
+  final estimado é o realizado.
 
 ## Contexto técnico
 
@@ -90,7 +89,7 @@ R$ 4.755,27.
   (US-0026), a mesma fonte dos cards e da aba Despesas.
 - **Riscos para investigar:** receita por mês (`revenueByMonth`) tem o mesmo corte por
   `projectDuration`; projetos contínuos e sem data de fim.
-- **Provas esperadas:** os quatro cenários; a soma da curva igual aos cards de custo.
+- **Provas esperadas:** os cinco cenários; a soma da curva igual aos cards de custo.
 - **Fora do escopo:** cor e texto do card (US-0032); P&L (US-0033).
 
 ## Implementação

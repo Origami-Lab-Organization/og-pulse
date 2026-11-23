@@ -253,7 +253,7 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 | [US-0028](stories/4-em-desenvolvimento/US-0028-projetos-grafico-planejado-x-realizado-so-com-totais.md) | O gráfico Planejado × Realizado mostra só os totais | GP ou admin | Em desenvolvimento | Pronta com ressalvas |
 | [US-0029](stories/4-em-desenvolvimento/US-0029-projetos-total-dos-custos-lancados.md) | Ver o total dos custos lançados | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0030](stories/4-em-desenvolvimento/US-0030-projetos-lancamento-so-dentro-do-periodo.md) | Lançar horas e custos só dentro do período do projeto | GP ou admin | Em desenvolvimento | Pronta |
-| [US-0031](stories/2-em-refinamento/US-0031-projetos-forecast-usa-todos-os-meses.md) | O forecast e a curva da aba Financeiro usam todos os meses do projeto | GP ou admin | Em refinamento | Não pronta |
+| [US-0031](stories/1-a-fazer/US-0031-projetos-forecast-usa-todos-os-meses.md) | O forecast e a curva da aba Financeiro usam todos os meses do projeto | GP ou admin | A fazer | Pronta |
 | [US-0032](stories/1-a-fazer/US-0032-projetos-card-de-forecast-claro.md) | O card de forecast diz o que significa | GP ou admin | A fazer | Pronta |
 | [US-0033](stories/1-a-fazer/US-0033-projetos-pl-realizado.md) | Ver o P&L realizado ao lado do projetado | GP ou admin | A fazer | Pronta |
 
@@ -280,12 +280,10 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
   início.
 - (aba Financeiro) Forecast acima da meta com plano abaixo: card verde, com aviso escrito
   (US-0032). No mês atual, o forecast conta o realizado até hoje mais o que ainda falta do
-  planejado do mês (US-0031). No P&L realizado, a receita é a recebida, e Projetado /
+  planejado do mês; depois da data de fim, o que não foi lançado não conta mais (US-0031).
+  No P&L realizado, a receita é a recebida, e Projetado /
   Realizado ficam num seletor como o da rosca (US-0033).
 
 #### Decisões pendentes do épico
 
-1. **US-0031:** depois da data de fim do projeto, o planejado que não foi lançado ainda conta
-   no custo final estimado? (Paraíso: forecast ≈ 49,4% se conta, ≈ 53,3% se não conta.)
-
-O clique na barra (US-0028) não existia: o atalho para as seções está na rosca e continua lá.
+Nenhuma. O clique na barra (US-0028) não existia: o atalho para as seções está na rosca e continua lá.
