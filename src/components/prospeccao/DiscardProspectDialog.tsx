@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDecisoesDaBase } from '@/hooks/useDecisoesDaBase';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useDiscardProspect } from '@/hooks/useProspects';
 import { opportunityName, PROSPECT_DISCARD_REASONS, type ProspectWithCompany } from '@/types/prospect';
+import { CampoVoltarEm } from './CampoVoltarEm';
 
 interface DiscardProspectDialogProps {
   prospect: ProspectWithCompany | null;
@@ -20,6 +22,10 @@ interface DiscardProspectDialogProps {
   /** Motivo já marcado ao abrir (vem do BANT "Não atende", US-0022); a pessoa pode trocar. */
   motivoSugerido?: string | null;
 }
+
+// "Momento errado / adiado" pede quando voltar: vira o "Não agora" da empresa (US-0010).
+const MOMENTO_ERRADO = 'momento_errado';
+const CNPJ_COMPLETO = /^\d{14}$/;
 
 /**
  * Perda exige motivo de uma lista fechada (etapa `descartado`, "Perda" desde 28/09/2026).
@@ -30,7 +36,9 @@ interface DiscardProspectDialogProps {
  */
 export function DiscardProspectDialog({ prospect, open, onOpenChange, motivoSugerido = null }: DiscardProspectDialogProps) {
   const descartar = useDiscardProspect();
+  const { naoAgora } = useDecisoesDaBase();
   const [motivo, setMotivo] = useState<string>('');
+  const [voltarEm, setVoltarEm] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) setMotivo(motivoSugerido ?? '');
@@ -38,10 +46,26 @@ export function DiscardProspectDialog({ prospect, open, onOpenChange, motivoSuge
 
   if (!prospect) return null;
 
+  const cnpj = (prospect.company?.cnpj ?? '').replace(/\D/g, '');
+  const momentoErrado = motivo === MOMENTO_ERRADO;
+  const comVolta = momentoErrado && CNPJ_COMPLETO.test(cnpj);
+  const pendente = descartar.isPending || naoAgora.isPending;
+
+  const marcarNaoAgora = () => {
+    if (!comVolta || !voltarEm) return;
+    const empresa = { cnpj, nome: prospect.company?.name ?? opportunityName(prospect) };
+    naoAgora.mutate({ empresas: [empresa], voltarEm, prospectId: prospect.id });
+  };
+
   const confirmar = () => {
     descartar.mutate(
       { id: prospect.id, reason: motivo },
-      { onSuccess: () => onOpenChange(false) },
+      {
+        onSuccess: () => {
+          marcarNaoAgora();
+          onOpenChange(false);
+        },
+      },
     );
   };
 
@@ -65,11 +89,16 @@ export function DiscardProspectDialog({ prospect, open, onOpenChange, motivoSuge
           ))}
         </RadioGroup>
 
+        {comVolta && <CampoVoltarEm onChange={setVoltarEm} desabilitado={pendente} />}
+        {momentoErrado && !comVolta && (
+          <p className="text-[12.5px] text-muted-foreground">A empresa não tem CNPJ: a Perda é registrada, sem o aviso para voltar.</p>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={descartar.isPending}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pendente}>
             Cancelar
           </Button>
-          <Button variant="destructive" onClick={confirmar} disabled={!motivo || descartar.isPending}>
+          <Button variant="destructive" onClick={confirmar} disabled={!motivo || pendente || (comVolta && !voltarEm)}>
             {descartar.isPending ? 'Registrando...' : 'Registrar perda'}
           </Button>
         </DialogFooter>

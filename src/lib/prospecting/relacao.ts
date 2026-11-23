@@ -3,7 +3,8 @@ import { formatarData } from '@/lib/prospecting/prazos';
 import { PROJECT_STATUS_LABELS } from '@/types/project';
 import { getDiscardReasonLabel, getProspectStageLabel, type ProspectStage } from '@/types/prospect';
 import type { Opcao } from '@/types/filtrosReceita';
-import type { OportunidadeDaRelacao, ProjetoDaRelacao, Relacao, RelacaoDaEmpresa } from '@/types/relacao';
+import { rotuloDoMotivoDoDescarte } from '@/lib/prospecting/decisoesDaBase';
+import type { DecisaoDaRelacao, OportunidadeDaRelacao, ProjetoDaRelacao, Relacao, RelacaoDaEmpresa } from '@/types/relacao';
 
 /**
  * Como a tela mostra a relação da Origami com a empresa (US-0019). A regra que decide a relação
@@ -16,6 +17,14 @@ export const SEM_SUCESSO: Relacao = 'sem_sucesso';
 
 export function rotuloDaRelacao(relacao: Relacao): string {
   return RELACOES.find((r) => r.valor === relacao)?.rotulo ?? relacao;
+}
+
+const NAO_AGORA: Relacao = 'nao_agora';
+
+/** O texto do selo: "Não agora até 23/02" leva a data (US-0010); as outras, o rótulo. */
+export function rotuloDoSelo(r: RelacaoDaEmpresa): string {
+  const ate = r.relacao === NAO_AGORA && r.decisao?.voltar_em ? formatarData(r.decisao.voltar_em).slice(0, 5) : null;
+  return ate ? `Não agora até ${ate}` : rotuloDaRelacao(r.relacao);
 }
 
 /** "Em andamento" — o rótulo do status do projeto. */
@@ -45,6 +54,17 @@ function textoDaPerda(o: OportunidadeDaRelacao, nomeDe: NomeDe): string {
   return `${motivo}${quando ? ` em ${quando}` : ''}, com ${nomeDe(o.owner_id)}.`;
 }
 
+/** "Descartada por Ana em 23/11/2026: Sem fit." (US-0010). */
+function textoDoDescarte(d: DecisaoDaRelacao, nomeDe: NomeDe): string {
+  const motivo = d.texto ? `${rotuloDoMotivoDoDescarte(d.motivo)} (${d.texto})` : rotuloDoMotivoDoDescarte(d.motivo);
+  return `Descartada por ${nomeDe(d.decidida_por)} em ${formatarData(d.decidida_em.slice(0, 10))}: ${motivo}.`;
+}
+
+function textoDoNaoAgora(d: DecisaoDaRelacao, nomeDe: NomeDe): string {
+  const origem = d.prospect_id ? ' (Perda "Momento errado" na Qualificação)' : '';
+  return `"Não agora" marcado por ${nomeDe(d.decidida_por)} em ${formatarData(d.decidida_em.slice(0, 10))}${origem}; voltar em ${formatarData(d.voltar_em ?? '')}.`;
+}
+
 function textoDoGanho(o: OportunidadeDaRelacao): string {
   const quando = data(o.data);
   return `Ganho${quando ? ` em ${quando}` : ''}.`;
@@ -58,6 +78,9 @@ const DETALHES: Record<Relacao, (r: RelacaoDaEmpresa, nomeDe: NomeDe) => Array<s
     r.oportunidade ? textoDoGanho(r.oportunidade) : null,
     !r.projeto && !r.oportunidade ? 'Está no cadastro de clientes.' : null,
   ],
+  retomar: (r, nomeDe) => [r.decisao ? textoDoNaoAgora(r.decisao, nomeDe) : null, 'A data chegou: veja se agora é o momento de qualificar.'],
+  nao_agora: (r, nomeDe) => [r.decisao ? textoDoNaoAgora(r.decisao, nomeDe) : null],
+  descartada: (r, nomeDe) => [r.decisao ? textoDoDescarte(r.decisao, nomeDe) : null],
   sem_sucesso: (r, nomeDe) => [r.oportunidade && textoDaPerda(r.oportunidade, nomeDe)],
 };
 

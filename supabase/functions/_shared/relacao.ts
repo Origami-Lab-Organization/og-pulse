@@ -3,18 +3,25 @@
  * oportunidades do tenant. Mora aqui porque a Edge Function `empresas-receita` calcula e a tela
  * só mostra; a tela importa os tipos e os rótulos daqui.
  *
- * Quando mais de uma vale, vence a primeira desta ordem (decisão de 18/11/2026):
- * Cliente ativo → Sendo abordada → Já foi cliente → Abordada sem sucesso.
+ * Quando mais de uma vale, vence a primeira desta ordem (decisão de 18/11/2026, ampliada pela
+ * US-0010 em 23/11/2026): Cliente ativo → Sendo abordada → Já foi cliente → Retomar → Não agora
+ * → Descartada → Abordada sem sucesso.
  */
 
-import type { DadosDaRelacao, OportunidadeDaRelacao, Relacao, RelacaoDaEmpresa } from "./relacaoTipos.ts";
+import type { DadosDaRelacao, DecisaoDaRelacao, OportunidadeDaRelacao, Relacao, RelacaoDaEmpresa } from "./relacaoTipos.ts";
 
 export const RELACOES: ReadonlyArray<{ valor: Relacao; rotulo: string }> = [
   { valor: "cliente_ativo", rotulo: "Cliente ativo" },
   { valor: "sendo_abordada", rotulo: "Sendo abordada" },
   { valor: "ja_foi_cliente", rotulo: "Já foi cliente" },
+  { valor: "retomar", rotulo: "Retomar" },
+  { valor: "nao_agora", rotulo: "Não agora" },
+  { valor: "descartada", rotulo: "Descartada" },
   { valor: "sem_sucesso", rotulo: "Abordada sem sucesso" },
 ];
+
+/** Marcas que saem da lista por padrão e voltam pelo filtro de relação (US-0010). */
+export const ESCONDIDAS_POR_PADRAO: ReadonlySet<Relacao> = new Set(["nao_agora", "descartada"]);
 
 const PROJETO_ABERTO = new Set(["planning", "active", "paused"]);
 const GANHO = new Set(["ganho", "convertido"]);
@@ -43,6 +50,18 @@ function semSucesso(oportunidades: OportunidadeDaRelacao[], hoje: Date): Relacao
   return { relacao: "sem_sucesso", pediuParaParar, projeto: null, oportunidade: ultima };
 }
 
+/** AAAA-MM-DD de hoje no fuso de Brasília: é o dia em que o "Não agora" vence. */
+export function diaDeHoje(hoje: Date): string {
+  return hoje.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
+/** A marca da decisão: "Não agora" vira "Retomar" quando a data chega (US-0010). */
+function pelaDecisao(decisao: DecisaoDaRelacao, hoje: Date): RelacaoDaEmpresa {
+  const vencida = decisao.decisao === "nao_agora" && (decisao.voltar_em ?? "") <= diaDeHoje(hoje);
+  const relacao: Relacao = decisao.decisao === "descartada" ? "descartada" : vencida ? "retomar" : "nao_agora";
+  return { relacao, pediuParaParar: false, projeto: null, oportunidade: null, decisao };
+}
+
 export function relacaoDaEmpresa(dados: DadosDaRelacao, hoje: Date): RelacaoDaEmpresa | null {
   const { projetos, oportunidades } = dados;
   const emAndamento = oportunidades.find((o) => !ENCERRADA.has(o.stage)) ?? null;
@@ -53,6 +72,7 @@ export function relacaoDaEmpresa(dados: DadosDaRelacao, hoje: Date): RelacaoDaEm
   if (projetos.length || ganho || dados.cliente) {
     return { relacao: "ja_foi_cliente", pediuParaParar: false, projeto: maisRecente(projetos), oportunidade: ganho };
   }
+  if (dados.decisao) return pelaDecisao(dados.decisao, hoje);
   return semSucesso(oportunidades, hoje);
 }
 

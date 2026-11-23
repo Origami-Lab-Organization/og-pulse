@@ -74,7 +74,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0007](stories/5-pronto/US-0007-comercial-ficha-da-empresa.md) | Avaliar a empresa pela ficha antes de decidir | Pessoa do comercial | Pronto | Pronta |
 | [US-0008](stories/5-pronto/US-0008-comercial-colocar-para-abordar.md) | Mover empresas para abordar | Pessoa do comercial | Pronto | Pronta |
 | [US-0009](stories/9-arquivadas/US-0009-comercial-abrir-oportunidades-em-lote.md) | Abrir oportunidades em lote | Pessoa do comercial | Arquivada (na US-0008) | — |
-| [US-0010](stories/2-em-refinamento/US-0010-comercial-nao-agora-e-descartar.md) | Marcar "Não agora" ou descartar a empresa | Pessoa do comercial | Em refinamento | Pronta |
+| [US-0010](stories/4-em-desenvolvimento/US-0010-comercial-nao-agora-e-descartar.md) | Descartar a empresa ou marcar "Não agora" | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
 | [US-0011](stories/9-arquivadas/US-0011-comercial-abas-da-classificacao.md) | Acompanhar a classificação pelas abas e desfazer | Pessoa do comercial | Arquivada (tela sem abas) | — |
 | [US-0012](stories/2-em-refinamento/US-0012-comercial-classificar-pelo-teclado.md) | Classificar pelo teclado | Pessoa do comercial | Em refinamento | Pronta |
 | [US-0013](stories/1-a-fazer/US-0013-comercial-salvar-filtro-para-o-time.md) | Salvar um filtro para o time | Pessoa do comercial | A fazer | Não pronta |
