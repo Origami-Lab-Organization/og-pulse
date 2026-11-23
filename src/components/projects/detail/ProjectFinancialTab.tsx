@@ -153,6 +153,9 @@ export function ProjectFinancialTab({
         marginTarget={marginTarget}
         forecastMargin={forecast.forecastMargin}
         forecastCost={forecast.forecastCost}
+        forecastSpent={forecast.spent}
+        forecastRemaining={forecast.remaining}
+        projectEnded={forecast.projectEnded}
         hasCostPlanned={hasCostPlanned}
         onNavigateToExpenses={onNavigateToTab ? () => onNavigateToTab('costs') : undefined}
       />

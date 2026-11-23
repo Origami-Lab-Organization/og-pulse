@@ -1,6 +1,6 @@
 # US-0032 — O card de forecast diz o que significa
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** bug
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto
@@ -84,6 +84,25 @@ plan restante".
 
 ## Implementação
 
+`FinancialKpiCards.tsx`: o card de forecast fica vermelho só quando o forecast está abaixo da
+meta. Com o forecast na meta ou acima e a margem planejada abaixo, o card fica verde e mostra
+"Plano abaixo da meta (X%)". O texto passa a ser "margem projetada no fim do projeto" e
+"Custo final estimado R$ X = R$ Y já gasto + R$ Z ainda planejado" (ou "· projeto encerrado"
+depois da data de fim), seguido de "meta N% · na meta ou acima / abaixo da meta". Sem
+"EAC", "burn-rate" nem "plan". As parcelas do custo vêm do forecast da US-0031
+(`spent`, `remaining`, `projectEnded`).
+
+**Teste desatualizado:** `src/test/financial-kpi-cards.test.tsx` ("Margem planejada abaixo
+da meta") ainda espera fundo vermelho quando só o plano está abaixo da meta, que é a regra
+antiga. Não foi reescrito porque os testes estão desativados no Harness; o CI não roda
+`npm test`.
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1 | Pendente: conferir na tela (Paraíso: forecast 53,3% abaixo da meta de 55% → vermelho). |
+| 2 | Pendente: conferir na tela num projeto com forecast acima da meta e plano abaixo. |
+| 3 | Pendente: conferir o texto na tela. |
+| 4 | Pendente: conferir na tela num projeto sem custo planejado. |
+| 5 | Pendente: conferir com "ocultar valores". |
+
+Testes automatizados não escritos: testes desativados no Harness por decisão do time.
