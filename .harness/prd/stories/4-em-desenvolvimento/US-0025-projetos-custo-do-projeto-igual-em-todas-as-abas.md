@@ -120,9 +120,9 @@ Financeiro mantêm cálculo próprio até a US-0026.
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| 1 | Pendente: conferir na Visão Geral do Paraíso (custo com Viagem). |
-| 2 | Pendente: conferir as três abas num projeto com mais de uma categoria. As quatro telas leem o mesmo hook. |
-| 3 | Parcial: as funções puras com os números do Paraíso dão planejado R$ 8.602,39, realizado R$ 4.755,27 e margem planejada 15,5% (script descartável, 23/11/2026). Falta conferir na tela. |
-| 4 | Por construção: `useProjectCostItems` só lê custos com `deleted_at` nulo. Falta conferir na tela. |
+| 1 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080): a Visão Geral passou a contar Viagem. |
+| 2 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080). As quatro telas leem o mesmo hook. |
+| 3 | Conferido na tela por Victor Couto em 23/11/2026 (Paraíso, localhost:8080); as funções puras com os números do Paraíso dão planejado R$ 8.602,39, realizado R$ 4.755,27 e margem planejada 15,5%. |
+| 4 | Por construção: `useProjectCostItems` só lê custos com `deleted_at` nulo. Não houve custo removido no Paraíso para conferir na tela. |
 
 Testes automatizados não escritos: testes desativados no Harness por decisão do time.
