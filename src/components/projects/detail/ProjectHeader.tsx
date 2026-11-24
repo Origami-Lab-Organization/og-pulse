@@ -133,9 +133,10 @@ export function ProjectHeader({ project, actions, subtitle, extraMeta }: Project
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+      {/* Título com largura de leitura garantida: se não couber junto, o stepper desce de linha. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         {/* Bloco esquerdo: breadcrumb + título */}
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 flex-[1_1_28rem] space-y-2">
         {/* Breadcrumb */}
         <nav aria-label="Trilha de navegação">
           <ol className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -175,8 +176,10 @@ export function ProjectHeader({ project, actions, subtitle, extraMeta }: Project
         </div>
 
         {/* Bloco direito: stepper de estágios + ações, alinhados à direita */}
-        <div className="flex items-start gap-3 lg:shrink-0 lg:justify-end">
-          <StageStepper current={stage} />
+        <div className="ml-auto flex min-w-0 max-w-full items-start gap-3">
+          <div className="min-w-0">
+            <StageStepper current={stage} />
+          </div>
           {actions && <div className="shrink-0">{actions}</div>}
         </div>
       </div>
