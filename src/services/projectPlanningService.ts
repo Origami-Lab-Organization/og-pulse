@@ -15,7 +15,7 @@ import type {
  * Leitura e escrita do planejamento guiado por checklist (US-0039): o pedido de aprovação do
  * admin quando o planejado fica abaixo do orçado, e a conclusão do planejamento.
  * As regras de quem pode o quê estão na RLS e no gatilho de `project_planning_approvals`
- * (migration 20261124140000); aqui só se grava.
+ * (migration 20261124180000); aqui só se grava.
  */
 
 const APPROVAL_COLUMNS =

@@ -8,7 +8,7 @@
 -- Só acrescenta colunas que aceitam nulo: os resultados-chave que já existem continuam
 -- válidos, e o RLS de `project_key_results` não muda.
 --
--- Rollback: supabase/rollback/20261124150000_linha_de_base_do_resultado_chave_rollback.sql
+-- Rollback: supabase/rollback/20261124190000_linha_de_base_do_resultado_chave_rollback.sql
 
 ALTER TABLE public.project_key_results
   ADD COLUMN IF NOT EXISTS baseline_value numeric,

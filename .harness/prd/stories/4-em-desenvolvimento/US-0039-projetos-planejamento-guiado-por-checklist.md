@@ -277,9 +277,9 @@ um campo só de horas por mês para simplificar.
 | Cenário | Prova (teste ou evidência) |
 |---|---|
 | 1–11, 15–20 | A validar pelo Victor no localhost:8080 (testes automatizados desativados no Harness). |
-| 12–14 (banco) | Ensaio da migration 20261124140000 em Postgres 15 local, 24/11/2026: GP pede (`requested_by` = GP); segundo pedido aberto recusado; GP não aprova (PU001); gerente de outro projeto não pede nem cancela; colaborador não lê; devolver sem motivo recusado; admin devolve com motivo e aprova; pedido decidido não muda; ninguém apaga; outro tenant recusado; reversão e reaplicação limpas. |
+| 12–14 (banco) | Ensaio da migration 20261124180000 em Postgres 15 local, 24/11/2026: GP pede (`requested_by` = GP); segundo pedido aberto recusado; GP não aprova (PU001); gerente de outro projeto não pede nem cancela; colaborador não lê; devolver sem motivo recusado; admin devolve com motivo e aprova; pedido decidido não muda; ninguém apaga; outro tenant recusado; reversão e reaplicação limpas. |
 | 12–14 (tela) | A validar no localhost depois do deploy da migration: no 8080 (banco de produção) a tabela e a capacidade ainda não existem. |
-| 4 (banco) | Ensaio da migration 20261124150000 em Postgres 15 local, 24/11/2026: resultado-chave antigo segue válido com os campos novos vazios; o novo grava linha de base, como medir e prazo; reversão remove as colunas e preserva os resultados-chave. |
+| 4 (banco) | Ensaio da migration 20261124190000 em Postgres 15 local, 24/11/2026: resultado-chave antigo segue válido com os campos novos vazios; o novo grava linha de base, como medir e prazo; reversão remove as colunas e preserva os resultados-chave. |
 
 ### Ajustes do Victor depois do teste no localhost (24/11/2026)
 
@@ -291,7 +291,7 @@ Valem sobre os cenários 1, 2, 4, 5 e 7 onde divergirem:
 2. **Objetivo cadastrado de uma vez, já com os resultados-chave**: cada resultado-chave diz o
    que vai mudar, como medir (indicador e fonte), a linha de base, a meta, a unidade e o prazo.
    O prazo é obrigatório e aberto: pode passar do fim do projeto (o resultado se mede depois) e,
-   se já tiver passado, a tela avisa sem impedir. Migration 20261124150000 cria `baseline_value`,
+   se já tiver passado, a tela avisa sem impedir. Migration 20261124190000 cria `baseline_value`,
    `measurement` e `target_date` em `project_key_results`; o valor atual começa na linha de base.
 3. **Roadmap visual**: a aba usa a linha do tempo da aba Roadmap de sempre (marco como ponto,
    épico e release como barra de duração), com o formulário completo; data fora do período não

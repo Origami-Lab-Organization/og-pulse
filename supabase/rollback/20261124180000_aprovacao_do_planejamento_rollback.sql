@@ -1,4 +1,4 @@
--- Rollback de 20261124140000_aprovacao_do_planejamento.sql: remove os pedidos de aprovação do
+-- Rollback de 20261124180000_aprovacao_do_planejamento.sql: remove os pedidos de aprovação do
 -- planejamento e a capacidade planejamento:aprovar-abaixo-do-orcado.
 -- Os pedidos gravados se perdem. Sem BEGIN/COMMIT próprio: rode com
 -- `psql --single-transaction` (ai-review-checklist).

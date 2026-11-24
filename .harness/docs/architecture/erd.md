@@ -50,15 +50,15 @@ sources:
   - supabase/migrations/20261013120000_lei_do_bem_automatica.sql
   - supabase/migrations/20261013130000_receita_preserva_regime.sql
   - supabase/migrations/20261124120000_metas_do_portfolio.sql
-  - supabase/migrations/20261124140000_aprovacao_do_planejamento.sql
-  - supabase/migrations/20261124150000_linha_de_base_do_resultado_chave.sql
+  - supabase/migrations/20261124180000_aprovacao_do_planejamento.sql
+  - supabase/migrations/20261124190000_linha_de_base_do_resultado_chave.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
   - src/types/portfolio.ts
-# 24/11/2026: project_key_results ganha baseline_value, measurement e target_date (20261124150000,
+# 24/11/2026: project_key_results ganha baseline_value, measurement e target_date (20261124190000,
 # US-0039) — o resultado-chave nasce com linha de base, como medir e prazo; colunas nulas.
-# 24/11/2026: project_planning_approvals (20261124140000, US-0039) — pedido de aprovação do
+# 24/11/2026: project_planning_approvals (20261124180000, US-0039) — pedido de aprovação do
 # planejamento abaixo do orçado; um aberto por projeto (indice parcial em status='requested');
 # conferido contra PlanningApproval (src/types/projectPlanning.ts) e ensaiado com RLS e gatilho
 # num Postgres local.
