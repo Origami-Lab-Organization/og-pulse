@@ -21,7 +21,7 @@ import {
   textoDoInformado,
 } from '@/lib/prospecting/faturamentoEstimado';
 import { autoriaDoFaturamento, confiancaDoFaturamento, seloDoInformado } from '@/lib/prospecting/confiancaDoFaturamento';
-import { fitDaBase } from '@/lib/prospecting/fitDaBase';
+import { fitDaBase, linhaParaFit } from '@/lib/prospecting/fitDaBase';
 import { notaDoRegime } from '@/lib/prospecting/limiteDoRegime';
 import { rotuloDoCnae } from '@/lib/prospecting/filtrosReceita';
 import { getDiscardReasonLabel } from '@/types/prospect';
@@ -388,9 +388,9 @@ function Faturamento({ empresa }: { empresa: EmpresaDaFicha }) {
 }
 
 function FitPorFrente({ empresa }: { empresa: EmpresaDaFicha }) {
-  const fits = fitDaBase(empresa.cnae_principal, empresa.cnaes_secundarios, empresa.data_inicio_atividade, new Date().toISOString().slice(0, 10)) ?? [];
+  const fits = fitDaBase(linhaParaFit(empresa), new Date().toISOString().slice(0, 10)) ?? [];
   return (
-    <Secao titulo="Fit prévio por frente">
+    <Secao titulo="Fit por serviço">
       <ul className="space-y-3">
         {fits.map((f) => (
           <li key={f.frente}>

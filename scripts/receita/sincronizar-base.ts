@@ -15,8 +15,10 @@
 import { readFileSync } from 'node:fs';
 import { Transform, type TransformCallback } from 'node:stream';
 import { divisaoDoCnae, setorDoCnae, setoresERamos } from '@/lib/prospecting/cnae';
-import { estimarFaturamento } from '@/lib/prospecting/faturamentoEstimado';
-import { bestFit } from '@/lib/prospecting/fit';
+import { BASE_PISO, estimarFaturamento } from '@/lib/prospecting/faturamentoEstimado';
+import { bestFit, FRENTES_DO_FIT } from '@/lib/prospecting/fit';
+import type { Faturamento } from '@/types/filtrosReceita';
+import type { CompanyFit, FitFront } from '@/types/receita';
 import { fitDaBase } from '@/lib/prospecting/fitDaBase';
 import { ARQUIVO_DESTINO, ARQUIVO_ORIGEM, lerAmbiente, psql, terminou, type Ambiente } from './psql';
 import { chaveDoMunicipio, kmEntre } from './distancia';
@@ -94,20 +96,16 @@ const COLUNAS_DESTINO = [
   'uf', 'funcionarios', 'unidades_com_funcionarios', 'filiais_ativas', 'socios', 'divida_total',
   'divida_em_cobranca', 'divida_ajuizada', 'inscricoes_divida', 'tem_email', 'tem_telefone',
   'fit_previo', 'fit_frente', 'secao', 'divisao', 'secoes_sec', 'divisoes_sec', 'faturamento_estimado',
-  'faturamento_base', 'distancia_km',
+  'faturamento_base', 'distancia_km', 'fit_studio', 'fit_lei_do_bem', 'fit_captacao', 'fit_consultoria',
 ].join(', ');
 
 const COL = {
   razao: 2, cnaePrincipal: 5, cnaesSecundarios: 6, natureza: 7, capital: 8, abertura: 9, municipio: 10, uf: 11, funcionarios: 12,
-  filiais: 14, socios: 15, divida: 16, email: 20, telefone: 21,
+  filiais: 14, socios: 15, divida: 16, dividaAjuizada: 18, email: 20, telefone: 21,
 } as const;
 
 // ---------- transformação ----------
 
-/** Nota de fit prévio pela regra da tela, só com o que a Receita informa (fitDaBase). */
-function fitPrevio(cnaePrincipal: string, secundarios: string[], abertura: string | null, hoje: string) {
-  return bestFit(fitDaBase(cnaePrincipal, secundarios, abertura, hoje));
-}
 
 interface Resumo {
   linhas: number;
@@ -119,6 +117,7 @@ interface Resumo {
 
 const FAIXAS_DE_FATURAMENTO: ReadonlyArray<[number, string]> = [[300e6, 'âncora'], [100e6, 'ponte'], [10e6, 'satélite'], [0, 'abaixo de 10 mi']];
 const VERDADEIRO = 't';
+const CONSULTORIA: FitFront = 'consultoria';
 
 const texto = (v: string) => (v === NULO ? null : v);
 const numero = (v: string) => (v === NULO ? null : Number(v));
@@ -127,19 +126,19 @@ const FORMIGA = SEDES.formiga as [number, number];
 const COORDENADAS = SEDES.sedes as Record<string, [number, number]>;
 
 /** Km em linha reta da sede de Formiga à sede do município (US-0015); nulo sem município reconhecido. */
-function colunaDeDistancia(campos: string[], resumo: Resumo): string {
+function distanciaDe(campos: string[], resumo: Resumo): number | null {
   const municipio = texto(campos[COL.municipio]);
   const uf = texto(campos[COL.uf]);
   const sede = municipio && uf ? COORDENADAS[chaveDoMunicipio(uf, municipio)] : undefined;
   if (!sede) {
     resumo.semDistancia += 1;
-    return NULO;
+    return null;
   }
-  return String(kmEntre(FORMIGA, sede));
+  return kmEntre(FORMIGA, sede);
 }
 
-/** Faturamento estimado e a base dele (US-0006), no formato do COPY em texto. */
-function colunasDeFaturamento(campos: string[], hoje: string, resumo: Resumo): string {
+/** Faturamento estimado e a base dele (US-0006). */
+function estimativaDe(campos: string[], hoje: string, resumo: Resumo): Faturamento {
   const cnae = campos[COL.cnaePrincipal];
   const { valor, base } = estimarFaturamento(cnae, numero(campos[COL.funcionarios]), {
     nome: texto(campos[COL.razao]),
@@ -156,22 +155,44 @@ function colunasDeFaturamento(campos: string[], hoje: string, resumo: Resumo): s
   }, hoje);
   const faixa = `${base}: ${FAIXAS_DE_FATURAMENTO.find(([piso]) => valor >= piso)![1]}`;
   resumo.porFaixaDeFaturamento[faixa] = (resumo.porFaixaDeFaturamento[faixa] ?? 0) + 1;
-  return `${valor}\t${base}`;
+  return { valor, base };
 }
+
+/**
+ * O fit de cada serviço pela regra da tela (fitDaBase, US-0014), com o que a linha da Base traz:
+ * funcionários, dívida ajuizada, distância e o faturamento estimado (sem o piso).
+ */
+function fitsDaLinha(campos: string[], secundarios: string[], hoje: string, fat: Faturamento, km: number | null) {
+  return fitDaBase({
+    cnaePrincipal: campos[COL.cnaePrincipal],
+    secundarios,
+    abertura: texto(campos[COL.abertura]),
+    uf: texto(campos[COL.uf]),
+    funcionarios: numero(campos[COL.funcionarios]),
+    dividaAjuizada: numero(campos[COL.dividaAjuizada]),
+    distanciaKm: km,
+    faturamento: fat.base === BASE_PISO ? null : fat.valor,
+  }, hoje) ?? [];
+}
+
+const notaDe = (fits: CompanyFit[], frente: FitFront) => fits.find((f) => f.frente === frente)?.nota ?? 0;
 
 function linhaComFit(linha: string, hoje: string, resumo: Resumo): string {
   const campos = linha.split('\t');
   const secundarios = campos[COL.cnaesSecundarios].replace(/[{}]/g, '').split(',').filter(Boolean);
-  const abertura = campos[COL.abertura] === NULO ? null : campos[COL.abertura];
-  const fit = fitPrevio(campos[COL.cnaePrincipal], secundarios, abertura, hoje);
+  const fat = estimativaDe(campos, hoje, resumo);
+  const km = distanciaDe(campos, resumo);
+  const fits = fitsDaLinha(campos, secundarios, hoje, fat, km);
+  const fit = bestFit(fits.length ? fits : null);
   const nota = fit?.nota ?? 0;
-  const frente = fit?.frente ?? 'consultoria';
+  const frente: FitFront = fit?.frente ?? CONSULTORIA;
   resumo.linhas += 1;
   resumo.porFrente[frente] = (resumo.porFrente[frente] ?? 0) + 1;
   const faixa = `${Math.floor(nota / 10) * 10}`;
   resumo.porFaixaDeFit[faixa] = (resumo.porFaixaDeFit[faixa] ?? 0) + 1;
   const atividade = colunasDeAtividade(campos[COL.cnaePrincipal], secundarios);
-  return `${linha}\t${nota}\t${frente}\t${atividade}\t${colunasDeFaturamento(campos, hoje, resumo)}\t${colunaDeDistancia(campos, resumo)}\n`;
+  const porServico = FRENTES_DO_FIT.map((f) => notaDe(fits, f)).join('\t');
+  return `${linha}\t${nota}\t${frente}\t${atividade}\t${fat.valor}\t${fat.base}\t${km ?? NULO}\t${porServico}\n`;
 }
 
 /** Setor e ramo do principal e dos secundários (US-0003), no formato do COPY em texto. */

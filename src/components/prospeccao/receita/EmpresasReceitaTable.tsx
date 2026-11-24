@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { useHideValues } from '@/contexts/HideValuesContext';
 import { formatCNPJ } from '@/lib/masks';
-import { ROTULO_DA_FRENTE } from '@/lib/prospecting/fit';
+import { FIT_QUE_DESTACA, FRENTES_DO_FIT, ROTULO_CURTO_DA_FRENTE, ROTULO_DA_FRENTE } from '@/lib/prospecting/fit';
+import type { FitFront } from '@/types/receita';
 import {
   anosDeOperacao,
   emTitulo,
@@ -46,6 +47,8 @@ interface EmpresasReceitaTableProps {
   linhas: EmpresaReceita[];
   ordenacao: OrdenacaoReceita;
   onOrdenar: (ordem: OrdemReceita) => void;
+  /** O serviço cujo fit a coluna mostra (US-0014); nulo = a maior nota. */
+  servicoDoFit?: FitFront | null;
 }
 
 /**
@@ -54,7 +57,7 @@ interface EmpresasReceitaTableProps {
  * conta no tooltip (US-0006).
  */
 export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
-  const { linhas, ordenacao, onOrdenar, onAbrir, selecao, relacaoIndisponivel = false, compacta = false } = props;
+  const { linhas, ordenacao, onOrdenar, onAbrir, selecao, relacaoIndisponivel = false, compacta = false, servicoDoFit = null } = props;
   useHideValues(); // re-renderiza quando o olho de ocultar valores muda
   const ordenavel = (ordem: OrdemReceita, rotulo: string, numerica = false) => (
     <CabecalhoOrdenavel ordem={ordem} ordenacao={ordenacao} onOrdenar={onOrdenar} numerica={numerica}>
@@ -77,12 +80,12 @@ export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
           {ordenavel('idade', 'Idade', true)}
           {ordenavel('faturamento', 'Faturamento', true)}
           <th scope="col" className="whitespace-nowrap px-3 font-medium">Dívida ativa</th>
-          {ordenavel('fit', 'Fit prévio')}
+          {ordenavel('fit', servicoDoFit ? `Fit · ${ROTULO_CURTO_DA_FRENTE[servicoDoFit]}` : 'Fit')}
         </tr>
       </thead>
       <tbody>
         {linhas.map((empresa) => (
-          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} selecao={selecao} relacaoIndisponivel={relacaoIndisponivel} />
+          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} selecao={selecao} relacaoIndisponivel={relacaoIndisponivel} servicoDoFit={servicoDoFit ?? null} />
         ))}
       </tbody>
     </table>
@@ -97,10 +100,11 @@ interface LinhaProps {
   onAbrir: (cnpj: string) => void;
   selecao?: SelecaoDaLista;
   relacaoIndisponivel: boolean;
+  servicoDoFit: FitFront | null;
 }
 
 function Linha(props: LinhaProps) {
-  const { empresa, compacta, onAbrir, selecao, relacaoIndisponivel } = props;
+  const { empresa, compacta, onAbrir, selecao, relacaoIndisponivel, servicoDoFit } = props;
   const largura = compacta ? 'max-w-[170px]' : 'max-w-[260px]';
   const nome = nomeDaEmpresa(empresa);
   const ramo = ramoDaEmpresa(empresa.cnae_principal);
@@ -158,7 +162,7 @@ function Linha(props: LinhaProps) {
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">{anos != null ? `${anos} a` : '—'}</td>
       <td className="whitespace-nowrap px-3 py-2 text-center"><FaturamentoEstimado empresa={empresa} /></td>
       <td className="whitespace-nowrap px-3 py-2"><DividaBadge empresa={empresa} /></td>
-      <td className="px-3 py-2 pr-5"><FitPrevio empresa={empresa} /></td>
+      <td className="px-3 py-2 pr-5"><FitPrevio empresa={empresa} servicoDoFit={servicoDoFit} /></td>
     </tr>
   );
 }
@@ -261,10 +265,23 @@ function DividaBadge({ empresa }: { empresa: EmpresaReceita }) {
   );
 }
 
-function FitPrevio({ empresa }: { empresa: EmpresaReceita }) {
-  const nota = empresa.fit_previo;
+/** A nota de cada serviço na linha da Base (US-0014). */
+const NOTA_DO_SERVICO: Record<FitFront, (e: EmpresaReceita) => number> = {
+  studio: (e) => e.fit_studio,
+  lei_do_bem: (e) => e.fit_lei_do_bem,
+  captacao: (e) => e.fit_captacao,
+  consultoria: (e) => e.fit_consultoria,
+};
+
+/** Os quatro serviços no title: o que a pessoa vê ao parar o mouse na nota. */
+const notasNoTitulo = (e: EmpresaReceita) =>
+  FRENTES_DO_FIT.map((f) => `${ROTULO_DA_FRENTE[f]}: ${NOTA_DO_SERVICO[f](e) ?? 0}`).join(' · ');
+
+function FitPrevio({ empresa, servicoDoFit }: { empresa: EmpresaReceita; servicoDoFit: FitFront | null }) {
+  const nota = servicoDoFit ? NOTA_DO_SERVICO[servicoDoFit](empresa) ?? 0 : empresa.fit_previo;
+  const destaque = empresa.fit_previo >= FIT_QUE_DESTACA ? `Maior nota: ${ROTULO_DA_FRENTE[empresa.fit_frente] ?? 'serviço'}. ` : 'Nenhum serviço se destaca. ';
   return (
-    <span className="inline-flex items-center gap-2" title={`Maior nota: ${ROTULO_DA_FRENTE[empresa.fit_frente]}`}>
+    <span className="inline-flex items-center gap-2" title={`${servicoDoFit ? '' : destaque}${notasNoTitulo(empresa)}`}>
       <span className="w-6 text-right font-mono text-[13px] font-semibold tabular-nums">{nota}</span>
       <span className="h-1.5 w-11 overflow-hidden rounded-full bg-muted" aria-hidden="true">
         <span className="block h-full rounded-full bg-primary" style={{ width: `${nota}%` }} />

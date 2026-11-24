@@ -37,8 +37,14 @@ export interface EmpresaReceita {
   funcionarios: number | null;
   divida_total: number | null;
   divida_ajuizada: number | null;
+  /** A maior nota entre os serviços, e de qual serviço (US-0014). */
   fit_previo: number;
   fit_frente: FitFront;
+  /** A nota de cada serviço (US-0014). */
+  fit_studio: number;
+  fit_lei_do_bem: number;
+  fit_captacao: number;
+  fit_consultoria: number;
   faturamento_estimado: number | null;
   /** De onde vem o faturamento estimado (US-0006). */
   faturamento_base: BaseDoFaturamento | null;

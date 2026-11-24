@@ -81,7 +81,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0011](stories/9-arquivadas/US-0011-comercial-abas-da-classificacao.md) | Acompanhar a classificação pelas abas e desfazer | Pessoa do comercial | Arquivada (tela sem abas) | — |
 | [US-0012](stories/2-em-refinamento/US-0012-comercial-classificar-pelo-teclado.md) | Classificar pelo teclado | Pessoa do comercial | Em refinamento | Pronta |
 | [US-0013](stories/1-a-fazer/US-0013-comercial-salvar-filtro-para-o-time.md) | Salvar um filtro para o time | Pessoa do comercial | A fazer | Não pronta |
-| [US-0014](stories/1-a-fazer/US-0014-comercial-fit-com-funcionarios-e-divida.md) | Nota de fit considera funcionários e dívida ativa | Pessoa do comercial | A fazer | Não pronta |
+| [US-0014](stories/5-pronto/US-0014-comercial-fit-com-funcionarios-e-divida.md) | Fit por serviço que separa as contas: tamanho real, dívida, distância e faturamento | Pessoa do comercial | Pronto | Pronta |
 | [US-0015](stories/5-pronto/US-0015-comercial-distancia-de-formiga.md) | Filtrar e ordenar pela distância de Formiga | Pessoa do comercial | Pronto | Pronta |
 | [US-0016](stories/9-arquivadas/US-0016-comercial-tipo-de-conta.md) | Classificar a conta como Âncora, Ponte ou Satélite | Pessoa do comercial | Arquivada (na US-0008) | — |
 | [US-0017](stories/5-pronto/US-0017-comercial-anel-e-tier-saem.md) | Anel e Tier saem da Prospecção | Pessoa do comercial | Pronto | Pronta |
@@ -93,6 +93,9 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0023](stories/5-pronto/US-0023-comercial-etapa-qualificacao.md) | Qualificar a empresa antes de abordar | Pessoa do comercial | Pronto | Pronta |
 | [US-0024](stories/5-pronto/US-0024-comercial-ia-propoe-bant-pelo-mcp.md) | IA propõe evidências de BANT pela assinatura do Claude | Pessoa do comercial | Pronto | Pronta |
 | [US-0038](stories/5-pronto/US-0038-comercial-bant-comprovado-para-qualificar.md) | Só o BANT comprovado qualifica a oportunidade | Pessoa do comercial | Pronto | Pronta |
+| [US-0040](stories/2-em-refinamento/US-0040-comercial-distancia-por-faixa-livre.md) | Distância de Formiga escolhida pela pessoa | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
+| [US-0041](stories/2-em-refinamento/US-0041-comercial-tirar-atividades-da-lista.md) | Tirar atividades da lista (ex.: holdings) | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
+| [US-0042](stories/2-em-refinamento/US-0042-comercial-filtros-em-qualificacao.md) | Filtros na aba "Em qualificação" para decidir quem analisar primeiro | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 
 #### Ordem de implementação proposta
 

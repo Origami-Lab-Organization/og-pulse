@@ -27,6 +27,7 @@ import { useSelecaoDeEmpresas } from '@/hooks/useSelecaoDeEmpresas';
 import { useAuth } from '@/contexts/AuthContext';
 import type { BuscaReceita, FiltrosReceita, SelecaoDaLista } from '@/types/filtrosReceita';
 import type { Relacao } from '@/types/relacao';
+import type { FitFront } from '@/types/receita';
 import { RELACOES_DA_ORIGAMI } from '@/lib/prospecting/relacao';
 import { cn } from '@/lib/utils';
 import { BarraDeSelecao } from './BarraDeSelecao';
@@ -100,7 +101,7 @@ export function EmpresasDaReceita() {
           <BarraDeSelecao quantidade={marcadas.empresas.length} onColocar={() => setColocando(true)} onDecidir={decidir.abrir} onLimpar={marcadas.limpar} />
           <AvisosDaBusca busca={busca} ativos={ativos} primeira={consulta.data?.linhas[0]?.cnpj} />
           <AvisoDaRelacao indisponivel={!!consulta.data?.relacaoIndisponivel} comFiltro={filtros.relacoes.length > 0} />
-          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={setFicha} selecao={podeColocar ? marcadas.selecao : undefined} />
+          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={setFicha} selecao={podeColocar ? marcadas.selecao : undefined} servicoDoFit={filtros.servicoDoFit} />
           <Rodape contagem={contagem.data} pagina={pagina} onPagina={setPagina} vazia={!consulta.data?.linhas.length} />
         </div>
       </section>
@@ -255,8 +256,10 @@ function Conteudo(props: {
   onLimpar: () => void;
   onAbrir: (cnpj: string) => void;
   selecao?: SelecaoDaLista;
+  /** O serviço cujo fit a coluna mostra (US-0014). */
+  servicoDoFit: FitFront | null;
 }) {
-  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar, onAbrir, selecao } = props;
+  const { consulta, busca, ativos, ordenacao, onOrdenar, onLimpar, onAbrir, selecao, servicoDoFit } = props;
   if (consulta.isLoading) return <Carregando />;
   if (consulta.error) return <Falha erro={consulta.error} onTentar={() => consulta.refetch()} />;
   if (!consulta.data || consulta.data.totalDaBase == null) {
@@ -271,7 +274,7 @@ function Conteudo(props: {
   const trocando = consulta.isPlaceholderData;
   return (
     <div className={cn('overflow-x-auto transition-opacity', trocando && 'opacity-60')} aria-busy={trocando}>
-      <EmpresasReceitaTable linhas={consulta.data.linhas} relacaoIndisponivel={consulta.data.relacaoIndisponivel} ordenacao={ordenacao} onOrdenar={onOrdenar} onAbrir={onAbrir} selecao={selecao} />
+      <EmpresasReceitaTable linhas={consulta.data.linhas} relacaoIndisponivel={consulta.data.relacaoIndisponivel} ordenacao={ordenacao} onOrdenar={onOrdenar} onAbrir={onAbrir} selecao={selecao} servicoDoFit={servicoDoFit} />
     </div>
   );
 }

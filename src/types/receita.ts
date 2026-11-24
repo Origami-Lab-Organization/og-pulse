@@ -62,8 +62,51 @@ export interface SiteScan {
   paginas: string[];
 }
 
-/** As frentes que a Origami vende hoje (set/2026): sem Sprint 0. */
-export type FitFront = 'software' | 'financiamento' | 'consultoria';
+/**
+ * Os serviços da Origami com fit próprio (US-0014, 24/11/2026), pelas linhas de serviço:
+ * Studio de Produto, Lei do Bem, Captação de recursos (FINEP, BNDES, FAPs) e Consultoria
+ * Estratégica. Ventures fica sem fit (é investimento, não perfil de conta). Até 23/11/2026 eram
+ * três frentes (software, financiamento, consultoria).
+ */
+export type FitFront = 'studio' | 'lei_do_bem' | 'captacao' | 'consultoria';
+
+/**
+ * O que a Base sabe da empresa e o fit usa (US-0014): na Base, da própria linha; no Pulse, do
+ * retrato gravado na empresa, com o que o time informou valendo por cima. Nulo = não se sabe —
+ * e "não sei" não soma nem tira (ADR-0042).
+ */
+export interface SinaisDoTamanho {
+  funcionarios: number | null;
+  /** Funcionários vieram do time (US-0020), não da RAIS. */
+  funcionariosDoTime: boolean;
+  dividaAjuizada: number | null;
+  distanciaKm: number | null;
+  tipoConta: import('@/types/prospect').TipoDeConta | null;
+  /** O tipo veio da faixa do faturamento, não da classificação do time. */
+  tipoPeloFaturamento: boolean;
+  uf: string | null;
+  /**
+   * Na Base o regime nunca foi consultado (24/11/2026): "não informado" não soma na Lei do Bem,
+   * senão ela vira o maior fit de quase toda empresa pequena. No Pulse, a BrasilAPI responde.
+   */
+  regimeNaoConsultado?: boolean;
+}
+
+/** O que a linha da Base traz para o fit prévio (US-0014): a carga e a ficha usam o mesmo formato. */
+export interface LinhaDaBaseParaFit {
+  cnaePrincipal: string;
+  secundarios: readonly string[];
+  /** Data de abertura, AAAA-MM-DD. */
+  abertura: string | null;
+  uf: string | null;
+  funcionarios: number | null;
+  /** Funcionários confirmados pelo time (US-0020), na ficha. */
+  funcionariosDoTime?: boolean;
+  dividaAjuizada: number | null;
+  distanciaKm: number | null;
+  /** O faturamento que vale (o do time, senão o estimado sem o piso); nulo sem nenhum. */
+  faturamento: number | null;
+}
 
 export interface FitReason {
   pontos: number;

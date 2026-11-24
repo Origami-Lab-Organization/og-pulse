@@ -112,3 +112,6 @@ verify_jwt = false
 
 [functions.teams-transcripts-sync]
 verify_jwt = false
+
+[functions.retrato-da-base]
+verify_jwt = false

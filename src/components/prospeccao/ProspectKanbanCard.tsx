@@ -1,10 +1,11 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { BadgeDollarSign, Building2, CircleAlert, MessagesSquare, Route, User, Users, XCircle } from 'lucide-react';
+import { BadgeDollarSign, Building2, CircleAlert, MessagesSquare, Route, Target, User, Users, XCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { formatCurrency } from '@/lib/formatters';
 import { otherOpportunitiesInProgress } from '@/lib/prospecting/companyStatus';
+import { companyFit, servicoEmDestaque } from '@/lib/prospecting/fit';
 import { cn } from '@/lib/utils';
 import type { BantDaOportunidade } from '@/types/bant';
 import { LetrasDoBant } from './bant/LetrasDoBant';
@@ -108,6 +109,8 @@ export function ProspectKanbanCard({
             <span className="truncate">{responsavel ?? 'Sem responsável'}</span>
           </span>
 
+          <MaiorFit prospect={prospect} />
+
           {bant && (
             <span className="flex items-center gap-1 text-xs">
               <LetrasDoBant bant={bant} compacto />
@@ -125,6 +128,19 @@ export function ProspectKanbanCard({
         </button>
       </CardContent>
     </Card>
+  );
+}
+
+/** O serviço de maior fit, em letra pequena (US-0014): pista de qual serviço oferecer. */
+function MaiorFit({ prospect }: { prospect: ProspectWithCompany }) {
+  const empresa = prospect.company;
+  const maior = empresa ? servicoEmDestaque(companyFit(empresa, empresa.fomento ?? null)) : null;
+  if (!maior) return null;
+  return (
+    <span className="flex items-center gap-1 text-[11px] text-muted-foreground" title={`Maior fit: ${maior.rotulo} (${maior.nota} de 100)`}>
+      <Target className="h-3 w-3 shrink-0" aria-hidden="true" />
+      <span className="truncate">{maior.rotulo} · {maior.nota}</span>
+    </span>
   );
 }
 

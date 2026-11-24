@@ -15,8 +15,9 @@ interface CompanyFitSectionProps {
 }
 
 /**
- * Fit da conta com cada frente da Origami (29/09/2026) — regra explícita, sem IA. Cada barra
- * abre o porquê: nota que não se explica não é usada.
+ * Fit da conta com cada serviço da Origami (US-0014: Studio de Produto, Lei do Bem, Captação de
+ * recursos e Consultoria Estratégica) — regra explícita, sem IA. Cada barra abre o porquê: nota
+ * que não se explica não é usada.
  */
 export function CompanyFitSection(props: CompanyFitSectionProps) {
   const { empresa, fomento = null, emCartao = false } = props;
@@ -65,14 +66,39 @@ function LinhaDeFit({ fit, grande }: { fit: CompanyFit; grande: boolean }) {
       </button>
       {aberta && (
         <ul className="mt-1.5 space-y-0.5 pl-4 text-[11px] text-muted-foreground">
-          {fit.motivos.length === 0 && <li>Nenhum sinal desta frente ainda.</li>}
+          {fit.motivos.length === 0 && <li>Nenhum sinal deste serviço ainda.</li>}
           {fit.motivos.map((m) => (
             <li key={m.texto}>
-              {m.pontos > 0 && <span className="font-medium text-foreground">+{m.pontos}</span>} {m.texto}
+              <PontosDoMotivo pontos={m.pontos} /> {m.texto}
             </li>
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** "+15" ou "−25" (a dívida ativa ajuizada só tira, US-0014). */
+function PontosDoMotivo({ pontos }: { pontos: number }) {
+  if (pontos === 0) return null;
+  if (pontos < 0) return <span className="font-medium text-destructive-emphasis">−{Math.abs(pontos)}</span>;
+  return <span className="font-medium text-foreground">+{pontos}</span>;
+}
+
+interface FitPorServicoProps {
+  empresa: ProspectCompanyDB;
+  fomento?: FundingSignals | null;
+}
+
+/** O fit de cada serviço, do maior para o menor, com o porquê (Estudo da conta, US-0014). */
+export function FitPorServico(props: FitPorServicoProps) {
+  const { empresa, fomento = null } = props;
+  const fits = companyFit(empresa, fomento ?? empresa.fomento ?? null);
+  if (!fits) return <p className="text-sm text-muted-foreground">Sem os dados da Receita da empresa ainda: sem nota.</p>;
+  const ordenados = [...fits].sort((a, b) => b.nota - a.nota);
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {ordenados.map((fit) => <LinhaDeFit key={fit.frente} fit={fit} grande />)}
     </div>
   );
 }
