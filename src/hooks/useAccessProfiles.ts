@@ -313,6 +313,7 @@ export function useSaveOverride() {
       }),
     onSuccess: (_data, input) => {
       queryClient.invalidateQueries({ queryKey: ['capability-overrides'] });
+      invalidarPapelDaPessoa(queryClient);
       toast({
         title: input.enabled ? 'Exceção concedida' : 'Exceção registrada',
         description: input.enabled
@@ -341,6 +342,7 @@ export function useDeleteOverride() {
       accessProfileService.deleteOverride(userId, employee!.tenant_id, capability),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['capability-overrides'] });
+      invalidarPapelDaPessoa(queryClient);
       toast({ title: 'Exceção removida', description: 'A pessoa volta a seguir o perfil dela.' });
     },
     onError: (error) => {
