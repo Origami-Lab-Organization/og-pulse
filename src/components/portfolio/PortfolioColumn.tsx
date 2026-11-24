@@ -3,6 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { PortfolioCard } from './PortfolioCard';
 import type { PortfolioProject } from '@/hooks/usePortfolioProjects';
 import type { PortfolioAlert, PortfolioBoardColumnId } from '@/types/portfolio';
+import type { PlanningReadiness } from '@/types/projectPlanning';
 import { cn } from '@/lib/utils';
 
 interface PortfolioColumnProps {
@@ -16,11 +17,13 @@ interface PortfolioColumnProps {
   canDragProject?: (project: PortfolioProject) => boolean;
   hideValues?: boolean;
   alertsOf?: (project: PortfolioProject) => PortfolioAlert[];
+  /** Prontidão do planejamento de cada projeto (US-0039). */
+  planningOf?: (project: PortfolioProject) => PlanningReadiness | undefined;
 }
 
 /** Coluna do quadro do portfólio, com rolagem própria para a página não crescer (US-0035). */
 export function PortfolioColumn(props: PortfolioColumnProps) {
-  const { id, label, rule, projects, today, canDragProject = () => false, hideValues, alertsOf = () => [] } = props;
+  const { id, label, rule, projects, today, canDragProject = () => false, hideValues, alertsOf = () => [], planningOf = () => undefined } = props;
   const { setNodeRef, isOver } = useDroppable({ id, data: { type: 'column', column: id } });
 
   return (
@@ -54,6 +57,7 @@ export function PortfolioColumn(props: PortfolioColumnProps) {
                   canDrag={canDragProject(project)}
                   hideValues={hideValues}
                   alerts={alertsOf(project)}
+                  planning={planningOf(project)}
                 />
               ))
             )}

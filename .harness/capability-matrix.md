@@ -135,6 +135,7 @@ tinha `pipeline:ler`/`pipeline:editar`.
 | `projeto:ler` | sim | sim | — | alocado `!` | `/projects/:id` sem guard de perfil — **D7** |
 | `projeto:editar` | sim | PM | — | — | `can_manage_project` (ADR-0002) |
 | `projeto:gerir-qualquer` — alcanca projeto que a pessoa nao gerencia; desde 23/11/2026 tambem libera lancar, editar e apagar horas e custos em projeto concluido (US-0030) | sim | — | — | — | criada em 04/09; substituiu `has_role(admin)` dentro de `can_manage_project`; triggers `guard_project_timesheet_entry` e `guard_project_cost_entry` (20261123220000) |
+| `planejamento:aprovar-abaixo-do-orcado` — concluir o planejamento com o resultado planejado abaixo do orçamento vendido, ou devolver ao GP com motivo (US-0039, 24/11/2026). Pedir e cancelar o pedido seguem `projeto:editar` + `can_manage_project`; ler o pedido segue `financeiro:ler` (carrega resultado e margem) | sim | — | — | — | `project_planning_approvals` (20261124140000): UPDATE para aprovado/devolvido só com a capacidade (trigger `guard_project_planning_approval`, PU001); nasce espelhando `pessoa:editar-papel` |
 | `portfolio:ler` — inclui ler as metas do portfólio (`portfolio_goals`, US-0036) | sim | sim | — | — | rota `requireManager` (ADR-0002); `portfolio_goals` SELECT por `has_capability` (20261124120000) |
 | `alocacao:ler` | sim | sim | — | proprio | rota `requireManager` |
 | `alocacao:editar` | sim | PM | — | — | `can_manage_project` (ADR-0003) |

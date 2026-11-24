@@ -116,9 +116,9 @@ export function ProjectStakeholdersTab({ project, isReadOnly = false }: ProjectS
           <div className="flex gap-2">
             {/* Produto interno não tem cliente de onde importar (ADR-0049). */}
             {project.client_id && (
-              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-                <Download className="mr-2 h-4 w-4" />
-                Importar do Cliente
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setImportDialogOpen(true)}>
+                <Download className="h-4 w-4" />
+                Importar do cliente
               </Button>
             )}
             <Button onClick={handleAdd}>
@@ -167,12 +167,6 @@ export function ProjectStakeholdersTab({ project, isReadOnly = false }: ProjectS
               <br />
               Identifique as partes interessadas do projeto.
             </p>
-            {!isReadOnly && (
-              <Button variant="outline" className="mt-4" onClick={handleAdd}>
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Stakeholder
-              </Button>
-            )}
           </CardContent>
         </Card>
       ) : (

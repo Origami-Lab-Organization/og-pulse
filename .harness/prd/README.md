@@ -302,7 +302,7 @@ membro e permissões por capacidade. Protótipo: `prototipos/portfolio-de-projet
 | [US-0035](stories/4-em-desenvolvimento/US-0035-projetos-quadro-do-portfolio-por-fase.md) | Quadro do portfólio por fase, sem rolagem longa | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0036](stories/4-em-desenvolvimento/US-0036-projetos-metas-e-margem-do-portfolio.md) | Metas de receita e margem bruta do portfólio | Admin | Em desenvolvimento | Pronta |
 | [US-0037](stories/4-em-desenvolvimento/US-0037-projetos-sino-de-pendencias-no-card.md) | Sino de pendências no card e pendências na Visão Geral | GP | Em desenvolvimento | Pronta |
-| [US-0039](stories/3-pronta-para-desenvolver/US-0039-projetos-planejamento-guiado-por-checklist.md) | Planejar o projeto guiado por um checklist que acompanha o preenchimento | GP ou admin | Pronta para desenvolver | Pronta |
+| [US-0039](stories/4-em-desenvolvimento/US-0039-projetos-planejamento-guiado-por-checklist.md) | Planejar o projeto guiado por um checklist que acompanha o preenchimento | GP ou admin | Em desenvolvimento | Pronta |
 
 O modo planejamento foi aprovado pelo Victor em 23/11/2026 (protótipo versão 8) e virou a
 US-0039. As telas de encerramento com renovação, visão do membro e permissões estão no

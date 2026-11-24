@@ -9,8 +9,10 @@ import { formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { clientLabel, projectKindOf } from '@/lib/projectKind';
 import { daysToEnd, isNoRevenueProject, receivedOf } from '@/lib/portfolioBoard';
+import { readinessText } from '@/lib/projectPlanning';
 import type { PortfolioProject } from '@/hooks/usePortfolioProjects';
 import { PORTFOLIO_BOARD_COLUMN, type PortfolioAlert, type PortfolioBoardColumnId } from '@/types/portfolio';
+import type { PlanningReadiness } from '@/types/projectPlanning';
 
 interface PortfolioCardProps {
   project: PortfolioProject;
@@ -22,6 +24,8 @@ interface PortfolioCardProps {
   hideValues?: boolean;
   /** Pendências do projeto: o sino aparece com o número (US-0037). */
   alerts?: PortfolioAlert[];
+  /** Coluna Planejamento: "N de M obrigatórios" do checklist (US-0039). */
+  planning?: PlanningReadiness;
 }
 
 const shortDate = (date: string) => format(parseISO(date), 'dd/MM/yy');
@@ -126,7 +130,7 @@ const dragClassName = (canDrag: boolean, isDragging: boolean) => {
 
 /** Card do quadro do portfólio (US-0035): sem lixeira nem selos; abre o projeto ao clicar. */
 export function PortfolioCard(props: PortfolioCardProps) {
-  const { project, column, today, canDrag = false, hideValues, alerts = [] } = props;
+  const { project, column, today, canDrag = false, hideValues, alerts = [], planning } = props;
   const navigate = useNavigate();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: project.id,
@@ -178,7 +182,10 @@ export function PortfolioCard(props: PortfolioCardProps) {
         <RevenueBlock project={project} hideValues={hideValues} />
         <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Calendar className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{periodText(project, column, today)}</span>
+          <span className="truncate">
+            {periodText(project, column, today)}
+            {planning && ` · ${readinessText(planning)}`}
+          </span>
         </div>
       </div>
     </Card>

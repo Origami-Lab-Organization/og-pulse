@@ -68,6 +68,10 @@ export const STAKEHOLDER_ROLES = [
   { value: 'interested', label: 'Interessado' },
   { value: 'sponsor', label: 'Patrocinador' },
   { value: 'user', label: 'Usuário Final' },
+  // Papéis do planejamento (US-0039): ponto focal, usuário-chave e aprovador das entregas.
+  { value: 'focal_point', label: 'Ponto focal' },
+  { value: 'key_user', label: 'Usuário-chave' },
+  { value: 'approver', label: 'Aprovador' },
   { value: 'other', label: 'Outro' },
 ];
 

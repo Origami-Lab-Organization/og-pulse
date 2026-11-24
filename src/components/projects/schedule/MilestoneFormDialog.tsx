@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { periodViolation } from '@/lib/projectPlanning';
+import type { PlanningPeriod } from '@/types/projectPlanning';
 import { Flag, Rocket, Layers, ClipboardCheck, X, LucideIcon } from 'lucide-react';
 import {
   Dialog,
@@ -85,11 +87,19 @@ const formSchema = z
 
 type FormData = z.infer<typeof formSchema>;
 
+/** Início e fim gravados (item pontual tem início = fim) e o campo que recebe o erro de período. */
+function datesOf(data: FormData) {
+  if (isPointType(data.milestoneType)) return { startDate: data.date!, endDate: data.date!, dateField: 'date' as const };
+  return { startDate: data.startDate!, endDate: data.endDate!, dateField: 'endDate' as const };
+}
+
 interface MilestoneFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
   milestone: ProjectMilestone | null;
+  /** Período do projeto: com ele, data fora do período não é salva (US-0039, cenário 5). */
+  period?: PlanningPeriod;
 }
 
 const emptyDefaults: FormData = {
@@ -108,6 +118,7 @@ export function MilestoneFormDialog({
   onOpenChange,
   projectId,
   milestone,
+  period,
 }: MilestoneFormDialogProps) {
   const createMilestone = useCreateMilestone();
   const updateMilestone = useUpdateMilestone();
@@ -157,8 +168,12 @@ export function MilestoneFormDialog({
   };
 
   const onSubmit = (data: FormData) => {
-    const startDate = isPointType(data.milestoneType) ? data.date! : data.startDate!;
-    const endDate = isPointType(data.milestoneType) ? data.date! : data.endDate!;
+    const { startDate, endDate, dateField } = datesOf(data);
+    const outOfPeriod = period ? periodViolation(startDate, endDate, period) : null;
+    if (outOfPeriod) {
+      form.setError(dateField, { message: outOfPeriod });
+      return;
+    }
 
     if (isEditing) {
       updateMilestone.mutate(

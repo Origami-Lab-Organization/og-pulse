@@ -22,6 +22,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { PlanningReadiness } from '@/types/projectPlanning';
 import { PortfolioColumn } from './PortfolioColumn';
 import { PortfolioCard } from './PortfolioCard';
 import { PortfolioProject, useUpdatePortfolioStage } from '@/hooks/usePortfolioProjects';
@@ -54,6 +55,8 @@ interface PortfolioKanbanBoardProps {
   hideValues?: boolean;
   /** Pendências de cada projeto (sino do card e ordem na coluna, US-0037). */
   alertsOf?: (project: PortfolioProject) => PortfolioAlert[];
+  /** Prontidão do planejamento de cada projeto ("N de M obrigatórios", US-0039). */
+  planningOf?: (project: PortfolioProject) => PlanningReadiness | undefined;
 }
 
 /** Quem tem algo fora do planejado vem primeiro; depois quem pede atenção; depois o resto. */
@@ -71,7 +74,7 @@ const STAGE_OF_COLUMN: Record<PortfolioBoardColumnId, PortfolioStage | null> = {
 };
 
 const BOARD_COLUMNS = (year: number) => [
-  { id: PORTFOLIO_BOARD_COLUMN.PLANNING, label: 'Planejamento', rule: 'Até o GP iniciar a execução.' },
+  { id: PORTFOLIO_BOARD_COLUMN.PLANNING, label: 'Planejamento', rule: 'Sai quando o planejamento é concluído, no projeto.' },
   { id: PORTFOLIO_BOARD_COLUMN.VALUE_DELIVERY, label: 'Entrega de Valor', rule: 'Em execução, a mais de 20 dias do fim.' },
   { id: PORTFOLIO_BOARD_COLUMN.CLOSING, label: 'Encerramento', rule: 'Últimos 20 dias e depois do fim, até concluir.' },
   { id: PORTFOLIO_BOARD_COLUMN.COMPLETED, label: 'Concluído', rule: `Concluídos em ${year}.` },
@@ -85,6 +88,7 @@ export function PortfolioKanbanBoard(props: PortfolioKanbanBoardProps) {
     canEditProject = () => false,
     hideValues,
     alertsOf = () => [],
+    planningOf,
   } = props;
   const [activeProject, setActiveProject] = useState<PortfolioProject | null>(null);
   const [completionDialog, setCompletionDialog] = useState<CompletionDialogState | null>(null);
@@ -139,8 +143,14 @@ export function PortfolioKanbanBoard(props: PortfolioKanbanBoardProps) {
 
   // Seguindo .harness/patterns/security.md e OWASP A01: mover card altera o recurso projeto,
   // então a tela também confere a permissão sobre o projeto específico.
+  /** Card em Planejamento não se arrasta: a fase muda ao concluir o planejamento (US-0039). */
+  const canDragProject = (project: PortfolioProject) =>
+    canEditProject(project) && project.portfolio_stage !== PORTFOLIO_STAGE.PLANNING;
+
   const permissionNotice = (project: PortfolioProject) => {
     if (!canEditProject(project)) return 'Você só pode alterar projetos em que é PM.';
+    // O planejamento só termina pela conclusão, dentro do projeto (US-0039, TD-0032).
+    if (project.portfolio_stage === PORTFOLIO_STAGE.PLANNING) return 'O planejamento é concluído dentro do projeto, pelo checklist do planejamento.';
     if (project.portfolio_stage === PORTFOLIO_STAGE.COMPLETED && !isAdmin) return 'Apenas administradores podem mover projetos concluídos.';
     return null;
   };
@@ -240,9 +250,10 @@ export function PortfolioKanbanBoard(props: PortfolioKanbanBoardProps) {
                 rule={column.rule}
                 projects={projectsByColumn[column.id]}
                 today={today}
-                canDragProject={canEditProject}
+                canDragProject={canDragProject}
                 hideValues={hideValues}
                 alertsOf={alertsOf}
+                planningOf={planningOf}
               />
             ))}
           </div>
