@@ -128,6 +128,10 @@ export interface FiltrosReceita {
   comTelefone: boolean;
   /** Relação com a Origami (US-0019). */
   relacoes: Relacao[];
+  /** O serviço cujo fit a lista mostra, ordena e filtra (US-0014); nulo = a maior nota. */
+  servicoDoFit: import('@/types/receita').FitFront | null;
+  /** Nota mínima de fit nesse serviço (ou na maior); 0 = qualquer. */
+  fitMinimo: number;
 }
 
 /** Um CNAE achado pelo código ou pela descrição, para o campo de CNAE. */

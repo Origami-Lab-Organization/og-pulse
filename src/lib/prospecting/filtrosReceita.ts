@@ -1,3 +1,4 @@
+import { FRENTES_DO_FIT, ROTULO_DA_FRENTE } from '@/lib/prospecting/fit';
 import type {
   FaixaDeFaturamento,
   FaixaDeFuncionarios,
@@ -98,7 +99,22 @@ export const FILTROS_VAZIOS: FiltrosReceita = {
   comEmail: false,
   comTelefone: false,
   relacoes: [],
+  servicoDoFit: null,
+  fitMinimo: 0,
 };
+
+/** Nota mínima de fit (US-0014): qualquer, 40+, 60+ (o que já conta como indício de Necessidade) ou 80+. */
+export const FITS_MINIMOS: readonly number[] = [0, 40, 60, 80];
+
+export const OPCOES_DE_FIT_MINIMO: ReadonlyArray<Opcao<number>> = FITS_MINIMOS.map((n) => ({ valor: n, rotulo: n ? `${n} ou mais` : 'Qualquer' }));
+
+/** "Maior nota" é a ausência de serviço escolhido. */
+export const MAIOR_NOTA = 'maior';
+
+export const OPCOES_DE_SERVICO_DO_FIT: ReadonlyArray<Opcao<string>> = [
+  { valor: MAIOR_NOTA, rotulo: 'Maior nota' },
+  ...FRENTES_DO_FIT.map((f) => ({ valor: f, rotulo: ROTULO_DA_FRENTE[f] })),
+];
 
 /** Primeiro acesso, ou navegador novo: a indústria de transformação (decisão de 16/11/2026). */
 export const FILTROS_INICIAIS: FiltrosReceita = { ...FILTROS_VAZIOS, setores: ['C'] };
@@ -119,6 +135,7 @@ export function contarFiltros(f: FiltrosReceita): number {
     f.divida !== DIVIDA_QUALQUER,
     f.comEmail || f.comTelefone,
     f.relacoes.length > 0,
+    f.servicoDoFit !== null || f.fitMinimo > 0,
   ];
   return ativos.filter(Boolean).length;
 }
@@ -161,7 +178,12 @@ export function lerFiltrosSalvos(texto: string | null): FiltrosReceita {
   const capital = CAPITAIS.find((c) => c.valor === salvo.capitalMinimo)?.valor ?? 0;
   const distancia = DISTANCIAS.find((d) => d.valor === salvo.distanciaMaxima)?.valor ?? 0;
   const divida = DIVIDAS.find((d) => d.valor === salvo.divida)?.valor ?? DIVIDA_QUALQUER;
+  // As frentes antigas (software, financiamento) caem para "maior nota" (US-0014).
+  const servicoDoFit = FRENTES_DO_FIT.find((f) => f === salvo.servicoDoFit) ?? null;
+  const fitMinimo = FITS_MINIMOS.find((n) => n === salvo.fitMinimo) ?? 0;
   return {
+    servicoDoFit,
+    fitMinimo,
     setores,
     ramos: lista<string>(salvo.ramos, new Set(ramosDosSetores(setores))),
     cnaes: Array.isArray(salvo.cnaes) ? salvo.cnaes.filter((c): c is string => typeof c === 'string' && /^\d{2,7}$/.test(c)) : [],

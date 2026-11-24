@@ -359,6 +359,16 @@ export interface ProspectCompanyDB {
   /** Cruzamento de fomento público (Edge Function company-funding-check). */
   fomento?: import('@/types/receita').FundingSignals | null;
   fomento_consultado_em?: string | null;
+  /**
+   * Retrato da Base da Receita (US-0014, ADR-0055): números da VPS guardados ao entrar no Pulse
+   * e refeitos depois de cada carga. Nulos quando a empresa não está na Base.
+   */
+  base_funcionarios?: number | null;
+  base_divida_ajuizada?: number | null;
+  base_distancia_km?: number | null;
+  base_faturamento_estimado?: number | null;
+  base_faturamento_base?: string | null;
+  base_retrato_em?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -693,6 +703,17 @@ export interface ItemParaAbordar {
   tipoConta: TipoDeConta;
   /** Faturamento estimado da base; entra como "Calculado" se a empresa não tem o do time. */
   faturamentoEstimado: number | null;
+  /** Retrato da Base guardado na empresa (US-0014, ADR-0055). */
+  retrato: RetratoDaBase;
+}
+
+/** Os números da Base que a empresa leva para o Pulse (US-0014); nulos = a Base não sabe. */
+export interface RetratoDaBase {
+  funcionarios: number | null;
+  dividaAjuizada: number | null;
+  distanciaKm: number | null;
+  faturamentoEstimado: number | null;
+  faturamentoBase: string | null;
 }
 
 /** Pedido para abrir uma oportunidade pela base da Receita (US-0008). */

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import { useHideValues } from '@/contexts/HideValuesContext';
 import { useBantDoQuadro } from '@/hooks/useBant';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { useEmQualificacao } from '@/hooks/useEmQualificacao';
 import { faturamentoCompacto } from '@/lib/prospecting/faturamento';
-import { bestFit, companyFit } from '@/lib/prospecting/fit';
+import { companyFit, FRENTES_DO_FIT, ROTULO_CURTO_DA_FRENTE, ROTULO_DA_FRENTE, servicoEmDestaque } from '@/lib/prospecting/fit';
+import type { CompanyFit } from '@/types/receita';
 import { formatarData } from '@/lib/prospecting/prazos';
 import { formatCNPJ } from '@/lib/masks';
 import { emTitulo } from '@/lib/prospecting/empresasReceita';
@@ -112,14 +114,17 @@ function Conteudo(props: ConteudoProps) {
   }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[920px] border-collapse text-[13.5px]">
+      <table className="w-full min-w-[1080px] border-collapse text-[13.5px]">
         <caption className="sr-only">Empresas em qualificação</caption>
         <thead>
           <tr className="h-10 border-b bg-muted/40 text-left text-[12.5px] text-muted-foreground">
             <th scope="col" className="px-3 pl-5 font-medium">Empresa</th>
             <th scope="col" className="px-3 font-medium">BANT</th>
             <th scope="col" className="px-3 font-medium">Tipo de conta</th>
-            <th scope="col" className="px-3 text-center font-medium">Fit</th>
+            {/* US-0014: o fit de cada serviço, lado a lado; a maior nota vai em destaque. */}
+            {FRENTES_DO_FIT.map((f) => (
+              <th key={f} scope="col" className="px-2 text-center font-medium" title={`Fit em ${ROTULO_DA_FRENTE[f]}`}>{ROTULO_CURTO_DA_FRENTE[f]}</th>
+            ))}
             <th scope="col" className="px-3 text-center font-medium">Faturamento</th>
             <th scope="col" className="px-3 font-medium">Responsável</th>
             <th scope="col" className="px-3 pr-5 font-medium">Desde</th>
@@ -140,13 +145,13 @@ const TRACO = '—';
 /** O que cada coluna mostra, já em texto: a linha só desenha. */
 function colunasDaLinha(p: ProspectWithCompany, nomeDe: (id: string) => string | undefined) {
   const empresa = p.company;
-  const fit = empresa ? bestFit(companyFit(empresa, empresa.fomento ?? null)) : null;
+  const fits = empresa ? companyFit(empresa, empresa.fomento ?? null) : null;
   return {
+    fits,
+    maior: servicoEmDestaque(fits)?.frente ?? null,
     local: [emTitulo(empresa?.receita?.endereco?.municipio), empresa?.receita?.endereco?.uf].filter(Boolean).join(' · '),
     cnpj: empresa?.cnpj ? formatCNPJ(empresa.cnpj) : null,
     tipo: getTipoDeContaLabel(empresa?.tipo_conta) ?? TRACO,
-    fit: fit ? String(fit.nota) : TRACO,
-    fitTitulo: fit ? `Maior nota: ${fit.rotulo}` : undefined,
     faturamento: empresa?.faturamento_anual != null ? faturamentoCompacto(empresa.faturamento_anual) : TRACO,
     responsavel: p.owner_id ? nomeDe(p.owner_id) ?? TRACO : 'Sem responsável',
     desde: formatarData(p.created_at.slice(0, 10)),
@@ -181,10 +186,29 @@ function Linha(props: LinhaProps) {
       </td>
       <td className="px-3 py-2.5">{bant ? <LetrasDoBant bant={bant} compacto /> : TRACO}</td>
       <td className="whitespace-nowrap px-3 py-2.5">{c.tipo}</td>
-      <td className="px-3 py-2.5 text-center font-mono tabular-nums" title={c.fitTitulo}>{c.fit}</td>
+      {FRENTES_DO_FIT.map((f) => <CelulaDeFit key={f} fit={c.fits?.find((x) => x.frente === f)} maior={c.maior === f} />)}
       <td className="whitespace-nowrap px-3 py-2.5 text-center font-mono tabular-nums">{c.faturamento}</td>
       <td className="whitespace-nowrap px-3 py-2.5">{c.responsavel}</td>
       <td className="whitespace-nowrap px-3 py-2.5 pr-5 text-muted-foreground">{c.desde}</td>
     </tr>
+  );
+}
+
+interface CelulaDeFitProps {
+  fit: CompanyFit | undefined;
+  maior: boolean;
+}
+
+/** A nota de um serviço; a maior em destaque (US-0014). Sem dados da Receita, traço. */
+function CelulaDeFit(props: CelulaDeFitProps) {
+  const { fit, maior } = props;
+  if (!fit) return <td className="px-2 py-2.5 text-center text-muted-foreground">{TRACO}</td>;
+  return (
+    <td
+      className={cn('px-2 py-2.5 text-center font-mono tabular-nums', maior ? 'font-semibold text-foreground' : 'text-muted-foreground')}
+      title={`${fit.rotulo}: ${fit.nota}${maior ? ' — a maior nota' : ''}`}
+    >
+      {fit.nota}
+    </td>
   );
 }

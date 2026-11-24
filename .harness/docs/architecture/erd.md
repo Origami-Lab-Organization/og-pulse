@@ -20,6 +20,7 @@ sources:
   - supabase/migrations/20261123120000_historico_do_faturamento.sql
   - supabase/migrations/20261123160000_anel_e_tier_saem.sql
   - supabase/migrations/20261123200000_decisoes_da_base.sql
+  - supabase/migrations/20261124160000_retrato_da_base.sql
   - supabase/migrations/20260923120000_prospect_instagram.sql
   - supabase/migrations/20260924120000_prospect_tasks.sql
   - supabase/migrations/20260928120000_prospect_stage_changes.sql
@@ -110,6 +111,8 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 24/11/2026: 20261124160000 — prospect_companies ganha o retrato da Base (base_*, US-0014,
+#  ADR-0055) e a função atualizar_retrato_da_base (só service_role); conferido contra ProspectCompanyDB.
 # 23/11/2026: 20261123200000 — nova tabela prospect_decisoes_da_base (FK tenants, prospects e
 #  employees; chave pela raiz do CNPJ, sem FK para a base, que mora na VPS; US-0010), conferida
 #  contra DecisaoDaRelacao (supabase/functions/_shared/relacaoTipos.ts).
@@ -226,6 +229,11 @@ erDiagram
         text linkedin_url "único por tenant (índice parcial)"
         text instagram_url "livre — fora da deduplicação"
         text tipo_conta "ancora | ponte | satelite — NULL = sem tipo (US-0008)"
+        int base_funcionarios "retrato da Base: RAIS (US-0014, ADR-0055)"
+        numeric base_divida_ajuizada "retrato da Base"
+        int base_distancia_km "retrato da Base"
+        numeric base_faturamento_estimado "retrato da Base, com base_faturamento_base"
+        timestamptz base_retrato_em "quando o retrato foi tirado; NULL = nunca"
         int funcionarios_informados "confirmados pelo time — NULL = vale a RAIS (US-0020)"
         numeric faturamento_anual "informado pelo time — NULL = não informado"
         text faturamento_anual_base "estimado | apurado | calculado — obrigatória junto com o valor"

@@ -39,9 +39,19 @@ const ULTIMA_PAGINA = 10000 / POR_PAGINA - 1;
 // A ordem vem desta lista fechada: nada do cliente vira SQL. Cada uma casa com um índice
 // de pulse.empresas (scripts/receita/vps/preparar-vps.sql). "idade" decrescente = abertas há
 // mais tempo primeiro.
+// US-0014: o fit de cada serviço tem coluna e índice próprios; "fit" sem serviço é a maior nota.
+const SERVICOS_DO_FIT = ["studio", "lei_do_bem", "captacao", "consultoria"] as const;
+const SERVICO_DO_FIT_VALIDO = new Set<string>(SERVICOS_DO_FIT);
+const FITS_MINIMOS = new Set([0, 40, 60, 80]);
+const colunaDoFit = (servico: string | null) => (servico && SERVICO_DO_FIT_VALIDO.has(servico) ? `e.fit_${servico}` : "e.fit_previo");
+const ordensDoFit = (servico: string | null) => ({
+  [`fit${servico ? `_${servico}` : ""}:desc`]: `${colunaDoFit(servico)} DESC, e.funcionarios DESC NULLS LAST, e.cnpj DESC`,
+  [`fit${servico ? `_${servico}` : ""}:asc`]: `${colunaDoFit(servico)} ASC, e.funcionarios ASC NULLS FIRST, e.cnpj ASC`,
+});
+
 const ORDENS: Record<string, string> = {
-  "fit:desc": "e.fit_previo DESC, e.funcionarios DESC NULLS LAST, e.cnpj DESC",
-  "fit:asc": "e.fit_previo ASC, e.funcionarios ASC NULLS FIRST, e.cnpj ASC",
+  ...ordensDoFit(null),
+  ...Object.assign({}, ...SERVICOS_DO_FIT.map(ordensDoFit)),
   "nome:asc": "e.nome_exibicao ASC, e.cnpj ASC",
   "nome:desc": "e.nome_exibicao DESC, e.cnpj DESC",
   // Sem estimativa fica por último nos dois sentidos (US-0006).
@@ -199,6 +209,10 @@ interface Filtros {
   comTelefone: boolean;
   /** Relação com a Origami (US-0019). */
   relacoes: string[];
+  /** O serviço cujo fit ordena e filtra (US-0014); nulo = a maior nota. */
+  servicoDoFit: string | null;
+  /** Nota mínima no fit desse serviço; 0 = qualquer. */
+  fitMinimo: number;
   /** Raízes de CNPJ com as relações marcadas, calculadas antes da consulta; nulo sem filtro. */
   raizes: string[] | null;
   /** Sem filtro de relação: raízes descartadas ou em "Não agora", fora da lista (US-0010). */
@@ -236,7 +250,13 @@ function lerFiltros(valor: unknown): Filtros {
   if (!CAPITAIS.has(capitalMinimo)) throw new Recusa("Filtro inválido: capital social.", 400);
   if (!DISTANCIAS.has(distanciaMaxima)) throw new Recusa("Filtro inválido: distância de Formiga.", 400);
   if (!Object.hasOwn(DIVIDAS, divida)) throw new Recusa("Filtro inválido: dívida ativa.", 400);
+  const servicoDoFit = f.servicoDoFit == null ? null : String(f.servicoDoFit);
+  const fitMinimo = Number(f.fitMinimo ?? 0);
+  if (servicoDoFit !== null && !SERVICO_DO_FIT_VALIDO.has(servicoDoFit)) throw new Recusa("Filtro inválido: serviço do fit.", 400);
+  if (!FITS_MINIMOS.has(fitMinimo)) throw new Recusa("Filtro inválido: fit mínimo.", 400);
   return {
+    servicoDoFit,
+    fitMinimo,
     ...lerAtividade(f),
     idades: listaDe(f.idades, chaveDe(IDADES), "idade"),
     ufs: listaDe(f.ufs, (v) => UFS.has(v), "estado"),
@@ -316,6 +336,7 @@ function condicoes(f: Filtros, inicio: number, extra?: (c: Condicoes) => string)
   c.e(DIVIDAS[f.divida]);
   if (f.comEmail) c.e("e.tem_email");
   if (f.comTelefone) c.e("e.tem_telefone");
+  if (f.fitMinimo > 0) c.e(`${colunaDoFit(f.servicoDoFit)} >= ${c.param(f.fitMinimo)}`);
   if (f.raizes) c.e(f.raizes.length ? `e.cnpj_basico = ANY(${c.param(f.raizes)}::bpchar[])` : "false");
   if (f.escondidas?.length) c.e(`NOT (e.cnpj_basico = ANY(${c.param(f.escondidas)}::bpchar[]))`);
   // "Entrou pela atividade secundária": casou no filtro, mas não pelo CNAE principal.
@@ -413,7 +434,9 @@ function lerNumeroDaPagina(corpo: Record<string, unknown>): number {
 }
 
 function lerPagina(corpo: Record<string, unknown>, filtros: Filtros, busca: Busca | null): Pedido {
-  const ordem = `${corpo.ordem ?? "fit"}:${corpo.crescente === true ? "asc" : "desc"}`;
+  // Ordem por fit com um serviço escolhido: a coluna dele (US-0014).
+  const nome = (corpo.ordem ?? "fit") === "fit" && filtros.servicoDoFit ? `fit_${filtros.servicoDoFit}` : corpo.ordem ?? "fit";
+  const ordem = `${nome}:${corpo.crescente === true ? "asc" : "desc"}`;
   if (!ORDENS[ordem]) throw new Recusa("Ordem desconhecida.", 400);
   const pagina = lerNumeroDaPagina(corpo);
   const porFaturamento = corpo.ordem === "faturamento";
@@ -811,7 +834,7 @@ async function pagina(cliente: Cliente, pedidoOriginal: Extract<Pedido, { modo: 
     `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, c.descricao AS cnae_descricao,
           e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.capital_social::float8 AS capital_social, e.distancia_km, e.funcionarios,
           e.divida_total::float8 AS divida_total, e.divida_ajuizada::float8 AS divida_ajuizada,
-          e.fit_previo, e.fit_frente, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base, e.pela_secundaria,
+          e.fit_previo, e.fit_frente, e.fit_studio, e.fit_lei_do_bem, e.fit_captacao, e.fit_consultoria, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base, e.pela_secundaria,
           e.natureza_juridica
      FROM (${empresasDaPagina(pedido, where, pelaSecundaria, poucas, rel)}) e
      LEFT JOIN public.cnaes c ON c.codigo = e.cnae_principal
@@ -875,7 +898,7 @@ const FICHA = `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal,
     e.municipio, e.uf, e.distancia_km, e.funcionarios, e.unidades_com_funcionarios, e.filiais_ativas, e.socios,
     e.divida_total::float8 AS divida_total, e.divida_em_cobranca::float8 AS divida_em_cobranca,
     e.divida_ajuizada::float8 AS divida_ajuizada, e.inscricoes_divida, e.tem_email, e.tem_telefone,
-    e.fit_previo, e.fit_frente, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base
+    e.fit_previo, e.fit_frente, e.fit_studio, e.fit_lei_do_bem, e.fit_captacao, e.fit_consultoria, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base
   FROM pulse.empresas e
   LEFT JOIN public.cnaes c ON c.codigo = e.cnae_principal
   LEFT JOIN public.naturezas_juridicas n ON n.codigo = e.natureza_juridica

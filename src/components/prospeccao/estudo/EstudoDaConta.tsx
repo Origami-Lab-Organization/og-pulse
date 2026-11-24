@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FitPorServico } from '../CompanyFitSection';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompanyPartners } from '@/hooks/useCompanyReceita';
 import { useFaturamentoDoTime, useFuncionariosDoTime, useTrazerSocio } from '@/hooks/useEstudoDaConta';
@@ -50,6 +51,11 @@ export function EstudoDaConta({ prospect, somenteLeitura, onSugerirPerda }: Estu
       <OQueFalta itens={oQueFalta(prospect, empresa)} />
       <Pessoas prospect={prospect} podeEditar={podeEditar} />
       {empresa && <Socios prospectId={prospect.id} empresa={empresa} podeEditar={podeEditar} />}
+      {empresa && (
+        <Secao titulo="Fit por serviço" descricao="Qual serviço oferecer: cada nota abre o porquê. Regra explícita, sem IA; o retrato da Base entra com funcionários, dívida, distância e faturamento.">
+          <FitPorServico empresa={empresa} />
+        </Secao>
+      )}
       {empresa && (
         <Secao titulo="Porte" descricao="Confirme se você souber (pelo LinkedIn, pelo site, por conversa). Prevalece sobre a estimativa da base, na empresa.">
           <div className="grid gap-4 sm:grid-cols-2">

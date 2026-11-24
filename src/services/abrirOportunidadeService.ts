@@ -74,12 +74,15 @@ async function criarEmpresa(input: AbrirOportunidadeInput): Promise<ProspectComp
   );
   // Como na importação: sem o retrato, a empresa existe e a ficha oferece "Atualizar".
   await saveCompanyReceita(empresa.id, receita).catch(() => undefined);
+  // O retrato da Base também não impede: a tarefa de segunda-feira refaz (US-0014).
+  await prospectCompanyService.setRetratoDaBase(empresa.id, input.retrato).catch(() => undefined);
   return empresa;
 }
 
 /** Empresa que já existe: grava o tipo e, se faltar, o faturamento calculado. */
 async function completarEmpresa(empresa: ProspectCompanyDB, input: AbrirOportunidadeInput) {
   await prospectCompanyService.setTipoDeConta(empresa.id, input.tipoConta);
+  await prospectCompanyService.setRetratoDaBase(empresa.id, input.retrato).catch(() => undefined);
   if (empresa.faturamento_anual == null && input.faturamentoEstimado) {
     await prospectCompanyService.setFaturamento(empresa.id, input.faturamentoEstimado, CALCULADO);
   }

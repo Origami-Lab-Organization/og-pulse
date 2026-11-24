@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS pulse.empresas (
   tem_email boolean NOT NULL DEFAULT false,
   tem_telefone boolean NOT NULL DEFAULT false,
   fit_previo smallint NOT NULL CHECK (fit_previo BETWEEN 0 AND 100),
-  fit_frente text NOT NULL CHECK (fit_frente IN ('software', 'financiamento', 'consultoria')),
+  fit_frente text NOT NULL CHECK (fit_frente IN ('studio', 'lei_do_bem', 'captacao', 'consultoria')),
   faturamento_estimado numeric(18, 2)
 );
 
@@ -114,3 +114,20 @@ CREATE INDEX IF NOT EXISTS empresas_distancia_desc_idx ON pulse.empresas (distan
 -- fim, com os nulos, nos dois sentidos.
 CREATE INDEX IF NOT EXISTS empresas_capital_desc_idx ON pulse.empresas ((nullif(capital_social, 0)) DESC NULLS LAST, cnpj DESC);
 CREATE INDEX IF NOT EXISTS empresas_capital_asc_idx ON pulse.empresas ((nullif(capital_social, 0)) ASC NULLS LAST, cnpj ASC);
+
+-- US-0014 (24/11/2026): fit por serviço — Studio de Produto, Lei do Bem, Captação de recursos e
+-- Consultoria Estratégica (src/lib/prospecting/fit.ts, ADR-0055). A nota de cada serviço, para a
+-- tela ordenar e filtrar por ele; `fit_previo` segue sendo a maior e `fit_frente`, de qual
+-- serviço. O CHECK novo entra NOT VALID: as linhas antigas (frentes software/financiamento)
+-- somem no TRUNCATE logo depois, e as novas já são conferidas.
+ALTER TABLE pulse.empresas DROP CONSTRAINT IF EXISTS empresas_fit_frente_check;
+ALTER TABLE pulse.empresas ADD CONSTRAINT empresas_fit_frente_check
+  CHECK (fit_frente IN ('studio', 'lei_do_bem', 'captacao', 'consultoria')) NOT VALID;
+ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS fit_studio smallint NOT NULL DEFAULT 0 CHECK (fit_studio BETWEEN 0 AND 100);
+ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS fit_lei_do_bem smallint NOT NULL DEFAULT 0 CHECK (fit_lei_do_bem BETWEEN 0 AND 100);
+ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS fit_captacao smallint NOT NULL DEFAULT 0 CHECK (fit_captacao BETWEEN 0 AND 100);
+ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS fit_consultoria smallint NOT NULL DEFAULT 0 CHECK (fit_consultoria BETWEEN 0 AND 100);
+CREATE INDEX IF NOT EXISTS empresas_fit_studio_idx ON pulse.empresas (fit_studio DESC, funcionarios DESC NULLS LAST, cnpj DESC);
+CREATE INDEX IF NOT EXISTS empresas_fit_lei_do_bem_idx ON pulse.empresas (fit_lei_do_bem DESC, funcionarios DESC NULLS LAST, cnpj DESC);
+CREATE INDEX IF NOT EXISTS empresas_fit_captacao_idx ON pulse.empresas (fit_captacao DESC, funcionarios DESC NULLS LAST, cnpj DESC);
+CREATE INDEX IF NOT EXISTS empresas_fit_consultoria_idx ON pulse.empresas (fit_consultoria DESC, funcionarios DESC NULLS LAST, cnpj DESC);

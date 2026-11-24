@@ -1,7 +1,7 @@
 import { nomeDaEmpresa, type EmpresaReceita } from '@/lib/prospecting/empresasReceita';
 import { BASE_PISO } from '@/lib/prospecting/faturamentoEstimado';
 import { faturamentoDaSugestao, sugerirTipoDeConta } from '@/lib/prospecting/tipoDeConta';
-import type { ItemParaAbordar, ResultadoParaAbordar, ResumoParaAbordar, TipoDeConta } from '@/types/prospect';
+import type { ItemParaAbordar, ResultadoParaAbordar, ResumoParaAbordar, RetratoDaBase, TipoDeConta } from '@/types/prospect';
 
 /** O tipo sugerido pelo faturamento da empresa (US-0008, cenário 3). */
 export function tipoSugerido(empresa: EmpresaReceita): TipoDeConta | null {
@@ -18,7 +18,21 @@ export function itemParaAbordar(empresa: EmpresaReceita, tipoConta: TipoDeConta)
   const estimado = empresa.faturamento_estimado != null && empresa.faturamento_base !== BASE_PISO
     ? Number(empresa.faturamento_estimado)
     : null;
-  return { cnpj: empresa.cnpj, nome: nomeDaEmpresa(empresa), tipoConta, faturamentoEstimado: estimado };
+  return { cnpj: empresa.cnpj, nome: nomeDaEmpresa(empresa), tipoConta, faturamentoEstimado: estimado, retrato: retratoDaLinha(empresa) };
+}
+
+/**
+ * O retrato da Base que a empresa leva para o Pulse (US-0014). Com os funcionários confirmados
+ * pelo time na tela, a RAIS da linha foi trocada: o retrato fica sem ela, e o do time prevalece.
+ */
+export function retratoDaLinha(empresa: EmpresaReceita): RetratoDaBase {
+  return {
+    funcionarios: empresa.funcionarios_do_time ? null : empresa.funcionarios,
+    dividaAjuizada: empresa.divida_ajuizada == null ? null : Number(empresa.divida_ajuizada),
+    distanciaKm: empresa.distancia_km,
+    faturamentoEstimado: empresa.faturamento_estimado == null ? null : Number(empresa.faturamento_estimado),
+    faturamentoBase: empresa.faturamento_base,
+  };
 }
 
 /** Separa o resultado do lote para a mensagem (cenários 2, 5 e 10). */

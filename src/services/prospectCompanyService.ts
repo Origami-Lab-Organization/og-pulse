@@ -2,7 +2,7 @@ import { todasAsPaginas } from '@/lib/paginacao';
 import { tabela } from '@/services/prospectingTables';
 import { supabase } from '@/integrations/supabase/client';
 import type { ClientOption } from '@/types/cnpjLookup';
-import { FATURAMENTO_BASE_PADRAO, type FaturamentoBase, type ProspectCompanyDB, type TipoDeConta } from '@/types/prospect';
+import { FATURAMENTO_BASE_PADRAO, type FaturamentoBase, type ProspectCompanyDB, type RetratoDaBase, type TipoDeConta } from '@/types/prospect';
 
 export interface ProspectCompanyInput {
   name: string;
@@ -163,6 +163,21 @@ export const prospectCompanyService = {
   /** Só o tipo de conta (US-0008), sem regravar o resto da empresa. */
   async setTipoDeConta(id: string, tipo: TipoDeConta): Promise<void> {
     const { error } = await tabela('prospect_companies').update({ tipo_conta: tipo }).eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Retrato da Base (US-0014, ADR-0055): os números da VPS guardados ao entrar no Pulse. */
+  async setRetratoDaBase(id: string, retrato: RetratoDaBase): Promise<void> {
+    const { error } = await tabela('prospect_companies')
+      .update({
+        base_funcionarios: retrato.funcionarios,
+        base_divida_ajuizada: retrato.dividaAjuizada,
+        base_distancia_km: retrato.distanciaKm,
+        base_faturamento_estimado: retrato.faturamentoEstimado,
+        base_faturamento_base: retrato.faturamentoBase,
+        base_retrato_em: new Date().toISOString(),
+      })
+      .eq('id', id);
     if (error) throw error;
   },
 
