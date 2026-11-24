@@ -1,6 +1,6 @@
 # US-0028 — O gráfico Planejado × Realizado mostra só os totais
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Custos do projeto

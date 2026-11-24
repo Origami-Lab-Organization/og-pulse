@@ -113,6 +113,12 @@ export interface FiltrosReceita {
   cnaes: string[];
   /** Setor, ramo e CNAE valem também para os CNAEs secundários. */
   secundaria: boolean;
+  /** Setores tirados da lista, só pela atividade principal (US-0041). */
+  semSetores: string[];
+  /** Ramos tirados (dois dígitos), de qualquer setor. */
+  semRamos: string[];
+  /** CNAEs ou começos de CNAE tirados (2 a 7 dígitos). */
+  semCnaes: string[];
   idades: FaixaDeIdade[];
   ufs: string[];
   funcionarios: FaixaDeFuncionarios[];
@@ -120,7 +126,7 @@ export interface FiltrosReceita {
   faturamentos: FaixaDeFaturamento[];
   /** Capital social mínimo, em reais; 0 = qualquer. */
   capitalMinimo: number;
-  /** Distância máxima de Formiga, em km (US-0015); 0 = qualquer. */
+  /** Distância máxima de Formiga, em km inteiros de 1 a 3.300 (US-0015, US-0040); 0 = qualquer. */
   distanciaMaxima: number;
   naturezas: GrupoDeNatureza[];
   divida: FiltroDeDivida;
@@ -139,6 +145,44 @@ export interface CnaeEncontrado {
   codigo: string;
   descricao: string;
 }
+
+/** Grupo do painel de filtros: título, o que está marcado (resumo) e as opções. */
+export interface GrupoDeFiltroProps {
+  titulo: string;
+  resumo: string;
+  children: import('react').ReactNode;
+}
+
+/** Atalho que tira um grupo de atividades de uma vez (US-0041), ex.: "Sem holdings". */
+export interface AtalhoDeExclusao {
+  id: string;
+  rotulo: string;
+  ramos: readonly string[];
+  cnaes: readonly string[];
+}
+
+/** O que está tirado da lista: setores, ramos e CNAEs (US-0041). */
+export interface AtividadesTiradas {
+  semSetores: string[];
+  semRamos: string[];
+  semCnaes: string[];
+}
+
+/** O que está incluído na atividade: setores, ramos e CNAEs. */
+export interface AtividadesIncluidas {
+  setores: string[];
+  ramos: string[];
+  cnaes: string[];
+}
+
+/** Em Setor, Ramo e CNAE, a pessoa escolhe se marca para incluir ou para tirar (US-0041). */
+export enum ModoDaAtividade {
+  Incluir = 'incluir',
+  Tirar = 'tirar',
+}
+
+/** Filtro com atividade incluída e tirada: a Base e a aba Em qualificação (US-0041, US-0042). */
+export interface FiltroDeAtividade extends AtividadesIncluidas, AtividadesTiradas {}
 
 /** Uma opção de filtro: o valor que vai no pedido e o rótulo da tela. */
 export interface Opcao<T extends string | number> {

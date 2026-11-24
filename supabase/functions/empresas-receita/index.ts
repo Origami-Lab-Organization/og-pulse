@@ -138,8 +138,9 @@ async function exigirLeitura(req: Request): Promise<SupabaseClient> {
 const SETORES = new Set("ABCDEFGHIJKLMNOPQRSTU".split(""));
 const UFS = new Set(["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"]);
 const CAPITAIS = new Set([0, 1_000_000, 10_000_000, 50_000_000, 100_000_000]);
-/** Faixas da distância de Formiga, em km (US-0015); 0 = qualquer. */
-const DISTANCIAS = new Set([0, 50, 100, 200, 300, 500]);
+/** Distância máxima de Formiga, em km inteiros, escolhida pela pessoa (US-0040); 0 = qualquer. */
+const DISTANCIA_MAXIMA = 3300;
+/** CNAEs escolhidos, somando os incluídos e os tirados (US-0041). */
 const MAX_CNAES = 20;
 
 const IDADES: Record<string, string> = {
@@ -197,6 +198,10 @@ interface Filtros {
   ramos: string[];
   cnaes: string[];
   secundaria: boolean;
+  /** Atividades tiradas da lista, só pela principal (US-0041). */
+  semSetores: string[];
+  semRamos: string[];
+  semCnaes: string[];
   idades: string[];
   ufs: string[];
   funcionarios: string[];
@@ -231,24 +236,38 @@ function listaDe(valor: unknown, aceito: (v: string) => boolean, nome: string): 
 
 const chaveDe = (mapa: Record<string, unknown>) => (v: string) => Object.hasOwn(mapa, v);
 
+const ehCnae = (v: string) => /^\d{2,7}$/.test(v);
+const ehRamo = (v: string) => /^\d{2}$/.test(v);
+const ehSetor = (v: string) => SETORES.has(v);
+
 function lerAtividade(f: Record<string, unknown>) {
-  const cnaes = listaDe(f.cnaes, (v) => /^\d{2,7}$/.test(v), "CNAE");
-  if (cnaes.length > MAX_CNAES) throw new Recusa(`Escolha até ${MAX_CNAES} CNAEs.`, 400);
+  const cnaes = listaDe(f.cnaes, ehCnae, "CNAE");
+  const semCnaes = listaDe(f.semCnaes, ehCnae, "CNAE tirado");
+  if (cnaes.length + semCnaes.length > MAX_CNAES) throw new Recusa(`Escolha até ${MAX_CNAES} CNAEs.`, 400);
   return {
-    setores: listaDe(f.setores, (v) => SETORES.has(v), "setor"),
-    ramos: listaDe(f.ramos, (v) => /^\d{2}$/.test(v), "ramo"),
+    setores: listaDe(f.setores, ehSetor, "setor"),
+    ramos: listaDe(f.ramos, ehRamo, "ramo"),
     cnaes,
     secundaria: f.secundaria === true,
+    semSetores: listaDe(f.semSetores, ehSetor, "setor tirado"),
+    semRamos: listaDe(f.semRamos, ehRamo, "ramo tirado"),
+    semCnaes,
   };
+}
+
+/** Inteiro de 0 a 3.300 km (US-0040); continua parâmetro, nunca texto de SQL. */
+function lerDistancia(valor: unknown): number {
+  const km = Number(valor ?? 0);
+  if (!Number.isInteger(km) || km < 0 || km > DISTANCIA_MAXIMA) throw new Recusa("Filtro inválido: distância de Formiga.", 400);
+  return km;
 }
 
 function lerFiltros(valor: unknown): Filtros {
   const f = (valor && typeof valor === "object" ? valor : {}) as Record<string, unknown>;
   const capitalMinimo = Number(f.capitalMinimo ?? 0);
-  const distanciaMaxima = Number(f.distanciaMaxima ?? 0);
+  const distanciaMaxima = lerDistancia(f.distanciaMaxima);
   const divida = String(f.divida ?? "qualquer");
   if (!CAPITAIS.has(capitalMinimo)) throw new Recusa("Filtro inválido: capital social.", 400);
-  if (!DISTANCIAS.has(distanciaMaxima)) throw new Recusa("Filtro inválido: distância de Formiga.", 400);
   if (!Object.hasOwn(DIVIDAS, divida)) throw new Recusa("Filtro inválido: dívida ativa.", 400);
   const servicoDoFit = f.servicoDoFit == null ? null : String(f.servicoDoFit);
   const fitMinimo = Number(f.fitMinimo ?? 0);
@@ -321,11 +340,25 @@ function atividade(f: Filtros, c: Condicoes): { principal: string[]; completa: s
   return { principal, completa };
 }
 
+/**
+ * Atividades tiradas da lista (US-0041): sempre pela atividade principal, mesmo com a
+ * secundária ligada. O coalesce evita que coluna nula vire "desconhecido" e suma da lista.
+ */
+function semAtividade(f: Filtros, c: Condicoes) {
+  if (f.semSetores.length) c.e(`NOT (coalesce(e.secao, '') = ANY(${c.param(f.semSetores)}::text[]))`);
+  if (f.semRamos.length) c.e(`NOT (coalesce(e.divisao, '') = ANY(${c.param(f.semRamos)}::text[]))`);
+  if (f.semCnaes.length) {
+    const codigos = codigosDe(`${c.param(f.semCnaes.map((p) => `${p}%`))}::text[]`);
+    c.e(`NOT (coalesce(e.cnae_principal, '') = ANY(${codigos}::bpchar[]))`);
+  }
+}
+
 function condicoes(f: Filtros, inicio: number, extra?: (c: Condicoes) => string) {
   const c = new Condicoes(inicio);
   if (extra) c.e(extra(c));
   const { principal, completa } = atividade(f, c);
   completa.forEach((parte) => c.e(parte));
+  semAtividade(f, c);
   c.e(ou(IDADES, f.idades));
   if (f.ufs.length) c.e(`e.uf = ANY(${c.param(f.ufs)}::bpchar[])`);
   c.e(ou(FUNCIONARIOS, f.funcionarios));

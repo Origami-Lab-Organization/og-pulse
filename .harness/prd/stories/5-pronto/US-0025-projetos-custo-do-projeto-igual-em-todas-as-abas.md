@@ -1,6 +1,6 @@
 # US-0025 — O custo do projeto é o mesmo em todas as abas
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** bug
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto

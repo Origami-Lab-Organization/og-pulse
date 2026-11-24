@@ -1,6 +1,6 @@
 # US-0033 — Ver o P&L realizado ao lado do projetado
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto

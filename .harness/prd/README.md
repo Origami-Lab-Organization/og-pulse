@@ -77,7 +77,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0007](stories/5-pronto/US-0007-comercial-ficha-da-empresa.md) | Avaliar a empresa pela ficha antes de decidir | Pessoa do comercial | Pronto | Pronta |
 | [US-0008](stories/5-pronto/US-0008-comercial-colocar-para-abordar.md) | Mover empresas para abordar | Pessoa do comercial | Pronto | Pronta |
 | [US-0009](stories/9-arquivadas/US-0009-comercial-abrir-oportunidades-em-lote.md) | Abrir oportunidades em lote | Pessoa do comercial | Arquivada (na US-0008) | — |
-| [US-0010](stories/4-em-desenvolvimento/US-0010-comercial-nao-agora-e-descartar.md) | Descartar a empresa ou marcar "Não agora" | Pessoa do comercial | Em desenvolvimento | Pronta com ressalvas |
+| [US-0010](stories/5-pronto/US-0010-comercial-nao-agora-e-descartar.md) | Descartar a empresa ou marcar "Não agora" | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0011](stories/9-arquivadas/US-0011-comercial-abas-da-classificacao.md) | Acompanhar a classificação pelas abas e desfazer | Pessoa do comercial | Arquivada (tela sem abas) | — |
 | [US-0012](stories/2-em-refinamento/US-0012-comercial-classificar-pelo-teclado.md) | Classificar pelo teclado | Pessoa do comercial | Em refinamento | Pronta |
 | [US-0013](stories/1-a-fazer/US-0013-comercial-salvar-filtro-para-o-time.md) | Salvar um filtro para o time | Pessoa do comercial | A fazer | Não pronta |
@@ -93,9 +93,9 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0023](stories/5-pronto/US-0023-comercial-etapa-qualificacao.md) | Qualificar a empresa antes de abordar | Pessoa do comercial | Pronto | Pronta |
 | [US-0024](stories/5-pronto/US-0024-comercial-ia-propoe-bant-pelo-mcp.md) | IA propõe evidências de BANT pela assinatura do Claude | Pessoa do comercial | Pronto | Pronta |
 | [US-0038](stories/5-pronto/US-0038-comercial-bant-comprovado-para-qualificar.md) | Só o BANT comprovado qualifica a oportunidade | Pessoa do comercial | Pronto | Pronta |
-| [US-0040](stories/2-em-refinamento/US-0040-comercial-distancia-por-faixa-livre.md) | Distância de Formiga escolhida pela pessoa | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
-| [US-0041](stories/2-em-refinamento/US-0041-comercial-tirar-atividades-da-lista.md) | Tirar atividades da lista (ex.: holdings) | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
-| [US-0042](stories/2-em-refinamento/US-0042-comercial-filtros-em-qualificacao.md) | Filtros na aba "Em qualificação" para decidir quem analisar primeiro | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
+| [US-0040](stories/5-pronto/US-0040-comercial-distancia-por-faixa-livre.md) | Distância de Formiga escolhida pela pessoa | Pessoa do comercial | Pronto | Pronta |
+| [US-0041](stories/5-pronto/US-0041-comercial-tirar-atividades-da-lista.md) | Tirar atividades da lista (ex.: holdings) | Pessoa do comercial | Pronto | Pronta |
+| [US-0042](stories/5-pronto/US-0042-comercial-filtros-em-qualificacao.md) | Filtros na aba "Em qualificação" para decidir quem analisar primeiro | Pessoa do comercial | Pronto | Pronta |
 
 #### Ordem de implementação proposta
 
@@ -251,15 +251,15 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 
 | ID | História | Persona | Status | Prontidão |
 |---|---|---|---|---|
-| [US-0025](stories/4-em-desenvolvimento/US-0025-projetos-custo-do-projeto-igual-em-todas-as-abas.md) | O custo do projeto é o mesmo em todas as abas | GP ou admin | Em desenvolvimento | Pronta |
-| [US-0026](stories/4-em-desenvolvimento/US-0026-projetos-grafico-de-custos-mostra-todos-os-meses.md) | O gráfico de custos mostra todos os meses do projeto | GP ou admin | Em desenvolvimento | Pronta |
+| [US-0025](stories/5-pronto/US-0025-projetos-custo-do-projeto-igual-em-todas-as-abas.md) | O custo do projeto é o mesmo em todas as abas | GP ou admin | Pronto | Pronta |
+| [US-0026](stories/5-pronto/US-0026-projetos-grafico-de-custos-mostra-todos-os-meses.md) | O gráfico de custos mostra todos os meses do projeto | GP ou admin | Pronto | Pronta |
 | [US-0027](stories/4-em-desenvolvimento/US-0027-projetos-mao-de-obra-mostra-horas-lancadas.md) | A seção Mão de Obra mostra as horas lançadas | GP ou admin | Em desenvolvimento | Pronta com ressalvas |
-| [US-0028](stories/4-em-desenvolvimento/US-0028-projetos-grafico-planejado-x-realizado-so-com-totais.md) | O gráfico Planejado × Realizado mostra só os totais | GP ou admin | Em desenvolvimento | Pronta com ressalvas |
+| [US-0028](stories/5-pronto/US-0028-projetos-grafico-planejado-x-realizado-so-com-totais.md) | O gráfico Planejado × Realizado mostra só os totais | GP ou admin | Pronto | Pronta com ressalvas |
 | [US-0029](stories/4-em-desenvolvimento/US-0029-projetos-total-dos-custos-lancados.md) | Ver o total dos custos lançados | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0030](stories/4-em-desenvolvimento/US-0030-projetos-lancamento-so-dentro-do-periodo.md) | Lançar horas e custos só dentro do período do projeto | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0031](stories/4-em-desenvolvimento/US-0031-projetos-forecast-usa-todos-os-meses.md) | O forecast e a curva da aba Financeiro usam todos os meses do projeto | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0032](stories/4-em-desenvolvimento/US-0032-projetos-card-de-forecast-claro.md) | O card de forecast diz o que significa | GP ou admin | Em desenvolvimento | Pronta |
-| [US-0033](stories/4-em-desenvolvimento/US-0033-projetos-pl-realizado.md) | Ver o P&L realizado ao lado do projetado | GP ou admin | Em desenvolvimento | Pronta |
+| [US-0033](stories/5-pronto/US-0033-projetos-pl-realizado.md) | Ver o P&L realizado ao lado do projetado | GP ou admin | Pronto | Pronta |
 
 #### Ordem de implementação proposta
 
