@@ -57,6 +57,7 @@ export const CAPABILITY_KEYS = [
   'pessoa:editar-papel',
   'pessoa:ler-ficha-completa',
   'pessoa:ler-identidade',
+  'planejamento:aprovar-abaixo-do-orcado',
   'plataforma:ler-uso',
   'ponto:aprovar',
   'ponto:auditar',

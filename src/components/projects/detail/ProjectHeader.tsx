@@ -11,6 +11,10 @@ import { ptBR } from 'date-fns/locale';
 interface ProjectHeaderProps {
   project: ProjectWithRelations;
   actions?: React.ReactNode;
+  /** Frase sob o título — no planejamento, "Em planejamento há N dias · começa em…" (US-0039). */
+  subtitle?: React.ReactNode;
+  /** Itens a mais na linha de metadados — no planejamento, contrato, parcelas e origem (US-0039). */
+  extraMeta?: React.ReactNode;
 }
 
 // Ordem oficial dos estágios do portfólio (jornada gp.md) — usada no stepper.
@@ -80,22 +84,47 @@ function StageStepper({ current }: { current: PortfolioStage }) {
   );
 }
 
-export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
-  const startDate = parseISO(project.start_date);
-  const endDate = project.end_date ? parseISO(project.end_date) : null;
+function formatPeriod(project: ProjectWithRelations) {
+  const start = format(parseISO(project.start_date), 'MMM/yyyy', { locale: ptBR });
+  if (project.is_continuous) return `${start} - Contínuo`;
+  if (project.end_date) return `${start} - ${format(parseISO(project.end_date), 'MMM/yyyy', { locale: ptBR })}`;
+  return start;
+}
 
+/** Linha de metadados: cliente, serviço, gerente e período. */
+function ProjectMeta({ project, extra }: { project: ProjectWithRelations; extra?: React.ReactNode }) {
   const clientName = project.client?.trading_name || project.client?.company_name || '-';
   const managerName = project.manager?.nome || '-';
+  const period = formatPeriod(project);
+  return (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5">
+        <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span className="whitespace-nowrap font-medium text-foreground" title={clientName}>{clientName}</span>
+      </span>
+      {project.service?.name && (
+        <span className="inline-flex items-center gap-1.5">
+          <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span className="whitespace-nowrap" title={project.service.name}>{project.service.name}</span>
+        </span>
+      )}
+      <span className="inline-flex items-center gap-1.5">
+        <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span className="whitespace-nowrap" title={managerName}>{managerName}</span>
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span className="whitespace-nowrap" title={period}>{period}</span>
+      </span>
+      {extra}
+    </div>
+  );
+}
+
+export function ProjectHeader({ project, actions, subtitle, extraMeta }: ProjectHeaderProps) {
   const stage = (project.portfolio_stage || 'planning') as PortfolioStage;
   const status = (project.status || 'planning') as ProjectStatus;
   const tone = STATUS_TONE[status];
-
-  const formatPeriod = () => {
-    const start = format(startDate, 'MMM/yyyy', { locale: ptBR });
-    if (project.is_continuous) return `${start} - Contínuo`;
-    if (endDate) return `${start} - ${format(endDate, 'MMM/yyyy', { locale: ptBR })}`;
-    return start;
-  };
 
   // Produto interno mora em Produtos, não no portfólio (ADR-0049).
   const parent = project.is_internal_product
@@ -104,9 +133,10 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+      {/* Título com largura de leitura garantida: se não couber junto, o stepper desce de linha. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         {/* Bloco esquerdo: breadcrumb + título */}
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 flex-[1_1_28rem] space-y-2">
         {/* Breadcrumb */}
         <nav aria-label="Trilha de navegação">
           <ol className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -141,37 +171,20 @@ export function ProjectHeader({ project, actions }: ProjectHeaderProps) {
             {PROJECT_STATUS_LABELS[status]}
           </span> */}
         </div>
+        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
 
         </div>
 
         {/* Bloco direito: stepper de estágios + ações, alinhados à direita */}
-        <div className="flex items-start gap-3 lg:shrink-0 lg:justify-end">
-          <StageStepper current={stage} />
+        <div className="ml-auto flex min-w-0 max-w-full items-start gap-3">
+          <div className="min-w-0">
+            <StageStepper current={stage} />
+          </div>
           {actions && <div className="shrink-0">{actions}</div>}
         </div>
       </div>
 
-      {/* Metadados */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span className="whitespace-nowrap font-medium text-foreground" title={clientName}>{clientName}</span>
-        </span>
-        {project.service?.name && (
-          <span className="inline-flex items-center gap-1.5">
-            <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span className="whitespace-nowrap" title={project.service.name}>{project.service.name}</span>
-          </span>
-        )}
-        <span className="inline-flex items-center gap-1.5">
-          <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span className="whitespace-nowrap" title={managerName}>{managerName}</span>
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span className="whitespace-nowrap" title={formatPeriod()}>{formatPeriod()}</span>
-        </span>
-      </div>
+      <ProjectMeta project={project} extra={extraMeta} />
     </div>
   );
 }

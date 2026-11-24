@@ -13,7 +13,9 @@ import { useHideValuesPreference } from '@/contexts/HideValuesContext'
 import { alertsOf, portfolioKpis, portfolioMargin } from '@/lib/portfolioBoard'
 import { usePortfolioForecasts } from '@/hooks/usePortfolioForecasts'
 import { usePortfolioGoals } from '@/hooks/usePortfolioGoals'
-import type { PortfolioScope } from '@/types/portfolio'
+import { usePlanningReadiness } from '@/hooks/useProjectPlanning'
+import { planningAlerts } from '@/lib/projectPlanning'
+import { PORTFOLIO_STAGE, type PortfolioScope } from '@/types/portfolio'
 
 /**
  * Portfólio de Projetos (US-0034, US-0035): indicadores com o período escrito, quadro com
@@ -52,9 +54,21 @@ export default function Portfolio() {
   const { data: goals = null } = usePortfolioGoals(yearNumber)
   const forecasts = usePortfolioForecasts(projects)
   const margin = useMemo(() => portfolioMargin([...forecasts.byProject.values()]), [forecasts.byProject])
+  const planningProjects = useMemo(
+    () =>
+      projects
+        .filter((project) => project.portfolio_stage === PORTFOLIO_STAGE.PLANNING)
+        .map((project) => ({ ...project, hasClient: Boolean(project.client) })),
+    [projects],
+  )
+  const { data: readiness } = usePlanningReadiness(planningProjects)
+  const planningOf = useCallback((project: PortfolioProject) => readiness?.get(project.id), [readiness])
   const projectAlerts = useCallback(
-    (project: PortfolioProject) => alertsOf(project, today, forecasts.byProject.get(project.id), hideValues),
-    [today, forecasts.byProject, hideValues],
+    (project: PortfolioProject) => [
+      ...alertsOf(project, today, forecasts.byProject.get(project.id), hideValues),
+      ...planningAlerts(readiness?.get(project.id)),
+    ],
+    [today, forecasts.byProject, hideValues, readiness],
   )
 
   return (
@@ -111,6 +125,7 @@ export default function Portfolio() {
             canEditProject={canEditProject}
             hideValues={hideValues}
             alertsOf={projectAlerts}
+            planningOf={planningOf}
           />
         )}
       </div>

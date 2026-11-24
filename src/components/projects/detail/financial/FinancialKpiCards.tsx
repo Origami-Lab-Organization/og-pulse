@@ -97,7 +97,7 @@ export function FinancialKpiCards({
               data-focus-ring
               className="inline-flex items-center gap-0.5 whitespace-nowrap font-sans font-medium text-primary-deep hover:underline"
             >
-              ver Despesas
+              ver Custos
               <ArrowUpRight className="h-3 w-3" />
             </button>
           )}

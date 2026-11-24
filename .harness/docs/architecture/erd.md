@@ -51,10 +51,18 @@ sources:
   - supabase/migrations/20261013120000_lei_do_bem_automatica.sql
   - supabase/migrations/20261013130000_receita_preserva_regime.sql
   - supabase/migrations/20261124120000_metas_do_portfolio.sql
+  - supabase/migrations/20261124180000_aprovacao_do_planejamento.sql
+  - supabase/migrations/20261124190000_linha_de_base_do_resultado_chave.sql
   - src/types/receita.ts
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
   - src/types/portfolio.ts
+# 24/11/2026: project_key_results ganha baseline_value, measurement e target_date (20261124190000,
+# US-0039) — o resultado-chave nasce com linha de base, como medir e prazo; colunas nulas.
+# 24/11/2026: project_planning_approvals (20261124180000, US-0039) — pedido de aprovação do
+# planejamento abaixo do orçado; um aberto por projeto (indice parcial em status='requested');
+# conferido contra PlanningApproval (src/types/projectPlanning.ts) e ensaiado com RLS e gatilho
+# num Postgres local.
 # 23/11/2026: portfolio_goals (20261124120000, US-0036) — metas do portfolio por tenant e ano,
 # PK (tenant_id, year); conferido contra PortfolioGoals (src/types/portfolio.ts) e ensaiado com RLS
 # num Postgres local. Os tipos novos de src/types/portfolio.ts (colunas do quadro, KPIs, alcance)
@@ -424,6 +432,7 @@ erDiagram
     suppliers |o--o{ project_costs : "supplier_id"
     employees ||--o{ projects : "manager_id"
     tenants ||--o{ portfolio_goals : "metas por ano"
+    projects ||--o{ project_planning_approvals : "aprovacao do planejamento"
 
     budgets {
         enum status "budget_status: draft..active"
@@ -452,12 +461,21 @@ erDiagram
         numeric revenue_target ""
         numeric gross_margin_target_percent "0 a 100"
     }
+    project_planning_approvals {
+        text status "requested approved returned cancelled"
+        numeric planned_result "no momento do pedido"
+        numeric budgeted_result ""
+        text return_reason "obrigatorio ao devolver"
+    }
 ```
 
 Fontes: `budgets` L578, `budget_roles` L402, `budget_versions` L530,
 `projects` L4582, `project_installments` L3559, `project_costs` L3357
 (tabela unificada de custos — ADR-0003/0004), `portfolio_goals` (metas do portfólio,
-US-0036; leitura `portfolio:ler`, escrita `configuracao:editar`).
+US-0036; leitura `portfolio:ler`, escrita `configuracao:editar`), `project_planning_approvals`
+(aprovação do planejamento abaixo do orçado, US-0039; leitura `financeiro:ler`, pedir e cancelar
+`projeto:editar` + `can_manage_project`, aprovar e devolver
+`planejamento:aprovar-abaixo-do-orcado`).
 
 Obs.: `projects.budget_id` existe como coluna, mas **não há FK declarada** nos
 Relationships do types.ts (L4582).

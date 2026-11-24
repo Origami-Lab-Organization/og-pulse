@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { ProjectWithRelations } from '@/types/project';
+import type { PlanningPeriod } from '@/types/projectPlanning';
 import { useProjectMilestones, useDeleteMilestone } from '@/hooks/useProjectMilestones';
 import {
   ProjectMilestone,
@@ -77,9 +78,11 @@ function statusBadgeClasses(status: MilestoneStatus) {
 interface ProjectRoadmapTabProps {
   project: ProjectWithRelations;
   isReadOnly?: boolean;
+  /** No planejamento: marco fora do período do projeto não é salvo (US-0039). */
+  period?: PlanningPeriod;
 }
 
-export function ProjectRoadmapTab({ project, isReadOnly = false }: ProjectRoadmapTabProps) {
+export function ProjectRoadmapTab({ project, isReadOnly = false, period }: ProjectRoadmapTabProps) {
   const { data: milestones = [], isLoading } = useProjectMilestones(project.id);
   const deleteMilestone = useDeleteMilestone();
   const today = useMemo(() => new Date(), []);
@@ -137,12 +140,6 @@ export function ProjectRoadmapTab({ project, isReadOnly = false }: ProjectRoadma
               <br />
               Defina marcos, releases, épicos e entregas do projeto.
             </p>
-            {!isReadOnly && (
-              <Button variant="outline" className="mt-4" onClick={handleAdd}>
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar Item
-              </Button>
-            )}
           </CardContent>
         </Card>
       ) : (
@@ -250,6 +247,7 @@ export function ProjectRoadmapTab({ project, isReadOnly = false }: ProjectRoadma
         onOpenChange={setDialogOpen}
         projectId={project.id}
         milestone={editingMilestone}
+        period={period}
       />
     </div>
   );

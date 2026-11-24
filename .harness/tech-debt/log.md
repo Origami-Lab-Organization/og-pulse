@@ -8,6 +8,19 @@
 
 ## Aberto
 
+- TD-0032 (aberto na US-0039, 24/11/2026): "abaixo do orçado, o planejamento só conclui com
+  aprovação do admin" é garantido pela **tela**, não pelo banco. O resultado planejado depende
+  da regra de custo em TS (`computeProjectCosts`, US-0025) e do orçamento; o banco não sabe
+  calculá-lo, então a policy de `projects` UPDATE aceita `portfolio_stage = 'value_delivery'` de
+  quem gere o projeto, com ou sem aprovação. Dois caminhos contornam hoje: o arrastar do card de
+  Planejamento para Entrega de Valor no quadro do portfólio (US-0035) e um UPDATE direto. O
+  histórico do pedido fica em `project_planning_approvals`, então o contorno é rastreável.
+  Atualização (24/11/2026, mesma entrega): o arrastar para fora de Planejamento saiu do quadro
+  (decisão do Victor); sobra o UPDATE direto. Próximo passo: se precisar de garantia no banco,
+  uma função
+  `conclude_project_planning` que exija o pedido aprovado quando o resultado gravado no pedido
+  for menor que o orçado. Decisão de produto + arquitetura: pede conversa com o Victor e ADR.
+
 - TD-0031 (aberto na US-0034/US-0036, 23/11/2026): a margem bruta do portfólio e o sino de
   margem dos cards calculam o forecast de **cada projeto ativo no cliente**
   (`src/services/portfolioForecastService.ts` + `usePortfolioForecasts`), carregando projeto,

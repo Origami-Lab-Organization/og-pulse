@@ -36,7 +36,7 @@ export function ProjectFinancialTab({
   const marginTarget = financialSettings?.gross_margin_target_percent ?? 0;
 
   // Totais, meses, forecast e curva: regra única do custo do projeto (US-0025/US-0026) — o
-  // mesmo número da Visão Geral e da aba Despesas, mês a mês de calendário (US-0031).
+  // mesmo número da Visão Geral e da aba Custos, mês a mês de calendário (US-0031).
   const costSummary = useProjectCostSummary(project);
   const costData = useMemo(
     () => ({

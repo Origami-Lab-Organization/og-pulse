@@ -94,8 +94,8 @@ vi.mock('@/components/projects/detail/ProjectOverviewTab', () => ({
   ProjectOverviewTab: () => <div>Overview</div>,
 }));
 
-vi.mock('@/components/projects/detail/ProjectPlanningOverviewTab', () => ({
-  ProjectPlanningOverviewTab: () => <div>Planning overview</div>,
+vi.mock('@/components/projects/planning/ProjectPlanningView', () => ({
+  ProjectPlanningView: () => <div>Planning view</div>,
 }));
 
 vi.mock('@/components/projects/detail/ProjectCostsTab', () => ({
@@ -120,10 +120,6 @@ vi.mock('@/components/projects/detail/ProjectStakeholdersTab', () => ({
   ProjectStakeholdersTab: ({ isReadOnly }: { isReadOnly: boolean }) => (
     <div data-testid="stakeholders-readonly">{String(isReadOnly)}</div>
   ),
-}));
-
-vi.mock('@/components/projects/detail/ProjectExpectedResultTab', () => ({
-  ProjectExpectedResultTab: () => <div>Resultado esperado</div>,
 }));
 
 vi.mock('@/components/projects/detail/ProjectActivitiesTab', () => ({

@@ -4704,32 +4704,41 @@ export type Database = {
       }
       project_key_results: {
         Row: {
+          baseline_value: number | null
           confidence_level: string | null
           created_at: string | null
           current_value: number | null
           description: string
           id: string
+          measurement: string | null
           okr_id: string
+          target_date: string | null
           target_value: number | null
           unit: string | null
         }
         Insert: {
+          baseline_value?: number | null
           confidence_level?: string | null
           created_at?: string | null
           current_value?: number | null
           description: string
           id?: string
+          measurement?: string | null
           okr_id: string
+          target_date?: string | null
           target_value?: number | null
           unit?: string | null
         }
         Update: {
+          baseline_value?: number | null
           confidence_level?: string | null
           created_at?: string | null
           current_value?: number | null
           description?: string
           id?: string
+          measurement?: string | null
           okr_id?: string
+          target_date?: string | null
           target_value?: number | null
           unit?: string | null
         }
@@ -5018,6 +5027,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      project_planning_approvals: {
+        Row: {
+          budgeted_result: number
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          planned_result: number
+          project_id: string
+          requested_at: string
+          requested_by: string | null
+          return_reason: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          budgeted_result: number
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          planned_result: number
+          project_id: string
+          requested_at?: string
+          requested_by?: string | null
+          return_reason?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          budgeted_result?: number
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          planned_result?: number
+          project_id?: string
+          requested_at?: string
+          requested_by?: string | null
+          return_reason?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: []
       }
       project_okrs: {
         Row: {

@@ -23,6 +23,12 @@ export interface ProjectKeyResult {
   unit: string | null;
   confidence_level: KeyResultConfidenceLevel;
   created_at: string;
+  /** Linha de base: de onde o resultado-chave parte (US-0039). */
+  baseline_value?: number | null;
+  /** Como medir: o indicador e a fonte do número (US-0039). */
+  measurement?: string | null;
+  /** Prazo para atingir a meta (US-0039). */
+  target_date?: string | null;
 }
 
 export interface KeyResultHistory {

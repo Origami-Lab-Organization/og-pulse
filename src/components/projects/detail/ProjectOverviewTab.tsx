@@ -52,7 +52,7 @@ export function ProjectOverviewTab({ project, onNavigateToTab }: ProjectOverview
   const formatCurrency = useMaskedCurrency();
   const formatPercent = useMaskedPercent();
   // Custo, comissão e margem PLANEJADOS e custo REALIZADO: regra única do custo do
-  // projeto (US-0025) — o mesmo número da aba Despesas, do Financeiro e do simulador.
+  // projeto (US-0025) — o mesmo número da aba Custos, do Financeiro e do simulador.
   const plannedMargin = useProjectPlannedMargin(project);
 
   const metrics = useMemo(() => {

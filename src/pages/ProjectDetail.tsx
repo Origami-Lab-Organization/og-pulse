@@ -13,13 +13,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ProjectHeader } from "@/components/projects/detail/ProjectHeader";
 import { ProjectOverviewTab } from "@/components/projects/detail/ProjectOverviewTab";
-import { ProjectPlanningOverviewTab } from "@/components/projects/detail/ProjectPlanningOverviewTab";
 import { ProjectCostsTab } from "@/components/projects/detail/ProjectCostsTab";
 import { ProjectFinancialTab } from "@/components/projects/detail/ProjectFinancialTab";
 import { ProjectOKRsTab } from "@/components/projects/detail/ProjectOKRsTab";
 import { ProjectStakeholdersTab } from "@/components/projects/detail/ProjectStakeholdersTab";
 import { ProjectRoadmapTab } from "@/components/projects/detail/ProjectRoadmapTab";
-import { ProjectExpectedResultTab } from "@/components/projects/detail/ProjectExpectedResultTab";
+import { ProjectPlanningView } from "@/components/projects/planning/ProjectPlanningView";
+import { PlanningHeaderMeta } from "@/components/projects/planning/PlanningHeaderMeta";
+import { planningSinceText } from "@/lib/projectPlanning";
 import { ProjectActivitiesTab } from "@/components/projects/detail/ProjectActivitiesTab";
 import { EquipeTab } from "@/components/projects/detail/EquipeTab";
 import { ProjectEmailsTab } from "@/components/projects/detail/ProjectEmailsTab";
@@ -78,6 +79,9 @@ function meetingTabAccess(
   };
 }
 
+/** Aba que não existe mais (US-0039): o link antigo `?tab=planning` abre a primeira aba. */
+const REMOVED_TABS = new Set(["planning"]);
+
 /** Abas que o link do sino abre para quem não vê a ficha completa. */
 const LINKABLE_TABS = new Set(["emails", "reunioes"]);
 
@@ -85,7 +89,8 @@ const LINKABLE_TABS = new Set(["emails", "reunioes"]);
  * Quem vê a ficha completa abre na aba pedida por `?tab=`. Os demais só chegam por link
  * nas abas E-mails e Reuniões (vindo da caixa de entrada); sem ele, Atividades, como antes.
  */
-function pickInitialTab(requested: string | null, canAccessFullProject: boolean): string {
+function pickInitialTab(rawRequested: string | null, canAccessFullProject: boolean): string {
+  const requested = rawRequested && !REMOVED_TABS.has(rawRequested) ? rawRequested : null;
   if (canAccessFullProject) return requested || "overview";
   return requested && LINKABLE_TABS.has(requested) ? requested : "activities";
 }
@@ -292,6 +297,50 @@ export default function ProjectDetail() {
       </div>
     ) : undefined;
 
+  const projectDialogs = canAccessFullProject && (
+    <>
+      <ProjectFormDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        project={project}
+        onSubmit={handleUpdate}
+        isSubmitting={updateProject.isPending}
+        requireJustification={isCompleted && isAdmin}
+        canChangeManager={isAdmin}
+      />
+      <ProjectRemoveDialog
+        open={removeDialogOpen}
+        onOpenChange={setRemoveDialogOpen}
+        projectId={project.id}
+        projectName={project.name}
+        onDelete={handleDelete}
+        onArchive={handleArchive}
+        isProcessing={deleteProject.isPending || archiveProject.isPending}
+      />
+    </>
+  );
+
+  // Projeto em planejamento abre no planejamento guiado por checklist (US-0039). O que o
+  // membro da equipe vê fica de fora desta história: ele segue com as abas de sempre.
+  if (isPlanning && canAccessFullProject) {
+    return (
+      <AppLayout title={project.name} hideHeader>
+        <HideValuesProvider value={hideValues}>
+          <div className="space-y-4">
+            <ProjectHeader
+              project={project}
+              actions={headerActions}
+              subtitle={planningSinceText(project.created_at, project.start_date, new Date())}
+              extraMeta={<PlanningHeaderMeta project={project} />}
+            />
+            <ProjectPlanningView project={project} canEdit={canEdit} />
+          </div>
+          {projectDialogs}
+        </HideValuesProvider>
+      </AppLayout>
+    );
+  }
+
   if (!canAccessFullProject && !canViewActivities) {
     return (
       <AppLayout title={project.name} hideHeader>
@@ -349,11 +398,10 @@ export default function ProjectDetail() {
                 {canAccessFullProject && (
                   <>
                     <TabsTrigger value="overview" className={projectTabClass}>Visão Geral</TabsTrigger>
-                    <TabsTrigger value="planning" className={projectTabClass}>Planejamento</TabsTrigger>
                     <TabsTrigger value="okrs" className={projectTabClass}>Objetivos</TabsTrigger>
                     <TabsTrigger value="roadmap" className={projectTabClass}>Roadmap</TabsTrigger>
                     <TabsTrigger value="team" className={projectTabClass}>Equipe</TabsTrigger>
-                    <TabsTrigger value="costs" className={projectTabClass}>Despesas</TabsTrigger>
+                    <TabsTrigger value="costs" className={projectTabClass}>Custos</TabsTrigger>
                     <TabsTrigger value="financial" className={projectTabClass}>Financeiro</TabsTrigger>
                     <TabsTrigger value="stakeholders" className={projectTabClass}>Stakeholders</TabsTrigger>
                   </>
@@ -383,14 +431,6 @@ export default function ProjectDetail() {
                 <ProjectOverviewTab project={project} onNavigateToTab={setActiveTab} />
               </TabsContent>
 
-              <TabsContent value="planning" className="mt-6">
-                <ProjectPlanningOverviewTab
-                  project={project}
-                  canManageProject={canManageProject}
-                  onNavigateToTab={setActiveTab}
-                />
-              </TabsContent>
-
               <TabsContent value="okrs" className="mt-6">
                 <ProjectOKRsTab project={project} isReadOnly={isReadOnly} />
               </TabsContent>
@@ -418,19 +458,12 @@ export default function ProjectDetail() {
               </TabsContent>
 
               <TabsContent value="financial" className="mt-6">
-                {isPlanning ? (
-                  <ProjectExpectedResultTab
-                    project={project}
-                    canManageInstallments={canManageInstallments}
-                  />
-                ) : (
-                  <ProjectFinancialTab
-                    project={project}
-                    isReadOnly={isReadOnly}
-                    canManageInstallments={canManageInstallments}
-                    onNavigateToTab={setActiveTab}
-                  />
-                )}
+                <ProjectFinancialTab
+                  project={project}
+                  isReadOnly={isReadOnly}
+                  canManageInstallments={canManageInstallments}
+                  onNavigateToTab={setActiveTab}
+                />
               </TabsContent>
 
               <TabsContent value="stakeholders" className="mt-6">
@@ -475,31 +508,7 @@ export default function ProjectDetail() {
         </Tabs>
       </div>
 
-      {canAccessFullProject && (
-        <>
-          <ProjectFormDialog
-            open={editDialogOpen}
-            onOpenChange={setEditDialogOpen}
-            project={project}
-            onSubmit={handleUpdate}
-            isSubmitting={updateProject.isPending}
-            requireJustification={isCompleted && isAdmin}
-            canChangeManager={isAdmin}
-          />
-
-          {project && (
-            <ProjectRemoveDialog
-              open={removeDialogOpen}
-              onOpenChange={setRemoveDialogOpen}
-              projectId={project.id}
-              projectName={project.name}
-              onDelete={handleDelete}
-              onArchive={handleArchive}
-              isProcessing={deleteProject.isPending || archiveProject.isPending}
-            />
-          )}
-        </>
-      )}
+      {projectDialogs}
       </HideValuesProvider>
     </AppLayout>
   );
