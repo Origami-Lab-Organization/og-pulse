@@ -15,7 +15,7 @@ interface CompanyFitSectionProps {
 }
 
 /**
- * Fit da conta com cada serviço da Origami (US-0014: Studio de Produto, Lei do Bem, Captação de
+ * Fit da conta com cada serviço da Origami (US-0014: Dev. de Software, Lei do Bem, Captação de
  * recursos e Consultoria Estratégica) — regra explícita, sem IA. Cada barra abre o porquê: nota
  * que não se explica não é usada.
  */
