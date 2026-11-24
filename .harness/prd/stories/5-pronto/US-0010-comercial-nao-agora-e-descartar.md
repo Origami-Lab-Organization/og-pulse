@@ -1,6 +1,6 @@
 # US-0010 — Descartar a empresa ou marcar "Não agora"
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Empresas da Receita
@@ -169,7 +169,7 @@ Sobram dois buracos (revisão de 23/11/2026):
 | Cenário | Prova (teste ou evidência) |
 |---|---|
 | 1 a 4, 6 a 8 | tela validada pelo Victor em 23/11/2026 ("testei, tudo passou"); testes desativados neste ciclo |
-| 5 | aviso no sino: a confirmar em 24/11/2026 às 8h (primeira execução da tarefa agendada) |
+| 5 | aviso no sino conferido pelo Victor em 24/11/2026 ("a 10 funcionou o sino"), na primeira execução da tarefa agendada |
 
 - Banco: migration `20261123200000`, aplicada em produção em 23/11/2026 com o ok do Victor (RLS, três políticas, três gatilhos e a tarefa das 8h conferidos); (tabela `prospect_decisoes_da_base` com RLS por
   capacidade, gatilho de guarda — quem decidiu e quem desfez vêm da sessão, a decisão não muda

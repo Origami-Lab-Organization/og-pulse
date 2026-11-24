@@ -1,5 +1,9 @@
 import { FRENTES_DO_FIT, ROTULO_DA_FRENTE } from '@/lib/prospecting/fit';
 import type {
+  AtalhoDeExclusao,
+  AtividadesIncluidas,
+  AtividadesTiradas,
+  FiltroDeAtividade,
   FaixaDeFaturamento,
   FaixaDeFuncionarios,
   FaixaDeIdade,
@@ -8,7 +12,7 @@ import type {
   GrupoDeNatureza,
   Opcao,
 } from '@/types/filtrosReceita';
-import { ramosDosSetores } from './cnae';
+import { ramosDosSetores, SETORES } from './cnae';
 import { RELACOES_DA_ORIGAMI } from './relacao';
 
 /**
@@ -52,15 +56,18 @@ export const CAPITAIS: ReadonlyArray<Opcao<number>> = [
   { valor: 100_000_000, rotulo: 'R$ 100 mi' },
 ];
 
-/** Distância de Formiga em linha reta (US-0015), escolha única. */
-export const DISTANCIAS: ReadonlyArray<Opcao<number>> = [
-  { valor: 0, rotulo: 'Qualquer' },
-  { valor: 50, rotulo: 'até 50 km' },
-  { valor: 100, rotulo: 'até 100 km' },
-  { valor: 200, rotulo: 'até 200 km' },
-  { valor: 300, rotulo: 'até 300 km' },
-  { valor: 500, rotulo: 'até 500 km' },
-];
+/**
+ * Distância de Formiga em linha reta (US-0015), escolhida pela pessoa (US-0040): a barra vai de
+ * 10 a 1.000 km, de 10 em 10 (77% da Base); o campo aceita de 1 a 3.300 (a mais longe está a
+ * 3.282 km). 0 = qualquer. Os valores antigos (50, 100, 200, 300, 500) continuam valendo.
+ */
+export const DISTANCIA_DA_BARRA = { minimo: 10, maximo: 1000, passo: 10 } as const;
+export const DISTANCIA_MAXIMA = 3300;
+
+export const distanciaValida = (km: unknown): km is number =>
+  typeof km === 'number' && Number.isInteger(km) && km >= 1 && km <= DISTANCIA_MAXIMA;
+
+export const rotuloDaDistancia = (km: number): string => `até ${km.toLocaleString('pt-BR')} km`;
 
 export const NATUREZAS: ReadonlyArray<Opcao<GrupoDeNatureza>> = [
   { valor: 'limitada', rotulo: 'Limitada' },
@@ -88,6 +95,9 @@ export const FILTROS_VAZIOS: FiltrosReceita = {
   ramos: [],
   cnaes: [],
   secundaria: false,
+  semSetores: [],
+  semRamos: [],
+  semCnaes: [],
   idades: [],
   ufs: [],
   funcionarios: [],
@@ -125,6 +135,7 @@ export function contarFiltros(f: FiltrosReceita): number {
     f.setores.length > 0,
     f.ramos.length > 0,
     f.cnaes.length > 0,
+    temAtividadeTirada(f),
     f.idades.length > 0,
     f.ufs.length > 0,
     f.funcionarios.length > 0,
@@ -146,10 +157,65 @@ export function alternar<T>(lista: readonly T[], valor: T): T[] {
 }
 
 /** Troca os setores e tira os ramos que deixaram de pertencer a eles (cenário 2). */
-export function comSetores(f: FiltrosReceita, setores: string[]): FiltrosReceita {
+export function comSetores<F extends AtividadesIncluidas>(f: F, setores: string[]): F {
   const validos = new Set(ramosDosSetores(setores));
   return { ...f, setores, ramos: f.ramos.filter((r) => validos.has(r)) };
 }
+
+// ---------- tirar atividades (US-0041) ----------
+
+/** Setor, ramo ou CNAE: cada um tem a lista de incluídos e a de tirados. */
+export enum TipoDeAtividade {
+  Setor = 'setor',
+  Ramo = 'ramo',
+  Cnae = 'cnae',
+}
+
+const LISTAS_DO_TIPO = {
+  [TipoDeAtividade.Setor]: { incluidos: 'setores', tirados: 'semSetores' },
+  [TipoDeAtividade.Ramo]: { incluidos: 'ramos', tirados: 'semRamos' },
+  [TipoDeAtividade.Cnae]: { incluidos: 'cnaes', tirados: 'semCnaes' },
+} as const;
+
+const sem = (lista: readonly string[], tirar: readonly string[]) => lista.filter((v) => !tirar.includes(v));
+
+/** Os incluídos de um tipo; o que entra deixa de estar tirado (cenário 5). */
+export function incluirAtividades<F extends FiltroDeAtividade>(f: F, tipo: TipoDeAtividade, incluidos: string[]): F {
+  const { incluidos: campo, tirados } = LISTAS_DO_TIPO[tipo];
+  const novo = { ...f, [campo]: incluidos, [tirados]: sem(f[tirados], incluidos) };
+  return tipo === TipoDeAtividade.Setor ? comSetores(novo, incluidos) : novo;
+}
+
+/** Os tirados de um tipo; o que sai deixa de estar incluído (cenário 5). */
+export function tirarAtividades<F extends FiltroDeAtividade>(f: F, tipo: TipoDeAtividade, tirados: string[]): F {
+  const { incluidos, tirados: campo } = LISTAS_DO_TIPO[tipo];
+  const novo = { ...f, [campo]: tirados, [incluidos]: sem(f[incluidos], tirados) };
+  return tipo === TipoDeAtividade.Setor ? comSetores(novo, novo.setores) : novo;
+}
+
+export const temAtividadeTirada = (f: AtividadesTiradas): boolean =>
+  f.semSetores.length > 0 || f.semRamos.length > 0 || f.semCnaes.length > 0;
+
+/** Atalhos (decisão de 24/11/2026): holdings e participações; atividades imobiliárias. */
+export const ATALHOS_DE_EXCLUSAO: readonly AtalhoDeExclusao[] = [
+  { id: 'holdings', rotulo: 'Sem holdings', ramos: [], cnaes: ['6462000', '6463800'] },
+  { id: 'imobiliarias', rotulo: 'Sem imobiliárias', ramos: ['68'], cnaes: [] },
+];
+
+export const atalhoLigado = (f: AtividadesTiradas, a: AtalhoDeExclusao): boolean =>
+  a.ramos.every((r) => f.semRamos.includes(r)) && a.cnaes.every((c) => f.semCnaes.includes(c));
+
+/** Liga o atalho (tira tudo dele) ou desliga (devolve tudo dele). */
+export function alternarAtalho<F extends FiltroDeAtividade>(f: F, a: AtalhoDeExclusao): F {
+  if (atalhoLigado(f, a)) {
+    return { ...f, semRamos: sem(f.semRamos, a.ramos), semCnaes: sem(f.semCnaes, a.cnaes) };
+  }
+  const comRamos = tirarAtividades(f, TipoDeAtividade.Ramo, [...new Set([...f.semRamos, ...a.ramos])]);
+  return tirarAtividades(comRamos, TipoDeAtividade.Cnae, [...new Set([...comRamos.semCnaes, ...a.cnaes])]);
+}
+
+/** Todos os ramos da CNAE, para tirar um ramo de qualquer setor. */
+export const TODOS_OS_RAMOS: readonly string[] = SETORES.flatMap((s) => s.divisoes);
 
 /** "Incluir atividade secundária" só faz sentido com algum filtro de atividade. */
 export const temFiltroDeAtividade = (f: FiltrosReceita): boolean =>
@@ -163,6 +229,11 @@ const CHAVE = 'pulse:empresas-receita:filtros:v1';
 const lista = <T>(valor: unknown, aceitos: ReadonlySet<T>): T[] =>
   Array.isArray(valor) ? valor.filter((v): v is T => aceitos.has(v as T)) : [];
 
+const SETORES_VALIDOS = new Set('ABCDEFGHIJKLMNOPQRSTU'.split(''));
+
+const cnaesDe = (valor: unknown): string[] =>
+  Array.isArray(valor) ? valor.filter((c): c is string => typeof c === 'string' && /^\d{2,7}$/.test(c)) : [];
+
 const conjunto = <T extends string | number>(opcoes: ReadonlyArray<Opcao<T>>) => new Set(opcoes.map((o) => o.valor));
 
 /** Lê só o que é válido hoje: um valor que saiu das listas é ignorado, não quebra a tela. */
@@ -174,9 +245,9 @@ export function lerFiltrosSalvos(texto: string | null): FiltrosReceita {
   } catch {
     return FILTROS_INICIAIS;
   }
-  const setores = lista<string>(salvo.setores, new Set('ABCDEFGHIJKLMNOPQRSTU'.split('')));
+  const setores = lista<string>(salvo.setores, SETORES_VALIDOS);
   const capital = CAPITAIS.find((c) => c.valor === salvo.capitalMinimo)?.valor ?? 0;
-  const distancia = DISTANCIAS.find((d) => d.valor === salvo.distanciaMaxima)?.valor ?? 0;
+  const distancia = distanciaValida(salvo.distanciaMaxima) ? salvo.distanciaMaxima : 0;
   const divida = DIVIDAS.find((d) => d.valor === salvo.divida)?.valor ?? DIVIDA_QUALQUER;
   // As frentes antigas (software, financiamento) caem para "maior nota" (US-0014).
   const servicoDoFit = FRENTES_DO_FIT.find((f) => f === salvo.servicoDoFit) ?? null;
@@ -186,8 +257,11 @@ export function lerFiltrosSalvos(texto: string | null): FiltrosReceita {
     fitMinimo,
     setores,
     ramos: lista<string>(salvo.ramos, new Set(ramosDosSetores(setores))),
-    cnaes: Array.isArray(salvo.cnaes) ? salvo.cnaes.filter((c): c is string => typeof c === 'string' && /^\d{2,7}$/.test(c)) : [],
+    cnaes: cnaesDe(salvo.cnaes),
     secundaria: salvo.secundaria === true,
+    semSetores: lista<string>(salvo.semSetores, SETORES_VALIDOS),
+    semRamos: lista<string>(salvo.semRamos, new Set(TODOS_OS_RAMOS)),
+    semCnaes: cnaesDe(salvo.semCnaes),
     idades: lista(salvo.idades, conjunto(IDADES)),
     ufs: lista<string>(salvo.ufs, new Set(UFS)),
     funcionarios: lista(salvo.funcionarios, conjunto(FUNCIONARIOS)),
