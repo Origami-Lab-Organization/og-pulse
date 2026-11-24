@@ -14,6 +14,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -46,6 +47,7 @@ import { useCostCenters } from '@/hooks/useCostCenters';
 import { formatCurrency, parseCurrency } from '@/lib/masks';
 import { ProjectKindField } from '@/components/projects/ProjectKindField';
 import { PROJECT_KIND } from '@/lib/projectKind.constants';
+import { REGRA_GERENTE_DO_PROJETO, SEM_GERENTE_DISPONIVEL } from '@/lib/accessProfiles.constants';
 import { projectKindOf, requiresClient } from '@/lib/projectKind';
 import type { ProjectKind } from '@/types/projectKind';
 
@@ -432,13 +434,12 @@ export function ProjectFormDialog({
                               ))
                             ) : (
                               <div className="p-2 text-sm text-muted-foreground text-center">
-                                Nenhum gerente disponível.
-                                <br />
-                                Atribua o perfil "Gerente de Projetos" ou "Administrador" a um funcionário.
+                                {SEM_GERENTE_DISPONIVEL}
                               </div>
                             )}
                           </SelectContent>
                         </Select>
+                        {canChangeManager && <FormDescription>{REGRA_GERENTE_DO_PROJETO}</FormDescription>}
                         <FormMessage />
                       </FormItem>
                     )}

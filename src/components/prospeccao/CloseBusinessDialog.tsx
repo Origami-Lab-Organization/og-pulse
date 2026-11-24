@@ -78,6 +78,7 @@ import {
 	formatCurrency as formatCurrencyValue,
 	formatDate,
 } from "@/lib/formatters";
+import { SEM_GERENTE_DISPONIVEL } from "@/lib/accessProfiles.constants";
 import { cn } from "@/lib/utils";
 import type { BudgetWithDetails } from "@/types/budget";
 import {
@@ -821,10 +822,7 @@ export function CloseBusinessDialog({
 												))
 											) : (
 												<div className="p-2 text-sm text-muted-foreground text-center">
-													Nenhum gerente disponível.
-													<br />
-													Atribua o perfil "Gerente de Projetos" ou
-													"Administrador" a um funcionário.
+													{SEM_GERENTE_DISPONIVEL}
 												</div>
 											)}
 										</SelectContent>

@@ -6,10 +6,11 @@
  * policies. Ver `.harness/capability-matrix.md` para o que cada capacidade significa.
  */
 import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { accessProfileService } from '@/services/accessProfileService';
+import { CONSULTAS_COM_PAPEL_DA_PESSOA } from '@/lib/accessProfiles.constants';
 import {
   DOMAIN_LABELS,
   type CapabilityGroup,
@@ -43,6 +44,11 @@ function humanizeError(error: unknown): string {
     return 'Esta capacidade não existe no vocabulário. Capacidade nova exige migration (ADR-0027).';
   }
   return message || 'Não foi possível concluir a alteração.';
+}
+
+/** O banco já recalculou o papel de exibição; a tela descarta o que tinha em cache. */
+function invalidarPapelDaPessoa(queryClient: QueryClient) {
+  CONSULTAS_COM_PAPEL_DA_PESSOA.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }));
 }
 
 export function useCapabilities() {
@@ -103,6 +109,7 @@ export function useSetRoleCapability() {
       accessProfileService.setRoleCapability(roleId, capability, enabled, user?.id ?? null),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['role-capabilities'] });
+      invalidarPapelDaPessoa(queryClient);
     },
     onError: (error) => {
       // Reverte o otimismo da tela: o estado real é o do banco.
@@ -146,6 +153,7 @@ export function useSaveRoleProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-roles'] });
       queryClient.invalidateQueries({ queryKey: ['role-capabilities'] });
+      invalidarPapelDaPessoa(queryClient);
       toast({ title: 'Perfil salvo' });
     },
     onError: (error) => {
@@ -185,6 +193,7 @@ export function useAssignRole() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['people-with-role'] });
       queryClient.invalidateQueries({ queryKey: ['tenant-roles'] });
+      invalidarPapelDaPessoa(queryClient);
       toast({ title: 'Perfil da pessoa atualizado' });
     },
     onError: (error) => {
