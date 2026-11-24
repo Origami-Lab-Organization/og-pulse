@@ -64,7 +64,7 @@ export interface SiteScan {
 
 /**
  * Os serviços da Origami com fit próprio (US-0014, 24/11/2026), pelas linhas de serviço:
- * Studio de Produto, Lei do Bem, Captação de recursos (FINEP, BNDES, FAPs) e Consultoria
+ * Dev. de Software, Lei do Bem, Captação de recursos (FINEP, BNDES, FAPs) e Consultoria
  * Estratégica. Ventures fica sem fit (é investimento, não perfil de conta). Até 23/11/2026 eram
  * três frentes (software, financiamento, consultoria).
  */

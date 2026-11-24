@@ -92,6 +92,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0022](stories/5-pronto/US-0022-comercial-bant-da-oportunidade.md) | Qualificar a oportunidade pelo BANT, do começo ao fim | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0023](stories/5-pronto/US-0023-comercial-etapa-qualificacao.md) | Qualificar a empresa antes de abordar | Pessoa do comercial | Pronto | Pronta |
 | [US-0024](stories/5-pronto/US-0024-comercial-ia-propoe-bant-pelo-mcp.md) | IA propõe evidências de BANT pela assinatura do Claude | Pessoa do comercial | Pronto | Pronta |
+| [US-0044](stories/5-pronto/US-0044-comercial-studio-vira-dev-de-software.md) | "Studio de Produto" passa a se chamar "Dev. de Software" | Pessoa da Origami | Pronto | Pronta |
 | [US-0038](stories/5-pronto/US-0038-comercial-bant-comprovado-para-qualificar.md) | Só o BANT comprovado qualifica a oportunidade | Pessoa do comercial | Pronto | Pronta |
 | [US-0040](stories/2-em-refinamento/US-0040-comercial-distancia-por-faixa-livre.md) | Distância de Formiga escolhida pela pessoa | Pessoa do comercial | Em refinamento | Pronta com ressalvas |
 | [US-0041](stories/2-em-refinamento/US-0041-comercial-tirar-atividades-da-lista.md) | Tirar atividades da lista (ex.: holdings) | Pessoa do comercial | Em refinamento | Pronta com ressalvas |

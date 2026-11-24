@@ -43,7 +43,7 @@ export const dbToServiceLine = (db: ServiceLineDB): ServiceLine => ({
 export const SERVICE_LINE_OPTIONS = [
   { value: 'financiamento_inovacao', label: 'Financiamento da Inovação' },
   { value: 'consultoria_estrategica', label: 'Consultoria Estratégica' },
-  { value: 'product_studio', label: 'Product Studio' },
+  { value: 'product_studio', label: 'Dev. de Software' },
   { value: 'educacao_corporativa', label: 'Educação Corporativa' },
   { value: 'ventures', label: 'Ventures' },
 ] as const;

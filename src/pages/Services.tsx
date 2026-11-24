@@ -239,7 +239,7 @@ const Services = () => {
           <p className="text-base font-semibold">Nenhuma linha de serviço cadastrada</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-xs">
             {canManage
-              ? 'Crie sua primeira Linha de Serviço (ex.: Ventures, Product Studio) para começar a organizar o portfólio.'
+              ? 'Crie sua primeira Linha de Serviço (ex.: Ventures, Dev. de Software) para começar a organizar o portfólio.'
               : 'Aguarde um administrador organizar o catálogo de serviços.'}
           </p>
           {canManage && (

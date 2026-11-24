@@ -76,7 +76,7 @@ export function ServiceLineFormDialog({
                 <FormItem>
                   <FormLabel>Nome da linha</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex.: Ventures, Product Studio" {...field} />
+                    <Input placeholder="Ex.: Ventures, Dev. de Software" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

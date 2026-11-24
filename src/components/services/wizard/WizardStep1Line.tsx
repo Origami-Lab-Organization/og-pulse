@@ -51,7 +51,7 @@ export function WizardStep1Line({ initial, onContinue, onCancel }: WizardStep1Li
             <FormItem>
               <FormLabel>Nome</FormLabel>
               <FormControl>
-                <Input placeholder="Ex.: Ventures, Product Studio" autoFocus {...field} />
+                <Input placeholder="Ex.: Ventures, Dev. de Software" autoFocus {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

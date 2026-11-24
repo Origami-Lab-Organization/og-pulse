@@ -8,7 +8,7 @@ import type { CompanyFit, FitFront, FitReason, FundingSignals, LeiDoBemSignal, S
  * Fit por serviço da Origami (US-0014, 24/11/2026; antes, três frentes de 29/09/2026), de 0 a
  * 100 — regra explícita, sem IA (ADR-0042, ADR-0055).
  *
- * Quatro serviços: Studio de Produto, Lei do Bem, Captação de recursos e Consultoria
+ * Quatro serviços: Dev. de Software, Lei do Bem, Captação de recursos e Consultoria
  * Estratégica. Em cada um, a soma dos pontos máximos é exatamente 100; a dívida ativa ajuizada
  * só tira. Cada ponto vem com o motivo, porque nota que não explica não é usada.
  *
@@ -126,7 +126,7 @@ function governoPontos(fomento: FundingSignals | null): [number, string] {
 
 // ---------- os quatro serviços (pesos aprovados em 23/11/2026; cada coluna soma 100) ----------
 
-/** Studio de Produto: software sob medida e integração na indústria. */
+/** Dev. de Software (antes "Studio de Produto"): software sob medida e integração na indústria. */
 function studioPontos(e: ProspectCompanyDB, s: SinaisDoTamanho): Pontos {
   const { sistemas, sinais } = sinaisDoSite(e);
   const deFabrica = sinais.filter((x) => SINAIS_DE_FABRICA.has(x));
@@ -204,7 +204,7 @@ function consultoriaPontos(e: ProspectCompanyDB, s: SinaisDoTamanho, fomento: Fu
 }
 
 export const ROTULO_DA_FRENTE: Record<FitFront, string> = {
-  studio: 'Studio de Produto',
+  studio: 'Dev. de Software',
   lei_do_bem: 'Lei do Bem',
   captacao: 'Captação de recursos',
   consultoria: 'Consultoria Estratégica',
@@ -212,7 +212,7 @@ export const ROTULO_DA_FRENTE: Record<FitFront, string> = {
 
 /** Rótulo curto, para colunas estreitas. */
 export const ROTULO_CURTO_DA_FRENTE: Record<FitFront, string> = {
-  studio: 'Studio',
+  studio: 'Dev. de Software',
   lei_do_bem: 'Lei do Bem',
   captacao: 'Captação',
   consultoria: 'Consultoria',
