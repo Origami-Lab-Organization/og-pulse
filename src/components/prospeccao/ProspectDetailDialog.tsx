@@ -70,9 +70,10 @@ interface ProspectDetailDialogProps {
 }
 
 /**
- * A ficha da oportunidade (27/10/2026): o que aconteceu ocupa o centro, largo; à direita, um
- * painel só com o Negócio, os Contatos e a Empresa, um embaixo do outro. Substituiu as três
- * colunas de 09/10/2026, em que a conversa ficava espremida entre contatos e empresa.
+ * A ficha da oportunidade (16/11/2026): as pessoas à esquerda, o que aconteceu no centro e o
+ * negócio com a empresa à direita. Volta a separar pessoas de negócio em laterais, como nas
+ * três colunas de 09/10/2026, mantendo as seções leves e o painel da direita recolhível que
+ * vieram em 27/10/2026.
  *
  * A separação é o pedido central — quem abre precisa distinguir num relance o que é cadastro
  * do que é histórico. A oportunidade é da empresa e leva o nome dela; as pessoas entram em
@@ -85,7 +86,7 @@ export function ProspectDetailDialog(props: ProspectDetailDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex h-[90vh] max-w-6xl flex-col gap-0 overflow-hidden p-0"
+        className="flex h-[90vh] max-w-7xl flex-col gap-0 overflow-hidden p-0"
         // O foco vai para a ficha, não para o primeiro botão (o lápis do nome), que abria
         // destacado como se a pessoa tivesse ido até ele.
         onOpenAutoFocus={(e) => {
@@ -143,14 +144,23 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
         onCriarProjeto={() => setProjetoAberto(true)}
       />
 
-      {/* Duas colunas: abaixo de lg o painel desce para depois da conversa, e a ficha inteira rola.
-          Recolhido, o painel vira um trilho fino e a conversa ocupa a largura. */}
+      {/* Três colunas: abaixo de lg empilham na mesma ordem, e a ficha inteira rola.
+          Recolhido, o painel da direita vira um trilho fino e a conversa ganha a largura. */}
       <div
         className={cn(
           'grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:overflow-hidden',
-          painel.aberto ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]' : 'lg:grid-cols-[minmax(0,1fr)_auto]',
+          painel.aberto
+            ? 'lg:grid-cols-[minmax(0,290px)_minmax(0,1fr)_minmax(0,340px)]'
+            : 'lg:grid-cols-[minmax(0,290px)_minmax(0,1fr)_auto]',
         )}
       >
+        <aside
+          aria-label="Contatos"
+          className="min-h-0 border-b bg-card lg:overflow-y-auto lg:border-b-0 lg:border-r"
+        >
+          <OpportunityContactsCard prospect={prospect} podeEditar={!somenteLeitura} />
+        </aside>
+
         <PainelDeAtividade
           prospect={prospect}
           open={open}
@@ -163,7 +173,7 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
         {!painel.aberto && <TrilhoDoPainel onAbrir={painel.abrir} />}
         {painel.aberto && (
           <aside
-            aria-label="Negócio, contatos e empresa"
+            aria-label="Negócio e empresa"
             className="min-h-0 border-t bg-card lg:overflow-y-auto lg:border-l lg:border-t-0"
           >
             <div className="flex items-center justify-between border-b py-1.5 pl-5 pr-3">
@@ -198,7 +208,6 @@ function Ficha(props: ProspectDetailDialogProps & { prospect: ProspectWithCompan
                 />
               }
             />
-            <OpportunityContactsCard prospect={prospect} podeEditar={!somenteLeitura} />
             <OpportunityCompanyCard
               empresa={prospect.company}
               editando={edicao.editandoEmpresa}
@@ -243,7 +252,7 @@ function TrilhoDoPainel({ onAbrir }: { onAbrir: () => void }) {
         size="icon"
         className="h-8 w-8"
         aria-label="Mostrar o painel de detalhes"
-        title="Mostrar negócio, contatos e empresa"
+        title="Mostrar negócio e empresa"
         onClick={onAbrir}
       >
         <PanelRightOpen className="h-4 w-4" aria-hidden="true" />

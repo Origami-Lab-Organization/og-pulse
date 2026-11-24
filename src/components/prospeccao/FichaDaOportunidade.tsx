@@ -40,18 +40,18 @@ export function CartaoDaFicha(props: CartaoDaFichaProps) {
         className="border-b last:border-b-0"
         aria-label={rotulo ?? (typeof titulo === 'string' ? titulo : undefined)}
       >
-        <header className="flex min-h-12 items-center gap-2 px-5 py-2">
+        <header className="flex min-h-14 items-center gap-2 px-5 py-2.5">
           <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-2 rounded py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <ChevronRight
               className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', aberto && 'rotate-90')}
               aria-hidden="true"
             />
-            <h3 className="shrink-0 text-sm font-semibold">{titulo}</h3>
+            <h3 className="shrink-0 text-[15px] font-semibold">{titulo}</h3>
             {resumo && !aberto && <span className="min-w-0 truncate text-xs text-muted-foreground">{resumo}</span>}
           </CollapsibleTrigger>
           {acao && <span className="shrink-0" onClickCapture={() => setAberto(true)}>{acao}</span>}
         </header>
-        <CollapsibleContent className="px-5 pb-4">{children}</CollapsibleContent>
+        <CollapsibleContent className="px-5 pb-5">{children}</CollapsibleContent>
       </section>
     </Collapsible>
   );
@@ -65,12 +65,15 @@ export function BotaoEditar({ onClick, rotulo = 'Editar' }: { onClick: () => voi
   );
 }
 
-/** Rótulo à esquerda, valor à direita — a leitura rápida dos cartões laterais. */
+/**
+ * Rótulo em cima, valor embaixo (16/11/2026, no desenho do HubSpot): o valor ganha a largura
+ * inteira da coluna e não disputa espaço com o rótulo — e-mail e razão social leem inteiros.
+ */
 export function LinhaDeDado({ termo, children }: { termo: string; children?: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 text-sm">
-      <dt className="shrink-0 text-muted-foreground">{termo}</dt>
-      <dd className="min-w-0 break-words text-right font-medium">{children || <span className="font-normal text-muted-foreground">—</span>}</dd>
+    <div className="space-y-0.5">
+      <dt className="text-xs font-medium text-muted-foreground">{termo}</dt>
+      <dd className="min-w-0 break-words text-sm">{children || <span className="text-muted-foreground">—</span>}</dd>
     </div>
   );
 }

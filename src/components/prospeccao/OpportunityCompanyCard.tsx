@@ -82,7 +82,7 @@ function LeituraDaEmpresa(props: LeituraProps) {
       <NomeDaEmpresa empresa={empresa} />
       <Segmentacao empresa={empresa} />
       <LinksDaEmpresa empresa={empresa} />
-      <dl className="space-y-2">
+      <dl className="space-y-3.5">
         <LinhaDeDado termo="CNPJ">{empresa.cnpj ? formatCNPJ(empresa.cnpj) : convite}</LinhaDeDado>
         <LinhaDeDado termo="Faturamento">{faturamentoDe(empresa) ?? convite}</LinhaDeDado>
         <LinhaDeDado termo="Abertura">{aberturaDe(empresa.data_abertura)}</LinhaDeDado>

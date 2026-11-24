@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Instagram, Linkedin, Mail, Phone, Plus, X } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProspectContacts } from '@/hooks/useProspectContacts';
@@ -11,6 +10,7 @@ import {
   useUpdateOpportunityContactRole,
 } from '@/hooks/useProspects';
 import { iniciaisDe } from '@/lib/prospecting/iniciais';
+import { cn } from '@/lib/utils';
 import { comProtocolo, urlDoInstagram } from '@/lib/prospecting/links';
 import {
   getContactRoleLabel,
@@ -22,7 +22,7 @@ import {
 import { NovoContatoDaOportunidade } from './OpportunityNewContactForm';
 import { OpportunityContactRoleSelect } from './OpportunityContactRoleSelect';
 import { ProspectContactSelect } from './ProspectContactSelect';
-import { CartaoDaFicha } from './FichaDaOportunidade';
+import { CartaoDaFicha, LinhaDeDado } from './FichaDaOportunidade';
 
 interface OpportunityContactsCardProps {
   prospect: ProspectWithCompany;
@@ -75,7 +75,7 @@ function ListaDeContatos(props: {
     return vazioVisivel ? <p className="text-sm text-muted-foreground">Nenhum contato nesta oportunidade ainda.</p> : null;
   }
   return (
-    <ul className="-mb-2.5 -mt-1.5 divide-y">
+    <ul className="-mb-4 -mt-4 divide-y">
       {contatos.map((c) => (
         <li key={c.contact_id}>
           <LinhaDoContato prospectId={prospectId} vinculo={c} podeEditar={podeEditar} />
@@ -86,9 +86,9 @@ function ListaDeContatos(props: {
 }
 
 /**
- * Uma pessoa por linha (27/10/2026): nome e cargo em cima; embaixo, como falar com ela e o
- * papel na decisão num seletor pequeno. Antes era um cartão por pessoa, com o seletor largo
- * numa seção própria — três contatos enchiam a coluna.
+ * Um perfil por pessoa (16/11/2026, no desenho de ficha de contato do HubSpot): avatar, nome e
+ * cargo no topo; uma fileira de ações rápidas (ligar, e-mail, redes) e, embaixo, os dados com
+ * o rótulo sobre o valor. Ação sem dado cadastrado fica apagada, para mostrar o que falta.
  */
 function LinhaDoContato(props: { prospectId: string; vinculo: ProspectOpportunityContact; podeEditar: boolean }) {
   const { prospectId, vinculo, podeEditar } = props;
@@ -97,59 +97,119 @@ function LinhaDoContato(props: { prospectId: string; vinculo: ProspectOpportunit
   const nome = pessoa?.name ?? 'Contato';
 
   return (
-    <div className="flex items-start gap-2.5 py-2.5">
-      <Avatar className="mt-0.5 h-8 w-8 shrink-0">
-        <AvatarFallback className="bg-muted text-[11px] font-semibold text-muted-foreground">{iniciaisDe(nome)}</AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-center gap-1">
-          <p className="min-w-0 flex-1 truncate text-sm" title={pessoa?.role ? `${nome} · ${pessoa.role}` : nome}>
-            <span className="font-medium">{nome}</span>
-            {pessoa?.role && <span className="text-muted-foreground"> · {pessoa.role}</span>}
-          </p>
-          {podeEditar && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="-mr-1 h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
-              aria-label={`Retirar ${nome} da oportunidade`}
-              title="Retirar da oportunidade"
-              disabled={retirar.isPending}
-              onClick={() => retirar.mutate({ prospectId, contactId: vinculo.contact_id })}
-            >
-              <X className="h-3.5 w-3.5" aria-hidden="true" />
-            </Button>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <MeiosDeContato pessoa={pessoa} />
-          <PapelNaDecisao prospectId={prospectId} vinculo={vinculo} nome={nome} podeEditar={podeEditar} />
+    <article aria-label={nome} className="relative space-y-5 py-5">
+      {podeEditar && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute -right-2 top-4 h-8 w-8 text-muted-foreground hover:text-destructive"
+          aria-label={`Retirar ${nome} da oportunidade`}
+          title="Retirar da oportunidade"
+          disabled={retirar.isPending}
+          onClick={() => retirar.mutate({ prospectId, contactId: vinculo.contact_id })}
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      )}
+      <div className="flex items-center gap-3 pr-8">
+        <Avatar className="h-14 w-14 shrink-0">
+          <AvatarFallback className="bg-primary/10 text-base font-semibold text-primary">{iniciaisDe(nome)}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p className="break-words text-lg font-semibold leading-tight">{nome}</p>
+          {pessoa?.role && <p className="mt-1 break-words text-sm text-muted-foreground">{pessoa.role}</p>}
         </div>
       </div>
-    </div>
+      <AcoesRapidas pessoa={pessoa} />
+      <dl className="space-y-3.5">
+        <LinhaDeDado termo="E-mail">
+          {pessoa?.email && <LinkDeMeio href={`mailto:${pessoa.email}`} texto={pessoa.email} />}
+        </LinhaDeDado>
+        <LinhaDeDado termo="Telefone">
+          {pessoa?.phone && <LinkDeMeio href={`tel:${pessoa.phone.replace(/[^\d+]/g, '')}`} texto={pessoa.phone} />}
+        </LinhaDeDado>
+        <PapelNaDecisao prospectId={prospectId} vinculo={vinculo} nome={nome} podeEditar={podeEditar} />
+      </dl>
+    </article>
   );
 }
 
 function PapelNaDecisao(props: { prospectId: string; vinculo: ProspectOpportunityContact; nome: string; podeEditar: boolean }) {
   const { prospectId, vinculo, nome, podeEditar } = props;
   const mudarPapel = useUpdateOpportunityContactRole();
-  if (!podeEditar) {
-    const papel = getContactRoleLabel(vinculo.role);
-    return papel ? <Badge variant="secondary" className="ml-auto shrink-0 font-normal">{papel}</Badge> : null;
-  }
+  if (!podeEditar) return <LinhaDeDado termo="Papel na decisão">{getContactRoleLabel(vinculo.role)}</LinhaDeDado>;
   return (
-    <OpportunityContactRoleSelect
-      value={vinculo.role}
-      nome={nome}
-      onChange={(role) => mudarPapel.mutate({ prospectId, contactId: vinculo.contact_id, role })}
-      disabled={mudarPapel.isPending}
-      // Sem borda, do tamanho do texto: o seletor largo cortava o telefone ao lado.
-      className="ml-auto h-7 w-auto shrink-0 gap-1 border-transparent bg-transparent px-1.5 text-xs text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
-    />
+    <LinhaDeDado termo="Papel na decisão">
+      <OpportunityContactRoleSelect
+        value={vinculo.role}
+        nome={nome}
+        onChange={(role) => mudarPapel.mutate({ prospectId, contactId: vinculo.contact_id, role })}
+        disabled={mudarPapel.isPending}
+        className="mt-0.5 h-9 w-full text-sm font-normal"
+      />
+    </LinhaDeDado>
   );
 }
 
-/** O telefone por extenso, que é o que se disca; e-mail e redes, só pelo ícone (o endereço vai no título). */
+function LinkDeMeio({ href, texto }: { href: string; texto: string }) {
+  return (
+    <a
+      href={href}
+      title={texto}
+      className="break-all rounded text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {texto}
+    </a>
+  );
+}
+
+/** A fileira de ações do perfil: um círculo por meio, com o nome embaixo. */
+function AcoesRapidas({ pessoa }: { pessoa: ProspectOpportunityContact['contact'] }) {
+  const instagram = urlDoInstagram(pessoa?.instagram_url);
+  const linkedin = pessoa?.linkedin_url ? comProtocolo(pessoa.linkedin_url) : null;
+  return (
+    <div className="flex justify-start gap-4">
+      <AcaoRapida rotulo="Ligar" icone={Phone} href={pessoa?.phone ? `tel:${pessoa.phone.replace(/[^\d+]/g, '')}` : null} />
+      <AcaoRapida rotulo="E-mail" icone={Mail} href={pessoa?.email ? `mailto:${pessoa.email}` : null} />
+      <AcaoRapida rotulo="LinkedIn" icone={Linkedin} href={linkedin} externo />
+      <AcaoRapida rotulo="Instagram" icone={Instagram} href={instagram} externo />
+    </div>
+  );
+}
+
+function AcaoRapida(props: { rotulo: string; icone: typeof Mail; href: string | null; externo?: boolean }) {
+  const { rotulo, icone: Icone, href, externo = false } = props;
+  const circulo = 'flex h-10 w-10 items-center justify-center rounded-full border transition-colors';
+  if (!href) {
+    return (
+      <span className="flex w-14 flex-col items-center gap-1.5 text-muted-foreground/60" title={`${rotulo}: não cadastrado`}>
+        <span className={cn(circulo, 'border-dashed')} aria-hidden="true">
+          <Icone className="h-4 w-4" />
+        </span>
+        <span className="text-xs">{rotulo}</span>
+        <span className="sr-only">não cadastrado</span>
+      </span>
+    );
+  }
+  return (
+    <a
+      href={href}
+      className="group flex w-14 flex-col items-center gap-1.5 rounded-md text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      {...(externo ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+    >
+      <span className={cn(circulo, 'bg-card text-primary group-hover:border-primary group-hover:bg-primary/10')} aria-hidden="true">
+        <Icone className="h-4 w-4" />
+      </span>
+      <span className="text-xs group-hover:text-foreground">{rotulo}</span>
+    </a>
+  );
+}
+
+/**
+ * A linha compacta de meios (telefone por extenso; e-mail e redes pelo ícone), usada fora da
+ * ficha — no Estudo da Conta. Na ficha, o perfil do contato usa as ações rápidas.
+ *
+ * O telefone por extenso, que é o que se disca; e-mail e redes, só pelo ícone (o endereço vai no título). */
 export function MeiosDeContato({ pessoa }: { pessoa: ProspectOpportunityContact['contact'] }) {
   if (!pessoa) return <span className="flex-1" />;
   const instagram = urlDoInstagram(pessoa.instagram_url);
