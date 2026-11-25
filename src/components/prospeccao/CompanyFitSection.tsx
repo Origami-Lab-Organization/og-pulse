@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, Target } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { companyFit } from '@/lib/prospecting/fit';
+import { useFitDoCatalogo } from '@/hooks/useFitDoCatalogo';
 import { cn } from '@/lib/utils';
 import type { ProspectCompanyDB } from '@/types/prospect';
 import type { CompanyFit, FundingSignals } from '@/types/receita';
@@ -15,16 +16,16 @@ interface CompanyFitSectionProps {
 }
 
 /**
- * Fit da conta com cada serviço da Origami (US-0014: Dev. de Software, Lei do Bem, Captação de
- * recursos e Consultoria Estratégica) — regra explícita, sem IA. Cada barra abre o porquê: nota
- * que não se explica não é usada.
+ * Fit da conta com cada serviço do catálogo que tem regra de fit (US-0014, US-0047) — regra
+ * explícita, sem IA. Cada barra abre o porquê: nota que não se explica não é usada.
  */
 export function CompanyFitSection(props: CompanyFitSectionProps) {
   const { empresa, fomento = null, emCartao = false } = props;
-  const fits = companyFit(empresa, fomento);
-  if (!fits) return null;
+  const { projetar } = useFitDoCatalogo();
+  const fits = projetar(companyFit(empresa, fomento));
+  if (!fits || fits.length === 0) return null;
   const ordenados = [...fits].sort((a, b) => b.nota - a.nota);
-  const linhas = ordenados.map((fit) => <LinhaDeFit key={fit.frente} fit={fit} grande={emCartao} />);
+  const linhas = ordenados.map((fit) => <LinhaDeFit key={fit.serviceId ?? fit.frente} fit={fit} grande={emCartao} />);
   if (emCartao) {
     // Fechado, o cartão diz a frente mais forte — é o que se procura num relance.
     const melhor = ordenados[0];
@@ -93,12 +94,13 @@ interface FitPorServicoProps {
 /** O fit de cada serviço, do maior para o menor, com o porquê (Estudo da conta, US-0014). */
 export function FitPorServico(props: FitPorServicoProps) {
   const { empresa, fomento = null } = props;
-  const fits = companyFit(empresa, fomento ?? empresa.fomento ?? null);
-  if (!fits) return <p className="text-sm text-muted-foreground">Sem os dados da Receita da empresa ainda: sem nota.</p>;
+  const { projetar } = useFitDoCatalogo();
+  const fits = projetar(companyFit(empresa, fomento ?? empresa.fomento ?? null));
+  if (!fits) return <p className="text-sm text-muted-foreground">Sem dados da Receita.</p>;
   const ordenados = [...fits].sort((a, b) => b.nota - a.nota);
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {ordenados.map((fit) => <LinhaDeFit key={fit.frente} fit={fit} grande />)}
+      {ordenados.map((fit) => <LinhaDeFit key={fit.serviceId ?? fit.frente} fit={fit} grande />)}
     </div>
   );
 }

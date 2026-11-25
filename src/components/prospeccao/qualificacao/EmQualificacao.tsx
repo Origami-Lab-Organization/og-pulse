@@ -12,10 +12,12 @@ import { useEmQualificacao } from '@/hooks/useEmQualificacao';
 import { useEntradasNaQualificacao } from '@/hooks/useEntradasNaQualificacao';
 import { usePainelDeFiltros } from '@/hooks/usePainelDeFiltros';
 import { faturamentoCompacto } from '@/lib/prospecting/faturamento';
-import { FRENTES_DO_FIT, ROTULO_CURTO_DA_FRENTE, ROTULO_DA_FRENTE, servicoEmDestaque } from '@/lib/prospecting/fit';
+import { FIT_QUE_DESTACA } from '@/lib/prospecting/fit';
+import { linhaValida, notasPorLinha, type LinhaDoFit } from '@/lib/prospecting/fitDoCatalogo';
+import { useFitDoCatalogo } from '@/hooks/useFitDoCatalogo';
 import {
   alternarOrdem,
-  COLUNA_DO_SERVICO,
+  colunaDaLinha,
   contarFiltrosDaQualificacao,
   filtrarQualificacao,
   FILTROS_DA_QUALIFICACAO_VAZIOS,
@@ -26,8 +28,7 @@ import {
   ordenarQualificacao,
   qualificacaoDoNavegador,
 } from '@/lib/prospecting/filtrosDaQualificacao';
-import type { CompanyFit } from '@/types/receita';
-import { ColunaDaQualificacao, type LinhaDaQualificacao, type OrdemDaQualificacao, type SentidoDaOrdem } from '@/types/qualificacao';
+import { ColunaDaQualificacao, type ColunaOrdenavel, type LinhaDaQualificacao, type OrdemDaQualificacao, type SentidoDaOrdem } from '@/types/qualificacao';
 import { formatarData } from '@/lib/prospecting/prazos';
 import { getTipoDeContaLabel, type ProspectWithCompany } from '@/types/prospect';
 import type { BantDaOportunidade } from '@/types/bant';
@@ -64,14 +65,21 @@ export function EmQualificacao() {
 
   // A ficha acompanha a versão atual (depois de mover, ela some da lista mas segue aberta).
   const abertaAtual = aberta ? todas.find((p) => p.id === aberta.id) ?? aberta : null;
+  // Fit por linha de serviço do catálogo (US-0047): cada linha da tabela já sai com a nota de cada uma.
+  const { linhas: linhasDoFit } = useFitDoCatalogo();
   const linhas = useMemo(
-    () => lista.map((p) => linhaDaQualificacao(p, bantPorOportunidade.get(p.id), entradas.get(p.id))),
-    [lista, bantPorOportunidade, entradas],
+    () =>
+      lista.map((p) => {
+        const linha = linhaDaQualificacao(p, bantPorOportunidade.get(p.id), entradas.get(p.id));
+        return { ...linha, notasPorLinha: notasPorLinha(linha.fits, linhasDoFit) };
+      }),
+    [lista, bantPorOportunidade, entradas, linhasDoFit],
   );
-  const visiveis = useMemo(
-    () => ordenarQualificacao(filtrarQualificacao(linhas, estado.filtros, estado.busca), estado.ordem),
-    [linhas, estado],
-  );
+  // Linha salva no filtro que não tem mais fit vale como "Maior nota".
+  const visiveis = useMemo(() => {
+    const filtros = { ...estado.filtros, linhaDoFit: linhaValida(estado.filtros.linhaDoFit, linhasDoFit) };
+    return ordenarQualificacao(filtrarQualificacao(linhas, filtros, estado.busca), estado.ordem);
+  }, [linhas, estado, linhasDoFit]);
   const mudar = (parcial: Partial<typeof estado>) =>
     setEstado((atual) => {
       const novo = { ...atual, ...parcial };
@@ -177,13 +185,14 @@ interface ConteudoProps {
   bantPorOportunidade: Map<string, BantDaOportunidade>;
   ordem: OrdemDaQualificacao;
   nomeDe: (id: string) => string | undefined;
-  onOrdenar: (coluna: ColunaDaQualificacao) => void;
+  onOrdenar: (coluna: ColunaOrdenavel) => void;
   onLimpar: () => void;
   onAbrir: (p: ProspectWithCompany) => void;
 }
 
 function Conteudo(props: ConteudoProps) {
   const { carregando, total, linhas, bantPorOportunidade, ordem, nomeDe, onOrdenar, onLimpar, onAbrir } = props;
+  const { linhas: linhasDoFit } = useFitDoCatalogo();
   if (carregando) {
     return (
       <div className="space-y-2 p-4" aria-busy="true" aria-label="Carregando empresas em qualificação">
@@ -206,7 +215,7 @@ function Conteudo(props: ConteudoProps) {
       </EstadoVazio>
     );
   }
-  const cabecalho = (coluna: ColunaDaQualificacao) => ({ coluna, ordem, onOrdenar });
+  const cabecalho = (coluna: ColunaOrdenavel) => ({ coluna, ordem, onOrdenar });
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[1160px] border-collapse text-[13.5px]">
@@ -216,10 +225,10 @@ function Conteudo(props: ConteudoProps) {
             <th scope="col" className="px-3 pl-5 font-medium">Empresa</th>
             <CabecalhoOrdenavel {...cabecalho(ColunaDaQualificacao.Bant)}>BANT</CabecalhoOrdenavel>
             <th scope="col" className="px-3 font-medium">Tipo de conta</th>
-            {/* US-0014: o fit de cada serviço, lado a lado; a maior nota vai em destaque. */}
-            {FRENTES_DO_FIT.map((f) => (
-              <CabecalhoOrdenavel key={f} {...cabecalho(COLUNA_DO_SERVICO[f])} centro titulo={`Fit em ${ROTULO_DA_FRENTE[f]}`}>
-                {ROTULO_CURTO_DA_FRENTE[f]}
+            {/* US-0047: o fit de cada linha de serviço, lado a lado; a maior nota vai em destaque. */}
+            {linhasDoFit.map((ls) => (
+              <CabecalhoOrdenavel key={ls.id} {...cabecalho(colunaDaLinha(ls.id))} centro titulo={`Fit em ${ls.nome}`}>
+                {ls.nome}
               </CabecalhoOrdenavel>
             ))}
             <CabecalhoOrdenavel {...cabecalho(ColunaDaQualificacao.Faturamento)} centro>Faturamento</CabecalhoOrdenavel>
@@ -230,7 +239,7 @@ function Conteudo(props: ConteudoProps) {
         </thead>
         <tbody>
           {linhas.map((l) => (
-            <Linha key={l.prospect.id} linha={l} bant={bantPorOportunidade.get(l.prospect.id)} nomeDe={nomeDe} onAbrir={onAbrir} />
+            <Linha key={l.prospect.id} linha={l} bant={bantPorOportunidade.get(l.prospect.id)} linhasDoFit={linhasDoFit} nomeDe={nomeDe} onAbrir={onAbrir} />
           ))}
         </tbody>
       </table>
@@ -239,15 +248,15 @@ function Conteudo(props: ConteudoProps) {
 }
 
 interface CabecalhoOrdenavelProps {
-  coluna: ColunaDaQualificacao;
+  coluna: ColunaOrdenavel;
   ordem: OrdemDaQualificacao;
-  onOrdenar: (coluna: ColunaDaQualificacao) => void;
+  onOrdenar: (coluna: ColunaOrdenavel) => void;
   centro?: boolean;
   titulo?: string;
   children: ReactNode;
 }
 
-function sentidoDe(ordem: OrdemDaQualificacao, coluna: ColunaDaQualificacao): SentidoDaOrdem {
+function sentidoDe(ordem: OrdemDaQualificacao, coluna: ColunaOrdenavel): SentidoDaOrdem {
   if (ordem.coluna !== coluna) return 'none';
   return ordem.crescente ? 'ascending' : 'descending';
 }
@@ -288,9 +297,18 @@ function textoDoFaturamento(l: LinhaDaQualificacao): string {
 const textoDaDistancia = (km: number | null) => (km == null ? TRACO : `${km.toLocaleString('pt-BR')} km`);
 
 /** O que cada coluna mostra, já em texto: a linha só desenha. */
+/** A linha de serviço de maior nota, quando ela passa de `FIT_QUE_DESTACA`. */
+function linhaEmDestaque(l: LinhaDaQualificacao): string | null {
+  const [id, nota] = Object.entries(l.notasPorLinha ?? {}).reduce<[string | null, number]>(
+    (melhor, [linhaId, n]) => (n !== null && n > melhor[1] ? [linhaId, n] : melhor),
+    [null, -1],
+  );
+  return nota >= FIT_QUE_DESTACA ? id : null;
+}
+
 function colunasDaLinha(l: LinhaDaQualificacao, nomeDe: (id: string) => string | undefined) {
   return {
-    maior: servicoEmDestaque(l.fits)?.frente ?? null,
+    maior: linhaEmDestaque(l),
     local: [l.cidade, l.uf].filter(Boolean).join(' · '),
     tipo: getTipoDeContaLabel(l.tipoConta) ?? TRACO,
     faturamento: textoDoFaturamento(l),
@@ -303,12 +321,13 @@ function colunasDaLinha(l: LinhaDaQualificacao, nomeDe: (id: string) => string |
 interface LinhaProps {
   linha: LinhaDaQualificacao;
   bant: BantDaOportunidade | undefined;
+  linhasDoFit: LinhaDoFit[];
   nomeDe: (id: string) => string | undefined;
   onAbrir: (p: ProspectWithCompany) => void;
 }
 
 function Linha(props: LinhaProps) {
-  const { linha: l, bant, nomeDe, onAbrir } = props;
+  const { linha: l, bant, linhasDoFit, nomeDe, onAbrir } = props;
   useHideValues();
   const c = colunasDaLinha(l, nomeDe);
   const p = l.prospect;
@@ -329,7 +348,9 @@ function Linha(props: LinhaProps) {
       </td>
       <td className="px-3 py-2.5">{bant ? <LetrasDoBant bant={bant} compacto /> : TRACO}</td>
       <td className="whitespace-nowrap px-3 py-2.5">{c.tipo}</td>
-      {FRENTES_DO_FIT.map((f) => <CelulaDeFit key={f} fit={l.fits?.find((x) => x.frente === f)} maior={c.maior === f} />)}
+      {linhasDoFit.map((ls) => (
+        <CelulaDeFit key={ls.id} rotulo={ls.nome} nota={l.notasPorLinha?.[ls.id] ?? null} maior={c.maior === ls.id} />
+      ))}
       <td className="whitespace-nowrap px-3 py-2.5 text-center font-mono tabular-nums" title={l.faturamentoEstimado ? 'Estimado pela Base' : undefined}>{c.faturamento}</td>
       <td className="whitespace-nowrap px-3 py-2.5 text-center font-mono tabular-nums">{c.distancia}</td>
       <td className="whitespace-nowrap px-3 py-2.5">{c.responsavel}</td>
@@ -339,23 +360,24 @@ function Linha(props: LinhaProps) {
 }
 
 interface CelulaDeFitProps {
-  fit: CompanyFit | undefined;
+  rotulo: string;
+  nota: number | null;
   maior: boolean;
 }
 
-/** A nota de um serviço; a maior em destaque (US-0014). Sem dados da Receita, traço. */
+/** A nota de uma linha de serviço; a maior em destaque (US-0047). Sem dados da Receita, traço. */
 function CelulaDeFit(props: CelulaDeFitProps) {
-  const { fit, maior } = props;
-  if (!fit) return <td className="px-2 py-2.5 text-center text-muted-foreground">{TRACO}</td>;
+  const { rotulo, nota, maior } = props;
+  if (nota === null) return <td className="px-2 py-2.5 text-center text-muted-foreground">{TRACO}</td>;
   return (
-    <td className="px-2 py-2.5 text-center font-mono tabular-nums" title={`${fit.rotulo}: ${fit.nota}${maior ? ' — o maior fit' : ''}`}>
+    <td className="px-2 py-2.5 text-center font-mono tabular-nums" title={`${rotulo}: ${nota}${maior ? ' — o maior fit' : ''}`}>
       <span
         className={cn(
           'inline-block min-w-[2.25rem] rounded-md border px-1.5 py-0.5',
           maior ? 'border-primary bg-accent-subtle font-semibold text-success-emphasis' : 'border-transparent text-muted-foreground',
         )}
       >
-        {fit.nota}
+        {nota}
       </span>
       {maior && <span className="sr-only"> (o maior fit)</span>}
     </td>
