@@ -8,21 +8,18 @@ import {
   FATURAMENTOS,
   FUNCIONARIOS,
   IDADES,
-  MAIOR_NOTA,
   NATUREZAS,
-  OPCOES_DE_FIT_MINIMO,
-  OPCOES_DE_SERVICO_DO_FIT,
   rotuloDaDistancia,
   temFiltroDeAtividade,
   UFS,
 } from '@/lib/prospecting/filtrosReceita';
 import type { FiltrosReceita, Opcao } from '@/types/filtrosReceita';
-import type { FitFront } from '@/types/receita';
 import { RELACOES_DA_ORIGAMI } from '@/lib/prospecting/relacao';
 import { cn } from '@/lib/utils';
 import { resumo, resumoDoCnae, resumoDoRamo, resumoDoSetor, rotulosDe } from '@/lib/prospecting/resumoDosFiltros';
 import { Caixa, Chips, EscolhaUnica, Grupo, Lista } from '../filtros/BlocosDeFiltro';
 import { DistanciaDeFormiga } from '../filtros/DistanciaDeFormiga';
+import { GrupoDoFitPorServico } from '../filtros/GrupoDoFitPorServico';
 import { CnaeIncluirTirar, RamoIncluirTirar, SetorIncluirTirar } from '../filtros/AtividadeIncluirTirar';
 
 interface PainelDeFiltrosProps {
@@ -73,16 +70,7 @@ export function PainelDeFiltros(props: PainelDeFiltrosProps) {
         )}
       </div>
 
-      {/* US-0014: o serviço cujo fit a lista mostra, ordena e filtra, e a nota mínima nele. */}
-      <Grupo titulo="Fit por serviço" resumo={resumo(resumoDoFit(f))}>
-        <EscolhaUnica
-          rotulo="Serviço do fit"
-          opcoes={OPCOES_DE_SERVICO_DO_FIT}
-          valor={f.servicoDoFit ?? MAIOR_NOTA}
-          onEscolher={(v) => mudar({ servicoDoFit: v === MAIOR_NOTA ? null : (v as FitFront) })}
-        />
-        <EscolhaUnica rotulo="Fit mínimo" opcoes={OPCOES_DE_FIT_MINIMO} valor={f.fitMinimo} onEscolher={(fitMinimo) => mudar({ fitMinimo })} />
-      </Grupo>
+      <GrupoDoFitPorServico servicoDoFit={f.servicoDoFit} fitMinimo={f.fitMinimo} onChange={mudar} />
       <Grupo titulo="Relação com a Origami" resumo={resumo(rotulosDe(RELACOES_DA_ORIGAMI, f.relacoes))}>
         <Lista rotulo="Relação com a Origami" opcoes={RELACOES_DA_ORIGAMI} marcados={f.relacoes} onAlternar={(v) => mudar({ relacoes: alternar(f.relacoes, v) })} />
       </Grupo>
@@ -136,13 +124,5 @@ export function PainelDeFiltros(props: PainelDeFiltrosProps) {
 function resumoDoCnaeDaBase(f: FiltrosReceita): string {
   const secundaria = f.secundaria && temFiltroDeAtividade(f) ? 'com secundária' : '';
   return [resumoDoCnae(f), secundaria].filter(Boolean).join(' · ');
-}
-
-/** "Lei do Bem · 60 ou mais": o que está valendo no fit. */
-function resumoDoFit(f: FiltrosReceita): string[] {
-  return [
-    f.servicoDoFit ? rotulosDe(OPCOES_DE_SERVICO_DO_FIT, [f.servicoDoFit])[0] : null,
-    f.fitMinimo > 0 ? rotulosDe(OPCOES_DE_FIT_MINIMO, [f.fitMinimo])[0] : null,
-  ].filter((t): t is string => !!t);
 }
 

@@ -2,7 +2,9 @@ import type { ReactNode } from 'react';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { useHideValues } from '@/contexts/HideValuesContext';
 import { formatCNPJ } from '@/lib/masks';
-import { FIT_QUE_DESTACA, FRENTES_DO_FIT, ROTULO_CURTO_DA_FRENTE, ROTULO_DA_FRENTE } from '@/lib/prospecting/fit';
+import { FIT_QUE_DESTACA } from '@/lib/prospecting/fit';
+import { regraValida, type GrupoDeFit } from '@/lib/prospecting/fitDoCatalogo';
+import { useFitDoCatalogo } from '@/hooks/useFitDoCatalogo';
 import type { FitFront } from '@/types/receita';
 import {
   anosDeOperacao,
@@ -57,8 +59,10 @@ interface EmpresasReceitaTableProps {
  * conta no tooltip (US-0006).
  */
 export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
-  const { linhas, ordenacao, onOrdenar, onAbrir, selecao, relacaoIndisponivel = false, compacta = false, servicoDoFit = null } = props;
+  const { linhas, ordenacao, onOrdenar, onAbrir, selecao, relacaoIndisponivel = false, compacta = false } = props;
   useHideValues(); // re-renderiza quando o olho de ocultar valores muda
+  const { grupos } = useFitDoCatalogo();
+  const servicoDoFit = regraValida(props.servicoDoFit ?? null, grupos);
   const ordenavel = (ordem: OrdemReceita, rotulo: string, numerica = false) => (
     <CabecalhoOrdenavel ordem={ordem} ordenacao={ordenacao} onOrdenar={onOrdenar} numerica={numerica}>
       {rotulo}
@@ -80,12 +84,12 @@ export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
           {ordenavel('idade', 'Idade', true)}
           {ordenavel('faturamento', 'Faturamento', true)}
           <th scope="col" className="whitespace-nowrap px-3 font-medium">Dívida ativa</th>
-          {ordenavel('fit', servicoDoFit ? `Fit · ${ROTULO_CURTO_DA_FRENTE[servicoDoFit]}` : 'Fit')}
+          {ordenavel('fit', tituloDoFit(servicoDoFit, grupos))}
         </tr>
       </thead>
       <tbody>
         {linhas.map((empresa) => (
-          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} selecao={selecao} relacaoIndisponivel={relacaoIndisponivel} servicoDoFit={servicoDoFit ?? null} />
+          <Linha key={empresa.cnpj} empresa={empresa} compacta={compacta} onAbrir={onAbrir} selecao={selecao} relacaoIndisponivel={relacaoIndisponivel} servicoDoFit={servicoDoFit} />
         ))}
       </tbody>
     </table>
@@ -273,15 +277,25 @@ const NOTA_DO_SERVICO: Record<FitFront, (e: EmpresaReceita) => number> = {
   consultoria: (e) => e.fit_consultoria,
 };
 
-/** Os quatro serviços no title: o que a pessoa vê ao parar o mouse na nota. */
-const notasNoTitulo = (e: EmpresaReceita) =>
-  FRENTES_DO_FIT.map((f) => `${ROTULO_DA_FRENTE[f]}: ${NOTA_DO_SERVICO[f](e) ?? 0}`).join(' · ');
+/** "Fit", ou "Fit · Lei do Bem" com o serviço escolhido no filtro (US-0047: nome do catálogo). */
+const tituloDoFit = (servicoDoFit: FitFront | null, grupos: GrupoDeFit[]) =>
+  servicoDoFit ? `Fit · ${grupos.find((g) => g.frente === servicoDoFit)?.rotuloCurto ?? ''}` : 'Fit';
+
+/** Os serviços do catálogo no title: o que a pessoa vê ao parar o mouse na nota. */
+const notasNoTitulo = (e: EmpresaReceita, grupos: GrupoDeFit[]) =>
+  grupos.map((g) => `${g.rotulo}: ${NOTA_DO_SERVICO[g.frente](e) ?? 0}`).join(' · ');
+
+function destaqueDoFit(e: EmpresaReceita, grupos: GrupoDeFit[]): string {
+  const grupo = grupos.find((g) => g.frente === e.fit_frente);
+  return e.fit_previo >= FIT_QUE_DESTACA && grupo ? `Maior nota: ${grupo.rotulo}. ` : 'Nenhum serviço se destaca. ';
+}
 
 function FitPrevio({ empresa, servicoDoFit }: { empresa: EmpresaReceita; servicoDoFit: FitFront | null }) {
+  const { grupos } = useFitDoCatalogo();
   const nota = servicoDoFit ? NOTA_DO_SERVICO[servicoDoFit](empresa) ?? 0 : empresa.fit_previo;
-  const destaque = empresa.fit_previo >= FIT_QUE_DESTACA ? `Maior nota: ${ROTULO_DA_FRENTE[empresa.fit_frente] ?? 'serviço'}. ` : 'Nenhum serviço se destaca. ';
+  const destaque = destaqueDoFit(empresa, grupos);
   return (
-    <span className="inline-flex items-center gap-2" title={`${servicoDoFit ? '' : destaque}${notasNoTitulo(empresa)}`}>
+    <span className="inline-flex items-center gap-2" title={`${servicoDoFit ? '' : destaque}${notasNoTitulo(empresa, grupos)}`}>
       <span className="w-6 text-right font-mono text-[13px] font-semibold tabular-nums">{nota}</span>
       <span className="h-1.5 w-11 overflow-hidden rounded-full bg-muted" aria-hidden="true">
         <span className="block h-full rounded-full bg-primary" style={{ width: `${nota}%` }} />

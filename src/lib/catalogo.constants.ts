@@ -33,3 +33,6 @@ export const CONFIRMACAO_DO_CATALOGO = {
 
 /** Separa o serviço do modelo de receita no valor da escolha do projeto (US-0046). */
 export const SEPARADOR_DA_ESCOLHA = '::';
+
+/** Valor do campo "Fit" do serviço quando ele não usa nenhuma regra (US-0047). */
+export const SEM_REGRA_DE_FIT = 'sem_fit';

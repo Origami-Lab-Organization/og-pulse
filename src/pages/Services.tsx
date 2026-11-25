@@ -41,6 +41,7 @@ import type { Service } from '@/types/service';
 import type { CreateServiceLineInput, ServiceLine } from '@/types/serviceLine';
 import type { ServiceRevenueModel } from '@/types/serviceRevenueModel';
 import { cn } from '@/lib/utils';
+import { ROTULO_DA_FRENTE } from '@/lib/prospecting/fit';
 
 /** O que a página pede para confirmar: desativar linha ou serviço, ou excluir serviço. */
 type Confirmacao =
@@ -188,6 +189,7 @@ interface LinhaDoServicoProps {
 function detalhesDoServico(props: LinhaDoServicoProps): string[] {
   const { service, models, usos, centro } = props;
   const detalhes: string[] = [];
+  if (service.regraDeFit) detalhes.push(`Fit ${ROTULO_DA_FRENTE[service.regraDeFit]}`);
   if (servicoTemPercentual(service.id, models)) {
     const chance = service.chancePadraoPercent;
     detalhes.push(chance == null ? 'Chance padrão não informada' : `Chance padrão ${chance}%`);
