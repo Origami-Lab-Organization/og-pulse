@@ -330,3 +330,29 @@ US-0045 aguardam os épicos anteriores do roadmap.
 | [US-0046](stories/3-pronta-para-desenvolver/US-0046-catalogo-2027-linhas-servicos-e-formas-de-receita.md) | Catálogo 2027: linhas, serviços e formas de receita | Admin | Pronta para desenvolver | Pronta com ressalvas |
 | [US-0047](stories/3-pronta-para-desenvolver/US-0047-fit-por-servico-segue-o-catalogo.md) | Fit por serviço segue o catálogo | Pessoa do comercial | Pronta para desenvolver | Pronta com ressalvas |
 | [US-0048](stories/3-pronta-para-desenvolver/US-0048-filtro-por-linha-e-servico.md) | Filtrar e ver projetos por linha e por serviço | Admin, GP ou comercial | Pronta para desenvolver | Pronta com ressalvas |
+
+### Férias lançadas pelo sistema (aberto em 2026-11-25, a refinar)
+
+Pedido do Victor Couto (25/11/2026): férias deixam de ser lançadas à mão como atividade e passam a
+ser uma funcionalidade do sistema, com custo no centro de custo **Férias**, separado de
+**Ausências** (folga, licença e atestado). Ainda sem histórias: o épico entra no backlog para
+refinar.
+
+**O que já existe**
+- Pedido e aprovação de férias com saldo por aniversário de admissão (ADR-0003):
+  `/minhas-ferias` para a pessoa e `/rh/ferias` para quem tem `ferias:gerir`.
+- A férias aprovada só tira os dias da cobrança de horas não lançadas e da auditoria de horas.
+  Ela não gera lançamento nem custo em centro nenhum.
+- Até a funcionalidade existir, férias são lançadas na atividade **Férias** (centro Férias). A
+  antiga atividade "Folga/Férias" foi desativada em 25/11/2026 e deu lugar a **Folga** (centro
+  Ausências) e **Férias**; os lançamentos antigos ficaram como estavam.
+
+**Para refinar**
+- A férias aprovada vira lançamento sozinha, dia a dia, no centro Férias? Com quantas horas por
+  dia (jornada da pessoa)?
+- Como fica o lançamento quando a férias é cancelada ou alterada depois de aprovada?
+- O que acontece com horas já lançadas pela pessoa nos dias de férias?
+- A atividade manual "Férias" continua existindo ou some quando a funcionalidade entrar?
+- Os 35 lançamentos antigos de "Folga/Férias" ficam como estão ou são separados?
+- O custo de férias entra no custo dos projetos em que a pessoa está alocada ou fica só no
+  centro Férias?
