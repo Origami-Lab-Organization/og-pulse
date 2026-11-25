@@ -307,7 +307,7 @@ const App = () => (
               />
               {/* Projetos */}
               <Route
-                path="/projetos"
+                path="/projetos/portfolio"
                 element={
                   <RoleProtectedRoute requireCapability="portfolio:ler">
                     <Portfolio />
@@ -472,7 +472,9 @@ const App = () => (
               {/* Backward compat redirects */}
               <Route path="/crm" element={<Navigate to="/comercial/prospeccao" replace />} />
               <Route path="/crm/archived" element={<Navigate to="/comercial/prospeccao" replace />} />
-              <Route path="/portfolio" element={<Navigate to="/projetos" replace />} />
+              <Route path="/portfolio" element={<Navigate to="/projetos/portfolio" replace />} />
+              {/* Portfólio mudou para /projetos/portfolio (US-0048); /projetos continua abrindo ele. */}
+              <Route path="/projetos" element={<Navigate to="/projetos/portfolio" replace />} />
               <Route path="/alocacao" element={<Navigate to="/projetos/alocacoes" replace />} />
               <Route path="/analises/alocacoes" element={<Navigate to="/projetos/alocacoes" replace />} />
               <Route path="/analises/alocacoes/pessoa/:employeeId" element={<RedirectAlocacaoPessoa />} />

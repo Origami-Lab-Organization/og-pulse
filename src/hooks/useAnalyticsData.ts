@@ -1,5 +1,7 @@
+import type { SEM_SERVICO } from '@/lib/catalogo.constants';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { clientService } from '@/services/clientService';
 import { useAuth } from '@/contexts/AuthContext';
 import { addMonths, startOfMonth, endOfMonth, format, parseISO } from 'date-fns';
 import { countWorkingDays } from '@/lib/workingDays';
@@ -17,6 +19,8 @@ export interface AnalyticsFilters {
   clientId?: string;
   managerId?: string;
   projectId?: string;
+  /** Serviços aceitos pelo filtro de linha e serviço (US-0048); nulo = todos. */
+  servicos?: string[] | typeof SEM_SERVICO | null;
 }
 
 export interface CostByProject {
@@ -412,13 +416,9 @@ export function useAnalyticsFilterOptions() {
     queryFn: async () => {
       if (!tenantId) return { clients: [], managers: [], projects: [] };
 
-      const [clientsRes, managersRawRes, projectsRes] = await Promise.all([
-        supabase
-          .from('clients')
-          .select('id, company_name')
-          .eq('tenant_id', tenantId)
-          .eq('status', 'active')
-          .order('company_name'),
+      const [clients, managersRawRes, projectsRes] = await Promise.all([
+        // US-0048: só clientes com projeto em andamento ou concluído há pouco.
+        clientService.comProjetoRecente(tenantId),
         // Deriva gerentes diretamente dos projetos — fonte única de verdade, independe do flag is_gerente
         supabase
           .from('projects')
@@ -447,7 +447,7 @@ export function useAnalyticsFilterOptions() {
         .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
       return {
-        clients: clientsRes.data || [],
+        clients,
         managers,
         projects: projectsRes.data || [],
       };

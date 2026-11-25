@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { MyProjectDetail } from '@/hooks/useMyProjectDetail';
-import { SERVICE_LINE_LABELS } from '@/types/serviceLine';
+import { useCatalogoDosProjetos } from '@/hooks/useCatalogoDosProjetos';
 import { formatDate, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
@@ -59,6 +59,7 @@ function KpiCard({ label, value, sub, progress, barColor, icon, hideBar }: KpiCa
 }
 
 export function MyProjectOverviewTab({ project, currentEmployeeId }: MyProjectOverviewTabProps) {
+  const { rotuloDoServico } = useCatalogoDosProjetos();
   // ── KPI calculations ────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     // 1. Horas executadas
@@ -111,9 +112,7 @@ export function MyProjectOverviewTab({ project, currentEmployeeId }: MyProjectOv
 
   // ── Dados formatados ─────────────────────────────────────────────────────
   const clientName = project.clientLabel;
-  const serviceLabel = project.serviceLine
-    ? (SERVICE_LINE_LABELS[project.serviceLine] ?? project.serviceLine)
-    : '—';
+  const serviceLabel = rotuloDoServico(project.serviceLine) ?? '—';
   const durationLabel = project.isContinuous
     ? 'Contínuo'
     : `${project.durationMonths} ${project.durationMonths === 1 ? 'mês' : 'meses'}`;

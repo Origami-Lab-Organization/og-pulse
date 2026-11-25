@@ -36,3 +36,33 @@ export const SEPARADOR_DA_ESCOLHA = '::';
 
 /** Valor do campo "Fit" do serviço quando ele não usa nenhuma regra (US-0047). */
 export const SEM_REGRA_DE_FIT = 'sem_fit';
+
+/** Opção do filtro de serviço para projetos sem serviço (US-0048). */
+export const SEM_SERVICO = 'sem_servico';
+
+/** Opção "todas/todos" dos filtros de linha e de serviço (o Select não aceita valor vazio). */
+export const TODOS_DO_FILTRO = '__todos__';
+
+/** Valor que nenhum projeto tem: filtra "linha sem serviço" sem trazer projeto (US-0048). */
+export const NENHUM_SERVICO = '__nenhum__';
+
+/** US-0048: ícones que o admin escolhe para a linha (chaves do CHECK em service_lines.icone). */
+export const ICONES_DA_LINHA = [
+  'camadas', 'maleta', 'moedas', 'predio', 'foguete', 'codigo', 'lampada', 'grafico', 'capelo', 'aperto_de_maos',
+] as const;
+export type IconeDaLinha = (typeof ICONES_DA_LINHA)[number];
+export const ICONE_PADRAO_DA_LINHA: IconeDaLinha = 'camadas';
+
+/** Nome de cada ícone para leitores de tela. */
+export const NOME_DO_ICONE: Record<IconeDaLinha, string> = {
+  camadas: 'Camadas',
+  maleta: 'Maleta',
+  moedas: 'Moedas',
+  predio: 'Prédio público',
+  foguete: 'Foguete',
+  codigo: 'Código',
+  lampada: 'Lâmpada',
+  grafico: 'Gráfico',
+  capelo: 'Capelo',
+  aperto_de_maos: 'Aperto de mãos',
+};

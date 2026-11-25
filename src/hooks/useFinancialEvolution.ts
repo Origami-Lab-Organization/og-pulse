@@ -1,3 +1,4 @@
+import { NENHUM_SERVICO, SEM_SERVICO } from '@/lib/catalogo.constants';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, parseISO, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -179,6 +180,7 @@ export function useFinancialEvolution(
       filters.clientId,
       filters.managerId,
       filters.projectId,
+      filters.servicos ?? null,
       isAdmin,
       currentEmployeeId,
     ],
@@ -196,6 +198,9 @@ export function useFinancialEvolution(
       if (filters.clientId) projectsQuery = projectsQuery.eq('client_id', filters.clientId);
       if (filters.managerId) projectsQuery = projectsQuery.eq('manager_id', filters.managerId);
       if (filters.projectId) projectsQuery = projectsQuery.eq('id', filters.projectId);
+      // US-0048: linha e serviço; linha sem serviço não traz projeto nenhum.
+      if (filters.servicos === SEM_SERVICO) projectsQuery = projectsQuery.is('service_line', null);
+      else if (filters.servicos) projectsQuery = projectsQuery.in('service_line', filters.servicos.length ? filters.servicos : [NENHUM_SERVICO]);
 
       const { data: projects, error: projErr } = await projectsQuery;
       if (projErr) throw projErr;
@@ -248,7 +253,7 @@ export function useFinancialEvolution(
 
       // Mão de obra interna (activity_timesheets) é custo da empresa, não de projeto:
       // só entra na visão-empresa (sem recorte por GP/projeto/cliente).
-      const includeInternal = !filters.managerId && !filters.projectId && !filters.clientId;
+      const includeInternal = !filters.managerId && !filters.projectId && !filters.clientId && !filters.servicos;
       const activityPromise = includeInternal
         ? todasAsPaginas<ActivityCostRow>((de, ate) =>
             supabase

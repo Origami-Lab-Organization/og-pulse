@@ -1,3 +1,4 @@
+import { NENHUM_SERVICO, SEM_SERVICO } from '@/lib/catalogo.constants';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,7 +44,8 @@ export interface PortfolioProject {
 interface PortfolioFilters {
   searchQuery?: string;
   clientId?: string;
-  serviceLine?: string;
+  /** Serviços aceitos pelo filtro de linha e serviço (US-0048); nulo = todos. */
+  servicos?: string[] | typeof SEM_SERVICO | null;
   managerId?: string;
   year?: number;
 }
@@ -64,13 +66,13 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
   const tenantId = employee?.tenant_id;
 
   const clientId = filters?.clientId;
-  const serviceLineFilter = filters?.serviceLine;
+  const servicosFiltro = filters?.servicos ?? null;
   const managerIdFilter = filters?.managerId;
 
   // A busca filtra no cliente, sobre o cache (`select`): na chave, cada tecla relia todos os
   // projetos com todas as parcelas. O ano também não entra — a consulta não o usa.
   return useQuery({
-    queryKey: ['portfolio-projects', tenantId, clientId, serviceLineFilter, managerIdFilter],
+    queryKey: ['portfolio-projects', tenantId, clientId, servicosFiltro, managerIdFilter],
     select: (projects) => filterPortfolioBySearch(projects, searchQuery),
     queryFn: async () => {
       let query = supabase
@@ -99,7 +101,9 @@ export const usePortfolioProjects = (searchQuery?: string, filters?: PortfolioFi
 
       // Filtros avançados
       if (clientId) query = query.eq('client_id', clientId);
-      if (serviceLineFilter) query = query.eq('service_line', serviceLineFilter);
+      // US-0048: linha e serviço; linha sem serviço não traz projeto nenhum.
+      if (servicosFiltro === SEM_SERVICO) query = query.is('service_line', null);
+      else if (servicosFiltro) query = query.in('service_line', servicosFiltro.length ? servicosFiltro : [NENHUM_SERVICO]);
       // Seguindo .harness/patterns/security.md: a leitura ampla depende de RLS por tenant;
       // o filtro de PM é uma escolha da tela, não uma regra de autorização.
       if (managerIdFilter) query = query.eq('manager_id', managerIdFilter);

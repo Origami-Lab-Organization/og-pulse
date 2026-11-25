@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { clientService } from '@/services/clientService';
 import { useAuth } from '@/contexts/AuthContext';
-import { useServices } from '@/hooks/useServices';
+import { FiltroDeLinhaEServico } from '@/components/catalogo/FiltroDeLinhaEServico';
+import type { EscolhaDoFiltro } from '@/lib/catalogo';
 import type { PortfolioScope } from '@/types/portfolio';
 import {
   Select,
@@ -13,12 +14,13 @@ import {
 
 interface PortfolioFiltersProps {
   clientId: string;
-  serviceLine: string;
+  /** Linha e serviço (US-0048). */
+  escolha: EscolhaDoFiltro;
   year: string;
   /** Alcance: só os projetos de quem está logado, ou todos (US-0035). */
   scope: PortfolioScope;
   onClientChange: (value: string) => void;
-  onServiceLineChange: (value: string) => void;
+  onEscolhaChange: (escolha: EscolhaDoFiltro) => void;
   onYearChange: (value: string) => void;
   onScopeChange: (value: PortfolioScope) => void;
 }
@@ -35,22 +37,17 @@ const SCOPES: { value: PortfolioScope; label: string }[] = [
 ];
 
 export function PortfolioFilters(props: PortfolioFiltersProps) {
-  const { clientId, serviceLine, year, scope, onClientChange, onServiceLineChange, onYearChange, onScopeChange } = props;
+  const { clientId, escolha, year, scope, onClientChange, onEscolhaChange, onYearChange, onScopeChange } = props;
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: currentYear - 2022 }, (_, i) => currentYear - i);
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;
   const [clients, setClients] = useState<ClientOption[]>([]);
-  const { data: services = [] } = useServices();
 
   useEffect(() => {
     if (!tenantId) return;
-    supabase
-      .from('clients')
-      .select('id, company_name, trading_name')
-      .eq('tenant_id', tenantId)
-      .order('company_name')
-      .then(({ data }) => setClients((data || []) as ClientOption[]));
+    // US-0048: só clientes com projeto em andamento ou concluído há pouco.
+    clientService.comProjetoRecente(tenantId).then(setClients).catch(() => setClients([]));
   }, [tenantId]);
 
   return (
@@ -83,20 +80,8 @@ export function PortfolioFilters(props: PortfolioFiltersProps) {
         </SelectContent>
       </Select>
 
-      {/* Filtro de Linha de Serviço */}
-      <Select value={serviceLine || '__all__'} onValueChange={v => onServiceLineChange(v === '__all__' ? '' : v)}>
-        <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Todas as linhas" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">Todas as linhas</SelectItem>
-          {services.filter(s => s.isActive).map(s => (
-            <SelectItem key={s.id} value={s.id}>
-              {s.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* US-0048: linha e serviço, sozinhos ou juntos; desativados num grupo próprio. */}
+      <FiltroDeLinhaEServico value={escolha} onChange={onEscolhaChange} />
 
       {/* O alcance é escolha da tela; quem pode ler o quê continua no RLS. */}
       <div role="group" aria-label="Alcance" className="flex h-10 overflow-hidden rounded-md border border-border">

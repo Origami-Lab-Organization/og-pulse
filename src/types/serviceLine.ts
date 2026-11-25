@@ -1,8 +1,11 @@
+import { ICONES_DA_LINHA, ICONE_PADRAO_DA_LINHA, type IconeDaLinha } from '@/lib/catalogo.constants';
+
 export interface ServiceLineDB {
   id: string;
   tenant_id: string;
   name: string;
   description: string | null;
+  icone?: string;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -14,6 +17,7 @@ export interface ServiceLine {
   tenantId: string;
   name: string;
   description: string | null;
+  icone: IconeDaLinha;
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
@@ -23,13 +27,19 @@ export interface ServiceLine {
 export interface CreateServiceLineInput {
   name: string;
   description?: string;
+  icone?: IconeDaLinha;
 }
+
+/** Valor desconhecido (banco à frente do front) cai no ícone padrão. */
+const comoIcone = (valor: string | null | undefined): IconeDaLinha =>
+  (ICONES_DA_LINHA as readonly string[]).includes(valor ?? '') ? (valor as IconeDaLinha) : ICONE_PADRAO_DA_LINHA;
 
 export const dbToServiceLine = (db: ServiceLineDB): ServiceLine => ({
   id: db.id,
   tenantId: db.tenant_id,
   name: db.name,
   description: db.description,
+  icone: comoIcone(db.icone),
   isActive: db.is_active,
   sortOrder: db.sort_order ?? 0,
   createdAt: db.created_at,

@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ServiceLineFormDialog } from '@/components/services/ServiceLineFormDialog';
+import { IconeDaLinha } from '@/components/catalogo/IconeDaLinha';
 import { ServiceSheet } from '@/components/services/ServiceSheet';
 import { StatusDoServicoPill } from '@/components/services/StatusDoServicoPill';
 import {
@@ -82,9 +83,10 @@ function AbasDoCatalogo(props: { lines: ServiceLine[]; services: Service[]; aba:
     ...lines.filter((l) => l.isActive).map((l) => ({
       id: l.id,
       nome: l.name,
+      icone: l.icone,
       n: services.filter((s) => s.serviceLineId === l.id && !s.desativado).length,
     })),
-    { id: ABA_DESATIVADOS, nome: 'Desativados', n: services.filter((s) => foraDasAbasDeLinha(s, lines)).length },
+    { id: ABA_DESATIVADOS, nome: 'Desativados', icone: null, n: services.filter((s) => foraDasAbasDeLinha(s, lines)).length },
   ];
   return (
     <div role="tablist" aria-label="Linhas de serviço" className="flex flex-wrap gap-1">
@@ -101,6 +103,7 @@ function AbasDoCatalogo(props: { lines: ServiceLine[]; services: Service[]; aba:
             aba === a.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
           )}
         >
+          {a.icone && <IconeDaLinha icone={a.icone} />}
           {a.nome}
           <span className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground">{a.n}</span>
         </button>
@@ -143,7 +146,10 @@ function CabecalhoDaAba(props: CabecalhoProps) {
   if (!linha) return null;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-lg font-semibold">{linha.name}</h2>
+      <h2 className="inline-flex items-center gap-2 text-lg font-semibold">
+        <IconeDaLinha icone={linha.icone} className="h-5 w-5" />
+        {linha.name}
+      </h2>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={onNovoServico}>
           <Plus className="mr-1.5 h-4 w-4" />
