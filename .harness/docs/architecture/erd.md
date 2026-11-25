@@ -59,6 +59,10 @@ sources:
   - src/types/portfolio.ts
 # 25/11/2026: services ganha regra_de_fit (20261125116000, US-0047): a regra de fit que o servico usa
 # na Prospeccao; catalogo fora do diagrama.
+# 25/11/2026: US-0045 e US-0049 (ADR-0056) não mudam colunas nem relações: o cliente passa a nascer da
+# empresa no Ganho (gatilho trg_prospects_ganho_torna_cliente, 20261125121000), copia dela a identificação
+# (trg_prospect_companies_sincroniza_cliente) e a carteira é lida por carteira_de_clientes (20261125122000);
+# o diagrama só ganha o texto da relação clients -> prospect_companies. Ensaiado num Postgres local.
 # 25/11/2026: projects ganha service_revenue_model_id (20261125113000, US-0046): o modelo de receita do
 # projeto, do serviço em service_line (gatilho trg_projects_modelo_do_servico); ensaiado local.
 # 25/11/2026: services ganha desativado e is_active passa a ser derivado (20261125110000, US-0046):
@@ -214,7 +218,7 @@ o orçamento e o projeto apontam para ele, e as pessoas entram por
 erDiagram
     tenants ||--o{ prospect_companies : ""
     tenants ||--o{ prospects : ""
-    clients |o--o{ prospect_companies : "client_id (quando já é cliente)"
+    clients |o--o{ prospect_companies : "client_id (o cliente nasce da empresa no Ganho, ADR-0056)"
     prospect_companies ||--o{ prospects : "company_id (conta do negócio)"
     tenants ||--o{ prospect_contacts : ""
     prospect_companies ||--o{ prospect_contacts : "company_id (empresa atual — não propaga)"

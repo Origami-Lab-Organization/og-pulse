@@ -9,15 +9,34 @@ import { EmQualificacao } from '@/components/prospeccao/qualificacao/EmQualifica
 import { useEmQualificacao } from '@/hooks/useEmQualificacao';
 import { EmpresasDaReceita } from '@/components/prospeccao/receita/EmpresasDaReceita';
 import { useAuth } from '@/contexts/AuthContext';
+import { ListaDeClientes } from '@/components/prospeccao/clientes/ListaDeClientes';
+import { ABA_CLIENTES } from '@/lib/carteira.constants';
 
-type AbaDeEmpresas = 'base' | 'qualificacao';
+type AbaDeEmpresas = 'base' | 'qualificacao' | typeof ABA_CLIENTES;
 
+const ABA_BASE: AbaDeEmpresas = 'base';
 const ABA_QUALIFICACAO: AbaDeEmpresas = 'qualificacao';
 
-const ABAS: ReadonlyArray<{ valor: AbaDeEmpresas; rotulo: string }> = [
-  { valor: 'base', rotulo: 'Base de empresas' },
+const ABAS_DA_PROSPECCAO: ReadonlyArray<{ valor: AbaDeEmpresas; rotulo: string }> = [
+  { valor: ABA_BASE, rotulo: 'Base de empresas' },
   { valor: ABA_QUALIFICACAO, rotulo: 'Em qualificação' },
 ];
+const ABA_DA_CARTEIRA = { valor: ABA_CLIENTES as AbaDeEmpresas, rotulo: 'Clientes' };
+
+/** Quem só tem a carteira (`cliente:ler`) vê só a aba Clientes (US-0049). */
+function abasDe(lerProspeccao: boolean) {
+  return lerProspeccao ? [...ABAS_DA_PROSPECCAO, ABA_DA_CARTEIRA] : [ABA_DA_CARTEIRA];
+}
+
+function abaPedida(pedida: string | null, abas: ReadonlyArray<{ valor: AbaDeEmpresas }>): AbaDeEmpresas {
+  return abas.find((a) => a.valor === pedida)?.valor ?? abas[0].valor;
+}
+
+function ConteudoDaAba({ aba }: { aba: AbaDeEmpresas }) {
+  if (aba === ABA_QUALIFICACAO) return <EmQualificacao />;
+  if (aba === ABA_CLIENTES) return <ListaDeClientes />;
+  return <EmpresasDaReceita />;
+}
 
 /**
  * Empresas (16/11/2026, US-0002, ADR-0053): achar e qualificar contas, em duas abas (19/11/2026,
@@ -27,18 +46,22 @@ const ABAS: ReadonlyArray<{ valor: AbaDeEmpresas; rotulo: string }> = [
  *
  * Link antigo das notificações de gatilho (`?empresa=<id>`) segue para o Pipeline, que abre a
  * ficha da empresa.
+ *
+ * US-0049 (ADR-0056): a página Clientes saiu; a carteira é a aba Clientes (`?aba=clientes`).
  */
 export default function ProspeccaoEmpresas() {
   const { can } = useAuth();
   const [importando, setImportando] = useState(false);
   const [params, setParams] = useSearchParams();
   const empresaDoLink = params.get('empresa');
+  const lerProspeccao = can('prospeccao:ler');
   const { lista: emQualificacao } = useEmQualificacao();
-  const aba: AbaDeEmpresas = params.get('aba') === ABA_QUALIFICACAO ? ABA_QUALIFICACAO : 'base';
+  const abas = abasDe(lerProspeccao);
+  const aba = abaPedida(params.get('aba'), abas);
   const trocarDeAba = (nova: AbaDeEmpresas) =>
     setParams((atual) => {
-      if (nova === ABA_QUALIFICACAO) atual.set('aba', nova);
-      else atual.delete('aba');
+      if (nova === abas[0].valor) atual.delete('aba');
+      else atual.set('aba', nova);
       return atual;
     });
 
@@ -47,7 +70,6 @@ export default function ProspeccaoEmpresas() {
   return (
     <AppLayout
       title="Empresas"
-      description="Ache as contas na base da Receita e qualifique antes de abordar"
       breadcrumbs={[{ label: 'Comercial' }, { label: 'Empresas' }]}
       actions={
         can('prospeccao:editar') && (
@@ -61,15 +83,17 @@ export default function ProspeccaoEmpresas() {
     >
       <BulkCompanyImportDialog open={importando} onOpenChange={setImportando} />
       <div className="space-y-3.5">
-        <AbasDaLista
-          rotulo="Empresas"
-          abas={ABAS}
-          valor={aba}
-          contagem={{ qualificacao: emQualificacao.length }}
-          onChange={trocarDeAba}
-        />
-        <div role="tabpanel" aria-label={ABAS.find((a) => a.valor === aba)?.rotulo}>
-          {aba === ABA_QUALIFICACAO ? <EmQualificacao /> : <EmpresasDaReceita />}
+        {abas.length > 1 && (
+          <AbasDaLista
+            rotulo="Empresas"
+            abas={abas}
+            valor={aba}
+            contagem={{ qualificacao: lerProspeccao ? emQualificacao.length : null }}
+            onChange={trocarDeAba}
+          />
+        )}
+        <div role="tabpanel" aria-label={abas.find((a) => a.valor === aba)?.rotulo}>
+          <ConteudoDaAba aba={aba} />
         </div>
       </div>
     </AppLayout>

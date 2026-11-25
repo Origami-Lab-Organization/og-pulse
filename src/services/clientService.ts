@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
+import { tabela } from '@/services/prospectingTables';
 import { countCommercialContactsByClient } from '@/services/commercialContactService';
 import { ClientDB, CreateClientInput } from '@/types/client';
 import { MESES_DE_ENCERRAMENTO_RECENTE, STATUS_CONCLUIDO, STATUS_EM_ANDAMENTO } from '@/lib/clientesDoFiltro.constants';
@@ -9,6 +11,8 @@ export interface ClienteDoFiltro {
   company_name: string;
   trading_name: string | null;
 }
+
+export type ClienteDaCarteira = Database['public']['Functions']['carteira_de_clientes']['Returns'][number];
 
 export const clientService = {
   /**
@@ -27,6 +31,24 @@ export const clientService = {
     const porId = new Map<string, ClienteDoFiltro>();
     for (const { client } of data ?? []) if (client) porId.set(client.id, client);
     return [...porId.values()].sort((a, b) => a.company_name.localeCompare(b.company_name, 'pt-BR'));
+  },
+
+  /** US-0049: a carteira da aba Clientes de Empresas — empresas com Ganho ou projeto (ADR-0056). */
+  async carteira(tenantId: string): Promise<ClienteDaCarteira[]> {
+    const { data, error } = await supabase.rpc('carteira_de_clientes', { p_tenant: tenantId });
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  /** A empresa ligada ao cliente, se houver (US-0049): com ela, a identificação vem da empresa. */
+  async empresaLigada(clientId: string): Promise<string | null> {
+    const { data, error } = await tabela('prospect_companies')
+      .select('id')
+      .eq('client_id', clientId)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.id ?? null;
   },
 
   async getAll(tenantId: string): Promise<ClientDB[]> {

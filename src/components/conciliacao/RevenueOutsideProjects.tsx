@@ -112,9 +112,9 @@ export function RevenueOutsideProjects(props: { from: string; to: string }) {
         </CardContent>
       </Card>
       <p className="text-sm text-muted-foreground">
-        Para trazer uma dessas receitas para o Pulse, cadastre o cliente em{' '}
-        <Link to="/clients" className="font-medium text-primary underline-offset-4 hover:underline">
-          Clientes
+        Para trazer uma dessas receitas para o Pulse, registre o Ganho da empresa na{' '}
+        <Link to="/comercial/prospeccao" className="font-medium text-primary underline-offset-4 hover:underline">
+          Prospecção
         </Link>{' '}
         e o projeto com as parcelas; na próxima sincronização ela casa sozinha pela NF.
       </p>

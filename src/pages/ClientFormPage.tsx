@@ -5,41 +5,33 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Building2 } from 'lucide-react';
 import ClientForm from '@/components/clients/ClientForm';
-import { useClient, useCreateClient, useUpdateClient } from '@/hooks/useClients';
+import { useClient, useEmpresaDoCliente, useUpdateClient } from '@/hooks/useClients';
+import { ROTA_DA_CARTEIRA } from '@/lib/carteira.constants';
 import { CreateClientInput } from '@/types/client';
 
+const TRILHA = [{ label: 'Comercial' }, { label: 'Empresas', href: ROTA_DA_CARTEIRA }];
+
+/**
+ * Editar o cliente (US-0049). Não há mais cadastro de cliente: ele nasce da empresa no Ganho
+ * (US-0045, ADR-0056). Com empresa, a identificação vem dela e fica travada aqui.
+ */
 const ClientFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const isEditing = !!id;
 
   const { data: client, isLoading } = useClient(id);
-  const createClient = useCreateClient();
+  const { data: empresaId } = useEmpresaDoCliente(id);
   const updateClient = useUpdateClient();
 
-  const cancelTarget = isEditing ? `/clients/${id}` : '/clients';
-
   const handleSubmit = (data: CreateClientInput) => {
-    if (isEditing && id) {
-      updateClient.mutate(
-        { id, updates: data },
-        { onSuccess: () => navigate(`/clients/${id}`) },
-      );
-    } else {
-      createClient.mutate(data, {
-        onSuccess: (newClient) => navigate(`/clients/${newClient.id}`),
-      });
-    }
+    if (!id) return;
+    updateClient.mutate({ id, updates: data }, { onSuccess: () => navigate(`/clients/${id}`) });
   };
 
-  const title = isEditing ? 'Editar Cliente' : 'Novo Cliente';
-  const breadcrumbs = [
-    { label: 'Clientes', href: '/clients' },
-    { label: isEditing ? client?.companyName || 'Editar' : 'Novo' },
-  ];
+  const title = 'Editar cliente';
+  const breadcrumbs = [...TRILHA, { label: client?.companyName || 'Editar' }];
 
-  // Em edição, aguarda o carregamento do cliente antes de montar o formulário.
-  if (isEditing && isLoading) {
+  if (isLoading) {
     return (
       <AppLayout title={title} breadcrumbs={breadcrumbs}>
         <Card>
@@ -52,7 +44,7 @@ const ClientFormPage = () => {
     );
   }
 
-  if (isEditing && !client) {
+  if (!client) {
     return (
       <AppLayout title={title} breadcrumbs={breadcrumbs}>
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -60,11 +52,8 @@ const ClientFormPage = () => {
             <Building2 className="h-8 w-8 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-medium text-foreground">Cliente não encontrado</h3>
-          <p className="mt-1 text-muted-foreground">
-            Ele pode ter sido removido ou não pertence ao seu acesso.
-          </p>
-          <Button className="mt-4" onClick={() => navigate('/clients')}>
-            Voltar para Clientes
+          <Button className="mt-4" onClick={() => navigate(ROTA_DA_CARTEIRA)}>
+            Voltar para Empresas
           </Button>
         </div>
       </AppLayout>
@@ -72,18 +61,15 @@ const ClientFormPage = () => {
   }
 
   return (
-    <AppLayout
-      title={title}
-      description={isEditing ? 'Atualize os dados do cliente' : 'Cadastre um novo cliente'}
-      breadcrumbs={breadcrumbs}
-    >
+    <AppLayout title={title} breadcrumbs={breadcrumbs}>
       <Card>
         <CardContent className="py-6">
           <ClientForm
-            client={isEditing ? client : null}
+            client={client}
+            identificacaoDaEmpresa={Boolean(empresaId)}
             onSubmit={handleSubmit}
-            onCancel={() => navigate(cancelTarget)}
-            isLoading={createClient.isPending || updateClient.isPending}
+            onCancel={() => navigate(`/clients/${client.id}`)}
+            isLoading={updateClient.isPending}
           />
         </CardContent>
       </Card>

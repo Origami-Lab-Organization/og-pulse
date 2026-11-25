@@ -19,7 +19,7 @@ import ChangePassword from "./pages/ChangePassword";
 import PrimeiroAcesso from "./pages/PrimeiroAcesso";
 import ReenviarPrimeiroAcesso from "./pages/ReenviarPrimeiroAcesso";
 import { OnboardingProvider } from "@/components/onboarding/OnboardingProvider";
-import Clients from "./pages/Clients";
+import { CARTEIRA_OU_PROSPECCAO, ROTA_DA_CARTEIRA } from "@/lib/carteira.constants";
 import ClientDetail from "./pages/ClientDetail";
 import ClientFormPage from "./pages/ClientFormPage";
 import NotFound from "./pages/NotFound";
@@ -265,26 +265,13 @@ const App = () => (
                   </RoleProtectedRoute>
                 }
               />
-              <Route
-                path="/clients"
-                element={
-                  <RoleProtectedRoute requireCapability="cliente:ler">
-                    <Clients />
-                  </RoleProtectedRoute>
-                }
-              />
-              <Route
-                path="/clients/new"
-                element={
-                  <RoleProtectedRoute requireCapability="cliente:editar">
-                    <ClientFormPage />
-                  </RoleProtectedRoute>
-                }
-              />
+              {/* US-0049: a página Clientes saiu; a carteira é a aba Clientes de Empresas. */}
+              <Route path="/clients" element={<Navigate to={ROTA_DA_CARTEIRA} replace />} />
+              <Route path="/clients/new" element={<Navigate to={ROTA_DA_CARTEIRA} replace />} />
               <Route
                 path="/clients/:id/edit"
                 element={
-                  <RoleProtectedRoute requireCapability="cliente:editar">
+                  <RoleProtectedRoute requireCapability="prospeccao:editar">
                     <ClientFormPage />
                   </RoleProtectedRoute>
                 }
@@ -292,7 +279,7 @@ const App = () => (
               <Route
                 path="/clients/:id"
                 element={
-                  <RoleProtectedRoute requireCapability="cliente:ler">
+                  <RoleProtectedRoute requireCapability={CARTEIRA_OU_PROSPECCAO}>
                     <ClientDetail />
                   </RoleProtectedRoute>
                 }
@@ -446,7 +433,7 @@ const App = () => (
               <Route
                 path="/comercial/empresas"
                 element={
-                  <RoleProtectedRoute requireCapability="prospeccao:ler">
+                  <RoleProtectedRoute requireCapability={CARTEIRA_OU_PROSPECCAO}>
                     <ProspeccaoEmpresas />
                   </RoleProtectedRoute>
                 }
