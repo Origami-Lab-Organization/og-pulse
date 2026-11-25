@@ -40,7 +40,9 @@ justamente nos clientes antigos.
 A decisão de 15/09/2026 separou os cadastros para que uma empresa só abordada não entrasse na
 carteira. Essa razão continua valendo, mas a carteira passa a ser uma **relação** da empresa, não
 um cadastro à parte: **cliente é a empresa com Ganho ou com projeto**. A tela Empresas já calcula
-essa relação ("Cliente ativo", "Já foi cliente", US-0019).
+essa relação ("Cliente ativo", "Já foi cliente", US-0019), mas hoje ela também sai da simples
+presença no cadastro de clientes (`dados.cliente`, `relacao.ts` linha 72): esse braço cai com esta
+história, e a relação passa a sair só de projeto ou Ganho.
 
 ### Escopo
 
@@ -48,6 +50,8 @@ essa relação ("Cliente ativo", "Já foi cliente", US-0019).
   - o Ganho sem pedir nem criar cliente: a empresa da Oportunidade é o cliente;
   - cliente = empresa com Ganho ou com projeto; orçamento não cria cliente;
   - todo projeto de cliente ligado à empresa;
+  - a relação Cliente ativo / Já foi cliente sem o braço do cadastro de clientes
+    (`dados.cliente`);
   - o Ganho pelo MCP com a mesma regra;
   - o endereço da empresa vindo da Receita (estabelecimento da matriz);
   - o logo só para empresa cliente;
@@ -144,6 +148,10 @@ essa relação ("Cliente ativo", "Já foi cliente", US-0019).
     `projects`, `prospect_companies` e `reimbursement_requests` (consulta de 25/11/2026).
   - PROVADO: a relação Cliente ativo / Já foi cliente é calculada em
     `supabase/functions/_shared/relacao.ts` (`relacaoDaEmpresa`, US-0019).
+  - PROVADO: hoje "Já foi cliente" também sai de `dados.cliente` (`relacao.ts`, linha 72), que a
+    Edge Function `empresas-receita` liga pela simples existência de linha em `clients` com o CNPJ
+    (`index.ts`, `cliente`) ou pelo `prospect_companies.client_id` (`index.ts`, `empresa`), sem
+    Ganho e sem projeto. Sem tirar esse braço, o cenário 3 falha para Gfsis, Rodosafra e Cosmex.
   - PROVADO: a Conta Azul casa a nota pelo `clients.cnpj` (`.harness/integrations/conta-azul.md`).
 - **Comportamento esperado:** cenários 1 a 8.
 - **Endereço:** INFERIDO: a Base na VPS tem `estabelecimentos` com o endereço, mas a visão lida
@@ -154,6 +162,9 @@ essa relação ("Cliente ativo", "Já foi cliente", US-0019).
   - Muda a decisão de 15/09/2026: registrar ADR (cliente passa a ser relação da empresa).
   - Schema só por migration versionada; compatível com o front em produção até o merge.
   - RLS não pode afrouxar: quem só tem `cliente:ler` não passa a ler a Prospecção (ADR-0027).
+- **Superfícies tocadas na relação:** `supabase/functions/_shared/relacao.ts`
+  (`relacaoDaEmpresa` perde o `|| dados.cliente`) e a Edge Function `empresas-receita`
+  (deixa de ligar `cliente` por linha em `clients`).
 - **Riscos para investigar:** telas, relatórios e o Conta Azul que leem `clients`; o MCP de
   Prospecção (`mark_contact_won`, `search_clients`); dados que só existem no cliente (endereço,
   logo, contato principal, status).

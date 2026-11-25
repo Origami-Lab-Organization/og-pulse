@@ -46,7 +46,8 @@ matriz, e a relação da US-0019 já junta pela raiz do CNPJ.
 
 - **Dado** a ficha de uma empresa;
 - **Quando** tento adicionar um CNPJ com raiz (8 primeiros dígitos) diferente da matriz;
-- **Então** o Pulse recusa: empresa de outra raiz é outra empresa.
+- **Então** o Pulse recusa: empresa de outra raiz é outra empresa;
+- **E** ficha sem CNPJ de matriz não aceita filial: primeiro informe o CNPJ da matriz.
 
 **Cenário 4: filial que já é empresa no Pulse**
 
@@ -64,7 +65,7 @@ matriz, e a relação da US-0019 já junta pela raiz do CNPJ.
 ## Decisões (Victor Couto, 25/11/2026)
 
 - A empresa é a matriz; a ficha guarda os CNPJs das filiais.
-- Só entra filial com a mesma raiz de CNPJ.
+- Só entra filial com a mesma raiz de CNPJ; sem CNPJ de matriz, não entra filial.
 - Filial que já é empresa no Pulse é juntada à matriz, com confirmação.
 
 ## Contexto técnico

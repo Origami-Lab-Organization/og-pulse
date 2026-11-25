@@ -312,7 +312,8 @@ membro e permissões por capacidade. Protótipo: `prototipos/portfolio-de-projet
 
 O modo planejamento foi aprovado pelo Victor em 23/11/2026 (protótipo versão 8) e virou a
 US-0039. O encerramento com renovação virou a US-0043 em 24/11/2026 e está em espera pelo
-refino "Do Pipeline ao fim do projeto" (abaixo), junto com a US-0045. As telas de visão do
+refino "Do Pipeline ao fim do projeto" (abaixo). A US-0045, pré-requisito dela, saiu da espera em
+25/11/2026: foi reescrita e está pronta para desenvolver, com o épico 2. As telas de visão do
 membro e permissões estão no protótipo e aguardam a validação do Victor para virar histórias.
 
 ### Do Pipeline ao fim do projeto (aberto em 2026-11-25)

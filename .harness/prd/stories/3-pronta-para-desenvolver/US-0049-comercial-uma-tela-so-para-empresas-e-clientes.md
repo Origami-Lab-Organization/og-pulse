@@ -6,7 +6,7 @@
 - **Épico:** Empresa e cliente (épico 2 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)
 - **Prioridade:** 2.1 do roadmap, depois da US-0045
 - **Aprovada por / em:** Victor Couto, 25/11/2026 ("vamos passar as ressalvas para estarem prontas")
-- **Depende de:** US-0045
+- **Depende de:** US-0045, US-0051 (marca Parceiro, usada no cenário 2)
 - **Relacionadas:** US-0019, US-0045, US-0051, ADR-0027
 
 ## Descrição
@@ -27,7 +27,8 @@ carteira, como o GP sem Prospecção, continua vendo só os clientes.
 - Inclui: o item Clientes sai do menu; Empresas atende os dois acessos; o que cada acesso vê e
   edita; a ficha com projetos e histórico.
 - Não inclui: matriz e filiais (US-0050); marcas (US-0051); contatos e stakeholders, que
-  continuam como estão (ADR-0037, ADR-0045).
+  continuam como estão (ADR-0037, ADR-0045), exceto a capacidade que governa a escrita do
+  stakeholder de conta, que troca junto com a saída de `cliente:editar` (cenário 6).
 
 ## Critérios de aceite
 
@@ -69,8 +70,11 @@ carteira, como o GP sem Prospecção, continua vendo só os clientes.
 
 - **Dado** a tela de perfis de acesso;
 - **Então** a capacidade `cliente:editar` não aparece mais;
-- **E** contatos da empresa seguem `prospeccao:editar`, e stakeholders seguem as regras do
-  projeto.
+- **E** contatos da empresa seguem `prospeccao:editar`;
+- **E** o stakeholder de conta (`project_stakeholders` com `project_id IS NULL`, hoje governado por
+  `cliente:editar` em `20260917150000_stakeholder_do_cliente.sql`, linhas 129, 149 e 169) passa a
+  `prospeccao:editar` na mesma migration que remove a capacidade, e o stakeholder de projeto segue
+  `projeto:editar`.
 
 **Cenário 7: lugar no menu**
 
@@ -100,6 +104,14 @@ carteira, como o GP sem Prospecção, continua vendo só os clientes.
   clientes do MCP (`search_clients`).
 - **Riscos de `cliente:editar` sair:** perfis e exceções que a usam, policies que a citam e a
   capability-matrix; a remoção vai por migration.
+  - PROVADO: `has_capability` nega na ausência (`20260902130000_capability_schema.sql`); apagar a
+    capacidade sem trocar as três policies do ramo de conta de `project_stakeholders` trava a
+    escrita para todos, inclusive o admin.
+  - PROVADO: no perfil padrão, Gerente tem `cliente:editar` e `prospeccao:editar` (espelhada de
+    `pipeline:editar`, `20260915100000_prospeccao_capability.sql`), então ninguém perde acesso no
+    padrão. Antes da migration, listar em produção quem tem `cliente:editar` sem
+    `prospeccao:editar` (papel alterado ou exceção): essas pessoas perdem a edição do stakeholder
+    de conta.
 - **Provas esperadas:** cenários 1 a 7, com uma pessoa só com `cliente:ler`.
 
 ## Implementação
