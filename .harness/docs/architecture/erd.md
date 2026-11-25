@@ -57,6 +57,8 @@ sources:
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
   - src/types/portfolio.ts
+# 25/11/2026: services ganha regra_de_fit (20261125116000, US-0047): a regra de fit que o servico usa
+# na Prospeccao; catalogo fora do diagrama.
 # 25/11/2026: projects ganha service_revenue_model_id (20261125113000, US-0046): o modelo de receita do
 # projeto, do serviço em service_line (gatilho trg_projects_modelo_do_servico); ensaiado local.
 # 25/11/2026: services ganha desativado e is_active passa a ser derivado (20261125110000, US-0046):

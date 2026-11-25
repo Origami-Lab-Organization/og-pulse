@@ -6383,6 +6383,7 @@ export type Database = {
           is_active: boolean
           name: string
           project_type: string
+          regra_de_fit: string | null
           service_line_id: string | null
           template_budget_id: string | null
           tenant_id: string
@@ -6403,6 +6404,7 @@ export type Database = {
           is_active?: boolean
           name: string
           project_type: string
+          regra_de_fit?: string | null
           service_line_id?: string | null
           template_budget_id?: string | null
           tenant_id: string
@@ -6423,6 +6425,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           project_type?: string
+          regra_de_fit?: string | null
           service_line_id?: string | null
           template_budget_id?: string | null
           tenant_id?: string

@@ -12,8 +12,8 @@ export interface FiltrosDaQualificacao extends FiltroDeAtividade {
   /** Tipos de conta; "sem" = sem tipo. */
   tiposDeConta: string[];
   faturamentos: FaixaDeFaturamento[];
-  /** Serviço do fit mínimo (US-0014); nulo = a maior nota. */
-  servicoDoFit: FitFront | null;
+  /** Linha de serviço do fit (US-0047, id da linha); nula = a maior nota. */
+  linhaDoFit: string | null;
   fitMinimo: number;
   /** Nota mínima do BANT; 0 = qualquer. */
   bantMinimo: number;
@@ -37,8 +37,11 @@ export enum ColunaDaQualificacao {
   Desde = 'desde',
 }
 
+/** Coluna fixa, ou a coluna de fit de uma linha de serviço ("linha:<id>", US-0047). */
+export type ColunaOrdenavel = ColunaDaQualificacao | `linha:${string}`;
+
 export interface OrdemDaQualificacao {
-  coluna: ColunaDaQualificacao;
+  coluna: ColunaOrdenavel;
   crescente: boolean;
 }
 
@@ -61,6 +64,8 @@ export interface LinhaDaQualificacao {
   faturamento: number | null;
   faturamentoEstimado: boolean;
   fits: CompanyFit[] | null;
+  /** Nota de cada linha de serviço do fit, por id da linha (US-0047); preenchida pela tela. */
+  notasPorLinha?: Record<string, number | null>;
   bant: number;
   propostas: number;
   responsavel: string | null;
