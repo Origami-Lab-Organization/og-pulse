@@ -187,6 +187,15 @@
 - **Comercial da conta:** é o responsável pela Oportunidade de origem e pode ser trocado na
   empresa.
 
+## Decisões da sétima rodada (Victor Couto, 25/11/2026, US-0046)
+
+- **"Composição" vira "Modelo de Receita"**: cada jeito permitido de vender o serviço, com uma ou
+  mais formas de receita.
+- **Serviço só fica ativo com modelo de receita**, e o usuário vê isso na tela.
+- **Catálogo redesenhado** a partir de uma crítica de design: uma tela com abas por linha, painel
+  lateral para o serviço e aba Desativados. Protótipo: `prototipos/catalogo-de-servicos.html`.
+- **Sem texto explicativo na tela**: a UI e a UX têm de bastar.
+
 ## Roadmap proposto (25/11/2026)
 
 Os números de US são dados ao escrever cada história (US-0046 a US-0048 reservadas em 25/11/2026). A US-0043 e a US-0045 existem e serão

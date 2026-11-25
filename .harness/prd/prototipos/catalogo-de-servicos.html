@@ -1,0 +1,519 @@
+<title>Catálogo de Serviços</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: casca do Pulse (trilho + cabeçalho) sob a barra do protótipo; uma página só com abas por linha de serviço,
+   lista de serviços com os modelos de receita à vista e painel lateral para criar e editar. Tokens = tema do Pulse (src/index.css). */
+:root {
+  --background: hsl(60 33.3% 97.6%);
+  --foreground: hsl(0 0% 14.5%);
+  --card: hsl(0 0% 100%);
+  --muted: hsl(65 25% 90.6%);
+  --muted-soft: hsl(65 25% 90.6% / .45);
+  --muted-foreground: hsl(75 4.9% 32.2%);
+  --border: hsl(67 20.5% 84.7%);
+  --primary: hsl(159 82.8% 22.7%);
+  --primary-hover: hsl(160 82.2% 17.6%);
+  --primary-foreground: hsl(0 0% 100%);
+  --success-subtle: hsl(150 46.7% 94.1%);
+  --warning-subtle: hsl(43 87.5% 90.6%);
+  --warning-emphasis: hsl(23 82.5% 31.4%);
+  --destructive: hsl(17 88.3% 40.4%);
+  --destructive-subtle: hsl(12 78.9% 92.5%);
+  --proto: hsl(0 0% 14.5%);
+  --proto-fg: hsl(60 33.3% 97.6%);
+  --shadow-3: 0 16px 40px hsl(0 0% 14.5% / .18), 0 4px 12px hsl(0 0% 14.5% / .08);
+  --focus: 0 0 0 3px hsl(159 81.5% 29.6% / .35);
+  --overlay: hsl(0 0% 10% / .38);
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: hsl(0 0% 10.2%); --foreground: hsl(65 42.9% 94.5%); --card: hsl(0 0% 14.5%);
+    --muted: hsl(60 2.2% 18%); --muted-soft: hsl(60 2.2% 18% / .6); --muted-foreground: hsl(64 9.2% 70.2%);
+    --border: hsl(60 3.6% 22%);
+    --primary: hsl(159 80.2% 54.5%); --primary-hover: hsl(159 82.2% 64.7%); --primary-foreground: hsl(0 0% 14.5%);
+    --success-subtle: hsl(159 45% 14%);
+    --warning-subtle: hsl(36 50% 16%); --warning-emphasis: hsl(36 89.6% 62.2%);
+    --destructive: hsl(16 84.7% 61.6%); --destructive-subtle: hsl(16 50% 16%);
+    --proto: hsl(60 3.6% 22%); --proto-fg: hsl(65 42.9% 94.5%);
+    --overlay: hsl(0 0% 0% / .55); --focus: 0 0 0 3px hsl(159 80.2% 54.5% / .4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --background: hsl(0 0% 10.2%); --foreground: hsl(65 42.9% 94.5%); --card: hsl(0 0% 14.5%);
+  --muted: hsl(60 2.2% 18%); --muted-soft: hsl(60 2.2% 18% / .6); --muted-foreground: hsl(64 9.2% 70.2%);
+  --border: hsl(60 3.6% 22%);
+  --primary: hsl(159 80.2% 54.5%); --primary-hover: hsl(159 82.2% 64.7%); --primary-foreground: hsl(0 0% 14.5%);
+  --success-subtle: hsl(159 45% 14%);
+  --warning-subtle: hsl(36 50% 16%); --warning-emphasis: hsl(36 89.6% 62.2%);
+  --destructive: hsl(16 84.7% 61.6%); --destructive-subtle: hsl(16 50% 16%);
+  --proto: hsl(60 3.6% 22%); --proto-fg: hsl(65 42.9% 94.5%);
+  --overlay: hsl(0 0% 0% / .55); --focus: 0 0 0 3px hsl(159 80.2% 54.5% / .4);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: 15px; line-height: 1.45; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 6px; }
+.muted { color: var(--muted-foreground); }
+.small { font-size: 13px; }
+svg.lucide { width: 16px; height: 16px; stroke-width: 1.75; flex: none; }
+
+/* Barra do protótipo */
+.proto { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--proto); color: var(--proto-fg); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--proto); }
+.proto-in { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding-block: 6px; font-size: 13px; }
+.proto-tag { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+.proto label { margin-left: auto; display: flex; align-items: center; gap: 6px; opacity: .9; }
+.proto select { background: transparent; border: 1px solid currentColor; border-radius: 6px; padding: 2px 6px; }
+.proto select option { color: hsl(0 0% 14.5%); }
+
+/* Casca do Pulse */
+.shell { display: grid; grid-template-columns: 64px minmax(0, 1fr); min-height: calc(100vh - 40px); }
+.rail { border-right: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; align-items: center; gap: 6px; padding-block: 14px; }
+.rail .logo { width: 28px; height: 28px; border-radius: 8px; background: var(--primary); margin-bottom: 14px; }
+.rail span { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; color: var(--muted-foreground); }
+.rail span.on { background: var(--success-subtle); color: var(--primary); }
+.rail svg.lucide { width: 20px; height: 20px; }
+.content { min-width: 0; display: flex; flex-direction: column; }
+.apphead { display: flex; align-items: center; gap: 12px; padding-block: 14px; border-bottom: 1px solid var(--border); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); min-height: 64px; }
+.apphead h1 { font-size: 21px; margin: 0; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; }
+.apphead .right { margin-left: auto; display: flex; align-items: center; gap: 16px; color: var(--muted-foreground); }
+.apphead .right svg.lucide { width: 20px; height: 20px; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--muted); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--muted-foreground); }
+main { flex: 1; padding-block: 20px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; align-content: start; max-width: 1180px; width: 100%; }
+.crumbs { font-size: 13px; color: var(--muted-foreground); display: flex; gap: 6px; align-items: center; }
+
+/* Componentes */
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 7px 13px; font-weight: 500; font-size: 14px; white-space: nowrap; }
+.btn:hover { background: var(--muted-soft); }
+.btn-primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-ghost { border-color: transparent; background: transparent; }
+.btn-ghost:hover { background: var(--muted-soft); }
+.btn-danger { color: var(--destructive); }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.field { display: grid; gap: 6px; }
+.field label { font-size: 14px; font-weight: 500; }
+.field .hint { font-size: 13px; color: var(--muted-foreground); }
+.input { width: 100%; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 8px 11px; }
+textarea.input { resize: vertical; min-height: 72px; }
+.input:focus-visible { box-shadow: var(--focus); }
+
+/* Topo da página */
+.intro { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between; border-bottom: 1px solid var(--border); }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { border: 0; background: transparent; padding: 10px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--muted-foreground); font-weight: 500; display: inline-flex; gap: 6px; align-items: center; }
+.tab[aria-selected="true"] { color: var(--foreground); border-bottom-color: var(--primary); }
+.tab .n { font-size: 12px; background: var(--muted); border-radius: 999px; padding: 0 7px; color: var(--muted-foreground); }
+.search { position: relative; margin-bottom: 6px; }
+.search svg.lucide { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); }
+.search input { padding-left: 32px; width: 240px; max-width: 100%; }
+
+/* Linha (cabeçalho da aba) */
+.linehead { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.linehead h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.linehead p { margin: 2px 0 0; font-size: 14px; color: var(--muted-foreground); }
+.linehead .acts { display: flex; gap: 8px; align-items: center; }
+
+/* Lista de serviços */
+.list { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; text-align: left; background: transparent; border: 0; border-top: 1px solid var(--border); padding: 14px 16px; }
+.row:first-child { border-top: 0; }
+button.row:hover { background: var(--muted-soft); }
+.row .name { font-weight: 600; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.row .forms { margin-top: 4px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.row .forms span + span::before { content: "·"; margin-right: 10px; color: var(--muted-foreground); }
+.row .meta { margin-top: 4px; font-size: 13px; color: var(--muted-foreground); display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.row .go { color: var(--muted-foreground); }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 500; border-radius: 999px; padding: 2px 9px; }
+.pill-warn { background: var(--warning-subtle); color: var(--warning-emphasis); }
+.pill-off { background: var(--muted); color: var(--muted-foreground); }
+.pill-ok { background: var(--success-subtle); color: var(--primary); }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted-foreground); }
+
+/* Painel lateral */
+.overlay { position: fixed; inset: 0; background: var(--overlay); z-index: 50; }
+.sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); background: var(--card); z-index: 51; box-shadow: var(--shadow-3); display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.sheet header { display: flex; align-items: start; gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+.sheet header h2 { margin: 0; font-size: 18px; }
+.sheet header p { margin: 2px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.sheet header .x { margin-left: auto; }
+.sheet .body { flex: 1; overflow-y: auto; padding: 18px 20px; display: grid; gap: 22px; align-content: start; }
+.sheet footer { border-top: 1px solid var(--border); padding: 12px 20px; display: flex; gap: 8px; justify-content: flex-end; }
+.block { display: grid; gap: 12px; }
+.block h3 { margin: 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.comp { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 8px 8px 12px; }
+.comp .lbl { flex: 1; min-width: 0; font-weight: 500; }
+.picker { border: 1px dashed var(--border); border-radius: 8px; padding: 12px; display: grid; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 1px solid var(--border); background: var(--card); border-radius: 999px; padding: 5px 12px; font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
+.chip[aria-checked="true"] { border-color: var(--primary); background: var(--success-subtle); color: var(--primary); font-weight: 600; }
+.err { color: var(--destructive); font-size: 13px; font-weight: 500; margin: 0; }
+.care { border-top: 1px solid var(--border); padding-top: 16px; display: grid; gap: 8px; }
+.care p { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+
+/* Diálogo e aviso */
+.dlg { position: fixed; inset: 0; display: grid; place-items: center; z-index: 52; padding: 16px; }
+.dialog { background: var(--card); border-radius: 12px; box-shadow: var(--shadow-3); max-width: 460px; width: 100%; padding: 22px; display: grid; gap: 14px; }
+.dialog h2 { margin: 0; font-size: 18px; }
+.dialog .acts { display: flex; justify-content: flex-end; gap: 8px; }
+.toast { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--foreground); color: var(--background); padding: 11px 15px; border-radius: 8px; box-shadow: var(--shadow-3); z-index: 60; max-width: min(440px, calc(100vw - 32px)); font-size: 14px; }
+
+@media (max-width: 700px) {
+  .shell { grid-template-columns: minmax(0, 1fr); } .rail { display: none; }
+  .grid2 { grid-template-columns: minmax(0, 1fr); }
+  .search input { width: 100%; } .search { width: 100%; }
+  .proto label { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="proto">
+  <div class="proto-in">
+    <span class="proto-tag">Protótipo · dados de exemplo · 25/11/2026</span>
+    <span>Catálogo de serviços (US-0046)</span>
+    <label for="role">Ver como
+      <select id="role">
+        <option value="admin">Admin</option>
+        <option value="leitor">Quem só lê o catálogo</option>
+      </select>
+    </label>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="rail" aria-label="Menu do Pulse">
+    <i class="logo" aria-hidden="true"></i>
+    <span title="Dashboard"><i data-lucide="layout-grid"></i></span>
+    <span title="Meu Espaço"><i data-lucide="user"></i></span>
+    <span title="Comercial"><i data-lucide="kanban"></i></span>
+    <span title="Projetos"><i data-lucide="folder-kanban"></i></span>
+    <span title="Análises"><i data-lucide="bar-chart-3"></i></span>
+    <span title="Pessoas"><i data-lucide="users"></i></span>
+    <span class="on" title="Configurações"><i data-lucide="settings"></i></span>
+  </nav>
+  <div class="content">
+    <header class="apphead">
+      <h1>Catálogo de serviços</h1>
+      <div class="right"><i data-lucide="bell"></i><i data-lucide="pen-square"></i><span class="avatar" aria-hidden="true">VC</span></div>
+    </header>
+    <main id="app"></main>
+  </div>
+</div>
+<div id="layer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+<script>
+const FORMAS = [
+  { key: 'fixed', label: 'Escopo fixo' },
+  { key: 'success_fee', label: 'Percentual' },
+  { key: 'hourly', label: 'Cobrança por hora' },
+  { key: 'indication', label: 'Comissão por indicação' },
+  { key: 'courtesy', label: 'Cortesia' },
+];
+const ANTIGAS = { recurring: 'Recorrente', equity: 'Equity' };
+const ROTULO = Object.fromEntries([...FORMAS.map(f => [f.key, f.label]), ...Object.entries(ANTIGAS)]);
+const ORDEM = [...FORMAS.map(f => f.key), ...Object.keys(ANTIGAS)];
+const FITS = ['Dev. de Software', 'Lei do Bem', 'Captação de recursos', 'Consultoria', 'Sem fit'];
+const CENTROS = ['SL01 Projetos', 'SL02 Studio de Produto', 'SL03 Fomento', 'SL04 Governo'];
+
+const state = {
+  role: 'admin',
+  tab: 'projetos',
+  busca: '',
+  linhas: [
+    { id: 'projetos', nome: 'Projetos', desc: 'Consultoria e desenvolvimento de software para clientes.', ativa: true },
+    { id: 'fomento', nome: 'Fomento', desc: 'Incentivos fiscais e acesso a capital para inovação.', ativa: true },
+    { id: 'governo', nome: 'Governo', desc: 'Projetos para órgãos e entidades como o Sebrae.', ativa: true },
+    { id: 'gerais', nome: 'Serviços Gerais', desc: 'Catálogo usado até 2026.', ativa: false },
+    { id: 'ventures', nome: 'Ventures', desc: 'Linha de 2026, arquivada.', ativa: false },
+  ],
+  servicos: [
+    { id: 1, linha: 'projetos', nome: 'Consultoria', centro: 'SL01 Projetos', desc: 'Diagnóstico e plano de transformação.', comps: [['fixed'], ['fixed', 'success_fee']], chance: 60, fit: 'Consultoria', desativado: false, usos: 0 },
+    { id: 2, linha: 'projetos', nome: 'Dev. de Software', centro: 'SL02 Studio de Produto', desc: '', comps: [['fixed'], ['hourly']], chance: null, fit: 'Dev. de Software', desativado: false, usos: 10 },
+    { id: 3, linha: 'fomento', nome: 'Lei do Bem', centro: 'SL03 Fomento', desc: 'Um card por ano-base.', comps: [['success_fee']], chance: 70, fit: 'Lei do Bem', desativado: false, usos: 4 },
+    { id: 4, linha: 'fomento', nome: 'Acesso a Capital', centro: 'SL03 Fomento', desc: '', comps: [['fixed'], ['success_fee'], ['fixed', 'success_fee'], ['indication']], chance: null, fit: 'Captação de recursos', desativado: false, usos: 1 },
+    { id: 5, linha: 'fomento', nome: 'Consultoria', centro: 'SL03 Fomento', desc: 'Escrever o pleito que será submetido.', comps: [['fixed']], chance: null, fit: 'Captação de recursos', desativado: false, usos: 0 },
+    { id: 6, linha: 'governo', nome: 'Workshop Sebrae', centro: 'SL04 Governo', desc: '', comps: [], chance: null, fit: 'Sem fit', desativado: false, usos: 2 },
+    { id: 7, linha: 'governo', nome: 'Dev. de Software', centro: 'SL04 Governo', desc: '', comps: [['fixed']], chance: null, fit: 'Sem fit', desativado: false, usos: 0 },
+    { id: 8, linha: 'gerais', nome: 'Consultoria Estratégica', centro: 'SL01 Projetos', desc: '', comps: [['fixed'], ['recurring']], chance: null, fit: 'Consultoria', desativado: true, usos: 5 },
+    { id: 9, linha: 'gerais', nome: 'Programa de Inovação', centro: 'SL01 Projetos', desc: '', comps: [['fixed']], chance: null, fit: 'Sem fit', desativado: true, usos: 3 },
+    { id: 10, linha: 'ventures', nome: 'Ventures', centro: 'SL01 Projetos', desc: '', comps: [['success_fee'], ['fixed']], chance: null, fit: 'Sem fit', desativado: true, usos: 7 },
+  ],
+  sheet: null,   // { id | null (novo), linha, rascunho }
+  dialog: null,  // 'linha' | 'desativar-linha' | { desativar: id }
+};
+
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (t) => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const admin = () => state.role === 'admin';
+const ordenar = (fs) => [...new Set(fs)].sort((a, b) => ORDEM.indexOf(a) - ORDEM.indexOf(b));
+const rotuloComp = (fs) => ordenar(fs).map(f => ROTULO[f]).join(' + ');
+const chave = (fs) => [...new Set(fs)].sort().join('|');
+const temPercentual = (comps) => comps.some(c => c.includes('success_fee'));
+const antiga = (c) => c.some(f => f in ANTIGAS);
+const linhaDe = (id) => state.linhas.find(l => l.id === id);
+const modelosValidos = (s) => s.comps.filter(c => !antiga(c));
+const semModelo = (s) => !s.desativado && modelosValidos(s).length === 0;
+const foraDaAba = (s) => s.desativado || !linhaDe(s.linha).ativa;
+function statusPill(s) {
+  if (s.desativado) return '<span class="pill pill-off">Desativado</span>';
+  if (semModelo(s)) return '<span class="pill pill-warn"><i data-lucide="alert-triangle"></i>Inativo · sem modelo de receita</span>';
+  return '<span class="pill pill-ok">Ativo</span>';
+}
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
+}
+
+/* ─── Página ─── */
+function linhasAtivas() { return state.linhas.filter(l => l.ativa); }
+function servicosDaAba() {
+  const q = state.busca.trim().toLowerCase();
+  const naAba = state.tab === 'desativados'
+    ? state.servicos.filter(foraDaAba)
+    : state.servicos.filter(s => s.linha === state.tab && !s.desativado);
+  return naAba.filter(s => !q || s.nome.toLowerCase().includes(q) || s.comps.some(c => rotuloComp(c).toLowerCase().includes(q)));
+}
+
+function renderTabs() {
+  const tabs = linhasAtivas().map(l => {
+    const n = state.servicos.filter(s => s.linha === l.id && !s.desativado).length;
+    return `<button class="tab" role="tab" aria-selected="${state.tab === l.id}" data-tab="${l.id}">${esc(l.nome)}<span class="n">${n}</span></button>`;
+  });
+  const nOff = state.servicos.filter(foraDaAba).length;
+  tabs.push(`<button class="tab" role="tab" aria-selected="${state.tab === 'desativados'}" data-tab="desativados">Desativados<span class="n">${nOff}</span></button>`);
+  return `<div class="tabs" role="tablist" aria-label="Linhas de serviço">${tabs.join('')}</div>`;
+}
+
+function metaDoServico(s) {
+  const partes = [`Fit: ${esc(s.fit)}`];
+  if (temPercentual(s.comps)) partes.push(s.chance == null ? 'Chance padrão: não informada' : `Chance padrão: ${s.chance}%`);
+  partes.push(`Centro: ${esc(s.centro)}`);
+  if (s.usos) partes.push(`${s.usos} projeto${s.usos > 1 ? 's' : ''}`);
+  return partes.map(p => `<span>${p}</span>`).join('');
+}
+
+function linhaDeServico(s) {
+  const nome = state.tab === 'desativados' ? `${esc(linhaDe(s.linha).nome)} › ${esc(s.nome)}` : esc(s.nome);
+  const forms = s.comps.length
+    ? s.comps.map(c => `<span>${esc(rotuloComp(c))}${antiga(c) ? ' <span class="pill pill-off">Antiga</span>' : ''}</span>`).join('')
+    : '';
+  const alerta = semModelo(s) ? statusPill(s) : '';
+  const off = state.tab === 'desativados' ? `<span class="pill pill-off">${s.desativado ? 'Desativado' : 'Linha desativada'}</span>` : '';
+  const acao = state.tab === 'desativados' && admin() && linhaDe(s.linha).ativa
+    ? `<span class="btn" data-reativar="${s.id}">Reativar</span>` : '<i data-lucide="chevron-right" class="go"></i>';
+  return `<button class="row" data-servico="${s.id}" aria-label="Abrir ${esc(s.nome)}">
+    <div><div class="name">${nome}${alerta}${off}</div>
+      ${forms ? `<div class="forms">${forms}</div>` : ''}
+      <div class="meta">${metaDoServico(s)}</div></div>${acao}</button>`;
+}
+
+function renderLinhaHead() {
+  if (state.tab === 'desativados') {
+    const linhasOff = state.linhas.filter(l => !l.ativa);
+    return `<div class="linehead"><div><h2>Desativados</h2></div>
+      <div class="acts">${admin() ? linhasOff.map(l => `<button class="btn" data-reativar-linha="${l.id}">Reativar linha ${esc(l.nome)}</button>`).join('') : ''}</div></div>`;
+  }
+  const l = linhaDe(state.tab);
+  return `<div class="linehead"><div><h2>${esc(l.nome)}</h2></div>
+    <div class="acts">${admin() ? `<button class="btn btn-ghost" data-desativar-linha="${l.id}">Desativar linha</button>
+      <button class="btn btn-primary" data-novo><i data-lucide="plus"></i>Novo serviço</button>` : ''}</div></div>`;
+}
+
+function renderPage() {
+  const itens = servicosDaAba();
+  const vazio = state.busca
+    ? 'Nenhum serviço encontrado'
+    : (state.tab === 'desativados' ? 'Nada desativado' : 'Nenhum serviço');
+  $('#app').innerHTML = `
+    <div class="intro"><div class="crumbs">Configurações <i data-lucide="chevron-right"></i> Catálogo de serviços</div>
+      ${admin() ? '<button class="btn" data-nova-linha><i data-lucide="plus"></i>Nova linha</button>' : ''}</div>
+    <div class="toolbar">${renderTabs()}
+      <div class="search"><i data-lucide="search"></i><input id="busca" class="input" type="search" placeholder="Buscar serviço ou modelo" aria-label="Buscar serviço ou modelo de receita" value="${esc(state.busca)}"></div></div>
+    ${renderLinhaHead()}
+    <div class="list" role="list">${itens.length ? itens.map(linhaDeServico).join('') : `<div class="empty">${vazio}</div>`}</div>`;
+  lucide.createIcons();
+}
+
+/* ─── Painel do serviço ─── */
+function abrirServico(id, linha) {
+  const s = id ? state.servicos.find(x => x.id === id) : null;
+  state.sheet = {
+    id, rascunho: s ? JSON.parse(JSON.stringify(s)) : { id: null, linha, nome: '', centro: '', desc: '', comps: [], chance: null, fit: 'Sem fit', desativado: false, usos: 0 },
+    picker: null, pickerErro: null, erro: null,
+  };
+  renderSheet();
+}
+
+function compsHtml(r, leitura) {
+  if (!r.comps.length) return '';
+  return r.comps.map((c, i) => `<div class="comp"><span class="lbl">${esc(rotuloComp(c))}</span>
+    ${antiga(c) ? '<span class="pill pill-off">Antiga</span>' : ''}
+    ${leitura ? '' : `<button class="btn btn-ghost" data-tirar="${i}" aria-label="Tirar o modelo de receita ${esc(rotuloComp(c))}"><i data-lucide="x"></i></button>`}</div>`).join('');
+}
+
+function pickerHtml(sh) {
+  if (!sh.picker) return `<button class="btn" data-abrir-picker style="justify-self:start"><i data-lucide="plus"></i>Adicionar modelo de receita</button>`;
+  const chips = FORMAS.map(f => `<button class="chip" role="checkbox" aria-checked="${sh.picker.includes(f.key)}" data-forma="${f.key}">${sh.picker.includes(f.key) ? '<i data-lucide="check"></i>' : ''}${f.label}</button>`).join('');
+  return `<div class="picker">
+    <div class="chips" role="group" aria-label="Formas do novo modelo de receita">${chips}</div>
+    <div class="small">${sh.picker.length ? `Modelo: <strong>${esc(rotuloComp(sh.picker))}</strong>` : '&nbsp;'}</div>
+    ${sh.pickerErro ? `<p class="err" role="alert">${esc(sh.pickerErro)}</p>` : ''}
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" data-cancelar-picker>Cancelar</button><button class="btn btn-primary" data-confirmar-picker>Adicionar</button></div></div>`;
+}
+
+function opcoes(lista, atual) { return lista.map(v => `<option ${v === atual ? 'selected' : ''}>${esc(v)}</option>`).join(''); }
+
+function renderSheet() {
+  const sh = state.sheet; const layer = $('#layer');
+  if (!sh) { layer.innerHTML = ''; return; }
+  const r = sh.rascunho; const leitura = !admin(); const novo = !sh.id;
+  const linhaOpts = state.linhas.filter(l => l.ativa || l.id === r.linha).map(l => `<option value="${l.id}" ${l.id === r.linha ? 'selected' : ''}>${esc(l.nome)}</option>`).join('');
+  const dis = leitura ? 'disabled' : '';
+  layer.innerHTML = `<div class="overlay" data-fechar></div>
+  <aside class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t">
+    <header><div><h2 id="sh-t" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${novo ? 'Novo serviço' : esc(r.nome)} ${statusPill(r)}</h2>
+      <p>${esc(linhaDe(r.linha).nome)}${!novo && r.usos ? ` · ${r.usos} projeto${r.usos > 1 ? 's' : ''}` : ''}</p></div>
+      <button class="btn btn-ghost x" data-fechar aria-label="Fechar"><i data-lucide="x"></i></button></header>
+    <div class="body">
+      <section class="block"><h3>Dados</h3>
+        <div class="field"><label for="f-nome">Nome do serviço</label><input id="f-nome" class="input" value="${esc(r.nome)}" placeholder="Ex.: Acesso a Capital" ${dis}></div>
+        <div class="grid2">
+          <div class="field"><label for="f-linha">Linha</label><select id="f-linha" class="input" ${dis}>${linhaOpts}</select></div>
+          <div class="field"><label for="f-centro">Centro de custo</label><select id="f-centro" class="input" ${dis}><option value="">Escolha</option>${opcoes(CENTROS, r.centro)}</select></div>
+        </div>
+        <div class="field"><label for="f-desc">Descrição <span class="muted">(opcional)</span></label><textarea id="f-desc" class="input" ${dis}>${esc(r.desc)}</textarea></div>
+      </section>
+      <section class="block"><h3>Modelos de receita</h3>
+        ${compsHtml(r, leitura)}${leitura ? '' : pickerHtml(sh)}
+        ${temPercentual(r.comps) ? `<div class="field"><label for="f-chance">Chance padrão do Percentual (%)</label>
+          <input id="f-chance" class="input" inputmode="decimal" style="width:120px" value="${r.chance ?? ''}" placeholder="60" ${dis}></div>` : ''}
+      </section>
+      <section class="block"><h3>Prospecção</h3>
+        <div class="field"><label for="f-fit">Fit</label><select id="f-fit" class="input" ${dis}>${opcoes(FITS, r.fit)}</select></div>
+      </section>
+      ${!novo && !leitura && !r.desativado && !semModelo(r) ? `<section class="care">
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-danger" data-desativar="${r.id}">Desativar serviço</button>
+        ${r.usos ? '' : `<button class="btn btn-ghost btn-danger" data-excluir="${r.id}">Excluir</button>`}</div></section>` : ''}
+      ${sh.erro ? `<p class="err" role="alert">${esc(sh.erro)}</p>` : ''}
+    </div>
+    <footer>${leitura ? '<button class="btn" data-fechar>Fechar</button>' : `<button class="btn" data-fechar>Cancelar</button><button class="btn btn-primary" data-salvar>${novo ? 'Criar serviço' : 'Salvar'}</button>`}</footer>
+  </aside>`;
+  lucide.createIcons();
+  (leitura ? $('.sheet .x') : $('#f-nome')).focus();
+}
+
+function lerRascunho() {
+  const r = state.sheet.rascunho;
+  r.nome = $('#f-nome').value.trim(); r.linha = $('#f-linha').value; r.centro = $('#f-centro').value;
+  r.desc = $('#f-desc').value; r.fit = $('#f-fit').value;
+  const c = $('#f-chance'); if (c) r.chance = c.value.trim() === '' ? null : Number(c.value.replace(',', '.'));
+}
+
+function erroDoPicker(sel, comps) {
+  if (!sel.length) return 'Escolha ao menos uma forma de receita.';
+  if (sel.includes('courtesy') && sel.length > 1) return 'Cortesia não combina com outra forma de receita.';
+  if (comps.some(c => chave(c) === chave(sel))) return 'Esse modelo de receita já existe neste serviço.';
+  return null;
+}
+
+function alternar(sel, forma) {
+  if (sel.includes(forma)) return sel.filter(f => f !== forma);
+  if (forma === 'courtesy') return ['courtesy'];
+  return ordenar([...sel.filter(f => f !== 'courtesy'), forma]);
+}
+
+function salvar() {
+  lerRascunho(); const sh = state.sheet; const r = sh.rascunho;
+  if (!r.nome) { sh.erro = 'Dê um nome ao serviço.'; return renderSheet(); }
+  if (!r.centro) { sh.erro = 'Escolha o centro de custo.'; return renderSheet(); }
+  if (r.chance != null && !(r.chance > 0 && r.chance <= 100)) { sh.erro = 'A chance padrão vai de 1 a 100%.'; return renderSheet(); }
+  if (state.servicos.some(o => o.id !== r.id && o.linha === r.linha && o.nome.toLowerCase() === r.nome.toLowerCase())) {
+    sh.erro = `Já existe "${r.nome}" na linha ${linhaDe(r.linha).nome}.`; return renderSheet();
+  }
+  if (sh.id) Object.assign(state.servicos.find(x => x.id === sh.id), r);
+  else state.servicos.push({ ...r, id: Date.now() });
+  state.tab = r.linha; state.sheet = null; renderSheet(); renderPage();
+  const acao = sh.id ? 'salvo' : 'criado';
+  toast(semModelo(r) ? `Serviço ${acao} inativo, sem modelo de receita` : `Serviço ${acao}`);
+}
+
+/* ─── Diálogos ─── */
+function renderDialog() {
+  const d = state.dialog; if (!d) return renderSheet();
+  const layer = $('#layer');
+  let html = '';
+  if (d === 'linha') {
+    html = `<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dl-t"><h2 id="dl-t">Nova linha de serviço</h2>
+      <div class="field"><label for="l-nome">Nome</label><input id="l-nome" class="input" placeholder="Ex.: Educação"></div>
+      <div class="field"><label for="l-desc">Descrição <span class="muted">(opcional)</span></label><input id="l-desc" class="input"></div>
+      <p class="err" id="l-err" role="alert" hidden></p>
+      <div class="acts"><button class="btn" data-fechar-dlg>Cancelar</button><button class="btn btn-primary" data-criar-linha>Criar linha</button></div></div>`;
+  } else {
+    const alvo = d.linha ? linhaDe(d.linha) : state.servicos.find(s => s.id === d.servico);
+    const nServ = d.linha ? state.servicos.filter(s => s.linha === d.linha && !s.desativado).length : 0;
+    const titulo = d.linha ? `Desativar a linha ${esc(alvo.nome)} e ${nServ === 1 ? 'o serviço' : `os ${nServ} serviços`} dela?` : `Desativar ${esc(alvo.nome)}?`;
+    html = `<div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dl-t"><h2 id="dl-t">${titulo}</h2>
+      <div class="acts"><button class="btn" data-fechar-dlg>Cancelar</button><button class="btn btn-primary" data-confirmar-desativar>Desativar</button></div></div>`;
+  }
+  layer.innerHTML = `<div class="overlay" data-fechar-dlg></div><div class="dlg">${html}</div>`;
+  const first = $('#l-nome') || $('.dialog .btn'); first && first.focus();
+}
+
+/* ─── Eventos ─── */
+document.addEventListener('click', (e) => {
+  const t = (sel) => e.target.closest(sel);
+  if (t('[data-tab]')) { state.tab = t('[data-tab]').dataset.tab; return renderPage(); }
+  if (t('[data-reativar]')) { e.stopPropagation(); const s = state.servicos.find(x => x.id === +t('[data-reativar]').dataset.reativar); s.desativado = false; renderPage(); return toast(semModelo(s) ? `${s.nome} reativado, inativo sem modelo de receita` : `${s.nome} reativado`); }
+  if (t('[data-reativar-linha]')) { const l = linhaDe(t('[data-reativar-linha]').dataset.reativarLinha); l.ativa = true; renderPage(); return toast(`Linha ${l.nome} reativada`); }
+  if (t('[data-servico]')) return abrirServico(+t('[data-servico]').dataset.servico);
+  if (t('[data-novo]')) return abrirServico(null, state.tab);
+  if (t('[data-nova-linha]')) { state.dialog = 'linha'; return renderDialog(); }
+  if (t('[data-desativar-linha]')) { state.dialog = { linha: t('[data-desativar-linha]').dataset.desativarLinha }; return renderDialog(); }
+  if (t('[data-fechar-dlg]')) { state.dialog = null; return renderDialog(); }
+  if (t('[data-criar-linha]')) {
+    const nome = $('#l-nome').value.trim(); const err = $('#l-err');
+    if (!nome) { err.hidden = false; err.textContent = 'Dê um nome à linha.'; return; }
+    const id = 'l' + Date.now(); state.linhas.push({ id, nome, desc: $('#l-desc').value.trim(), ativa: true });
+    state.dialog = null; state.tab = id; renderDialog(); renderPage(); return toast(`Linha ${nome} criada`);
+  }
+  if (t('[data-confirmar-desativar]')) {
+    const d = state.dialog;
+    if (d.linha) { linhaDe(d.linha).ativa = false; state.tab = 'desativados'; }
+    else { state.servicos.find(s => s.id === d.servico).desativado = true; state.sheet = null; }
+    state.dialog = null; renderDialog(); renderPage(); return toast('Desativado');
+  }
+  if (!state.sheet) return;
+  if (t('[data-fechar]')) { state.sheet = null; return renderSheet(); }
+  if (t('[data-salvar]')) return salvar();
+  if (t('[data-abrir-picker]')) { lerRascunho(); state.sheet.picker = []; state.sheet.pickerErro = null; return renderSheet(); }
+  if (t('[data-cancelar-picker]')) { lerRascunho(); state.sheet.picker = null; return renderSheet(); }
+  if (t('[data-forma]')) { lerRascunho(); state.sheet.picker = alternar(state.sheet.picker, t('[data-forma]').dataset.forma); state.sheet.pickerErro = null; return renderSheet(); }
+  if (t('[data-confirmar-picker]')) {
+    lerRascunho(); const sh = state.sheet; const erro = erroDoPicker(sh.picker, sh.rascunho.comps);
+    if (erro) { sh.pickerErro = erro; return renderSheet(); }
+    sh.rascunho.comps.push(ordenar(sh.picker)); sh.picker = null; return renderSheet();
+  }
+  if (t('[data-tirar]')) { lerRascunho(); state.sheet.rascunho.comps.splice(+t('[data-tirar]').dataset.tirar, 1); return renderSheet(); }
+  if (t('[data-desativar]')) { state.dialog = { servico: +t('[data-desativar]').dataset.desativar }; return renderDialog(); }
+  if (t('[data-excluir]')) { const id = +t('[data-excluir]').dataset.excluir; state.servicos = state.servicos.filter(s => s.id !== id); state.sheet = null; renderSheet(); renderPage(); return toast('Serviço excluído'); }
+});
+document.addEventListener('input', (e) => { if (e.target.id === 'busca') { state.busca = e.target.value; const pos = e.target.selectionStart; renderPage(); const b = $('#busca'); b.focus(); b.setSelectionRange(pos, pos); } });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (state.dialog) { state.dialog = null; return renderDialog(); }
+  if (state.sheet) { state.sheet = null; renderSheet(); }
+});
+$('#role').addEventListener('change', (e) => { state.role = e.target.value; state.sheet = null; renderSheet(); renderPage(); });
+renderPage();
+</script>

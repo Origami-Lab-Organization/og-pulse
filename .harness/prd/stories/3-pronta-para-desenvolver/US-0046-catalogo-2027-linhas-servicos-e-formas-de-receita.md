@@ -5,7 +5,7 @@
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Catálogo e formas de receita (épico 1 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)
 - **Prioridade:** 1 do roadmap
-- **Aprovada por / em:** Victor Couto, 25/11/2026 ("1. composições 2. sim 3. ok, pode abrir o PR")
+- **Aprovada por / em:** Victor Couto, 25/11/2026 ("1. composições 2. sim 3. ok, pode abrir o PR"); revista no mesmo dia (modelo de receita, serviço ativo só com modelo e redesenho do catálogo, protótipo aprovado: "pode aplicar no código")
 - **Relacionadas:** US-0044, US-0047, US-0048, ADR-0003, ADR-0023, ADR-0027, ADR-0031
 
 ## Descrição
@@ -61,24 +61,23 @@ Decisões do refino de 24 e 25/11/2026 (Victor Couto):
   Cortesia;
 - **E** Recorrente e Equity não aparecem para serviço novo.
 
-**Cenário 2: composições permitidas por serviço**
+**Cenário 2: modelos de receita por serviço**
 
 - **Dado** um serviço;
 - **Quando** o admin define as formas de receita dele;
-- **Então** cadastra as composições permitidas, cada uma com uma ou mais formas. Exemplo: Acesso
+- **Então** cadastra os modelos de receita permitidos, cada um com uma ou mais formas. Exemplo: Acesso
   a Capital aceita "Escopo fixo", "Percentual" ou "Escopo fixo + Percentual";
-- **E** o orçamento poderá escolher só uma das composições do serviço (épico 3);
-- **E** a mesma composição não se repete no serviço;
-- **E** um serviço sem nenhuma composição não pode ser usado em orçamento.
+- **E** o orçamento poderá escolher só um dos modelos de receita do serviço (épico 3);
+- **E** o mesmo modelo de receita não se repete no serviço.
 
 **Cenário 3: cortesia é sozinha**
 
-- **Dado** uma composição com Cortesia;
+- **Dado** um modelo de receita com Cortesia;
 - **Então** ela não leva nenhuma outra forma, porque não gera receita.
 
 **Cenário 4: chance padrão da receita ponderada**
 
-- **Dado** um serviço com alguma composição que tenha Percentual;
+- **Dado** um serviço com algum modelo de receita que tenha Percentual;
 - **Quando** o admin edita o serviço;
 - **Então** informa a chance padrão de realização, em %, usada para calcular a receita ponderada
   no orçamento;
@@ -121,6 +120,28 @@ Decisões do refino de 24 e 25/11/2026 (Victor Couto):
 - **E** a linha Ventures fica desativada;
 - **E** projetos, orçamentos e Oportunidades antigos continuam mostrando o serviço que tinham.
 
+**Cenário 10: serviço só fica ativo com modelo de receita**
+
+- **Dado** um serviço sem nenhum modelo de receita válido (as formas antigas não contam);
+- **Então** ele fica inativo e não aparece para orçamentos, Oportunidades e projetos novos;
+- **E** a lista e o painel do serviço mostram "Inativo · sem modelo de receita";
+- **E** ao ganhar o primeiro modelo ele fica ativo sozinho, sem ninguém reativar;
+- **E** ao perder o último modelo ele volta a ficar inativo;
+- **E** um serviço desativado por alguém continua desativado mesmo ganhando modelo.
+
+**Cenário 11: catálogo numa tela só**
+
+- **Dado** Configurações › Catálogo de serviços;
+- **Então** cada linha ativa é uma aba com os serviços dela, e a aba Desativados reúne o que foi
+  desativado e os serviços de linha desativada;
+- **E** cada serviço mostra os modelos de receita, a chance padrão (quando há Percentual), o centro
+  de custo e quantos projetos o usam;
+- **E** criar e editar o serviço acontece num painel lateral com dados, modelos de receita e
+  chance padrão; desativar e excluir ficam no fim dele, e excluir só aparece para serviço sem
+  projeto;
+- **E** a linha é criada e editada num diálogo com nome e descrição;
+- **E** a tela não tem texto explicativo: introdução, dica de campo ou frase de ajuda.
+
 ## Decisões (Victor Couto, 24 e 25/11/2026)
 
 - Linhas Projetos, Fomento e Governo; serviços por linha como no Contexto; valem a partir da
@@ -135,15 +156,21 @@ Decisões do refino de 24 e 25/11/2026 (Victor Couto):
 - Chance padrão da receita ponderada por serviço, definida pelo admin; o comercial ajusta no
   orçamento.
 - Linhas e serviços antigos desativados, não apagados.
-- **Composições permitidas** (25/11/2026): o admin lista as composições de cada serviço e o
-  orçamento escolhe uma delas.
+- **Modelos de receita** (25/11/2026): o admin lista os modelos de receita de cada serviço, cada
+  um com uma ou mais formas, e o orçamento escolhe um deles. O termo "composição", usado no
+  primeiro refino, foi trocado por "Modelo de Receita" no mesmo dia.
+- **Serviço só fica ativo com modelo de receita** (25/11/2026), e o usuário vê isso na tela.
+- **Redesenho do catálogo** (25/11/2026), a partir de uma crítica de design: uma tela só com abas
+  por linha e painel lateral, no lugar da lista de linhas, da página de cada linha e do assistente
+  de 3 passos. Protótipo aprovado: `prototipos/catalogo-de-servicos.html`.
+- **Sem texto explicativo na tela** (25/11/2026): a UI e a UX têm de bastar.
 - **O perfil Gerente perde `catalogo:editar`** (25/11/2026): só o admin edita o catálogo.
 
 ## Pontos em aberto
 
 ### Decisões já tomadas no refino (registro)
 
-- Composições permitidas, escolhidas em vez de "forma combinável" (mais clara para o comercial
+- Modelos de receita explícitos, escolhidos em vez de "forma combinável" (mais clara para o comercial
   e evita combinação que ninguém vende).
 - `catalogo:editar` sai do perfil Gerente.
 
@@ -169,7 +196,7 @@ Decisões do refino de 24 e 25/11/2026 (Victor Couto):
 - **Objetivo observável:** catálogo com linhas, serviços e formas aceitas pelo serviço; lista
   única de formas; desativar sem apagar; edição só do admin.
 - **Termos do domínio:** linha de serviço, serviço, forma de receita (no código ainda "modelo de
-  receita", `service_revenue_models`), composição, chance de realização, receita ponderada,
+  receita", `service_revenue_models`), modelo de receita, chance de realização, receita ponderada,
   cortesia, comissão por indicação.
 - **Comportamento atual:**
   - PROVADO: hierarquia Linha → Serviço → Modelo (ADR-0003; `service_lines`, `services`,
@@ -201,7 +228,8 @@ Decisões do refino de 24 e 25/11/2026 (Victor Couto):
     Ganho, analytics) e continua funcionando com a lista nova;
   - registros antigos com `recurring`, `equity` ou combinados no `model_type`;
   - o tenant de demonstração (`Pulse Demo Consultoria`) tem serviços recorrentes e `no_revenue`.
-- **Provas esperadas:** formas novas e antigas por serviço; composições sem repetição;
+- **Provas esperadas:** formas novas e antigas por serviço; modelos de receita sem repetição;
+  serviço ativo só com modelo (cenário 10);
   cortesia sozinha; chance padrão só em percentual; desativado some da escolha e fica no
   histórico; não-admin não edita.
 - **Fora do escopo:** orçamento, Oportunidade, de-para de projetos, fit e filtros.
@@ -212,4 +240,6 @@ Decisões do refino de 24 e 25/11/2026 (Victor Couto):
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1 a 4, 10 | Migrations `20261125100000_catalogo_composicoes_de_receita` e `20261125110000_servico_ativo_so_com_modelo`, ensaiadas num Postgres local (ida, casos do gatilho e do índice, compatibilidade com o front anterior e rollback) e aplicadas em produção em 25/11/2026 |
+| 5 a 9, 11 | Tela nova em `src/pages/Services.tsx` e `src/components/services/ServiceSheet.tsx`; teste do Victor no localhost (a registrar) |
+| 8 | `catalogo:editar` fora do perfil Gerente pela tela Perfis de acesso (configuração do Victor) |
