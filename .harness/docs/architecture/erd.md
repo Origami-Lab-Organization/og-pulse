@@ -57,6 +57,14 @@ sources:
   - src/types/prospect.ts
   - src/types/prospectMetrics.ts
   - src/types/portfolio.ts
+# 25/11/2026: projects ganha service_revenue_model_id (20261125113000, US-0046): o modelo de receita do
+# projeto, do serviço em service_line (gatilho trg_projects_modelo_do_servico); ensaiado local.
+# 25/11/2026: services ganha desativado e is_active passa a ser derivado (20261125110000, US-0046):
+# servico so fica ativo com modelo de receita. Catalogo fora do diagrama; conferido e ensaiado local.
+# 25/11/2026: service_revenue_models ganha formas (text[]) e services ganha chance_padrao_percent
+# (20261125100000, US-0046) — composicao de formas de receita por servico. O catalogo (service_lines,
+# services, service_revenue_models) nao e desenhado neste diagrama; nada a redesenhar. Conferido
+# contra src/integrations/supabase/types.ts e ensaiado (gatilho, indice, rollback) num Postgres local.
 # 24/11/2026: project_key_results ganha baseline_value, measurement e target_date (20261124190000,
 # US-0039) — o resultado-chave nasce com linha de base, como medir e prazo; colunas nulas.
 # 24/11/2026: project_planning_approvals (20261124180000, US-0039) — pedido de aprovação do
@@ -445,6 +453,7 @@ erDiagram
         text portfolio_stage "front src/types/portfolio.ts:1-15"
         numeric total_value ""
         bool is_continuous ""
+        uuid service_revenue_model_id "FK service_revenue_models, opcional (US-0046)"
     }
     project_installments {
         enum status "installment_status: pending..overdue"

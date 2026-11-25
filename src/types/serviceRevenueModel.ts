@@ -38,12 +38,26 @@ export const PERCENT_MODEL_TYPES: RevenueModelType[] = ['success_fee', 'equity']
 export const isPercentModel = (type: RevenueModelType): boolean =>
   PERCENT_MODEL_TYPES.includes(type);
 
+/**
+ * Formas de receita vendidas a partir do catálogo 2027 (US-0046). Lista fechada; rótulos e
+ * regras em `src/lib/formasDeReceita.constants.ts` e `src/lib/formasDeReceita.ts`.
+ */
+export type FormaDeReceita = 'fixed' | 'success_fee' | 'hourly' | 'indication' | 'courtesy';
+
+/** Formas que não são mais vendidas; só aparecem em modelos de receita anteriores a 25/11/2026. */
+export type FormaAntiga = 'recurring' | 'equity';
+
+export type FormaQualquer = FormaDeReceita | FormaAntiga;
+
 export interface ServiceRevenueModelDB {
   id: string;
   tenant_id: string;
   service_id: string;
   name: string;
-  model_type: RevenueModelType;
+  /** Derivado de `formas` pelo banco: a forma, ou `composicao` quando há mais de uma. */
+  model_type: string;
+  /** Formas do modelo de receita (US-0046), ordenadas pelo banco. Sempre preenchida a partir de 25/11/2026. */
+  formas?: FormaQualquer[];
   base_value: number | null;
   billing_unit: string | null;
   is_active: boolean;
@@ -57,7 +71,8 @@ export interface ServiceRevenueModel {
   tenantId: string;
   serviceId: string;
   name: string;
-  modelType: RevenueModelType;
+  modelType: string;
+  formas: FormaQualquer[];
   baseValue: number | null;
   billingUnit: string | null;
   isActive: boolean;
@@ -69,7 +84,9 @@ export interface ServiceRevenueModel {
 export interface CreateServiceRevenueModelInput {
   serviceId: string;
   name: string;
-  modelType: RevenueModelType;
+  /** Formas do modelo de receita (US-0046). Quando informadas, `modelType` é derivado delas. */
+  formas?: FormaDeReceita[];
+  modelType: string;
   baseValue?: number | null;
   billingUnit?: string | null;
 }
@@ -115,6 +132,7 @@ export const dbToServiceRevenueModel = (db: ServiceRevenueModelDB): ServiceReven
   serviceId: db.service_id,
   name: db.name,
   modelType: db.model_type,
+  formas: db.formas ?? [],
   baseValue: db.base_value,
   billingUnit: db.billing_unit,
   isActive: db.is_active,

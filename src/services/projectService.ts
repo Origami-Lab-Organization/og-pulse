@@ -287,6 +287,7 @@ export const projectService = {
         duration_months: input.durationMonths || 1,
         renewal_date: input.renewalDate || null,
         service_line: input.serviceLine || null,
+        service_revenue_model_id: input.serviceRevenueModelId ?? null,
         success_fee_percent: input.successFeePercent ?? null,
         // Projeto nasce faturável salvo dito o contrário; sem centro quando é de cliente,
         // porque aí a hora herda o centro do serviço (ADR-0035).
@@ -376,6 +377,7 @@ export const projectService = {
     if (updates.renewalDate !== undefined) updateData.renewal_date = updates.renewalDate || null;
     if (updates.durationMonths !== undefined) updateData.duration_months = updates.durationMonths;
     if (updates.serviceLine !== undefined) updateData.service_line = updates.serviceLine;
+    if (updates.serviceRevenueModelId !== undefined) updateData.service_revenue_model_id = updates.serviceRevenueModelId;
     if (updates.successFeePercent !== undefined) updateData.success_fee_percent = updates.successFeePercent;
     Object.assign(updateData, billingUpdate(updates));
     if (updates.valueBookUrl !== undefined) updateData.value_book_url = updates.valueBookUrl || null;

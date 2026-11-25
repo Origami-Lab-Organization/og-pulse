@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceService } from '@/services/serviceService';
+import { catalogoService, type SalvarServicoInput } from '@/services/catalogoService';
 import { dbToService, CreateServiceInput } from '@/types/service';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -68,7 +69,7 @@ export const useToggleServiceActive = () => {
     },
     onSuccess: (_, { isActive }) => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
-      toast({ title: isActive ? 'Serviço ativado' : 'Serviço desativado' });
+      toast({ title: isActive ? 'Serviço reativado' : 'Serviço desativado' });
     },
     onError: (error: Error) => {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
@@ -112,6 +113,40 @@ export const useDeleteService = () => {
         description: error.message || 'Ocorreu um erro ao excluir o serviço.',
         variant: 'destructive',
       });
+    },
+  });
+};
+
+/** Quantos projetos usam cada serviço, para o catálogo (US-0046). */
+export const useProjetosPorServico = () => {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+  return useQuery({
+    queryKey: ['service-usage', tenantId],
+    queryFn: () => serviceService.countProjectsByService(tenantId!),
+    enabled: !!tenantId,
+  });
+};
+
+/** Salva o serviço e os modelos de receita do painel do catálogo, com um aviso só (US-0046). */
+export const useSalvarServico = () => {
+  const queryClient = useQueryClient();
+  const { employee } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (input: Omit<SalvarServicoInput, 'tenantId'>) =>
+      catalogoService.salvarServico({ ...input, tenantId: employee!.tenant_id }),
+    onSuccess: (servico, input) => {
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['service-revenue-models'] });
+      const acao = input.id ? 'salvo' : 'criado';
+      toast({ title: servico.is_active ? `Serviço ${acao}` : `Serviço ${acao} inativo, sem modelo de receita` });
+    },
+    onError: (error: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['service-revenue-models'] });
+      toast({ title: 'Não foi possível salvar o serviço', description: error.message || undefined, variant: 'destructive' });
     },
   });
 };

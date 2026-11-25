@@ -3,6 +3,23 @@ import {
   ServiceRevenueModelDB,
   CreateServiceRevenueModelInput,
 } from '@/types/serviceRevenueModel';
+import { modelTypeDoModelo } from '@/lib/formasDeReceita';
+
+/** Violação do índice `service_revenue_models_composicao_unica`. */
+const CODIGO_DE_REPETICAO = '23505';
+
+/** Traduz a recusa do banco; as mensagens do gatilho do modelo de receita já vêm em português. */
+function erroDoModelo(error: { code?: string; message?: string }): Error {
+  if (error.code === CODIGO_DE_REPETICAO) return new Error('Esse modelo de receita já existe neste serviço.');
+  return new Error(error.message || 'Não foi possível salvar o modelo de receita.');
+}
+
+/** Colunas de forma: com `formas`, o `model_type` sai delas (US-0046). */
+function colunasDaForma(input: Partial<CreateServiceRevenueModelInput>): Record<string, unknown> {
+  if (input.formas) return { formas: input.formas, model_type: modelTypeDoModelo(input.formas) };
+  if (input.modelType !== undefined) return { model_type: input.modelType, formas: [input.modelType] };
+  return {};
+}
 
 export const serviceRevenueModelService = {
   async getAll(tenantId: string): Promise<ServiceRevenueModelDB[]> {
@@ -32,15 +49,16 @@ export const serviceRevenueModelService = {
         service_id: input.serviceId,
         name: input.name,
         model_type: input.modelType,
+        ...colunasDaForma(input),
         base_value: input.baseValue ?? null,
         billing_unit: input.billingUnit ?? null,
-      })
+      } as never)
       .select()
       .single();
 
     if (error) {
       console.error('Error creating service revenue model:', error);
-      throw error;
+      throw erroDoModelo(error);
     }
 
     return data as unknown as ServiceRevenueModelDB;
@@ -52,7 +70,7 @@ export const serviceRevenueModelService = {
   ): Promise<ServiceRevenueModelDB> {
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (input.name !== undefined) updates.name = input.name;
-    if (input.modelType !== undefined) updates.model_type = input.modelType;
+    Object.assign(updates, colunasDaForma(input));
     if (input.baseValue !== undefined) updates.base_value = input.baseValue ?? null;
     if (input.billingUnit !== undefined) updates.billing_unit = input.billingUnit ?? null;
 
@@ -65,7 +83,7 @@ export const serviceRevenueModelService = {
 
     if (error) {
       console.error('Error updating service revenue model:', error);
-      throw error;
+      throw erroDoModelo(error);
     }
 
     return data as unknown as ServiceRevenueModelDB;

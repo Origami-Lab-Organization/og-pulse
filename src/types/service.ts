@@ -23,8 +23,13 @@ export interface ServiceDB {
   default_value: number | null;
   billing_unit: string | null;
   has_default_value: boolean;
+  /** Pode ser escolhido. Derivado pelo banco: NOT desativado AND tem modelo de receita (US-0046). */
   is_active: boolean;
+  /** Desativado por alguém do catálogo (US-0046). */
+  desativado?: boolean;
   template_budget_id: string | null;
+  /** Chance padrão de realização (%) da receita do percentual (US-0046). */
+  chance_padrao_percent?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,8 +45,13 @@ export interface Service {
   defaultValue: number | null;
   billingUnit: string | null;
   hasDefaultValue: boolean;
+  /** Pode ser escolhido em registros novos: não desativado e com modelo de receita (US-0046). */
   isActive: boolean;
+  /** Desativado por alguém do catálogo (US-0046). */
+  desativado: boolean;
   templateBudgetId: string | null;
+  /** Chance padrão de realização (%) da receita do percentual (US-0046); nula = não informada. */
+  chancePadraoPercent: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,6 +62,8 @@ export interface CreateServiceInput {
   costCenterId: string;
   name: string;
   description?: string;
+  /** Chance padrão de realização (%), só para serviço com modelo de receita com Percentual (US-0046). */
+  chancePadraoPercent?: number | null;
   // Campos legados (billing_type/project_type): o valor de cobrança migrou para
   // service_revenue_models. Mantidos opcionais por back-compat das colunas NOT NULL.
   billingType?: BillingType;
@@ -72,7 +84,9 @@ export const dbToService = (db: ServiceDB): Service => ({
   billingUnit: db.billing_unit,
   hasDefaultValue: db.has_default_value,
   isActive: db.is_active,
+  desativado: db.desativado ?? !db.is_active,
   templateBudgetId: db.template_budget_id ?? null,
+  chancePadraoPercent: db.chance_padrao_percent ?? null,
   createdAt: db.created_at,
   updatedAt: db.updated_at,
 });

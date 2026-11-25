@@ -173,7 +173,7 @@ sequenceDiagram
 Mutations seguem o mesmo caminho e invalidam a queryKey no `onSuccess`
 (ex.: `src/hooks/useProjectGpo.ts:50-62`, que também emite toast).
 
-**Escala real:** 69 páginas, 122 hooks, 37 services, 27 Edge Functions.
+**Escala real** (contada do código em 25/11/2026, US-0046): 85 páginas, 166 hooks, 70 services, 40 Edge Functions.
 
 ## Autenticação
 

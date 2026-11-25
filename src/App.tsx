@@ -110,7 +110,7 @@ function RedirectAlocacaoPessoa() {
 // continua respondendo porque link salvo e favorito não sabem que o menu mudou.
 function RedirectLinhaServico() {
   const { lineId } = useParams();
-  return <Navigate to={`/admin/servicos/${lineId}`} replace />;
+  return <Navigate to={`/admin/servicos?linha=${encodeURIComponent(lineId ?? '')}`} replace />;
 }
 
 /**

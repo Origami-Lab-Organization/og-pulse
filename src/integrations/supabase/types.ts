@@ -5849,6 +5849,7 @@ export type Database = {
           prospect_id: string | null
           renewal_date: string | null
           service_line: string | null
+          service_revenue_model_id: string | null
           start_date: string
           status: Database["public"]["Enums"]["project_status"]
           success_fee_percent: number | null
@@ -5890,6 +5891,7 @@ export type Database = {
           prospect_id?: string | null
           renewal_date?: string | null
           service_line?: string | null
+          service_revenue_model_id?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["project_status"]
           success_fee_percent?: number | null
@@ -5931,6 +5933,7 @@ export type Database = {
           prospect_id?: string | null
           renewal_date?: string | null
           service_line?: string | null
+          service_revenue_model_id?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["project_status"]
           success_fee_percent?: number | null
@@ -6310,6 +6313,7 @@ export type Database = {
           base_value: number | null
           billing_unit: string | null
           created_at: string
+          formas: string[]
           id: string
           is_active: boolean
           model_type: string
@@ -6323,6 +6327,7 @@ export type Database = {
           base_value?: number | null
           billing_unit?: string | null
           created_at?: string
+          formas?: string[]
           id?: string
           is_active?: boolean
           model_type: string
@@ -6336,6 +6341,7 @@ export type Database = {
           base_value?: number | null
           billing_unit?: string | null
           created_at?: string
+          formas?: string[]
           id?: string
           is_active?: boolean
           model_type?: string
@@ -6367,8 +6373,10 @@ export type Database = {
           billing_type: string | null
           billing_unit: string | null
           cost_center_id: string | null
+          chance_padrao_percent: number | null
           created_at: string
           default_value: number | null
+          desativado: boolean
           description: string | null
           has_default_value: boolean
           id: string
@@ -6385,8 +6393,10 @@ export type Database = {
           billing_type?: string | null
           billing_unit?: string | null
           cost_center_id?: string | null
+          chance_padrao_percent?: number | null
           created_at?: string
           default_value?: number | null
+          desativado?: boolean
           description?: string | null
           has_default_value?: boolean
           id?: string
@@ -6403,8 +6413,10 @@ export type Database = {
           billing_type?: string | null
           billing_unit?: string | null
           cost_center_id?: string | null
+          chance_padrao_percent?: number | null
           created_at?: string
           default_value?: number | null
+          desativado?: boolean
           description?: string | null
           has_default_value?: boolean
           id?: string
