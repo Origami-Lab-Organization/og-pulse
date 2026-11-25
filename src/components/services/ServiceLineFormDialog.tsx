@@ -37,13 +37,8 @@ interface ServiceLineFormDialogProps {
   isLoading?: boolean;
 }
 
-export function ServiceLineFormDialog({
-  open,
-  onOpenChange,
-  serviceLine,
-  onSubmit,
-  isLoading,
-}: ServiceLineFormDialogProps) {
+export function ServiceLineFormDialog(props: ServiceLineFormDialogProps) {
+  const { open, onOpenChange, serviceLine, onSubmit, isLoading } = props;
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { name: '', description: '' },
@@ -65,7 +60,7 @@ export function ServiceLineFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{serviceLine ? 'Editar Linha de Serviço' : 'Nova Linha de Serviço'}</DialogTitle>
+          <DialogTitle>{serviceLine ? 'Editar linha de serviço' : 'Nova linha de serviço'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -76,7 +71,7 @@ export function ServiceLineFormDialog({
                 <FormItem>
                   <FormLabel>Nome da linha</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex.: Ventures, Dev. de Software" {...field} />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -88,10 +83,11 @@ export function ServiceLineFormDialog({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descrição</FormLabel>
+                  <FormLabel>
+                    Descrição <span className="font-normal text-muted-foreground">(opcional)</span>
+                  </FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Breve descrição da linha (opcional)"
                       className="resize-none"
                       rows={3}
                       {...field}

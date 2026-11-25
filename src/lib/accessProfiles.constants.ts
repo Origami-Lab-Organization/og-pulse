@@ -12,9 +12,5 @@ export const CONSULTAS_COM_PAPEL_DA_PESSOA = [
   ['profile-name-for-user'],
 ] as const;
 
-/** Por que alguém aparece como gerente: a capacidade, não o nome do perfil (ADR-0027). */
-export const REGRA_GERENTE_DO_PROJETO =
-  'Aparece aqui quem tem "Editar projeto" no perfil de acesso.';
-
 export const SEM_GERENTE_DISPONIVEL =
   'Nenhum gerente disponível. Em Perfis de acesso, ligue "Editar projeto" no perfil da pessoa.';

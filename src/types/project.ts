@@ -50,6 +50,8 @@ export interface ProjectDB {
   created_at: string;
   updated_at: string;
   service_line: string | null;
+  /** Modelo de receita do projeto, um dos modelos do serviço (US-0046). Opcional nos antigos. */
+  service_revenue_model_id?: string | null;
   success_fee_percent: number | null;
   /** Contato da Prospecção que originou o projeto (substituiu `lead_id` em 29/09/2026). */
   prospect_id: string | null;
@@ -214,6 +216,8 @@ export interface CreateProjectInput {
   durationMonths?: number;
   renewalDate?: string;
   serviceLine?: string;
+  /** Modelo de receita do serviço escolhido (US-0046); `null` limpa. */
+  serviceRevenueModelId?: string | null;
   successFeePercent?: number;
   /** Falso = projeto interno: ninguém paga por ele, e a hora vira custo interno (ADR-0035). */
   isBillable?: boolean;

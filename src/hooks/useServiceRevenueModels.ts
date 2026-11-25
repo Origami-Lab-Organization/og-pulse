@@ -38,7 +38,7 @@ export const useCreateServiceRevenueModel = () => {
       toast({ title: 'Modelo de receita criado' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Erro ao criar modelo', description: error.message || undefined, variant: 'destructive' });
+      toast({ title: 'Não foi possível criar o modelo de receita', description: error.message || undefined, variant: 'destructive' });
     },
   });
 };
@@ -62,7 +62,7 @@ export const useUpdateServiceRevenueModel = () => {
       toast({ title: 'Modelo de receita atualizado' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Erro ao atualizar modelo', description: error.message || undefined, variant: 'destructive' });
+      toast({ title: 'Não foi possível salvar o modelo de receita', description: error.message || undefined, variant: 'destructive' });
     },
   });
 };
@@ -77,7 +77,7 @@ export const useToggleServiceRevenueModelActive = () => {
     },
     onSuccess: (_, { isActive }) => {
       queryClient.invalidateQueries({ queryKey: ['service-revenue-models'] });
-      toast({ title: isActive ? 'Modelo ativado' : 'Modelo desativado' });
+      toast({ title: isActive ? 'Modelo de receita ativado' : 'Modelo de receita desativado' });
     },
     onError: (error: Error) => {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
@@ -99,8 +99,8 @@ export const useDeleteServiceRevenueModel = () => {
     },
     onError: (error: Error) => {
       toast({
-        title: 'Erro ao excluir modelo',
-        description: error.message || 'Ocorreu um erro ao excluir o modelo.',
+        title: 'Não foi possível excluir o modelo de receita',
+        description: error.message || 'Tente de novo em instantes.',
         variant: 'destructive',
       });
     },

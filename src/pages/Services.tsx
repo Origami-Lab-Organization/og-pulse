@@ -1,407 +1,478 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Layers, Loader2, MoreHorizontal, Search, ChevronRight, PencilLine } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Ban, ChevronRight, MoreVertical, Pencil, Plus, Search } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ServiceLineFormDialog } from '@/components/services/ServiceLineFormDialog';
-import { ServiceSetupWizard } from '@/components/services/ServiceSetupWizard';
-import { DeleteCatalogItemDialog } from '@/components/services/DeleteCatalogItemDialog';
+import { ServiceSheet } from '@/components/services/ServiceSheet';
+import { StatusDoServicoPill } from '@/components/services/StatusDoServicoPill';
 import {
-  useServiceLines,
   useCreateServiceLine,
-  useUpdateServiceLine,
+  useServiceLines,
   useToggleServiceLineActive,
-  useDeleteServiceLine,
+  useUpdateServiceLine,
 } from '@/hooks/useServiceLines';
-import { useServices } from '@/hooks/useServices';
-import { useWizardDraft } from '@/hooks/useWizardDraft';
-import { WizardDraft } from '@/components/services/wizard/types';
-import { ServiceLine, CreateServiceLineInput } from '@/types/serviceLine';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDeleteService, useProjetosPorServico, useServices, useToggleServiceActive } from '@/hooks/useServices';
+import { useServiceRevenueModels } from '@/hooks/useServiceRevenueModels';
+import { useCostCenters } from '@/hooks/useCostCenters';
+import { foraDasAbasDeLinha, rotuloDoServico, statusDoServico } from '@/lib/catalogo';
+import { ABA_DESATIVADOS, CONFIRMACAO_DO_CATALOGO as CONFIRMAR, STATUS_DO_SERVICO } from '@/lib/catalogo.constants';
+import { modelosAtivos, rotuloDoModelo, servicoTemPercentual, temFormaAntiga } from '@/lib/formasDeReceita';
+import type { Service } from '@/types/service';
+import type { CreateServiceLineInput, ServiceLine } from '@/types/serviceLine';
+import type { ServiceRevenueModel } from '@/types/serviceRevenueModel';
 import { cn } from '@/lib/utils';
 
-type StatusFilter = 'all' | 'active' | 'inactive';
+/** O que a página pede para confirmar: desativar linha ou serviço, ou excluir serviço. */
+type Confirmacao =
+  | { tipo: typeof CONFIRMAR.DESATIVAR_LINHA; linha: ServiceLine }
+  | { tipo: typeof CONFIRMAR.DESATIVAR_SERVICO; servico: Service }
+  | { tipo: typeof CONFIRMAR.EXCLUIR_SERVICO; servico: Service };
+
+const PARAMETRO_DA_ABA = 'linha';
+
+const contem = (texto: string, busca: string) => texto.toLowerCase().includes(busca);
+
+function servicosDaAba(aba: string, services: Service[], lines: ServiceLine[]) {
+  if (aba === ABA_DESATIVADOS) return services.filter((s) => foraDasAbasDeLinha(s, lines));
+  return services.filter((s) => s.serviceLineId === aba && !s.desativado);
+}
+
+function filtrarPorBusca(services: Service[], models: ServiceRevenueModel[], busca: string) {
+  const termo = busca.trim().toLowerCase();
+  if (!termo) return services;
+  return services.filter(
+    (s) => contem(s.name, termo) || modelosAtivos(s.id, models).some((m) => contem(rotuloDoModelo(m.formas), termo)),
+  );
+}
+
+function tituloDaConfirmacao(c: Confirmacao, services: Service[]): string {
+  if (c.tipo === CONFIRMAR.EXCLUIR_SERVICO) return `Excluir ${c.servico.name}?`;
+  if (c.tipo === CONFIRMAR.DESATIVAR_SERVICO) return `Desativar ${c.servico.name}?`;
+  const n = services.filter((s) => s.serviceLineId === c.linha.id && !s.desativado).length;
+  const servicos = n === 1 ? 'o serviço' : `os ${n} serviços`;
+  return n === 0 ? `Desativar a linha ${c.linha.name}?` : `Desativar a linha ${c.linha.name} e ${servicos} dela?`;
+}
+
+// ─── Abas ───────────────────────────────────────────────────────────────────────
+
+function AbasDoCatalogo(props: { lines: ServiceLine[]; services: Service[]; aba: string; onAba: (aba: string) => void }) {
+  const { lines, services, aba, onAba } = props;
+  const abas = [
+    ...lines.filter((l) => l.isActive).map((l) => ({
+      id: l.id,
+      nome: l.name,
+      n: services.filter((s) => s.serviceLineId === l.id && !s.desativado).length,
+    })),
+    { id: ABA_DESATIVADOS, nome: 'Desativados', n: services.filter((s) => foraDasAbasDeLinha(s, lines)).length },
+  ];
+  return (
+    <div role="tablist" aria-label="Linhas de serviço" className="flex flex-wrap gap-1">
+      {abas.map((a) => (
+        <button
+          key={a.id}
+          role="tab"
+          type="button"
+          aria-selected={aba === a.id}
+          onClick={() => onAba(a.id)}
+          className={cn(
+            '-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            aba === a.id ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {a.nome}
+          <span className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground">{a.n}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Cabeçalho da aba ───────────────────────────────────────────────────────────
+
+interface CabecalhoProps {
+  aba: string;
+  lines: ServiceLine[];
+  onNovoServico: () => void;
+  onEditarLinha: (linha: ServiceLine) => void;
+  onDesativarLinha: (linha: ServiceLine) => void;
+  onReativarLinha: (linha: ServiceLine) => void;
+}
+
+function CabecalhoDosDesativados(props: Pick<CabecalhoProps, 'lines' | 'onReativarLinha'>) {
+  const { lines, onReativarLinha } = props;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-lg font-semibold">Desativados</h2>
+      <div className="flex flex-wrap gap-2">
+        {lines.filter((l) => !l.isActive).map((l) => (
+          <Button key={l.id} variant="outline" size="sm" onClick={() => onReativarLinha(l)}>
+            Reativar linha {l.name}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CabecalhoDaAba(props: CabecalhoProps) {
+  const { aba, lines, onNovoServico, onEditarLinha, onDesativarLinha } = props;
+  if (aba === ABA_DESATIVADOS) return <CabecalhoDosDesativados {...props} />;
+  const linha = lines.find((l) => l.id === aba);
+  if (!linha) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-lg font-semibold">{linha.name}</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={onNovoServico}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          Novo serviço
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Ações da linha {linha.name}</span>
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onEditarLinha(linha)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar linha
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDesativarLinha(linha)} className="text-destructive focus:text-destructive">
+              <Ban className="mr-2 h-4 w-4" />
+              Desativar linha
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}
+
+// ─── Lista ──────────────────────────────────────────────────────────────────────
+
+interface LinhaDoServicoProps {
+  service: Service;
+  aba: string;
+  lines: ServiceLine[];
+  models: ServiceRevenueModel[];
+  usos: number;
+  centro: string | null;
+  onAbrir: (service: Service) => void;
+}
+
+function detalhesDoServico(props: LinhaDoServicoProps): string[] {
+  const { service, models, usos, centro } = props;
+  const detalhes: string[] = [];
+  if (servicoTemPercentual(service.id, models)) {
+    const chance = service.chancePadraoPercent;
+    detalhes.push(chance == null ? 'Chance padrão não informada' : `Chance padrão ${chance}%`);
+  }
+  if (centro) detalhes.push(`Centro ${centro}`);
+  if (usos > 0) detalhes.push(`${usos} projeto${usos > 1 ? 's' : ''}`);
+  return detalhes;
+}
+
+function ModelosNaLista(props: { modelos: ServiceRevenueModel[] }) {
+  const { modelos } = props;
+  if (modelos.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-wrap gap-x-2.5 gap-y-1 text-sm">
+      {modelos.map((m, i) => (
+        <span key={m.id} className="inline-flex items-center gap-1.5">
+          {i > 0 && <span className="text-muted-foreground" aria-hidden>·</span>}
+          {rotuloDoModelo(m.formas)}
+          {temFormaAntiga(m.formas) && <span className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground">Antigo</span>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function LinhaDoServico(props: LinhaDoServicoProps) {
+  const { service, aba, lines, models, onAbrir } = props;
+  const status = statusDoServico(service, lines);
+  return (
+    <button
+      type="button"
+      onClick={() => onAbrir(service)}
+      className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t px-4 py-3.5 text-left first:border-t-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{aba === ABA_DESATIVADOS ? rotuloDoServico(service, lines) : service.name}</span>
+          {status !== STATUS_DO_SERVICO.ATIVO && <StatusDoServicoPill status={status} />}
+        </div>
+        <ModelosNaLista modelos={modelosAtivos(service.id, models)} />
+        <div className="mt-1 flex flex-wrap gap-x-3.5 text-[13px] text-muted-foreground">
+          {detalhesDoServico(props).map((d) => <span key={d}>{d}</span>)}
+        </div>
+      </div>
+      <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden />
+    </button>
+  );
+}
+
+function ListaDeServicos(props: Omit<LinhaDoServicoProps, 'service' | 'usos' | 'centro'> & {
+  lista: Service[];
+  busca: string;
+  usos: Record<string, number>;
+  nomeDoCentro: (id: string | null) => string | null;
+}) {
+  const { lista, busca, usos, nomeDoCentro, ...resto } = props;
+  return (
+    <div className="overflow-hidden rounded-lg border bg-card">
+      {lista.length === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-muted-foreground">{busca ? 'Nenhum serviço encontrado' : 'Nenhum serviço'}</p>
+      ) : (
+        lista.map((s) => (
+          <LinhaDoServico key={s.id} {...resto} service={s} usos={usos[s.id] ?? 0} centro={nomeDoCentro(s.costCenterId)} />
+        ))
+      )}
+    </div>
+  );
+}
+
+// ─── Confirmação ────────────────────────────────────────────────────────────────
+
+const projetos = (n: number) => `${n} projeto${n === 1 ? '' : 's'}`;
+
+/** Serviços que deixam as escolhas com a desativação, com os projetos que usam cada um. */
+function servicosAfetados(c: Confirmacao, services: Service[]): Service[] {
+  if (c.tipo === CONFIRMAR.DESATIVAR_LINHA) return services.filter((s) => s.serviceLineId === c.linha.id && !s.desativado);
+  return [c.servico];
+}
+
+/** O que muda e o que fica, com os números reais, antes de desativar. */
+function ImpactoDaDesativacao(props: { afetados: Service[]; usos: Record<string, number> }) {
+  const { afetados, usos } = props;
+  const total = afetados.reduce((soma, s) => soma + (usos[s.id] ?? 0), 0);
+  return (
+    <div className="grid gap-3 text-sm">
+      {afetados.length > 0 && (
+        <div className="grid gap-1.5">
+          <p className="font-medium">Deixam de aparecer em orçamentos, Oportunidades e projetos novos</p>
+          <ul className="grid gap-1 rounded-md border bg-muted/40 px-3 py-2">
+            {afetados.map((s) => (
+              <li key={s.id} className="flex justify-between gap-3">
+                <span>{s.name}</span>
+                <span className="text-muted-foreground">{projetos(usos[s.id] ?? 0)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <ul className="grid gap-1 text-muted-foreground">
+        <li>{total > 0 ? `${projetos(total)} continuam com o serviço que já têm.` : 'Nenhum projeto usa estes serviços.'}</li>
+        <li>Orçamentos e Oportunidades existentes não mudam.</li>
+        <li>Reativação na aba Desativados.</li>
+      </ul>
+    </div>
+  );
+}
+
+function ConfirmacaoDoCatalogo(props: {
+  confirmacao: Confirmacao | null;
+  services: Service[];
+  usos: Record<string, number>;
+  onCancelar: () => void;
+  onConfirmar: () => void;
+}) {
+  const { confirmacao, services, usos, onCancelar, onConfirmar } = props;
+  if (!confirmacao) return null;
+  const acao = confirmacao.tipo === CONFIRMAR.EXCLUIR_SERVICO ? 'Excluir' : 'Desativar';
+  return (
+    <AlertDialog open onOpenChange={(aberto) => !aberto && onCancelar()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{tituloDaConfirmacao(confirmacao, services)}</AlertDialogTitle>
+        </AlertDialogHeader>
+        {confirmacao.tipo !== CONFIRMAR.EXCLUIR_SERVICO && (
+          <ImpactoDaDesativacao afetados={servicosAfetados(confirmacao, services)} usos={usos} />
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirmar}>{acao}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// ─── Página ─────────────────────────────────────────────────────────────────────
+
+/** Linha em que nasce o serviço novo: a da aba, ou a primeira ativa quando a aba é Desativados. */
+const linhaParaNovoServico = (aba: string, lines: ServiceLine[]) =>
+  aba === ABA_DESATIVADOS ? lines.find((l) => l.isActive)?.id ?? '' : aba;
+
+const usosDoPainel = (service: Service | null, usos: Record<string, number>) => (service ? usos[service.id] ?? 0 : 0);
+
+function Carregando() {
+  return (
+    <div className="grid gap-2">
+      <Skeleton className="h-10 w-80" />
+      {[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+    </div>
+  );
+}
+
+/** Aba pedida na URL, quando é uma linha ativa ou os Desativados; senão a primeira linha ativa. */
+function abaAtual(pedida: string | null, lines: ServiceLine[]): string {
+  if (pedida === ABA_DESATIVADOS) return pedida;
+  if (pedida && lines.some((l) => l.id === pedida && l.isActive)) return pedida;
+  return lines.find((l) => l.isActive)?.id ?? ABA_DESATIVADOS;
+}
+
+function useConfirmacaoDoCatalogo(irPara: (aba: string) => void, fecharPainel: () => void) {
+  const alternarLinha = useToggleServiceLineActive();
+  const alternarServico = useToggleServiceActive();
+  const excluirServico = useDeleteService();
+  const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
+
+  const confirmar = () => {
+    if (!confirmacao) return;
+    const fechar = () => { setConfirmacao(null); fecharPainel(); };
+    if (confirmacao.tipo === CONFIRMAR.DESATIVAR_LINHA) {
+      const onSuccess = () => { setConfirmacao(null); irPara(ABA_DESATIVADOS); };
+      return alternarLinha.mutate({ id: confirmacao.linha.id, isActive: false }, { onSuccess });
+    }
+    if (confirmacao.tipo === CONFIRMAR.DESATIVAR_SERVICO) {
+      return alternarServico.mutate({ id: confirmacao.servico.id, isActive: false }, { onSuccess: fechar });
+    }
+    excluirServico.mutate({ id: confirmacao.servico.id }, { onSuccess: fechar });
+  };
+
+  return { confirmacao, setConfirmacao, confirmar, alternarLinha, alternarServico };
+}
 
 const Services = () => {
-  const navigate = useNavigate();
-  const { employee } = useAuth();
-  const canManage = employee?.isAdmin ?? false;
-  const tenantId = employee?.tenant_id;
+  const [params, setParams] = useSearchParams();
+  const { data: lines = [], isLoading: carregandoLinhas } = useServiceLines();
+  const { data: services = [], isLoading: carregandoServicos } = useServices();
+  const { data: models = [] } = useServiceRevenueModels();
+  const { data: usos = {} } = useProjetosPorServico();
+  const { data: centros = [] } = useCostCenters();
+  const criarLinha = useCreateServiceLine();
+  const editarLinha = useUpdateServiceLine();
 
-  const { data: serviceLines = [], isLoading: linesLoading } = useServiceLines();
-  const { data: services = [], isLoading: servicesLoading } = useServices();
+  const [busca, setBusca] = useState('');
+  const [painel, setPainel] = useState<{ aberto: boolean; service: Service | null }>({ aberto: false, service: null });
+  const [linhaEmEdicao, setLinhaEmEdicao] = useState<ServiceLine | null | undefined>(undefined);
 
-  const createLine = useCreateServiceLine();
-  const updateLine = useUpdateServiceLine();
-  const toggleLine = useToggleServiceLineActive();
-  const deleteLine = useDeleteServiceLine();
+  const aba = abaAtual(params.get(PARAMETRO_DA_ABA), lines);
+  const irPara = (id: string) => setParams({ [PARAMETRO_DA_ABA]: id }, { replace: true });
+  const abrirServico = (service: Service | null) => setPainel({ aberto: true, service });
+  const fecharPainel = () => setPainel({ aberto: false, service: null });
+  const { confirmacao, setConfirmacao, confirmar, alternarLinha, alternarServico } = useConfirmacaoDoCatalogo(irPara, fecharPainel);
 
-  const { getDraft, saveDraft, clearDraft } = useWizardDraft(tenantId);
-  const [wizardDraft, setWizardDraft] = useState<WizardDraft | null>(() => getDraft());
-  const [wizardInitialDraft, setWizardInitialDraft] = useState<WizardDraft | null>(null);
+  const lista = useMemo(() => filtrarPorBusca(servicosDaAba(aba, services, lines), models, busca), [aba, services, lines, models, busca]);
+  const nomeDoCentro = (id: string | null) => centros.find((c) => c.id === id)?.name ?? null;
 
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
-  const [selectedLine, setSelectedLine] = useState<ServiceLine | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ServiceLine | null>(null);
-  const [deactivateTarget, setDeactivateTarget] = useState<ServiceLine | null>(null);
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
-
-  const isLoading = linesLoading || servicesLoading;
-
-  // Contagem de serviços (ativos) por linha
-  const serviceCountByLine = useMemo(() => {
-    return services.reduce<Record<string, number>>((acc, s) => {
-      if (!s.serviceLineId || !s.isActive) return acc;
-      acc[s.serviceLineId] = (acc[s.serviceLineId] ?? 0) + 1;
-      return acc;
-    }, {});
-  }, [services]);
-
-  const filteredLines = useMemo(() => {
-    const search = searchTerm.trim().toLowerCase();
-    return serviceLines.filter((line) => {
-      if (statusFilter === 'active' && !line.isActive) return false;
-      if (statusFilter === 'inactive' && line.isActive) return false;
-      if (search && !line.name.toLowerCase().includes(search)) return false;
-      return true;
-    });
-  }, [serviceLines, statusFilter, searchTerm]);
-
-  const isFiltering = searchTerm !== '' || statusFilter !== 'all';
-
-  const openNew = () => {
-    setWizardInitialDraft(null);
-    setWizardOpen(true);
+  const salvarLinha = (dados: CreateServiceLineInput) => {
+    const fechar = () => setLinhaEmEdicao(undefined);
+    if (linhaEmEdicao) return editarLinha.mutate({ id: linhaEmEdicao.id, updates: dados }, { onSuccess: fechar });
+    criarLinha.mutate(dados, { onSuccess: (nova) => { fechar(); irPara(nova.id); } });
   };
-  const openEdit = (line: ServiceLine) => {
-    setSelectedLine(line);
-    setFormOpen(true);
-  };
-  const submitLine = (data: CreateServiceLineInput) => {
-    if (selectedLine) {
-      updateLine.mutate({ id: selectedLine.id, updates: data }, { onSuccess: () => setFormOpen(false) });
-    } else {
-      createLine.mutate(data, { onSuccess: () => setFormOpen(false) });
-    }
-  };
-  const confirmDelete = () => {
-    if (deleteTarget) {
-      deleteLine.mutate({ id: deleteTarget.id }, { onSuccess: () => setDeleteTarget(null) });
-    }
-  };
-
-  const confirmDeactivate = () => {
-    if (deactivateTarget) {
-      toggleLine.mutate(
-        { id: deactivateTarget.id, isActive: false },
-        { onSuccess: () => setDeactivateTarget(null) }
-      );
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <AppLayout
-        title="Linhas de Serviço"
-        description="O catálogo de tudo que a empresa vende, organizado em Linhas de Serviço. Cada linha agrupa serviços com modelos de cobrança definidos."
-        breadcrumbs={[{ label: 'Configurações', href: '/admin' }, { label: 'Linhas de Serviço' }]}
-      >
-        <div className="space-y-2">
-          <Skeleton className="h-10 w-64" />
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-[52px] w-full rounded-lg" />
-          ))}
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout
-      title="Linhas de Serviço"
-      description="O catálogo de tudo que a empresa vende, organizado em Linhas de Serviço. Cada linha agrupa serviços com modelos de cobrança definidos."
-      breadcrumbs={[{ label: 'Configurações', href: '/admin' }, { label: 'Linhas de Serviço' }]}
+      title="Catálogo de serviços"
+      breadcrumbs={[{ label: 'Configurações', href: '/admin' }, { label: 'Catálogo de serviços' }]}
       actions={
-        canManage ? (
-          <Button onClick={openNew} size="sm">
-            <Plus className="h-4 w-4 mr-1.5" />
-            Nova Linha de Serviço
-          </Button>
-        ) : undefined
+        <Button variant="outline" size="sm" onClick={() => setLinhaEmEdicao(null)}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          Nova linha
+        </Button>
       }
     >
-      {/* Draft banner */}
-      {wizardDraft && canManage && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-4 dark:bg-amber-950/20 dark:border-amber-800">
-          <PencilLine className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-              Rascunho não publicado — &quot;{wizardDraft.lineData?.name}&quot;
-            </p>
-            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-              Serviços em rascunho não estão disponíveis em oportunidades ou orçamentos.
-            </p>
+      {carregandoLinhas || carregandoServicos ? (
+        <Carregando />
+      ) : (
+        <div className="grid gap-5">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b">
+            <AbasDoCatalogo lines={lines} services={services} aba={aba} onAba={irPara} />
+            <div className="relative mb-1.5 w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <Input
+                type="search"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar serviço ou modelo"
+                aria-label="Buscar serviço ou modelo de receita"
+                className="pl-9"
+              />
+            </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30"
-              onClick={() => {
-                clearDraft();
-                setWizardDraft(null);
-              }}
-            >
-              Descartar
-            </Button>
-            <Button
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => {
-                setWizardInitialDraft(wizardDraft);
-                setWizardOpen(true);
-              }}
-            >
-              Continuar configuração
-            </Button>
-          </div>
-        </div>
-      )}
 
-      {/* Search + status filter */}
-      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative max-w-sm w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar linhas de serviço..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
+          <CabecalhoDaAba
+            aba={aba}
+            lines={lines}
+            onNovoServico={() => abrirServico(null)}
+            onEditarLinha={(l) => setLinhaEmEdicao(l)}
+            onDesativarLinha={(l) => setConfirmacao({ tipo: CONFIRMAR.DESATIVAR_LINHA, linha: l })}
+            onReativarLinha={(l) => alternarLinha.mutate({ id: l.id, isActive: true }, { onSuccess: () => irPara(l.id) })}
+          />
+
+          <ListaDeServicos
+            lista={lista}
+            busca={busca}
+            aba={aba}
+            lines={lines}
+            models={models}
+            usos={usos}
+            nomeDoCentro={nomeDoCentro}
+            onAbrir={abrirServico}
           />
         </div>
-        {canManage && (
-          <div className="flex flex-wrap items-center gap-2">
-            {(['all', 'active', 'inactive'] as StatusFilter[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={cn(
-                  'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-                  statusFilter === s
-                    ? 'bg-foreground text-background border-foreground'
-                    : 'bg-background text-muted-foreground border-border hover:border-foreground/40'
-                )}
-              >
-                {s === 'all' ? 'Todas' : s === 'active' ? 'Ativas' : 'Inativas'}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Empty states */}
-      {serviceLines.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
-          <div className="rounded-full bg-muted p-5 mb-4">
-            <Layers className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <p className="text-base font-semibold">Nenhuma linha de serviço cadastrada</p>
-          <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-            {canManage
-              ? 'Crie sua primeira Linha de Serviço (ex.: Ventures, Dev. de Software) para começar a organizar o portfólio.'
-              : 'Aguarde um administrador organizar o catálogo de serviços.'}
-          </p>
-          {canManage && (
-            <Button className="mt-5" onClick={openNew}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              Nova Linha de Serviço
-            </Button>
-          )}
-        </div>
-      ) : filteredLines.length === 0 && isFiltering ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center">
-          <Search className="h-8 w-8 text-muted-foreground mb-3" />
-          <p className="text-sm font-medium">Nenhuma linha encontrada</p>
-          <p className="text-xs text-muted-foreground mt-1">Tente ajustar os filtros ou o termo de busca.</p>
-        </div>
-      ) : (
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Linha de Serviço</TableHead>
-                <TableHead className="w-28 text-center">Serviços</TableHead>
-                <TableHead className="w-24">Status</TableHead>
-                <TableHead className="w-20" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLines.map((line) => (
-                <TableRow
-                  key={line.id}
-                  className={cn('cursor-pointer', !line.isActive && 'opacity-60')}
-                  onClick={() => navigate(`/admin/servicos/${line.id}`)}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2.5">
-                      <Layers className="h-4 w-4 text-primary shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{line.name}</p>
-                        {line.description && (
-                          <p className="text-xs text-muted-foreground truncate max-w-md">{line.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center text-sm tabular-nums text-muted-foreground">
-                    {serviceCountByLine[line.id] ?? 0}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'text-xs',
-                        line.isActive
-                          ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-muted text-muted-foreground'
-                      )}
-                    >
-                      {line.isActive ? 'Ativa' : 'Inativa'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-1">
-                      {canManage && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit(line)}>
-                              Editar nome
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {line.isActive ? (
-                              <DropdownMenuItem onClick={() => setDeactivateTarget(line)}>
-                                Desativar linha
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() => toggleLine.mutate({ id: line.id, isActive: true })}
-                              >
-                                Ativar linha
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteTarget(line)}
-                            >
-                              Excluir linha
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                      <ChevronRight className="h-4 w-4 text-muted-foreground pointer-events-none" />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
       )}
 
-      <ServiceSetupWizard
-        open={wizardOpen}
-        onOpenChange={setWizardOpen}
-        initialDraft={wizardInitialDraft}
-        onDraftSaved={(draft) => {
-          saveDraft(draft);
-          setWizardDraft(draft);
-        }}
-        onDraftAbandoned={() => {
-          clearDraft();
-          setWizardDraft(null);
-        }}
-        onCompleted={() => {
-          clearDraft();
-          setWizardDraft(null);
-        }}
+      <ServiceSheet
+        open={painel.aberto}
+        onOpenChange={(aberto) => !aberto && fecharPainel()}
+        service={painel.service}
+        linhaInicial={linhaParaNovoServico(aba, lines)}
+        lines={lines}
+        services={services}
+        models={models}
+        usos={usosDoPainel(painel.service, usos)}
+        onDesativar={(s) => setConfirmacao({ tipo: CONFIRMAR.DESATIVAR_SERVICO, servico: s })}
+        onReativar={(s) => alternarServico.mutate({ id: s.id, isActive: true }, { onSuccess: fecharPainel })}
+        onExcluir={(s) => setConfirmacao({ tipo: CONFIRMAR.EXCLUIR_SERVICO, servico: s })}
       />
 
       <ServiceLineFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        serviceLine={selectedLine}
-        onSubmit={submitLine}
-        isLoading={createLine.isPending || updateLine.isPending}
+        open={linhaEmEdicao !== undefined}
+        onOpenChange={(aberto) => !aberto && setLinhaEmEdicao(undefined)}
+        serviceLine={linhaEmEdicao ?? null}
+        onSubmit={salvarLinha}
+        isLoading={criarLinha.isPending || editarLinha.isPending}
       />
 
-      <DeleteCatalogItemDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        itemLabel="linha de serviço"
-        itemName={deleteTarget?.name ?? ''}
-        onConfirm={confirmDelete}
-        isLoading={deleteLine.isPending}
-      />
-
-      <AlertDialog
-        open={!!deactivateTarget}
-        onOpenChange={(open) => !open && setDeactivateTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Desativar &quot;{deactivateTarget?.name}&quot;?</AlertDialogTitle>
-            <AlertDialogDescription>
-              A linha ficará oculta do portfólio ativo e não poderá ser usada em novos orçamentos.
-              Linhas já em andamento em oportunidades não são afetadas. Você pode reativá-la a
-              qualquer momento na aba Inativas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeactivate} disabled={toggleLine.isPending}>
-              {toggleLine.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Desativar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmacaoDoCatalogo confirmacao={confirmacao} services={services} usos={usos} onCancelar={() => setConfirmacao(null)} onConfirmar={confirmar} />
     </AppLayout>
   );
 };

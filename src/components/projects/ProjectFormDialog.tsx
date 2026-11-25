@@ -14,7 +14,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -39,15 +38,18 @@ import {
   PAYMENT_METHOD_OPTIONS,
   ProjectStatus,
 } from '@/types/project';
-import { BILLING_TYPE_LABELS } from '@/types/service';
 import { useClients } from '@/hooks/useClients';
 import { useEmployees } from '@/hooks/useEmployees';
 import { useServices } from '@/hooks/useServices';
+import { useServiceLines } from '@/hooks/useServiceLines';
+import { useServiceRevenueModels } from '@/hooks/useServiceRevenueModels';
+import { lerEscolha, valorDaEscolha } from '@/lib/catalogo';
+import { ServicoDoProjetoField } from '@/components/projects/ServicoDoProjetoField';
 import { useCostCenters } from '@/hooks/useCostCenters';
 import { formatCurrency, parseCurrency } from '@/lib/masks';
 import { ProjectKindField } from '@/components/projects/ProjectKindField';
 import { PROJECT_KIND } from '@/lib/projectKind.constants';
-import { REGRA_GERENTE_DO_PROJETO, SEM_GERENTE_DISPONIVEL } from '@/lib/accessProfiles.constants';
+import { SEM_GERENTE_DISPONIVEL } from '@/lib/accessProfiles.constants';
 import { projectKindOf, requiresClient } from '@/lib/projectKind';
 import type { ProjectKind } from '@/types/projectKind';
 
@@ -132,6 +134,8 @@ export function ProjectFormDialog({
   const { data: clients = [] } = useClients();
   const { data: employees = [] } = useEmployees();
   const { data: services = [] } = useServices();
+  const { data: serviceLines = [] } = useServiceLines();
+  const { data: revenueModels = [] } = useServiceRevenueModels();
   const { data: costCenters = [] } = useCostCenters();
 
   // Filter managers - employees with manager or admin role
@@ -181,7 +185,10 @@ export function ProjectFormDialog({
 
       form.reset({
         name: project?.name || '',
-        serviceLine: resolvedServiceLine,
+        // A escolha guarda serviço e modelo de receita juntos (US-0046).
+        serviceLine: resolvedServiceLine
+          ? valorDaEscolha({ serviceId: resolvedServiceLine, modelId: projectWithExtras?.service_revenue_model_id ?? null })
+          : '',
         description: project?.description || '',
         clientId: project?.client_id || '',
         managerId: project?.manager_id || '',
@@ -221,7 +228,7 @@ export function ProjectFormDialog({
     if (kind === PROJECT_KIND.CLIENT || form.getValues('costCenterId')) return;
     form.setValue('costCenterId', internalCostCenterId(costCenters));
   };
-  const watchedServiceLine = form.watch('serviceLine');
+  const watchedServiceLine = lerEscolha(form.watch('serviceLine') || '').serviceId;
   const selectedService = services.find(s => s.id === watchedServiceLine);
   const isFinanciamento = watchedServiceLine === 'financiamento_inovacao'
     || selectedService?.name?.toLowerCase().includes('financiamento') === true;
@@ -236,9 +243,11 @@ export function ProjectFormDialog({
       form.setError('renewalDate', { message: 'Data de renovação é obrigatória para projetos contínuos' });
       return;
     }
+    const escolha = lerEscolha(values.serviceLine || '');
     onSubmit({
       name: values.name,
-      serviceLine: values.serviceLine || undefined,
+      serviceLine: escolha.serviceId || undefined,
+      serviceRevenueModelId: escolha.modelId,
       description: values.description,
       // Produto não tem cliente; projeto interno pode ter ou não (ADR-0049).
       clientId: values.kind === PROJECT_KIND.PRODUCT ? null : values.clientId || null,
@@ -246,7 +255,7 @@ export function ProjectFormDialog({
       startDate: values.startDate,
       endDate: values.isContinuous ? undefined : values.endDate,
       isContinuous: values.isContinuous,
-      renewalDate: values.isContinuous && values.serviceLine !== 'ventures' ? values.renewalDate : undefined,
+      renewalDate: values.isContinuous && !isVentures ? values.renewalDate : undefined,
       status: values.status as ProjectStatus,
       totalValue: values.totalValue,
       paymentMethod: values.paymentMethod,
@@ -306,30 +315,20 @@ export function ProjectFormDialog({
                   name="serviceLine"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tipo de Serviço</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o tipo de serviço" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {services.filter(s => s.isActive).map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              <span>{s.name}</span>
-                              <span className="ml-1.5 text-muted-foreground text-xs">
-                                — {BILLING_TYPE_LABELS[s.billingType] ?? s.billingType}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <ServicoDoProjetoField
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        services={services}
+                        lines={serviceLines}
+                        models={revenueModels}
+                      />
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <ProjectKindField control={form.control} name="kind" onKindChange={handleKindChange} />
+                {/* O tipo se decide ao criar; na edição ele não muda (faturamento e custo dependem dele). */}
+                {!project && <ProjectKindField control={form.control} name="kind" onKindChange={handleKindChange} />}
 
                 {watchedKind !== PROJECT_KIND.CLIENT && (
                   <FormField
@@ -439,7 +438,6 @@ export function ProjectFormDialog({
                             )}
                           </SelectContent>
                         </Select>
-                        {canChangeManager && <FormDescription>{REGRA_GERENTE_DO_PROJETO}</FormDescription>}
                         <FormMessage />
                       </FormItem>
                     )}
