@@ -307,7 +307,26 @@ membro e permissões por capacidade. Protótipo: `prototipos/portfolio-de-projet
 | [US-0036](stories/4-em-desenvolvimento/US-0036-projetos-metas-e-margem-do-portfolio.md) | Metas de receita e margem bruta do portfólio | Admin | Em desenvolvimento | Pronta |
 | [US-0037](stories/4-em-desenvolvimento/US-0037-projetos-sino-de-pendencias-no-card.md) | Sino de pendências no card e pendências na Visão Geral | GP | Em desenvolvimento | Pronta |
 | [US-0039](stories/4-em-desenvolvimento/US-0039-projetos-planejamento-guiado-por-checklist.md) | Planejar o projeto guiado por um checklist que acompanha o preenchimento | GP ou admin | Em desenvolvimento | Pronta |
+| [US-0043](stories/2-em-refinamento/US-0043-projetos-encerramento-com-renovacao.md) | Encerrar o projeto decidindo a renovação e entregando os resultados | GP ou admin | Em refinamento | Pronta com ressalvas |
+| [US-0045](stories/2-em-refinamento/US-0045-comercial-empresa-e-cliente-num-cadastro-so.md) | Empresa e cliente num cadastro só (pré-requisito da US-0043) | Pessoa do comercial ou GP | Em refinamento | Pronta com ressalvas |
 
 O modo planejamento foi aprovado pelo Victor em 23/11/2026 (protótipo versão 8) e virou a
-US-0039. As telas de encerramento com renovação, visão do membro e permissões estão no
-protótipo e aguardam a validação do Victor para virar histórias.
+US-0039. O encerramento com renovação virou a US-0043 em 24/11/2026 e está em espera pelo
+refino "Do Pipeline ao fim do projeto" (abaixo), junto com a US-0045. As telas de visão do
+membro e permissões estão no protótipo e aguardam a validação do Victor para virar histórias.
+
+### Do Pipeline ao fim do projeto (aberto em 2026-11-25)
+
+Refino do fluxo inteiro, da qualificação da empresa ao encerramento e à renovação: catálogo de
+2027 e formas de receita, empresa e cliente, orçamento composto, Ganho amarrado ao orçamento,
+portfólio de Projetos e Governo, portfólio de Fomento e projetos internos. Decisões e roadmap em
+[`refino-fluxo-comercial-a-projeto.md`](refino-fluxo-comercial-a-projeto.md). A US-0043 e a
+US-0045 aguardam os épicos anteriores do roadmap.
+
+**Épico 1 — Catálogo e formas de receita**
+
+| ID | História | Persona | Status | Prontidão |
+|---|---|---|---|---|
+| [US-0046](stories/3-pronta-para-desenvolver/US-0046-catalogo-2027-linhas-servicos-e-formas-de-receita.md) | Catálogo 2027: linhas, serviços e formas de receita | Admin | Pronta para desenvolver | Pronta com ressalvas |
+| [US-0047](stories/3-pronta-para-desenvolver/US-0047-fit-por-servico-segue-o-catalogo.md) | Fit por serviço segue o catálogo | Pessoa do comercial | Pronta para desenvolver | Pronta com ressalvas |
+| [US-0048](stories/3-pronta-para-desenvolver/US-0048-filtro-por-linha-e-servico.md) | Filtrar e ver projetos por linha e por serviço | Admin, GP ou comercial | Pronta para desenvolver | Pronta com ressalvas |
