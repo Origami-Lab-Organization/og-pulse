@@ -1,8 +1,7 @@
-import { ServicoDoProjeto } from '@/components/catalogo/ServicoDoProjeto';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Building2, Calendar, User } from 'lucide-react';
+import { Bell, Building2, Calendar, Layers, User } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -171,8 +170,12 @@ export function PortfolioCard(props: PortfolioCardProps) {
           <User className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">{managerName}</span>
         </div>
-        {/* US-0048: ícone da linha e etiqueta do serviço, na mesma fila. */}
-        <ServicoDoProjeto serviceLine={project.service_line ?? null} className="max-w-full pt-1" />
+        {project.service?.name && (
+          <div className="flex min-w-0 items-center gap-2">
+            <Layers className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{project.service.name}</span>
+          </div>
+        )}
       </div>
 
       <div className="mt-3 border-t border-border pt-2">

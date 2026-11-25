@@ -37,7 +37,7 @@ import {
   PORTFOLIO_STAGE_LABELS,
   PortfolioStage
 } from "@/types/portfolio";
-import { ServicoDoProjeto } from '@/components/catalogo/ServicoDoProjeto';
+import { SERVICE_LINE_LABELS } from "@/types/serviceLine";
 import { formatDate, formatHours } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
@@ -101,6 +101,9 @@ export function MyProjectCard({
     ? "Em preparação"
     : (PORTFOLIO_STAGE_LABELS[project.portfolioStage as PortfolioStage] ??
       project.portfolioStage);
+  const serviceLabel = project.serviceLine
+    ? (SERVICE_LINE_LABELS[project.serviceLine] ?? null)
+    : null;
 
   // Prazo do projeto (início → fim) — exibido como ícone+tooltip no topo
   const periodText =
@@ -167,8 +170,14 @@ export function MyProjectCard({
                 {isPlanning && <Hourglass className="h-3 w-3" />}
                 {stageLabel}
               </Badge>
-              {/* US-0048: ícone da linha e etiqueta do serviço. */}
-              <ServicoDoProjeto serviceLine={project.serviceLine} />
+              {serviceLabel && (
+                <Badge
+                  variant="outline"
+                  className="font-normal text-muted-foreground"
+                >
+                  {serviceLabel}
+                </Badge>
+              )}
               {status && (
                 <Tooltip>
                   <TooltipTrigger asChild>

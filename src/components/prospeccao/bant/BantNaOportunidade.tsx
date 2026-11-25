@@ -8,11 +8,11 @@ import { toast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { useBant, useDecidirEvidenciaBant, useRegistrarEvidenciaBant } from '@/hooks/useBant';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
-import { ESTADOS_BANT, LETRAS_BANT, motivoDePerdaSugerido, NOTA_PARA_QUALIFICAR, rotuloDoEstado } from '@/lib/prospecting/bant';
+import { ESTADOS_BANT, LETRAS_BANT, motivoDePerdaSugerido, oQueFaltaParaQualificar, rotuloDoEstado } from '@/lib/prospecting/bant';
 import { formatarData } from '@/lib/prospecting/prazos';
 import { cn } from '@/lib/utils';
-import { getDiscardReasonLabel, type ProspectWithCompany } from '@/types/prospect';
-import type { BantDaOportunidade, EstadoBant, EvidenciaBantDB, LetraBant, LetraDoBant, OrigemEvidencia, SituacaoEvidencia } from '@/types/bant';
+import { getDiscardReasonLabel, getProspectStageLabel, type ProspectWithCompany } from '@/types/prospect';
+import type { EstadoBant, EvidenciaBantDB, LetraBant, LetraDoBant, OrigemEvidencia, SituacaoEvidencia } from '@/types/bant';
 import { LetrasDoBant } from './LetrasDoBant';
 
 interface BantNaOportunidadeProps {
@@ -37,13 +37,18 @@ export function BantNaOportunidade(props: BantNaOportunidadeProps) {
   const { prospect, podeEditar, onSugerirPerda } = props;
   const { bant, evidencias, isLoading } = useBant(prospect);
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando o BANT…</p>;
+  const falta = oQueFaltaParaQualificar(bant);
   return (
     <section className="space-y-3" aria-label="BANT">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">BANT</h3>
         <LetrasDoBant bant={bant} />
       </div>
-      <SituacaoDoBant bant={bant} />
+      <p className="text-xs text-muted-foreground">
+        {bant.meta != null && `Meta em ${getProspectStageLabel(prospect.stage)}: ${bant.meta}. `}
+        {bant.notaComprovada !== bant.nota && `Comprovada por evidências: ${bant.notaComprovada}. `}
+        {falta ? `Para "Oportunidade qualificada": ${falta}` : 'Pronta para "Oportunidade qualificada".'}
+      </p>
       {bant.propostas.length > 0 && <Propostas propostas={bant.propostas} podeEditar={podeEditar} />}
       <div className="grid gap-2.5 sm:grid-cols-2">
         {LETRAS_BANT.map((l) => (
@@ -61,21 +66,6 @@ export function BantNaOportunidade(props: BantNaOportunidadeProps) {
   );
 }
 
-/**
- * Onde o BANT está em relação a "Oportunidade qualificada", em uma pílula: letra que não atende,
- * pronta, ou a nota comprovada contra a exigida (US-0038). A explicação longa fica nas mensagens
- * de bloqueio e no MCP (`oQueFaltaParaQualificar`).
- */
-function SituacaoDoBant({ bant }: { bant: BantDaOportunidade }) {
-  const contra = Object.values(bant.letras).filter((l) => l.estado === ESTADO_NAO_ATENDE).map((l) => l.letra);
-  const [texto, cor] = contra.length
-    ? [`${contra.join(', ')} · Não atende`, COR_DO_ESTADO[ESTADO_NAO_ATENDE]]
-    : bant.notaComprovada >= NOTA_PARA_QUALIFICAR
-      ? ['Pronta para qualificar', COR_DO_ESTADO[ESTADO_CONFIRMADO]]
-      : [`Comprovada ${bant.notaComprovada} de ${NOTA_PARA_QUALIFICAR}`, 'bg-muted text-muted-foreground'];
-  return <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium', cor)}>{texto}</span>;
-}
-
 /** US-0024: o que a IA trouxe, esperando a decisão da pessoa. */
 function Propostas({ propostas, podeEditar }: { propostas: EvidenciaBantDB[]; podeEditar: boolean }) {
   const decidir = useDecidirEvidenciaBant();
@@ -83,7 +73,7 @@ function Propostas({ propostas, podeEditar }: { propostas: EvidenciaBantDB[]; po
     <div className="space-y-2 rounded-lg border border-info/40 bg-info-subtle/40 p-3">
       <p className="flex items-center gap-1.5 text-xs font-medium text-info-emphasis">
         <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-        {propostas.length === 1 ? '1 proposta da IA' : `${propostas.length} propostas da IA`}
+        {propostas.length === 1 ? '1 proposta da IA' : `${propostas.length} propostas da IA`} · só contam depois que você aceita
       </p>
       <ul className="space-y-2">
         {propostas.map((p) => (
@@ -144,10 +134,10 @@ function CartaoDaLetra(props: CartaoDaLetraProps) {
   return (
     <div className="space-y-2 rounded-lg border bg-card p-3">
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 text-sm font-semibold" title={meta?.pergunta}>
-          {letra.letra} · {meta?.nome}
-          {meta?.pergunta && <span className="sr-only">. {meta.pergunta}</span>}
-        </p>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">{letra.letra} · {meta?.nome}</p>
+          <p className="text-xs text-muted-foreground">{meta?.pergunta}</p>
+        </div>
         <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', COR_DO_ESTADO[letra.estado])}>{rotuloDoEstado(letra.estado)}</span>
       </div>
       <EvidenciaAtual letra={letra} />
@@ -187,7 +177,7 @@ function EvidenciaAtual({ letra }: { letra: LetraDoBant }) {
       </div>
     );
   }
-  return null;
+  return <p className="text-[13px] text-muted-foreground">Nada levantado ainda.</p>;
 }
 
 interface NovaEvidenciaProps {
@@ -243,7 +233,7 @@ function NovaEvidencia(props: NovaEvidenciaProps) {
         <Textarea id={ids.texto} rows={2} value={texto} onChange={(e) => setTexto(e.target.value)} className="text-[13px]" />
       </div>
       <div className="space-y-1">
-        <Label htmlFor={ids.fonte} className="text-xs text-muted-foreground">Fonte{estado === ESTADO_CONFIRMADO ? ' *' : ''}</Label>
+        <Label htmlFor={ids.fonte} className="text-xs text-muted-foreground">Fonte {estado === ESTADO_CONFIRMADO ? '(obrigatória ao confirmar)' : '(link ou "reunião de 20/11")'}</Label>
         <Input id={ids.fonte} value={fonte} onChange={(e) => setFonte(e.target.value)} className="h-8 text-[13px]" aria-invalid={faltaFonte} />
       </div>
       <div className="flex justify-end gap-2">
@@ -258,8 +248,8 @@ function NovaEvidencia(props: NovaEvidenciaProps) {
 function sugerirPerda(letra: LetraBant, onSugerirPerda?: (motivo: string | null) => void) {
   const motivo = motivoDePerdaSugerido(letra);
   toast({
-    title: `${letra} · Não atende`,
-    description: motivo ? `Perda sugerida: ${getDiscardReasonLabel(motivo)}` : undefined,
+    title: `${letra} marcado como "Não atende"`,
+    description: motivo ? `Se a conta não vai seguir, registre a Perda como "${getDiscardReasonLabel(motivo)}".` : 'Se a conta não vai seguir, registre a Perda.',
     action: onSugerirPerda ? (
       <ToastAction altText="Registrar a Perda" onClick={() => onSugerirPerda(motivo)}>Registrar Perda</ToastAction>
     ) : undefined,

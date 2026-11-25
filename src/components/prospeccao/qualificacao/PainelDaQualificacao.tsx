@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import {
   alternar,
   FATURAMENTOS,
+  MAIOR_NOTA,
+  OPCOES_DE_FIT_MINIMO,
+  OPCOES_DE_SERVICO_DO_FIT,
   rotuloDaDistancia,
 } from '@/lib/prospecting/filtrosReceita';
 import { BANTS_MINIMOS, chaveDaCidade, DIAS_NA_ETAPA, SEM } from '@/lib/prospecting/filtrosDaQualificacao';
@@ -11,9 +14,9 @@ import { resumo, resumoDoCnae, resumoDoRamo, resumoDoSetor, rotulosDe } from '@/
 import { TIPOS_DE_CONTA } from '@/types/prospect';
 import type { Opcao } from '@/types/filtrosReceita';
 import type { FiltrosDaQualificacao, LinhaDaQualificacao } from '@/types/qualificacao';
+import type { FitFront } from '@/types/receita';
 import { Caixa, Chips, EscolhaUnica, Grupo, Lista } from '../filtros/BlocosDeFiltro';
 import { DistanciaDeFormiga } from '../filtros/DistanciaDeFormiga';
-import { GrupoDoFitPorLinha } from '../filtros/GrupoDoFitPorLinha';
 import { CnaeIncluirTirar, RamoIncluirTirar, SetorIncluirTirar } from '../filtros/AtividadeIncluirTirar';
 
 interface PainelDaQualificacaoProps {
@@ -42,8 +45,13 @@ function useOpcoesDaLista(linhas: LinhaDaQualificacao[], nomeDe: (id: string) =>
 
 /** O que está valendo em cada grupo, para o título recolhido. */
 function resumos(f: FiltrosDaQualificacao, opcoes: ReturnType<typeof useOpcoesDaLista>) {
+  const fit = [
+    f.servicoDoFit ? rotulosDe(OPCOES_DE_SERVICO_DO_FIT, [f.servicoDoFit])[0] : null,
+    f.fitMinimo > 0 ? rotulosDe(OPCOES_DE_FIT_MINIMO, [f.fitMinimo])[0] : null,
+  ];
   const bant = [f.bantMinimo > 0 ? rotulosDe(BANTS_MINIMOS, [f.bantMinimo])[0] : null, f.comPropostas ? 'com propostas da IA' : null];
   return {
+    fit: resumo(fit.filter((t): t is string => !!t)),
     bant: resumo(bant.filter((t): t is string => !!t)),
     cidade: resumo(rotulosDe(opcoes.cidades, f.cidades)),
     responsavel: resumo(rotulosDe(opcoes.responsaveis, f.responsaveis)),
@@ -72,7 +80,15 @@ export function PainelDaQualificacao(props: PainelDaQualificacaoProps) {
         </Button>
       </div>
 
-      <GrupoDoFitPorLinha linhaDoFit={f.linhaDoFit} fitMinimo={f.fitMinimo} onChange={mudar} />
+      <Grupo titulo="Fit por serviço" resumo={r.fit}>
+        <EscolhaUnica
+          rotulo="Serviço do fit"
+          opcoes={OPCOES_DE_SERVICO_DO_FIT}
+          valor={f.servicoDoFit ?? MAIOR_NOTA}
+          onEscolher={(v) => mudar({ servicoDoFit: v === MAIOR_NOTA ? null : (v as FitFront) })}
+        />
+        <EscolhaUnica rotulo="Fit mínimo" opcoes={OPCOES_DE_FIT_MINIMO} valor={f.fitMinimo} onEscolher={(fitMinimo) => mudar({ fitMinimo })} />
+      </Grupo>
       <Grupo titulo="BANT" resumo={r.bant}>
         <EscolhaUnica rotulo="Nota mínima do BANT" opcoes={BANTS_MINIMOS} valor={f.bantMinimo} onEscolher={(bantMinimo) => mudar({ bantMinimo })} />
         <Caixa rotulo="Com propostas da IA esperando" marcada={f.comPropostas} onChange={(comPropostas) => mudar({ comPropostas })} />

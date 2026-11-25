@@ -1,4 +1,3 @@
-import type { FitFront } from '@/types/receita';
 export type BillingType = 'fixed_scope' | 'recurring' | 'success_fee' | 'no_revenue';
 
 export const BILLING_TYPE_LABELS: Record<BillingType, string> = {
@@ -28,8 +27,6 @@ export interface ServiceDB {
   is_active: boolean;
   /** Desativado por alguém do catálogo (US-0046). */
   desativado?: boolean;
-  /** Regra de fit que o serviço usa na Prospecção; nula = sem fit (US-0047). */
-  regra_de_fit?: string | null;
   template_budget_id: string | null;
   /** Chance padrão de realização (%) da receita do percentual (US-0046). */
   chance_padrao_percent?: number | null;
@@ -52,8 +49,6 @@ export interface Service {
   isActive: boolean;
   /** Desativado por alguém do catálogo (US-0046). */
   desativado: boolean;
-  /** Regra de fit que o serviço usa na Prospecção; nula = sem fit (US-0047). */
-  regraDeFit: FitFront | null;
   templateBudgetId: string | null;
   /** Chance padrão de realização (%) da receita do percentual (US-0046); nula = não informada. */
   chancePadraoPercent: number | null;
@@ -69,8 +64,6 @@ export interface CreateServiceInput {
   description?: string;
   /** Chance padrão de realização (%), só para serviço com modelo de receita com Percentual (US-0046). */
   chancePadraoPercent?: number | null;
-  /** Regra de fit na Prospecção; `null` = sem fit (US-0047). */
-  regraDeFit?: FitFront | null;
   // Campos legados (billing_type/project_type): o valor de cobrança migrou para
   // service_revenue_models. Mantidos opcionais por back-compat das colunas NOT NULL.
   billingType?: BillingType;
@@ -92,7 +85,6 @@ export const dbToService = (db: ServiceDB): Service => ({
   hasDefaultValue: db.has_default_value,
   isActive: db.is_active,
   desativado: db.desativado ?? !db.is_active,
-  regraDeFit: (db.regra_de_fit as FitFront | null | undefined) ?? null,
   templateBudgetId: db.template_budget_id ?? null,
   chancePadraoPercent: db.chance_padrao_percent ?? null,
   createdAt: db.created_at,

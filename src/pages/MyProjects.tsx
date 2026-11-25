@@ -270,7 +270,7 @@ export default function MyProjects() {
                 <Button
                   variant="outline"
                   className="mt-4 gap-2"
-                  onClick={() => navigate("/projetos/portfolio")}
+                  onClick={() => navigate("/projects")}
                 >
                   <FolderKanban className="h-4 w-4" />
                   Ir para Projetos

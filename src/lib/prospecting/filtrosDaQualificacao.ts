@@ -10,7 +10,6 @@ import type { BantDaOportunidade } from '@/types/bant';
 import type { FaixaDeFaturamento, Opcao } from '@/types/filtrosReceita';
 import {
   ColunaDaQualificacao,
-  type ColunaOrdenavel,
   type FiltrosDaQualificacao,
   type LinhaDaQualificacao,
   type OrdemDaQualificacao,
@@ -52,7 +51,7 @@ export const FILTROS_DA_QUALIFICACAO_VAZIOS: FiltrosDaQualificacao = {
   distanciaMaxima: 0,
   tiposDeConta: [],
   faturamentos: [],
-  linhaDoFit: null,
+  servicoDoFit: null,
   fitMinimo: 0,
   bantMinimo: 0,
   comPropostas: false,
@@ -158,16 +157,10 @@ function naRegiao(l: LinhaDaQualificacao, f: FiltrosDaQualificacao): boolean {
   return algum(f.ufs, l.uf) && algum(f.cidades, cidade) && perto;
 }
 
-/** A maior nota entre as linhas de serviço do fit (US-0047). */
-function maiorNotaDasLinhas(l: LinhaDaQualificacao): number | null {
-  const notas = Object.values(l.notasPorLinha ?? {}).filter((n): n is number => n !== null);
-  return notas.length ? Math.max(...notas) : null;
-}
-
-/** Com linha escolhida, sai quem não tem nota (sem os dados da Receita); com mínimo, quem fica abaixo. */
+/** Com serviço escolhido, sai quem não tem nota (sem os dados da Receita); com mínimo, quem fica abaixo. */
 function noFit(l: LinhaDaQualificacao, f: FiltrosDaQualificacao): boolean {
-  if (!f.linhaDoFit && !f.fitMinimo) return true;
-  const nota = f.linhaDoFit ? l.notasPorLinha?.[f.linhaDoFit] ?? null : maiorNotaDasLinhas(l);
+  if (!f.servicoDoFit && !f.fitMinimo) return true;
+  const nota = notaDoFit(l, f.servicoDoFit);
   return nota !== null && nota >= f.fitMinimo;
 }
 
@@ -207,7 +200,7 @@ export function contarFiltrosDaQualificacao(f: FiltrosDaQualificacao): number {
     f.distanciaMaxima > 0,
     f.tiposDeConta.length > 0,
     f.faturamentos.length > 0,
-    f.linhaDoFit !== null || f.fitMinimo > 0,
+    f.servicoDoFit !== null || f.fitMinimo > 0,
     f.bantMinimo > 0 || f.comPropostas,
     f.responsaveis.length > 0,
     f.diasMinimos > 0,
@@ -216,18 +209,18 @@ export function contarFiltrosDaQualificacao(f: FiltrosDaQualificacao): number {
 
 // ---------- ordenar ----------
 
-/** Prefixo da coluna de fit de uma linha de serviço (US-0047). */
-const PREFIXO_DA_COLUNA_DE_LINHA = 'linha:';
+/** A coluna de cada serviço: escolher o serviço no filtro ordena por ele. */
+export const COLUNA_DO_SERVICO: Record<FitFront, ColunaDaQualificacao> = {
+  studio: ColunaDaQualificacao.Studio,
+  lei_do_bem: ColunaDaQualificacao.LeiDoBem,
+  captacao: ColunaDaQualificacao.Captacao,
+  consultoria: ColunaDaQualificacao.Consultoria,
+};
 
-export const colunaDaLinha = (linhaId: string): ColunaOrdenavel => `${PREFIXO_DA_COLUNA_DE_LINHA}${linhaId}`;
-
-const linhaDaColuna = (coluna: ColunaOrdenavel): string | null =>
-  coluna.startsWith(PREFIXO_DA_COLUNA_DE_LINHA) ? coluna.slice(PREFIXO_DA_COLUNA_DE_LINHA.length) : null;
-
-/** Trocou a linha do fit: a ordem passa a ser por ela, da maior nota para a menor. */
+/** Trocou o serviço do fit: a ordem passa a ser por ele, da maior nota para a menor. */
 export function ordemDosFiltros(atual: OrdemDaQualificacao, antes: FiltrosDaQualificacao, depois: FiltrosDaQualificacao): OrdemDaQualificacao {
-  if (!depois.linhaDoFit || depois.linhaDoFit === antes.linhaDoFit) return atual;
-  return { coluna: colunaDaLinha(depois.linhaDoFit), crescente: false };
+  if (!depois.servicoDoFit || depois.servicoDoFit === antes.servicoDoFit) return atual;
+  return { coluna: COLUNA_DO_SERVICO[depois.servicoDoFit], crescente: false };
 }
 
 const VALOR_DA_COLUNA: Record<ColunaDaQualificacao, (l: LinhaDaQualificacao) => number | string | null> = {
@@ -244,20 +237,14 @@ const VALOR_DA_COLUNA: Record<ColunaDaQualificacao, (l: LinhaDaQualificacao) => 
 /** Primeiro clique: distância e "Desde" do menor para o maior; o resto, do maior para o menor. */
 export const COMECA_CRESCENTE: ReadonlySet<ColunaDaQualificacao> = new Set([ColunaDaQualificacao.Distancia, ColunaDaQualificacao.Desde]);
 
-export function alternarOrdem(atual: OrdemDaQualificacao, coluna: ColunaOrdenavel): OrdemDaQualificacao {
+export function alternarOrdem(atual: OrdemDaQualificacao, coluna: ColunaDaQualificacao): OrdemDaQualificacao {
   if (atual.coluna === coluna) return { coluna, crescente: !atual.crescente };
-  return { coluna, crescente: COMECA_CRESCENTE.has(coluna as ColunaDaQualificacao) };
-}
-
-function valorDaColuna(coluna: ColunaOrdenavel): (l: LinhaDaQualificacao) => number | string | null {
-  const linhaId = linhaDaColuna(coluna);
-  if (linhaId) return (l) => l.notasPorLinha?.[linhaId] ?? null;
-  return VALOR_DA_COLUNA[coluna as ColunaDaQualificacao] ?? VALOR_DA_COLUNA[ColunaDaQualificacao.Bant];
+  return { coluna, crescente: COMECA_CRESCENTE.has(coluna) };
 }
 
 /** Sem valor vai sempre para o fim; empate, pelo nome. */
 export function ordenarQualificacao(linhas: LinhaDaQualificacao[], ordem: OrdemDaQualificacao): LinhaDaQualificacao[] {
-  const valor = valorDaColuna(ordem.coluna);
+  const valor = VALOR_DA_COLUNA[ordem.coluna];
   const sinal = ordem.crescente ? 1 : -1;
   return [...linhas].sort((a, b) => {
     const va = valor(a);
@@ -288,7 +275,7 @@ function lerFiltros(s: Record<string, unknown>): FiltrosDaQualificacao {
     semCnaes: atividade.semCnaes,
     distanciaMaxima: atividade.distanciaMaxima,
     faturamentos: atividade.faturamentos,
-    linhaDoFit: typeof s.linhaDoFit === 'string' ? s.linhaDoFit : null,
+    servicoDoFit: atividade.servicoDoFit,
     fitMinimo: atividade.fitMinimo,
     ufs: atividade.ufs,
     cidades: textos(s.cidades),
@@ -302,9 +289,7 @@ function lerFiltros(s: Record<string, unknown>): FiltrosDaQualificacao {
 
 function lerOrdem(valor: unknown): OrdemDaQualificacao {
   const o = (valor ?? {}) as Record<string, unknown>;
-  const coluna = String(o.coluna);
-  const valida = COLUNAS.has(coluna) || linhaDaColuna(coluna as ColunaOrdenavel) !== null;
-  return valida ? { coluna: coluna as ColunaOrdenavel, crescente: o.crescente === true } : ORDEM_PADRAO;
+  return COLUNAS.has(String(o.coluna)) ? { coluna: o.coluna as ColunaDaQualificacao, crescente: o.crescente === true } : ORDEM_PADRAO;
 }
 
 /** O que a aba guarda: filtros, ordem e busca. Valor que não vale mais é ignorado. */

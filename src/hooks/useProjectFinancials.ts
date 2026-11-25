@@ -1,9 +1,8 @@
-import { catalogoService } from '@/services/catalogoService';
-import { NENHUM_SERVICO, SEM_SERVICO } from '@/lib/catalogo.constants';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO, addMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { SERVICE_LINE_LABELS } from '@/types/serviceLine';
 import type { AnalyticsFilters } from './useAnalyticsData';
 import { fetchSuppliersWithActuals, fetchMaterials } from '@/services/projectCostsService';
 import { getFallbackHourlyCost } from '@/lib/employeeCost';
@@ -71,7 +70,6 @@ export function useProjectFinancials(
       filters.clientId,
       filters.managerId,
       filters.projectId,
-      filters.servicos ?? null,
       isAdmin,
       currentEmployeeId,
     ],
@@ -91,8 +89,17 @@ export function useProjectFinancials(
 
       const grossMarginTarget = settingsRes.data?.[0]?.gross_margin_target_percent ?? null;
 
-      // US-0048: o relatório agrupa pela linha de serviço do projeto, não pelo serviço.
-      const { linhaDe, linhasAtivas } = await catalogoService.resolvedorDeLinha(tenantId);
+      const { data: servicesData } = await supabase
+        .from('services' as any)
+        .select('id, name')
+        .eq('tenant_id', tenantId);
+      const serviceNameMap = new Map<string, string>(
+        ((servicesData || []) as any[]).map((s: any) => [s.id, s.name])
+      );
+      const resolveServiceLine = (raw: string | null): string => {
+        if (!raw) return 'Outros';
+        return serviceNameMap.get(raw) || SERVICE_LINE_LABELS[raw] || raw;
+      };
 
       let projectsQuery = supabase
         .from('projects')
@@ -103,9 +110,6 @@ export function useProjectFinancials(
       if (filters.clientId) projectsQuery = projectsQuery.eq('client_id', filters.clientId);
       if (filters.managerId) projectsQuery = projectsQuery.eq('manager_id', filters.managerId);
       if (filters.projectId) projectsQuery = projectsQuery.eq('id', filters.projectId);
-      // US-0048: linha e serviço; linha sem serviço não traz projeto nenhum.
-      if (filters.servicos === SEM_SERVICO) projectsQuery = projectsQuery.is('service_line', null);
-      else if (filters.servicos) projectsQuery = projectsQuery.in('service_line', filters.servicos.length ? filters.servicos : [NENHUM_SERVICO]);
 
       const { data: projects, error: projErr } = await projectsQuery;
       if (projErr) throw projErr;
@@ -242,7 +246,8 @@ export function useProjectFinancials(
         const clientName = proj.client?.company_name || 'Interno (sem cliente)';
         const managerId = proj.manager?.id || 'sem-gerente';
         const managerName = proj.manager?.nome || 'Sem gerente';
-        const { chave: serviceLine, rotulo: serviceLineLabel } = linhaDe(proj.service_line);
+        const serviceLine = proj.service_line || 'other';
+        const serviceLineLabel = resolveServiceLine(proj.service_line);
 
         byProject.push({
           projectId: proj.id, projectName: proj.name,
@@ -256,10 +261,10 @@ export function useProjectFinancials(
         addDim(serviceLineMap, serviceLine, serviceLineLabel, rev, cost);
       }
 
-      // Decisão #12: garante que todas as linhas ativas apareçam, mesmo sem projetos no período (US-0048).
-      for (const linha of linhasAtivas) {
-        if (!serviceLineMap.has(linha.chave)) {
-          serviceLineMap.set(linha.chave, { id: linha.chave, label: linha.rotulo, revenue: 0, costs: 0, grossMargin: null, numProjetos: 0 });
+      // Decisão #12: garante que todas as linhas do tenant apareçam, mesmo sem projetos no período
+      for (const [svcId, svcName] of serviceNameMap) {
+        if (!serviceLineMap.has(svcId)) {
+          serviceLineMap.set(svcId, { id: svcId, label: svcName, revenue: 0, costs: 0, grossMargin: null, numProjetos: 0 });
         }
       }
 

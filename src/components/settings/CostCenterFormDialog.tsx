@@ -66,7 +66,7 @@ export function CostCenterFormDialog(props: CostCenterFormDialogProps) {
                 <FormItem>
                   <FormLabel>Nome</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex.: Projetos" autoComplete="off" maxLength={NAME_MAX} {...field} />
+                    <Input placeholder="Ex.: SL04 Consultoria Estratégica" autoComplete="off" maxLength={NAME_MAX} {...field} />
                   </FormControl>
                   <FormDescription>Use o mesmo nome que a empresa já usa, código incluído.</FormDescription>
                   <FormMessage />

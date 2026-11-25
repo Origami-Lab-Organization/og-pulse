@@ -1,10 +1,9 @@
-import { catalogoService } from '@/services/catalogoService';
-import { NENHUM_SERVICO, SEM_SERVICO } from '@/lib/catalogo.constants';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { SERVICE_LINE_LABELS } from '@/types/serviceLine';
 import type { AnalyticsFilters } from './useAnalyticsData';
 
 export interface OverdueItem {
@@ -80,15 +79,24 @@ export function useRevenueAnalytics(
       filters.clientId,
       filters.managerId,
       filters.projectId,
-      filters.servicos ?? null,
       isAdmin,
       currentEmployeeId,
     ],
     queryFn: async (): Promise<RevenueAnalyticsData> => {
       if (!tenantId) throw new Error('No tenant');
 
-      // US-0048: o relatório agrupa pela linha de serviço do projeto, não pelo serviço.
-      const { linhaDe } = await catalogoService.resolvedorDeLinha(tenantId);
+      // Fetch services for UUID→name resolution
+      const { data: servicesData } = await supabase
+        .from('services' as any)
+        .select('id, name')
+        .eq('tenant_id', tenantId);
+      const serviceNameMap = new Map<string, string>(
+        ((servicesData || []) as any[]).map((s: any) => [s.id, s.name])
+      );
+      const resolveServiceLine = (raw: string | null): string => {
+        if (!raw) return 'Outros';
+        return serviceNameMap.get(raw) || SERVICE_LINE_LABELS[raw] || raw;
+      };
 
       let projectsQuery = supabase
         .from('projects')
@@ -100,9 +108,6 @@ export function useRevenueAnalytics(
       if (filters.clientId) projectsQuery = projectsQuery.eq('client_id', filters.clientId);
       if (filters.managerId) projectsQuery = projectsQuery.eq('manager_id', filters.managerId);
       if (filters.projectId) projectsQuery = projectsQuery.eq('id', filters.projectId);
-      // US-0048: linha e serviço; linha sem serviço não traz projeto nenhum.
-      if (filters.servicos === SEM_SERVICO) projectsQuery = projectsQuery.is('service_line', null);
-      else if (filters.servicos) projectsQuery = projectsQuery.in('service_line', filters.servicos.length ? filters.servicos : [NENHUM_SERVICO]);
 
       const { data: projects, error: projErr } = await projectsQuery;
       if (projErr) throw projErr;
@@ -212,7 +217,8 @@ export function useRevenueAnalytics(
         const clientName = proj.client?.company_name || 'Interno (sem cliente)';
         const managerId = proj.manager?.id || 'sem-gerente';
         const managerName = proj.manager?.nome || 'Sem gerente';
-        const { chave: serviceLine, rotulo: serviceLineLabel } = linhaDe(proj.service_line);
+        const serviceLine = proj.service_line || 'other';
+        const serviceLineLabel = resolveServiceLine(proj.service_line);
 
         addTo(clientMap, clientId, clientName, received, planned, faturado);
         addTo(managerMap, managerId, managerName, received, planned, faturado);

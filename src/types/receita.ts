@@ -116,8 +116,6 @@ export interface FitReason {
 /** Nota de 0 a 100 de uma frente, com o porquê de cada ponto. */
 export interface CompanyFit {
   frente: FitFront;
-  /** Serviço do catálogo que mostra esta nota (US-0047); ausente na nota crua da regra. */
-  serviceId?: string;
   rotulo: string;
   nota: number;
   motivos: FitReason[];

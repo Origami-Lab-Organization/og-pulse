@@ -1,34 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { countCommercialContactsByClient } from '@/services/commercialContactService';
 import { ClientDB, CreateClientInput } from '@/types/client';
-import { MESES_DE_ENCERRAMENTO_RECENTE, STATUS_CONCLUIDO, STATUS_EM_ANDAMENTO } from '@/lib/clientesDoFiltro.constants';
-import { format, subMonths } from 'date-fns';
-
-export interface ClienteDoFiltro {
-  id: string;
-  company_name: string;
-  trading_name: string | null;
-}
 
 export const clientService = {
-  /**
-   * US-0048: clientes dos filtros do Portfólio e de Análises — só os que têm projeto em
-   * andamento ou concluído nos últimos meses, não o cadastro inteiro.
-   */
-  async comProjetoRecente(tenantId: string): Promise<ClienteDoFiltro[]> {
-    const desde = format(subMonths(new Date(), MESES_DE_ENCERRAMENTO_RECENTE), 'yyyy-MM-dd');
-    const { data, error } = await supabase
-      .from('projects')
-      .select('client:clients(id, company_name, trading_name)')
-      .eq('tenant_id', tenantId)
-      .not('client_id', 'is', null)
-      .or(`status.in.(${STATUS_EM_ANDAMENTO.join(',')}),and(status.eq.${STATUS_CONCLUIDO},completed_date.gte.${desde})`);
-    if (error) throw error;
-    const porId = new Map<string, ClienteDoFiltro>();
-    for (const { client } of data ?? []) if (client) porId.set(client.id, client);
-    return [...porId.values()].sort((a, b) => a.company_name.localeCompare(b.company_name, 'pt-BR'));
-  },
-
   async getAll(tenantId: string): Promise<ClientDB[]> {
     const { data, error } = await supabase
       .from('clients')

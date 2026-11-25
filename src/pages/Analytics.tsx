@@ -1,6 +1,3 @@
-import { FiltroDeLinhaEServico } from '@/components/catalogo/FiltroDeLinhaEServico';
-import { useCatalogoDosProjetos } from '@/hooks/useCatalogoDosProjetos';
-import { FILTRO_VAZIO, servicosDoFiltro, type EscolhaDoFiltro } from '@/lib/catalogo';
 import { useMemo, useState } from 'react';
 import { CalendarDays, FileDown, Loader2, X } from 'lucide-react';
 import {
@@ -60,8 +57,6 @@ export default function Analytics() {
   const [managerId, setManagerId] = useState(ALL);
   const [clientId, setClientId] = useState(ALL);
   const [projectId, setProjectId] = useState(ALL);
-  const [escolha, setEscolha] = useState<EscolhaDoFiltro>(FILTRO_VAZIO);
-  const { services } = useCatalogoDosProjetos();
   const [isRequestingPdf, setIsRequestingPdf] = useState(false);
 
   const range = useMemo(() => {
@@ -84,9 +79,8 @@ export default function Analytics() {
       clientId: clientId === ALL ? undefined : clientId,
       managerId: managerId === ALL ? undefined : managerId,
       projectId: projectId === ALL ? undefined : projectId,
-      servicos: servicosDoFiltro(escolha, services),
     }),
-    [range, clientId, managerId, projectId, escolha, services],
+    [range, clientId, managerId, projectId],
   );
 
   const { data, isLoading } = useFinancialReport(filters);
@@ -105,8 +99,8 @@ export default function Analytics() {
     }
   }, [period, today, range]);
 
-  const activeFilters = [managerId, clientId, projectId].filter((v) => v !== ALL).length + (escolha.linhaId || escolha.servicoId ? 1 : 0);
-  const clearFilters = () => { setManagerId(ALL); setClientId(ALL); setProjectId(ALL); setEscolha(FILTRO_VAZIO); };
+  const activeFilters = [managerId, clientId, projectId].filter((v) => v !== ALL).length;
+  const clearFilters = () => { setManagerId(ALL); setClientId(ALL); setProjectId(ALL); };
 
   function handleChartMonthClick(monthIndex: number) {
     const clicked = new Date(range.startDate.getFullYear(), monthIndex, 1);
@@ -225,7 +219,6 @@ export default function Analytics() {
               {(options?.projects ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <FiltroDeLinhaEServico value={escolha} onChange={setEscolha} className="h-8 text-xs" />
           {activeFilters > 0 && (
             <Button type="button" variant="ghost" size="sm" onClick={clearFilters} className="h-7 gap-1 px-2 text-xs text-muted-foreground">
               <X className="h-3.5 w-3.5" /> Limpar

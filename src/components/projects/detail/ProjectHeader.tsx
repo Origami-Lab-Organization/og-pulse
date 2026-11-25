@@ -1,7 +1,6 @@
-import { ServicoDoProjeto } from '@/components/catalogo/ServicoDoProjeto';
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Calendar, User, ChevronRight, Check } from 'lucide-react';
+import { Building2, Calendar, User, Layers, ChevronRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ProjectWithRelations } from '@/types/project';
 import { PORTFOLIO_STAGE_LABELS, PortfolioStage } from '@/types/portfolio';
@@ -103,8 +102,12 @@ function ProjectMeta({ project, extra }: { project: ProjectWithRelations; extra?
         <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
         <span className="whitespace-nowrap font-medium text-foreground" title={clientName}>{clientName}</span>
       </span>
-      {/* US-0048: ícone da linha e etiqueta do serviço. */}
-      <ServicoDoProjeto serviceLine={project.service_line} />
+      {project.service?.name && (
+        <span className="inline-flex items-center gap-1.5">
+          <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <span className="whitespace-nowrap" title={project.service.name}>{project.service.name}</span>
+        </span>
+      )}
       <span className="inline-flex items-center gap-1.5">
         <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
         <span className="whitespace-nowrap" title={managerName}>{managerName}</span>
@@ -126,7 +129,7 @@ export function ProjectHeader({ project, actions, subtitle, extraMeta }: Project
   // Produto interno mora em Produtos, não no portfólio (ADR-0049).
   const parent = project.is_internal_product
     ? { label: 'Produtos', href: '/projetos/produtos' }
-    : { label: 'Portfólio', href: '/projetos/portfolio' };
+    : { label: 'Portfólio', href: '/projetos' };
 
   return (
     <div className="space-y-3">

@@ -103,7 +103,7 @@ export const NAV_ITEMS: SidebarNavItem[] = [
     url: '/projetos',
     icon: FolderKanban,
     children: [
-      { title: 'Portfólio', url: '/projetos/portfolio', requiresCapability: 'portfolio:ler' },
+      { title: 'Portfólio', url: '/projetos', requiresCapability: 'portfolio:ler' },
       { title: 'Produtos', url: '/projetos/produtos', requiresCapability: 'produto:ler' },
       { title: 'Alocações', url: '/projetos/alocacoes', requiresCapability: 'alocacao:ler' },
     ],

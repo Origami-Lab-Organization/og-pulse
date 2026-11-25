@@ -1,5 +1,4 @@
-import { FRENTES_DO_FIT } from '@/lib/prospecting/fit';
-import type { GrupoDeFit } from '@/lib/prospecting/fitDoCatalogo';
+import { FRENTES_DO_FIT, ROTULO_DA_FRENTE } from '@/lib/prospecting/fit';
 import type {
   AtalhoDeExclusao,
   AtividadesIncluidas,
@@ -122,10 +121,9 @@ export const OPCOES_DE_FIT_MINIMO: ReadonlyArray<Opcao<number>> = FITS_MINIMOS.m
 /** "Maior nota" é a ausência de serviço escolhido. */
 export const MAIOR_NOTA = 'maior';
 
-/** Opções do serviço do fit: as regras que algum serviço do catálogo usa, com o nome deles (US-0047). */
-export const opcoesDeServicoDoFit = (grupos: ReadonlyArray<GrupoDeFit>): ReadonlyArray<Opcao<string>> => [
+export const OPCOES_DE_SERVICO_DO_FIT: ReadonlyArray<Opcao<string>> = [
   { valor: MAIOR_NOTA, rotulo: 'Maior nota' },
-  ...grupos.map((g) => ({ valor: g.frente, rotulo: g.rotulo })),
+  ...FRENTES_DO_FIT.map((f) => ({ valor: f, rotulo: ROTULO_DA_FRENTE[f] })),
 ];
 
 /** Primeiro acesso, ou navegador novo: a indústria de transformação (decisão de 16/11/2026). */

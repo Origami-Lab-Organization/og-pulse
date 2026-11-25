@@ -17,7 +17,7 @@ import {
   PORTFOLIO_STAGE_LABELS,
   PortfolioStage,
 } from "@/types/portfolio";
-import { ServicoDoProjeto } from '@/components/catalogo/ServicoDoProjeto';
+import { SERVICE_LINE_LABELS } from "@/types/serviceLine";
 import { MyProjectOverviewTab } from "@/components/my-projects/MyProjectOverviewTab";
 import { MyProjectOKRsTab } from "@/components/my-projects/MyProjectOKRsTab";
 import { MyProjectAllocationTab } from "@/components/my-projects/MyProjectAllocationTab";
@@ -118,6 +118,9 @@ export default function MyProjectDetail() {
   }
 
   const clientName = project.clientLabel;
+  const serviceLabel = project.serviceLine
+    ? (SERVICE_LINE_LABELS[project.serviceLine] ?? project.serviceLine)
+    : null;
   const stageBadgeClass = getStageBadgeClass(project.portfolioStage);
   const stageLabel =
     PORTFOLIO_STAGE_LABELS[project.portfolioStage as PortfolioStage] ??
@@ -167,8 +170,9 @@ export default function MyProjectDetail() {
               <Calendar className="h-3.5 w-3.5 shrink-0" />
               {durationLabel}
             </span>
-            {/* US-0048: ícone da linha e etiqueta do serviço. */}
-            <ServicoDoProjeto serviceLine={project.serviceLine} />
+            {serviceLabel && (
+              <span className="flex items-center gap-1.5">{serviceLabel}</span>
+            )}
           </div>
 
           {/* Minha participação — destaque */}

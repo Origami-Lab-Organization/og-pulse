@@ -1,7 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
 import { serviceService } from '@/services/serviceService';
-import { SEM_SERVICO } from '@/lib/catalogo.constants';
-import { SERVICE_LINE_LABELS } from '@/types/serviceLine';
 import { serviceRevenueModelService } from '@/services/serviceRevenueModelService';
 import { modelTypeDoModelo, rotuloDoModelo } from '@/lib/formasDeReceita';
 import type { CreateServiceInput, ServiceDB } from '@/types/service';
@@ -46,36 +43,4 @@ export const catalogoService = {
     const atualizados = await serviceService.getAll(tenantId);
     return atualizados.find((s) => s.id === servico.id) ?? servico;
   },
-
-  /**
-   * Linha de serviço de cada projeto, para os relatórios agruparem por linha (US-0048).
-   * `projects.service_line` guarda o id do serviço; projetos antigos guardam um código fixo.
-   */
-  async resolvedorDeLinha(tenantId: string): Promise<ResolvedorDeLinha> {
-    const [servicos, linhas] = await Promise.all([
-      supabase.from('services').select('id, service_line_id').eq('tenant_id', tenantId),
-      supabase.from('service_lines').select('id, name, is_active, sort_order').eq('tenant_id', tenantId).order('sort_order'),
-    ]);
-    const linhaDoServico = new Map((servicos.data ?? []).map((s) => [s.id, s.service_line_id]));
-    const nomeDaLinha = new Map((linhas.data ?? []).map((l) => [l.id, l.name]));
-    const linhaDe = (serviceLine: string | null): LinhaDoProjeto => {
-      if (!serviceLine) return { chave: SEM_SERVICO, rotulo: 'Sem serviço' };
-      const linhaId = linhaDoServico.get(serviceLine);
-      if (linhaId) return { chave: linhaId, rotulo: nomeDaLinha.get(linhaId) ?? 'Sem linha' };
-      return { chave: serviceLine, rotulo: SERVICE_LINE_LABELS[serviceLine] ?? serviceLine };
-    };
-    const linhasAtivas = (linhas.data ?? []).filter((l) => l.is_active).map((l) => ({ chave: l.id, rotulo: l.name }));
-    return { linhaDe, linhasAtivas };
-  },
 };
-
-export interface LinhaDoProjeto {
-  chave: string;
-  rotulo: string;
-}
-
-export interface ResolvedorDeLinha {
-  linhaDe: (serviceLine: string | null) => LinhaDoProjeto;
-  /** Linhas ativas do tenant, para o relatório mostrar todas, mesmo sem projeto no período. */
-  linhasAtivas: LinhaDoProjeto[];
-}

@@ -53,7 +53,7 @@ export class ProjectDetailErrorBoundary extends React.Component<Props, State> {
 
         <div className="flex gap-2">
           <Button variant="outline" onClick={this.handleReset}>Tentar novamente</Button>
-          <Button onClick={() => window.location.assign('/projetos/portfolio')}>Voltar ao Portfólio</Button>
+          <Button onClick={() => window.location.assign('/projetos')}>Voltar ao Portfólio</Button>
         </div>
       </div>
     );

@@ -259,7 +259,7 @@ export const HELP_GROUPS: HelpGroup[] = [
       {
         id: 'portfolio',
         title: 'Portfólio — todos os projetos',
-        route: '/projetos/portfolio',
+        route: '/projetos',
         requiresCapability: 'portfolio:ler',
         what:
           'A lista completa dos projetos com cliente, gerente, período e etapa. É a porta de entrada para a tela do projeto.',
@@ -295,7 +295,7 @@ export const HELP_GROUPS: HelpGroup[] = [
       {
         id: 'atividades',
         title: 'Atividades do projeto — o kanban',
-        route: '/projetos/portfolio',
+        route: '/projetos',
         requiresCapability: 'projeto:ler',
         what:
           'O quadro de cards do projeto, com colunas de Product Backlog a Done, sprint, pontos, responsável e bloqueio.',
@@ -329,7 +329,7 @@ export const HELP_GROUPS: HelpGroup[] = [
       {
         id: 'arquivos',
         title: 'Arquivos do projeto — pasta no OneDrive',
-        route: '/projetos/portfolio',
+        route: '/projetos',
         requiresCapability: 'arquivo-projeto:ler',
         what:
           'A pasta do projeto no OneDrive, vinculada ao registro do projeto no Pulse. O Pulse guarda o vínculo; o arquivo mora no OneDrive.',
@@ -372,7 +372,7 @@ export const HELP_GROUPS: HelpGroup[] = [
       {
         id: 'reunioes-projeto',
         title: 'Reuniões do projeto — a gravação do Teams vira texto',
-        route: '/projetos/portfolio',
+        route: '/projetos',
         requiresCapability: 'transcricao:ler',
         what:
           'O que foi dito numa reunião some da memória em poucos dias. Aqui a transcrição do Teams chega sozinha no projeto, com quem falou e quando, e dá para buscar depois.',

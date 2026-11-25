@@ -52,12 +52,12 @@ export function EstudoDaConta({ prospect, somenteLeitura, onSugerirPerda }: Estu
       <Pessoas prospect={prospect} podeEditar={podeEditar} />
       {empresa && <Socios prospectId={prospect.id} empresa={empresa} podeEditar={podeEditar} />}
       {empresa && (
-        <Secao titulo="Fit por serviço">
+        <Secao titulo="Fit por serviço" descricao="Qual serviço oferecer: cada nota abre o porquê. Regra explícita, sem IA; o retrato da Base entra com funcionários, dívida, distância e faturamento.">
           <FitPorServico empresa={empresa} />
         </Secao>
       )}
       {empresa && (
-        <Secao titulo="Porte">
+        <Secao titulo="Porte" descricao="Confirme se você souber (pelo LinkedIn, pelo site, por conversa). Prevalece sobre a estimativa da base, na empresa.">
           <div className="grid gap-4 sm:grid-cols-2">
             <Faturamento empresa={empresa} podeEditar={podeEditar} />
             <Funcionarios empresa={empresa} podeEditar={podeEditar} />
@@ -71,14 +71,18 @@ export function EstudoDaConta({ prospect, somenteLeitura, onSugerirPerda }: Estu
 
 interface SecaoProps {
   titulo: string;
+  descricao?: string;
   children: ReactNode;
 }
 
 function Secao(props: SecaoProps) {
-  const { titulo, children } = props;
+  const { titulo, descricao, children } = props;
   return (
     <section className="space-y-2.5">
-      <h3 className="text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</h3>
+      <div>
+        <h3 className="text-[11.5px] font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</h3>
+        {descricao && <p className="mt-0.5 text-xs text-muted-foreground">{descricao}</p>}
+      </div>
       {children}
     </section>
   );
@@ -86,8 +90,9 @@ function Secao(props: SecaoProps) {
 
 /** Cenário 5: só orienta. */
 function OQueFalta({ itens }: { itens: ItemDoEstudo[] }) {
+  const faltam = itens.filter((i) => !i.feito).length;
   return (
-    <Secao titulo="O que falta">
+    <Secao titulo="O que falta" descricao={faltam ? 'O estudo orienta a abordagem; a oportunidade pode avançar sem ele.' : 'Estudo completo.'}>
       <ul className="flex flex-wrap gap-2">
         {itens.map((i) => (
           <li
@@ -111,8 +116,8 @@ function OQueFalta({ itens }: { itens: ItemDoEstudo[] }) {
 function Pessoas({ prospect, podeEditar }: { prospect: ProspectWithCompany; podeEditar: boolean }) {
   const grupos = pessoasPorPapel(prospect.contacts ?? []);
   return (
-    <Secao titulo="Pessoas a abordar">
-      {grupos.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma pessoa ainda.</p>}
+    <Secao titulo="Pessoas a abordar" descricao="Pelo papel na decisão. Inclua ou retire pessoas no cartão Contatos, ao lado.">
+      {grupos.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma pessoa ainda. Traga um sócio abaixo ou inclua um contato.</p>}
       {grupos.map((g) => (
         <div key={g.papel ?? 'sem'} className="space-y-1.5">
           <p className={cn('text-xs font-medium', g.papel ? 'text-foreground' : 'text-warning-emphasis')}>
@@ -237,7 +242,7 @@ function Socios(props: SociosProps) {
   const paraTrazer = sociosParaTrazer(socios);
   if (paraTrazer.length === 0) return null;
   return (
-    <Secao titulo="Sócios da Receita">
+    <Secao titulo="Sócios da Receita" descricao="Ainda não estão entre as pessoas a abordar.">
       <ul className="divide-y rounded-lg border">
         {paraTrazer.map((s) => <Socio key={s.id} socio={s} empresa={empresa} prospectId={prospectId} podeEditar={podeEditar} />)}
       </ul>
@@ -342,7 +347,7 @@ function Alavanca({ prospect, podeEditar }: { prospect: ProspectWithCompany; pod
   const atualizar = useUpdateProspect();
   const id = useId();
   return (
-    <Secao titulo="Alavanca">
+    <Secao titulo="Alavanca" descricao="O canal de chegada na empresa, definido ao abordar.">
       <Label htmlFor={id} className="sr-only">Alavanca</Label>
       <Select
         value={prospect.lever ?? SEM_ALAVANCA}

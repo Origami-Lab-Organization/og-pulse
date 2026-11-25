@@ -11,9 +11,7 @@ import { ModeloDeReceitaPicker } from '@/components/services/ModeloDeReceitaPick
 import { StatusDoServicoPill } from '@/components/services/StatusDoServicoPill';
 import { useSalvarServico } from '@/hooks/useServices';
 import { statusDoRascunho } from '@/lib/catalogo';
-import { SEM_REGRA_DE_FIT, STATUS_DO_SERVICO } from '@/lib/catalogo.constants';
-import { FRENTES_DO_FIT, ROTULO_DA_FRENTE } from '@/lib/prospecting/fit';
-import type { FitFront } from '@/types/receita';
+import { STATUS_DO_SERVICO } from '@/lib/catalogo.constants';
 import { erroDoModelo, rotuloDoModelo, temFormaAntiga, temPercentual } from '@/lib/formasDeReceita';
 import type { Service } from '@/types/service';
 import type { ServiceLine } from '@/types/serviceLine';
@@ -31,8 +29,6 @@ interface Rascunho {
   centroId: string;
   descricao: string;
   chance: string;
-  /** Regra de fit na Prospecção, ou `SEM_REGRA_DE_FIT` (US-0047). */
-  regra: string;
   modelos: ModeloNoPainel[];
   removidos: string[];
 }
@@ -63,7 +59,6 @@ function rascunhoInicial(service: Service | null, linhaInicial: string, models: 
     centroId: service?.costCenterId ?? '',
     descricao: service?.description ?? '',
     chance: service?.chancePadraoPercent == null ? '' : String(service.chancePadraoPercent),
-    regra: service?.regraDeFit ?? SEM_REGRA_DE_FIT,
     modelos,
     removidos: [],
   };
@@ -177,7 +172,6 @@ function dadosParaSalvar(r: Rascunho, service: Service | null) {
       name: r.nome.trim(),
       description: r.descricao.trim(),
       chancePadraoPercent: chanceDoTexto(r.chance) ?? null,
-      regraDeFit: r.regra === SEM_REGRA_DE_FIT ? null : (r.regra as FitFront),
     },
     modelosNovos: r.modelos.filter((m) => !m.id).map((m) => m.formas as FormaDeReceita[]),
     modelosRemovidos: r.removidos,
@@ -253,28 +247,6 @@ function ReceitaDoServico(props: Omit<CamposProps, 'lines'>) {
   );
 }
 
-/** A regra de fit que o serviço usa na Prospecção (US-0047). */
-function ProspeccaoDoServico(props: Omit<CamposProps, 'lines'>) {
-  const { r, set } = props;
-  return (
-    <section className="grid gap-3" aria-labelledby="servico-prospeccao">
-      <h3 id="servico-prospeccao" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Prospecção</h3>
-      <div className="grid gap-1.5 sm:w-64">
-        <Label htmlFor="servico-fit">Fit</Label>
-        <Select value={r.regra} onValueChange={(regra) => set({ regra })}>
-          <SelectTrigger id="servico-fit"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {FRENTES_DO_FIT.map((f) => (
-              <SelectItem key={f} value={f}>{ROTULO_DA_FRENTE[f]}</SelectItem>
-            ))}
-            <SelectItem value={SEM_REGRA_DE_FIT}>Sem fit</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    </section>
-  );
-}
-
 /** Conteúdo do painel; montado a cada abertura, então o rascunho nasce do serviço aberto. */
 function PainelDoServico(props: ServiceSheetProps) {
   const { onOpenChange, service, linhaInicial, lines, services, models, usos } = props;
@@ -305,7 +277,6 @@ function PainelDoServico(props: ServiceSheetProps) {
       <div className="grid flex-1 content-start gap-6 overflow-y-auto px-6 py-5">
         <DadosDoServico r={r} set={set} lines={lines} />
         <ReceitaDoServico r={r} set={set} />
-        <ProspeccaoDoServico r={r} set={set} />
         {service && status !== STATUS_DO_SERVICO.SEM_MODELO && (
           <AcoesDoServico service={service} usos={usos} onDesativar={props.onDesativar} onReativar={props.onReativar} onExcluir={props.onExcluir} />
         )}
