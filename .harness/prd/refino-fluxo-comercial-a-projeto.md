@@ -204,7 +204,7 @@ revisadas.
 | Ordem | Épico | Histórias |
 |---|---|---|
 | 1 | **Catálogo e formas de receita** | 1.1 (US-0046) Catálogo 2027: linhas Projetos, Fomento e Governo; serviços; formas aceitas por serviço, exclusivas ou combinadas; antigas desativadas · 1.2 (US-0047) Fit por serviço lendo o catálogo · 1.3 (US-0048) Filtro por serviço, sozinho ou com a linha |
-| 2 | **Empresa e cliente** | 2.1 Cadastro único na empresa; cliente = empresa com Ganho; relação e histórico na ficha; matriz e filiais (US-0045 reescrita) · 2.2 Regularização caso a caso dos 11 clientes |
+| 2 | **Empresa e cliente** | 2.1 (US-0045 reescrita) Cadastro único na empresa; cliente = empresa com Ganho ou projeto · (US-0049) Uma tela só para empresas e clientes · (US-0050) Matriz e filiais na mesma ficha · (US-0051) Marcas Parceiro e Cliente antes do Pulse · 2.2 (US-0052) Regularização caso a caso dos clientes atuais |
 | 3 | **Orçamento composto** | 3.1 Orçamento da Oportunidade qualificada, com serviço e estados novos · 3.2 Componentes de receita: escopo fixo, percentual (cheia × ponderada), cobrança por hora (tarifa, teto, piso, regra do teto), comissão por indicação · 3.3 Custos do orçamento revisados, comissão paga em % ou valor · 3.4 Aditivo, com o comercial da conta |
 | 4 | **Do Pipeline ao projeto** | 4.1 Serviço na Oportunidade ao qualificar · 4.2 Etapa Proposta e Ganho só com orçamento aceito, com o CNPJ de faturamento; o projeto herda tudo |
 | 5 | **Portfólio de Projetos e Governo** | 5.1 Situação única, com Pausado e Cancelado como marcas · 5.2 De-para dos ativos e marca "sem orçamento"; planejado vira linha de base · 5.3 Alerta do teto de horas · 5.4 Encerramento com renovação (US-0043 revisada) |

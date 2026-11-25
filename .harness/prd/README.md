@@ -308,11 +308,12 @@ membro e permissões por capacidade. Protótipo: `prototipos/portfolio-de-projet
 | [US-0037](stories/4-em-desenvolvimento/US-0037-projetos-sino-de-pendencias-no-card.md) | Sino de pendências no card e pendências na Visão Geral | GP | Em desenvolvimento | Pronta |
 | [US-0039](stories/4-em-desenvolvimento/US-0039-projetos-planejamento-guiado-por-checklist.md) | Planejar o projeto guiado por um checklist que acompanha o preenchimento | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0043](stories/2-em-refinamento/US-0043-projetos-encerramento-com-renovacao.md) | Encerrar o projeto decidindo a renovação e entregando os resultados | GP ou admin | Em refinamento | Pronta com ressalvas |
-| [US-0045](stories/2-em-refinamento/US-0045-comercial-empresa-e-cliente-num-cadastro-so.md) | Empresa e cliente num cadastro só (pré-requisito da US-0043) | Pessoa do comercial ou GP | Em refinamento | Pronta com ressalvas |
+| [US-0045](stories/3-pronta-para-desenvolver/US-0045-comercial-empresa-e-cliente-num-cadastro-so.md) | A empresa é o cadastro do cliente (pré-requisito da US-0043; épico 2 abaixo) | Pessoa do comercial ou GP | Pronta para desenvolver | Pronta |
 
 O modo planejamento foi aprovado pelo Victor em 23/11/2026 (protótipo versão 8) e virou a
 US-0039. O encerramento com renovação virou a US-0043 em 24/11/2026 e está em espera pelo
-refino "Do Pipeline ao fim do projeto" (abaixo), junto com a US-0045. As telas de visão do
+refino "Do Pipeline ao fim do projeto" (abaixo). A US-0045, pré-requisito dela, saiu da espera em
+25/11/2026: foi reescrita e está pronta para desenvolver, com o épico 2. As telas de visão do
 membro e permissões estão no protótipo e aguardam a validação do Victor para virar histórias.
 
 ### Do Pipeline ao fim do projeto (aberto em 2026-11-25)
@@ -330,3 +331,16 @@ US-0045 aguardam os épicos anteriores do roadmap.
 | [US-0046](stories/3-pronta-para-desenvolver/US-0046-catalogo-2027-linhas-servicos-e-formas-de-receita.md) | Catálogo 2027: linhas, serviços e formas de receita | Admin | Pronta para desenvolver | Pronta com ressalvas |
 | [US-0047](stories/3-pronta-para-desenvolver/US-0047-fit-por-servico-segue-o-catalogo.md) | Fit por serviço segue o catálogo | Pessoa do comercial | Pronta para desenvolver | Pronta com ressalvas |
 | [US-0048](stories/3-pronta-para-desenvolver/US-0048-filtro-por-linha-e-servico.md) | Filtrar e ver projetos por linha e por serviço | Admin, GP ou comercial | Pronta para desenvolver | Pronta com ressalvas |
+
+**Épico 2 — Empresa e cliente**
+
+Um cadastro só, a empresa; cliente é a empresa com Ganho ou com projeto; uma tela só, Empresas;
+matriz e filiais na mesma ficha; regularização caso a caso (Victor Couto, 25/11/2026).
+
+| ID | História | Persona | Status | Prontidão |
+|---|---|---|---|---|
+| [US-0045](stories/3-pronta-para-desenvolver/US-0045-comercial-empresa-e-cliente-num-cadastro-so.md) | A empresa é o cadastro do cliente | Pessoa do comercial ou GP | Pronta para desenvolver | Pronta |
+| [US-0049](stories/3-pronta-para-desenvolver/US-0049-comercial-uma-tela-so-para-empresas-e-clientes.md) | Uma tela só para empresas e clientes | Comercial, GP ou admin | Pronta para desenvolver | Pronta |
+| [US-0050](stories/3-pronta-para-desenvolver/US-0050-comercial-matriz-e-filiais-na-mesma-ficha.md) | Matriz e filiais na mesma ficha | Pessoa do comercial | Pronta para desenvolver | Pronta |
+| [US-0051](stories/3-pronta-para-desenvolver/US-0051-comercial-marcas-parceiro-e-cliente-antes-do-pulse.md) | Marcas Parceiro e Cliente antes do Pulse | Admin ou comercial | Pronta para desenvolver | Pronta |
+| [US-0052](stories/3-pronta-para-desenvolver/US-0052-comercial-regularizar-os-clientes-caso-a-caso.md) | Regularizar os clientes atuais, caso a caso | Admin | Pronta para desenvolver | Pronta |
