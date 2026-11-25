@@ -176,3 +176,23 @@ function mensagemDeEmpresa(err: Error): string {
   }
   return mensagemParaUsuario(err);
 }
+
+/** US-0050: grava as filiais da empresa ou junta a empresa de uma filial na matriz. */
+export function useFiliaisDaEmpresa() {
+  const qc = useQueryClient();
+  const recarregar = () => {
+    qc.invalidateQueries({ queryKey: ['prospect-companies'] });
+    qc.invalidateQueries({ queryKey: ['prospect-companies-search'] });
+    qc.invalidateQueries({ queryKey: ['prospect-company-by-cnpj'] });
+    qc.invalidateQueries({ queryKey: ['prospects'] });
+  };
+  const salvar = useMutation({
+    mutationFn: ({ id, filiais }: { id: string; filiais: string[] }) => prospectCompanyService.setFiliais(id, filiais),
+    onSuccess: recarregar,
+  });
+  const juntar = useMutation({
+    mutationFn: ({ de, para }: { de: string; para: string }) => prospectCompanyService.juntar(de, para),
+    onSuccess: recarregar,
+  });
+  return { salvar, juntar };
+}

@@ -36,6 +36,8 @@ import type { RegistroDoFaturamento } from '@/types/filtrosReceita';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { ColocarParaAbordarDialog } from './ColocarParaAbordarDialog';
+import { FiliaisDaEmpresa } from '@/components/prospeccao/FiliaisDaEmpresa';
+import { useProspectCompanyByCnpj } from '@/hooks/useProspectCompanies';
 import { DecisaoNaBaseDialog } from './DecisaoNaBaseDialog';
 import { MotivoDaConfianca, SeloDeConfianca } from './SeloDeConfianca';
 import { SeloDeRelacao } from './SeloDeRelacao';
@@ -274,8 +276,22 @@ function Identificacao({ empresa }: { empresa: EmpresaDaFicha }) {
         <Item rotulo="Cidade">{local || traco}</Item>
         <Item rotulo="Distância de Formiga">{empresa.distancia_km != null ? `${empresa.distancia_km.toLocaleString('pt-BR')} km` : traco}</Item>
         <Item rotulo="Situação">Matriz ativa</Item>
+        <FiliaisNaFicha cnpj={empresa.cnpj} />
       </Itens>
     </Secao>
+  );
+}
+
+/** US-0050: as filiais guardadas na empresa do Pulse, quando ela já está no Pulse. */
+function FiliaisNaFicha({ cnpj }: { cnpj: string }) {
+  const { can } = useAuth();
+  const { data: empresa } = useProspectCompanyByCnpj(cnpj);
+  const podeEditar = can('prospeccao:editar');
+  if (!empresa || ((empresa.filiais?.length ?? 0) === 0 && !podeEditar)) return null;
+  return (
+    <Item rotulo="Filiais">
+      <FiliaisDaEmpresa empresa={empresa} podeEditar={podeEditar} />
+    </Item>
   );
 }
 

@@ -59,6 +59,9 @@ sources:
   - src/types/portfolio.ts
 # 25/11/2026: services ganha regra_de_fit (20261125116000, US-0047): a regra de fit que o servico usa
 # na Prospeccao; catalogo fora do diagrama.
+# 25/11/2026: prospect_companies ganha filiais e cnpj_busca (20261125124000, US-0050), mantidos pelo
+# gatilho trg_prospect_companies_filiais; juntar_empresas e cnpjs_do_cliente são funções (sem relação
+# nova). Conferido contra ProspectCompanyDB (src/types/prospect.ts) e ensaiado num Postgres local.
 # 25/11/2026: US-0045 e US-0049 (ADR-0056) não mudam colunas nem relações: o cliente passa a nascer da
 # empresa no Ganho (gatilho trg_prospects_ganho_torna_cliente, 20261125121000), copia dela a identificação
 # (trg_prospect_companies_sincroniza_cliente) e a carteira é lida por carteira_de_clientes (20261125122000);
@@ -248,6 +251,8 @@ erDiagram
     prospect_companies {
         text name ""
         text cnpj "único por tenant (índice parcial)"
+        text_array filiais "CNPJs das filiais, mesma raiz; nenhum CNPJ de outra empresa (US-0050)"
+        text cnpj_busca "matriz + filiais, para a busca (gatilho)"
         text linkedin_url "único por tenant (índice parcial)"
         text instagram_url "livre — fora da deduplicação"
         text tipo_conta "ancora | ponte | satelite — NULL = sem tipo (US-0008)"

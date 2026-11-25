@@ -327,6 +327,10 @@ export interface ProspectCompanyDB {
   tenant_id: string;
   name: string;
   cnpj: string | null;
+  /** US-0050: CNPJs das filiais (só dígitos, mesma raiz da matriz). */
+  filiais?: string[];
+  /** US-0050: matriz e filiais juntas, para a busca por parte do CNPJ. */
+  cnpj_busca?: string | null;
   linkedin_url: string | null;
   instagram_url: string | null;
   website: string | null;

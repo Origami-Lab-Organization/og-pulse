@@ -8164,6 +8164,10 @@ export type Database = {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
+      juntar_empresas: {
+        Args: { p_de: string; p_para: string }
+        Returns: string
+      }
       carteira_de_clientes: {
         Args: { p_tenant: string }
         Returns: {

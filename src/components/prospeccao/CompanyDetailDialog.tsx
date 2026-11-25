@@ -35,6 +35,7 @@ import { AbordagemBadge, SituacaoDot } from './CompanyBadges';
 import { CompanyOpportunityList } from './CompanyOpportunityList';
 import { Item, LinkExterno, Rodape, Secao } from './FichaDeCadastro';
 import { CompanyReceitaCard } from './CompanyReceitaCard';
+import { FiliaisDaEmpresa } from './FiliaisDaEmpresa';
 import { CnpjLookupField } from './CnpjLookupField';
 import { useSaveCompanyReceita } from '@/hooks/useCompanyReceita';
 import type { ReceitaSnapshot } from '@/types/receita';
@@ -131,6 +132,10 @@ function Visualizacao({
       <div className="min-h-0 flex-1 space-y-[18px] overflow-y-auto px-6 pb-5 pt-1.5">
         <Secao titulo="Dados cadastrais">
           <Item rotulo="CNPJ">{company.cnpj && <CnpjCopiavel cnpj={company.cnpj} />}</Item>
+          {/* US-0050: matriz e filiais na mesma ficha. */}
+          {((company.filiais?.length ?? 0) > 0 || (can('prospeccao:editar') && company.cnpj)) && (
+            <Item rotulo="Filiais"><FiliaisDaEmpresa empresa={company} podeEditar={can('prospeccao:editar')} /></Item>
+          )}
           <Item rotulo="Site">
             {company.website && <LinkExterno href={comProtocolo(company.website)} icone={Globe} />}
           </Item>
