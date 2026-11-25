@@ -339,10 +339,15 @@ ser uma funcionalidade do sistema, com custo no centro de custo **Férias**, sep
 refinar.
 
 **O que já existe**
-- Pedido e aprovação de férias com saldo por aniversário de admissão (ADR-0003):
+- Pedido e aprovação de férias com saldo por aniversário de admissão
+  ([ADR-0003 vacation](../adr/0003-vacation-accrual-and-multi-manager-approval.md)):
   `/minhas-ferias` para a pessoa e `/rh/ferias` para quem tem `ferias:gerir`.
 - A férias aprovada só tira os dias da cobrança de horas não lançadas e da auditoria de horas.
   Ela não gera lançamento nem custo em centro nenhum.
+- Há um terceiro caminho, fora do módulo de férias: "Lançar ausência" em `/jornada/aprovacoes`
+  (`RegisterAbsenceDialog` → Edge Function `register-absence-period`) com tipo **Férias**, que
+  grava o período no ponto da pessoa. É lançamento direto de admin (`pessoa:editar`), sem saldo
+  nem aprovação em cascata, e respeita o fechamento de período (`time_tracking_period_locks`).
 - Até a funcionalidade existir, férias são lançadas na atividade **Férias** (centro Férias). A
   antiga atividade "Folga/Férias" foi desativada em 25/11/2026 e deu lugar a **Folga** (centro
   Ausências) e **Férias**; os lançamentos antigos ficaram como estavam.
@@ -350,6 +355,8 @@ refinar.
 **Para refinar**
 - A férias aprovada vira lançamento sozinha, dia a dia, no centro Férias? Com quantas horas por
   dia (jornada da pessoa)?
+- O lançamento automático nasce do pedido aprovado, do período lançado no ponto, ou os dois
+  precisam ser conciliados para os mesmos dias não contarem duas vezes?
 - Como fica o lançamento quando a férias é cancelada ou alterada depois de aprovada?
 - O que acontece com horas já lançadas pela pessoa nos dias de férias?
 - A atividade manual "Férias" continua existindo ou some quando a funcionalidade entrar?
