@@ -142,6 +142,15 @@ Decisões do refino de 24 e 25/11/2026 (Victor Couto):
 - **E** a linha é criada e editada num diálogo com nome e descrição;
 - **E** a tela não tem texto explicativo: introdução, dica de campo ou frase de ajuda.
 
+**Cenário 12: o projeto guarda o modelo de receita**
+
+- **Dado** o formulário do projeto;
+- **Quando** escolho o serviço;
+- **Então** cada opção mostra linha, serviço e modelo de receita ("Fomento › Lei do Bem ›
+  Percentual"), e o projeto guarda os dois;
+- **E** um projeto antigo, ainda sem modelo, mostra o serviço que tem até o GP escolher;
+- **E** o modelo precisa ser do serviço do projeto; trocar só o serviço limpa o modelo.
+
 ## Decisões (Victor Couto, 24 e 25/11/2026)
 
 - Linhas Projetos, Fomento e Governo; serviços por linha como no Contexto; valem a partir da
@@ -164,6 +173,8 @@ Decisões do refino de 24 e 25/11/2026 (Victor Couto):
   por linha e painel lateral, no lugar da lista de linhas, da página de cada linha e do assistente
   de 3 passos. Protótipo aprovado: `prototipos/catalogo-de-servicos.html`.
 - **Sem texto explicativo na tela** (25/11/2026): a UI e a UX têm de bastar.
+- **O projeto guarda o modelo de receita** (25/11/2026), escolhido com a linha e o serviço,
+  porque cada GP vai ajustar os projetos em andamento.
 - **O perfil Gerente perde `catalogo:editar`** (25/11/2026): só o admin edita o catálogo.
 
 ## Pontos em aberto
@@ -240,6 +251,6 @@ Decisões do refino de 24 e 25/11/2026 (Victor Couto):
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| 1 a 4, 10 | Migrations `20261125100000_catalogo_composicoes_de_receita` e `20261125110000_servico_ativo_so_com_modelo`, ensaiadas num Postgres local (ida, casos do gatilho e do índice, compatibilidade com o front anterior e rollback) e aplicadas em produção em 25/11/2026 |
+| 1 a 4, 10, 12 | Migrations `20261125100000_catalogo_composicoes_de_receita`, `20261125110000_servico_ativo_so_com_modelo` e `20261125113000_projeto_guarda_modelo_de_receita`, ensaiadas num Postgres local (ida, casos do gatilho e do índice, compatibilidade com o front anterior e rollback) e aplicadas em produção em 25/11/2026 |
 | 5 a 9, 11 | Tela nova em `src/pages/Services.tsx` e `src/components/services/ServiceSheet.tsx`; teste do Victor no localhost (a registrar) |
 | 8 | `catalogo:editar` fora do perfil Gerente pela tela Perfis de acesso (configuração do Victor) |
