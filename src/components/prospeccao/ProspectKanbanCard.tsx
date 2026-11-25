@@ -6,6 +6,7 @@ import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { formatCurrency } from '@/lib/formatters';
 import { otherOpportunitiesInProgress } from '@/lib/prospecting/companyStatus';
 import { companyFit, servicoEmDestaque } from '@/lib/prospecting/fit';
+import { useFitDoCatalogo } from '@/hooks/useFitDoCatalogo';
 import { cn } from '@/lib/utils';
 import type { BantDaOportunidade } from '@/types/bant';
 import { LetrasDoBant } from './bant/LetrasDoBant';
@@ -133,8 +134,9 @@ export function ProspectKanbanCard({
 
 /** O serviço de maior fit, em letra pequena (US-0014): pista de qual serviço oferecer. */
 function MaiorFit({ prospect }: { prospect: ProspectWithCompany }) {
+  const { projetar } = useFitDoCatalogo();
   const empresa = prospect.company;
-  const maior = empresa ? servicoEmDestaque(companyFit(empresa, empresa.fomento ?? null)) : null;
+  const maior = empresa ? servicoEmDestaque(projetar(companyFit(empresa, empresa.fomento ?? null))) : null;
   if (!maior) return null;
   return (
     <span className="flex items-center gap-1 text-[11px] text-muted-foreground" title={`Maior fit: ${maior.rotulo} (${maior.nota} de 100)`}>

@@ -8,6 +8,8 @@ import { PortfolioKPIBar } from '@/components/portfolio/PortfolioKPIBar'
 import { PortfolioFilters } from '@/components/portfolio/PortfolioFilters'
 import { usePortfolioProjects, PortfolioProject } from '@/hooks/usePortfolioProjects'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { useCatalogoDosProjetos } from '@/hooks/useCatalogoDosProjetos'
+import { FILTRO_VAZIO, servicosDoFiltro, type EscolhaDoFiltro } from '@/lib/catalogo'
 import { useAuth } from '@/contexts/AuthContext'
 import { useHideValuesPreference } from '@/contexts/HideValuesContext'
 import { alertsOf, portfolioKpis, portfolioMargin } from '@/lib/portfolioBoard'
@@ -25,7 +27,8 @@ import { PORTFOLIO_STAGE, type PortfolioScope } from '@/types/portfolio'
 export default function Portfolio() {
   const [searchQuery, setSearchQuery] = useState('')
   const [clientId, setClientId] = useState('')
-  const [serviceLine, setServiceLine] = useState('')
+  const [escolha, setEscolha] = useState<EscolhaDoFiltro>(FILTRO_VAZIO)
+  const { services } = useCatalogoDosProjetos()
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [scope, setScope] = useState<PortfolioScope>('all')
   const [hideValues] = useHideValuesPreference()
@@ -45,7 +48,7 @@ export default function Portfolio() {
 
   const { data: projects = [], isLoading } = usePortfolioProjects(searchQuery, {
     clientId,
-    serviceLine,
+    servicos: servicosDoFiltro(escolha, services),
     managerId: scope === 'mine' ? employee?.id ?? '' : '',
   })
   const yearNumber = Number(year)
@@ -87,11 +90,11 @@ export default function Portfolio() {
         <div className='flex flex-wrap items-center gap-3'>
           <PortfolioFilters
             clientId={clientId}
-            serviceLine={serviceLine}
+            escolha={escolha}
             year={year}
             scope={scope}
             onClientChange={setClientId}
-            onServiceLineChange={setServiceLine}
+            onEscolhaChange={setEscolha}
             onYearChange={setYear}
             onScopeChange={setScope}
           />

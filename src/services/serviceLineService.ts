@@ -25,6 +25,7 @@ export const serviceLineService = {
         tenant_id: tenantId,
         name: input.name,
         description: input.description || null,
+        ...(input.icone ? { icone: input.icone } : {}),
       })
       .select()
       .single();
@@ -42,6 +43,7 @@ export const serviceLineService = {
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (input.name !== undefined) updates.name = input.name;
     if (input.description !== undefined) updates.description = input.description || null;
+    if (input.icone !== undefined) updates.icone = input.icone;
 
     const { data, error } = await supabase
       .from('service_lines')

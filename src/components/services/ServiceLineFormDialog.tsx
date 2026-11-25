@@ -21,10 +21,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { ServiceLine, CreateServiceLineInput } from '@/types/serviceLine';
+import { ICONES_DA_LINHA, ICONE_PADRAO_DA_LINHA } from '@/lib/catalogo.constants';
+import { EscolhaDoIcone } from '@/components/catalogo/IconeDaLinha';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   description: z.string().optional(),
+  icone: z.enum(ICONES_DA_LINHA),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -41,7 +44,7 @@ export function ServiceLineFormDialog(props: ServiceLineFormDialogProps) {
   const { open, onOpenChange, serviceLine, onSubmit, isLoading } = props;
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: '', description: '' },
+    defaultValues: { name: '', description: '', icone: ICONE_PADRAO_DA_LINHA },
   });
 
   useEffect(() => {
@@ -49,11 +52,12 @@ export function ServiceLineFormDialog(props: ServiceLineFormDialogProps) {
     form.reset({
       name: serviceLine?.name ?? '',
       description: serviceLine?.description ?? '',
+      icone: serviceLine?.icone ?? ICONE_PADRAO_DA_LINHA,
     });
   }, [open, serviceLine]);
 
   const handleSubmit = (values: FormValues) => {
-    onSubmit({ name: values.name, description: values.description || undefined });
+    onSubmit({ name: values.name, description: values.description || undefined, icone: values.icone });
   };
 
   return (
@@ -72,6 +76,20 @@ export function ServiceLineFormDialog(props: ServiceLineFormDialogProps) {
                   <FormLabel>Nome da linha</FormLabel>
                   <FormControl>
                     <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="icone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ícone</FormLabel>
+                  <FormControl>
+                    <EscolhaDoIcone value={field.value} onChange={field.onChange} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

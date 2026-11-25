@@ -155,7 +155,7 @@ sequenceDiagram
     autonumber
     participant P as Página<br/>Clients.tsx:23
     participant H as Hook TanStack Query<br/>useClients.ts:10-18
-    participant S as Service<br/>clientService.ts:5-17
+    participant S as Service<br/>clientService.ts:32-45
     participant C as Cliente Supabase<br/>client.ts:11-17
     participant DB as Supabase Postgres<br/>(RLS por tenant/role)
 

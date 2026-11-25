@@ -43,7 +43,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Projetos',
     url: '/projetos',
     tabs: [
-      { title: 'Portfólio', url: '/projetos', requiresCapability: 'portfolio:ler' },
+      { title: 'Portfólio', url: '/projetos/portfolio', requiresCapability: 'portfolio:ler' },
       { title: 'Alocações', url: '/projetos/alocacoes', requiresCapability: 'alocacao:ler' },
     ],
   },

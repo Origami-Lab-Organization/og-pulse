@@ -269,6 +269,7 @@ export function servicoEmDestaque(fits: CompanyFit[] | null): CompanyFit | null 
 
 /** A maior nota entre os serviços — o que ordena a tela Empresas por padrão. */
 export function bestFit(fits: CompanyFit[] | null): CompanyFit | null {
-  if (!fits) return null;
+  // Vazia enquanto o catálogo carrega, ou sem serviço com fit (US-0047): nada se destaca.
+  if (!fits || fits.length === 0) return null;
   return fits.reduce((melhor, f) => (f.nota > melhor.nota ? f : melhor));
 }

@@ -108,7 +108,7 @@ export default function ProjectDetail() {
   const canManageAnyProject = can('projeto:gerir-qualquer');
   const canAccessFullProject = isAdmin || isManager;
   const canAccessPortfolio = can('portfolio:ler');
-  const homeRoute = canAccessPortfolio ? '/projetos' : '/my-projects';
+  const homeRoute = canAccessPortfolio ? '/projetos/portfolio' : '/my-projects';
   const initialTab = pickInitialTab(searchParams.get("tab"), canAccessFullProject);
   const { data: project, isLoading, error: projectError, refetch } = useProject(id);
   const { data: allocations = [] } = useProjectAllocations(id ?? '', false);
@@ -134,7 +134,7 @@ export default function ProjectDetail() {
     if (!project) return;
     deleteProject.mutate(
       { id: project.id, name: project.name, withCascade: true },
-      { onSuccess: () => navigate("/projetos") },
+      { onSuccess: () => navigate("/projetos/portfolio") },
     );
   };
 
@@ -145,7 +145,7 @@ export default function ProjectDetail() {
       {
         onSuccess: () => {
           setRemoveDialogOpen(false);
-          navigate("/projetos");
+          navigate("/projetos/portfolio");
         },
       },
     );
@@ -156,7 +156,7 @@ export default function ProjectDetail() {
       <AppLayout
         title="Carregando..."
         breadcrumbs={[
-          { label: "Portfólio", href: "/projetos" },
+          { label: "Portfólio", href: "/projetos/portfolio" },
           { label: "Carregando..." },
         ]}
       >
@@ -182,7 +182,7 @@ export default function ProjectDetail() {
     return (
       <AppLayout
         title="Não foi possível abrir o projeto"
-        breadcrumbs={[{ label: "Portfólio", href: "/projetos" }, { label: "Erro" }]}
+        breadcrumbs={[{ label: "Portfólio", href: "/projetos/portfolio" }, { label: "Erro" }]}
       >
         <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
           <p className="text-muted-foreground">
@@ -211,7 +211,7 @@ export default function ProjectDetail() {
       <AppLayout
         title="Projeto não encontrado"
         breadcrumbs={[
-          { label: "Portfólio", href: "/projetos" },
+          { label: "Portfólio", href: "/projetos/portfolio" },
           { label: "Não encontrado" },
         ]}
       >

@@ -31,6 +31,7 @@ export const serviceService = {
         billing_type: input.billingType ?? 'fixed_scope',
         description: input.description || null,
         chance_padrao_percent: input.chancePadraoPercent ?? null,
+        regra_de_fit: input.regraDeFit ?? null,
         has_default_value: input.hasDefaultValue ?? false,
         default_value: input.hasDefaultValue ? (input.defaultValue ?? null) : null,
         billing_unit: input.hasDefaultValue ? (input.billingUnit ?? null) : null,
@@ -58,6 +59,7 @@ export const serviceService = {
     }
     if (input.description !== undefined) updates.description = input.description || null;
     if (input.chancePadraoPercent !== undefined) updates.chance_padrao_percent = input.chancePadraoPercent ?? null;
+    if (input.regraDeFit !== undefined) updates.regra_de_fit = input.regraDeFit ?? null;
     if (input.hasDefaultValue !== undefined) {
       updates.has_default_value = input.hasDefaultValue;
       if (!input.hasDefaultValue) {

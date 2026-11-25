@@ -66,7 +66,7 @@ export const OWNER_GUIDE_STEPS: readonly OwnerGuideStep[] = [
     title: 'Seu primeiro projeto, com time',
     why: 'Projeto sem ninguém alocado não consome hora, e sem hora não existe margem realizada. Por isso este passo pede as duas coisas.',
     cta: 'Criar o projeto e alocar o time',
-    route: '/projetos',
+    route: '/projetos/portfolio',
     selectors: ['[data-tour="nav-/projetos"]', '[data-tour="nav-group-/projetos"]'],
     fallback: 'Abra Projetos no menu lateral, crie o projeto e inclua o time nele.',
     isDone: (c) => c.projects > 0 && c.projectMembers > 0,

@@ -1,4 +1,7 @@
+import { useMemo } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useFitDoCatalogo } from '@/hooks/useFitDoCatalogo';
+import { regraValida } from '@/lib/prospecting/fitDoCatalogo';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import type { EmpresaReceita, OrdenacaoReceita, PaginaReceita, TotalReceita } from '@/lib/prospecting/empresasReceita';
@@ -68,7 +71,14 @@ interface RespostaDaPagina {
  */
 const naTela = <T extends EmpresaReceita>(empresa: T): T => comLimiteDoRegime(comFuncionariosDoTime(empresa));
 
-export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: OrdenacaoReceita, pagina: number, busca?: string) {
+/** Regra de fit salva que nenhum serviço do catálogo usa mais vale como "Maior nota" (US-0047). */
+function useFiltrosComCatalogo(filtros: FiltrosReceita): FiltrosReceita {
+  const { grupos } = useFitDoCatalogo();
+  return useMemo(() => ({ ...filtros, servicoDoFit: regraValida(filtros.servicoDoFit, grupos) }), [filtros, grupos]);
+}
+
+export function useEmpresasReceita(filtrosDaTela: FiltrosReceita, ordenacao: OrdenacaoReceita, pagina: number, busca?: string) {
+  const filtros = useFiltrosComCatalogo(filtrosDaTela);
   return useQuery({
     queryKey: ['receita-empresas', filtros, busca ?? '', ordenacao.ordem, ordenacao.crescente, pagina],
     queryFn: async (): Promise<PaginaReceita> => {
@@ -86,7 +96,8 @@ export function useEmpresasReceita(filtros: FiltrosReceita, ordenacao: Ordenacao
   });
 }
 
-export function useTotalReceita(filtros: FiltrosReceita, busca?: string) {
+export function useTotalReceita(filtrosDaTela: FiltrosReceita, busca?: string) {
+  const filtros = useFiltrosComCatalogo(filtrosDaTela);
   return useQuery({
     queryKey: ['receita-empresas-total', filtros, busca ?? ''],
     queryFn: () => chamar<TotalReceita>({ modo: 'total', filtros, busca }),
