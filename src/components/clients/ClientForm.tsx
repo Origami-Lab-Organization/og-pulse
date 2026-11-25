@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -20,14 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Search, Upload, FileText, CheckCircle2, Plus, Trash2 } from 'lucide-react';
-import { Client, CreateClientInput, ClientPrefill } from '@/types/client';
-import { formatCNPJ, formatCEP, formatPhone, unformatPhone } from '@/lib/masks';
+import { Loader2, Upload, FileText, CheckCircle2 } from 'lucide-react';
+import { Client, CreateClientInput } from '@/types/client';
+import { formatCNPJ } from '@/lib/masks';
 import { toTitleCase } from '@/lib/formatters';
-import { fetchAddressByCep } from '@/lib/viaCep';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useClientContacts } from '@/hooks/useClients';
 import { LogoUpload } from '@/components/ui/logo-upload';
 
 // URL tolerante: aceita vazio ou domínio com/sem protocolo (ex.: "site.com", "https://site.com").
@@ -38,22 +36,6 @@ const formSchema = z.object({
   tradingName: z.string().optional(),
   cnpj: z.string().optional(),
   segment: z.string().optional(),
-  cep: z.string().optional(),
-  logradouro: z.string().optional(),
-  numero: z.string().optional(),
-  complemento: z.string().optional(),
-  bairro: z.string().optional(),
-  cidade: z.string().optional(),
-  estado: z.string().max(2, 'Estado deve ter 2 caracteres').optional(),
-  contacts: z
-    .array(
-      z.object({
-        name: z.string().optional(),
-        email: z.string().email('E-mail inválido').optional().or(z.literal('')),
-        phone: z.string().optional(),
-      }),
-    )
-    .optional(),
   website: z
     .string()
     .refine((v) => !v || WEBSITE_REGEX.test(v), 'URL inválida')
@@ -70,14 +52,6 @@ const EMPTY_VALUES: FormData = {
   tradingName: '',
   cnpj: '',
   segment: '',
-  cep: '',
-  logradouro: '',
-  numero: '',
-  complemento: '',
-  bairro: '',
-  cidade: '',
-  estado: '',
-  contacts: [],
   website: '',
   notes: '',
   status: 'active',
@@ -85,23 +59,14 @@ const EMPTY_VALUES: FormData = {
 
 interface ClientFormProps {
   client?: Client | null;
-  /** Só no cadastro novo: valores com que o formulário abre. */
-  prefill?: ClientPrefill | null;
   onSubmit: (data: CreateClientInput) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
 
-/** Só os campos preenchidos: o resto fica com o valor vazio do formulário. */
-function filledPrefill(prefill: ClientPrefill | null | undefined): Partial<FormData> {
-  return Object.fromEntries(Object.entries(prefill ?? {}).filter(([, value]) => Boolean(value)));
-}
-
-const ClientForm = ({ client, prefill, onSubmit, onCancel, isLoading = false }: ClientFormProps) => {
+const ClientForm = ({ client, onSubmit, onCancel, isLoading = false }: ClientFormProps) => {
   const { toast } = useToast();
   const [cnpjDisplay, setCnpjDisplay] = useState('');
-  const [cepDisplay, setCepDisplay] = useState('');
-  const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [isExtractingPdf, setIsExtractingPdf] = useState(false);
   const [pdfExtracted, setPdfExtracted] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -113,19 +78,10 @@ const ClientForm = ({ client, prefill, onSubmit, onCancel, isLoading = false }: 
     defaultValues: EMPTY_VALUES,
   });
 
-  const { fields: contactFields, append: appendContact, remove: removeContact } = useFieldArray({
-    control: form.control,
-    name: 'contacts',
-  });
-
-  const { data: existingContacts } = useClientContacts(client?.id);
-
   // Hidrata o formulário uma única vez por cliente (evita sobrescrever o que o usuário digitou).
   const hydratedRef = useRef<string | null>(null);
   useEffect(() => {
     const key = client?.id ?? 'new';
-    // Em edição, espera os contatos carregarem antes de hidratar.
-    if (client && existingContacts === undefined) return;
     if (hydratedRef.current === key) return;
     hydratedRef.current = key;
 
@@ -135,32 +91,18 @@ const ClientForm = ({ client, prefill, onSubmit, onCancel, isLoading = false }: 
         tradingName: client.tradingName || '',
         cnpj: client.cnpj || '',
         segment: client.segment || '',
-        cep: client.cep || '',
-        logradouro: client.logradouro || '',
-        numero: client.numero || '',
-        complemento: client.complemento || '',
-        bairro: client.bairro || '',
-        cidade: client.cidade || '',
-        estado: client.estado || '',
-        contacts: (existingContacts || []).map((c) => ({
-          name: c.name || '',
-          email: c.email || '',
-          phone: c.phone ? formatPhone(c.phone) : '',
-        })),
         website: client.website || '',
         notes: client.notes || '',
         status: client.status,
       });
       setCnpjDisplay(client.cnpj ? formatCNPJ(client.cnpj) : '');
-      setCepDisplay(client.cep ? formatCEP(client.cep) : '');
       setLogoUrl(client.logoUrl || null);
     } else {
-      form.reset({ ...EMPTY_VALUES, ...filledPrefill(prefill) });
-      setCnpjDisplay(prefill?.cnpj ? formatCNPJ(prefill.cnpj) : '');
-      setCepDisplay(prefill?.cep ? formatCEP(prefill.cep) : '');
+      form.reset(EMPTY_VALUES);
+      setCnpjDisplay('');
       setLogoUrl(null);
     }
-  }, [client, existingContacts, form, prefill]);
+  }, [client, form]);
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -217,49 +159,9 @@ const ClientForm = ({ client, prefill, onSubmit, onCancel, isLoading = false }: 
           form.setValue('cnpj', cleanCnpj);
           setCnpjDisplay(formatCNPJ(cleanCnpj));
         }
-        if (data.cep) {
-          const cleanCep = data.cep.replace(/\D/g, '');
-          form.setValue('cep', cleanCep);
-          setCepDisplay(formatCEP(cleanCep));
-        }
-        if (data.logradouro) {
-          form.setValue('logradouro', toTitleCase(data.logradouro));
-        }
-        if (data.numero) {
-          form.setValue('numero', data.numero);
-        }
-        if (data.complemento) {
-          form.setValue('complemento', toTitleCase(data.complemento));
-        }
-        if (data.bairro) {
-          form.setValue('bairro', toTitleCase(data.bairro));
-        }
-        if (data.cidade) {
-          form.setValue('cidade', toTitleCase(data.cidade));
-        }
-        if (data.estado) {
-          form.setValue('estado', data.estado.toUpperCase());
-        }
         if (data.segment) {
           form.setValue('segment', toTitleCase(data.segment));
         }
-        if (data.email || data.telefone) {
-          const email = data.email ? String(data.email).toLowerCase().trim() : '';
-          const phone = data.telefone
-            ? formatPhone(String(data.telefone).replace(/\D/g, ''))
-            : '';
-          const current = form.getValues('contacts') || [];
-          const [first, ...rest] = current;
-          form.setValue('contacts', [
-            {
-              name: first?.name || '',
-              email: email || first?.email || '',
-              phone: phone || first?.phone || '',
-            },
-            ...rest,
-          ]);
-        }
-
         setPdfExtracted(true);
         toast({
           title: 'Dados extraídos',
@@ -297,37 +199,10 @@ const ClientForm = ({ client, prefill, onSubmit, onCancel, isLoading = false }: 
     form.setValue('cnpj', formatted);
   };
 
-  const handleContactPhoneChange = (index: number, value: string) => {
-    form.setValue(`contacts.${index}.phone`, formatPhone(value), { shouldValidate: true });
-  };
-
-  const handleCepChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCEP(e.target.value);
-    setCepDisplay(formatted);
-    form.setValue('cep', formatted);
-
-    const cleanCep = e.target.value.replace(/\D/g, '');
-    if (cleanCep.length === 8) {
-      setIsSearchingCep(true);
-      const address = await fetchAddressByCep(cleanCep);
-      setIsSearchingCep(false);
-
-      if (address) {
-        form.setValue('logradouro', address.logradouro);
-        form.setValue('bairro', address.bairro);
-        form.setValue('cidade', address.cidade);
-        form.setValue('estado', address.estado);
-      }
-    }
-  }, [form]);
-
+  // US-0045: endereço vem da Receita pela empresa, e contatos são os da empresa: o formulário
+  // não envia nenhum dos dois, e o que já está gravado fica como está.
   const handleSubmit = (data: FormData) => {
-    const contacts = (data.contacts || []).map((c) => ({
-      name: c.name,
-      email: c.email,
-      phone: c.phone ? unformatPhone(c.phone) : '',
-    }));
-    onSubmit({ ...data, contacts, logoUrl } as CreateClientInput);
+    onSubmit({ ...data, logoUrl } as CreateClientInput);
   };
 
   return (
@@ -478,224 +353,6 @@ const ClientForm = ({ client, prefill, onSubmit, onCancel, isLoading = false }: 
               </FormItem>
             )}
           />
-        </div>
-
-        <div className="border-t pt-4">
-          <h3 className="text-sm font-medium text-muted-foreground mb-4">Endereço</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <FormField
-              control={form.control}
-              name="cep"
-              render={() => (
-                <FormItem>
-                  <FormLabel>CEP</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        placeholder="00000-000"
-                        value={cepDisplay}
-                        onChange={handleCepChange}
-                        className="pr-10"
-                      />
-                      {isSearchingCep && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                        </div>
-                      )}
-                      {!isSearchingCep && cepDisplay.length >= 9 && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <Search className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="logradouro"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Logradouro</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Rua, Avenida, etc." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="numero"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número</FormLabel>
-                  <FormControl>
-                    <Input placeholder="123" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="complemento"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Complemento</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Sala, Andar, Bloco, etc." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="bairro"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Bairro</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Bairro" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="cidade"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cidade</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Cidade" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="estado"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estado</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="UF"
-                      maxLength={2}
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-
-        <div className="border-t pt-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-medium text-muted-foreground">Contatos</h3>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1"
-              onClick={() => appendContact({ name: '', email: '', phone: '' })}
-            >
-              <Plus className="h-4 w-4" />
-              Adicionar contato
-            </Button>
-          </div>
-
-          {contactFields.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhum contato adicionado. Clique em “Adicionar contato” para incluir um.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {contactFields.map((contactField, index) => (
-                <div key={contactField.id} className="rounded-lg border p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      Contato {index + 1}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={() => removeContact(index)}
-                      aria-label={`Remover contato ${index + 1}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name={`contacts.${index}.name`}
-                      render={({ field }) => (
-                        <FormItem className="md:col-span-2">
-                          <FormLabel>Nome do contato</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Pessoa de contato" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`contacts.${index}.email`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>E-mail</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="contato@empresa.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`contacts.${index}.phone`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Telefone</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="(00) 00000-0000"
-                              value={field.value || ''}
-                              onChange={(e) => handleContactPhoneChange(index, e.target.value)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="border-t pt-4">
