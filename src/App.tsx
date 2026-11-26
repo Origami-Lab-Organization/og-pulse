@@ -48,6 +48,7 @@ import BudgetDetail from "./pages/BudgetDetail";
 import Suppliers from "./pages/Suppliers";
 import Prospeccao from "./pages/Prospeccao";
 import ProspeccaoEmpresas from "./pages/ProspeccaoEmpresas";
+import EmpresaPage from "./pages/EmpresaPage";
 import ProspeccaoContatos from "./pages/ProspeccaoContatos";
 import ProspeccaoMetricas from "./pages/ProspeccaoMetricas";
 import Portfolio from "./pages/Portfolio";
@@ -435,6 +436,15 @@ const App = () => (
                 element={
                   <RoleProtectedRoute requireCapability={CARTEIRA_OU_PROSPECCAO}>
                     <ProspeccaoEmpresas />
+                  </RoleProtectedRoute>
+                }
+              />
+              {/* US-0053: a página da empresa, aberta pelas listas e pelo Pipeline. */}
+              <Route
+                path="/comercial/empresas/:cnpj"
+                element={
+                  <RoleProtectedRoute requireCapability="prospeccao:ler">
+                    <EmpresaPage />
                   </RoleProtectedRoute>
                 }
               />

@@ -100,7 +100,7 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 | Clientes / Fornecedores | Carteira na aba Clientes de `/comercial/empresas` (US-0049, ADR-0056; `cliente:ler` ou `prospeccao:ler`); `/clients` e `/clients/new` redirecionam para ela; ficha `/clients/:id` (`cliente:ler` ou `prospeccao:ler`) e edição `/clients/:id/edit` (`prospeccao:editar`); `/suppliers` | Capacidade | 269-286, 434, 288 |
 | Projetos | `/projetos` (Portfolio), `/projetos/produtos` (Produtos internos, `produto:ler` — ADR-0049), `/projects/:id` (aba E-mails com `?tab=emails`, `email-projeto:ler` — ADR-0047) | Manager / **apenas Protected** | 282, 290, 307, 315, 323 |
 | Análises | `/analises/meu-time`, `/analises/alocacoes*`, `/analises/financeiro`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 299, 331, 339, 347, 355, 395-397 |
-| Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/comercial/empresas` (Empresas da prospecção, situação por conta — `prospeccao:ler`, 24/09/2026), `/comercial/contatos` (Contatos, a pessoa separada do card — `prospeccao:ler`, 01/10/2026, ADR-0045), `/comercial/metricas` (`prospeccao:ler`), `/comercial/servicos*` (redirect para `/admin/servicos`), `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 422, 430, 438, 446, 453-454, 468, 476, 484 |
+| Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/comercial/empresas` (Empresas: Base, Em qualificação e Clientes — `prospeccao:ler` ou `cliente:ler`, US-0049), `/comercial/empresas/:cnpj` (página da empresa, que substitui a gaveta da Base, o modal da empresa no Pipeline e a abertura pela Qualificação — `prospeccao:ler`, US-0053), `/comercial/contatos` (Contatos, a pessoa separada do card — `prospeccao:ler`, 01/10/2026, ADR-0045), `/comercial/metricas` (`prospeccao:ler`), `/comercial/servicos*` (redirect para `/admin/servicos`), `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 422, 430, 435, 444, 453-454, 468, 476, 484 |
 | Estratégia | `/estrategia` | Manager | 457 |
 | Financeiro | `/financeiro/conciliacao` (Conciliação com o Conta Azul — ADR-0044, parte 3); `/financeiro` redireciona | Capacidade (`conciliacao:receber` ou `conciliacao:pagar`; hoje só Admin) | — |
 | Admin | `/admin`; `/admin/integracoes` e `/admin/integracoes/conta-azul/retorno` (URL de retorno do OAuth do Conta Azul — ADR-0044) | Admin; integrações por `integracoes:gerir` | 143, 427 |
@@ -154,7 +154,7 @@ Fluxo canônico — exemplo real da aba Clientes de Empresas (US-0049), que lê 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant P as Componente<br/>ListaDeClientes.tsx:105-107
+    participant P as Componente<br/>ListaDeClientes.tsx:108-110
     participant H as Hook TanStack Query<br/>useClients.ts:34-42
     participant S as Service<br/>clientService.ts:37-41
     participant C as Cliente Supabase<br/>client.ts:11-17

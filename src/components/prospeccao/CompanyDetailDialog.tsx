@@ -46,6 +46,8 @@ interface CompanyDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenOpportunity: (prospect: ProspectWithCompany) => void;
+  /** US-0053: a página da empresa abre direto na edição ("Editar dados" do menu). */
+  iniciarEditando?: boolean;
 }
 
 /**
@@ -55,12 +57,12 @@ interface CompanyDetailDialogProps {
  * decidir de longe, o modal o que serve para agir. Editar aqui edita a empresa, e isso
  * vale para todas as oportunidades e contatos dela.
  */
-export function CompanyDetailDialog({ row, open, onOpenChange, onOpenOpportunity }: CompanyDetailDialogProps) {
-  const [editando, setEditando] = useState(false);
+export function CompanyDetailDialog({ row, open, onOpenChange, onOpenOpportunity, iniciarEditando = false }: CompanyDetailDialogProps) {
+  const [editando, setEditando] = useState(iniciarEditando);
 
   useEffect(() => {
-    if (open) setEditando(false);
-  }, [open, row?.company.id]);
+    if (open) setEditando(iniciarEditando);
+  }, [open, row?.company.id, iniciarEditando]);
 
   if (!row) return null;
 

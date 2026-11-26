@@ -136,6 +136,11 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 26/11/2026: 20261126100000 — US-0053: nova tabela prospect_company_estudo (FK tenants,
+#  prospect_companies e employees; links, notas e arquivos do estudo da conta, o arquivo mora no
+#  OneDrive), nova tabela onedrive_do_comercial (FK tenants e employees; uma por tenant) e
+#  prospect_companies.onedrive_drive_id/onedrive_item_id. Conferidas contra ItemDoEstudoDaConta e
+#  PastaDoComercial (src/types/paginaDaEmpresa.ts) e ProspectCompanyDB.
 # 24/11/2026: 20261124160000 — prospect_companies ganha o retrato da Base (base_*, US-0014,
 #  ADR-0055) e a função atualizar_retrato_da_base (só service_role); conferido contra ProspectCompanyDB.
 # 23/11/2026: 20261123200000 — nova tabela prospect_decisoes_da_base (FK tenants, prospects e
@@ -245,6 +250,9 @@ erDiagram
     prospect_companies ||--o{ prospect_company_faturamentos : "histórico do faturamento, pelo gatilho (US-0018)"
     employees |o--o{ prospect_company_faturamentos : "informado_por"
     prospects |o--o{ prospect_decisoes_da_base : "Não agora vindo da Perda (US-0010)"
+    prospect_companies ||--o{ prospect_company_estudo : "estudo da conta: links, notas e arquivos (US-0053)"
+    employees |o--o{ prospect_company_estudo : "created_by"
+    tenants ||--o| onedrive_do_comercial : "pasta do Comercial no OneDrive (US-0053)"
     employees |o--o{ prospect_decisoes_da_base : "decidida_por, desfeita_por"
     prospects |o--o{ projects : "projects.prospect_id (projeto do Ganho)"
 

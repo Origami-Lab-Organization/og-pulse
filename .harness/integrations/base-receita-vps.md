@@ -63,7 +63,7 @@ A Edge Function tem três modos (US-0003, US-0005):
   Ordens: `fit`, `nome`, `distancia`, `faturamento`, `funcionarios`, `idade`. Páginas de 25, até a 400ª (10 mil empresas).
 - **total**: `{ modo: 'total', filtros, busca? }` → `{ total, limitado }`. Conta até 100 mil; `limitado` = há mais.
 - **cnaes**: `{ modo: 'cnaes', termo }` → `{ cnaes: [{ codigo, descricao }] }`, por código ou descrição, até 20.
-- **ficha** (US-0007): `{ modo: 'ficha', cnpj }` → `{ empresa, contato, socios[], oportunidades[] }`. O contato (e-mail e telefones do estabelecimento) vem da visão `pulse.contatos`; os sócios, da visão `pulse.socios` (só nome, qualificação, entrada, tipo e raiz do CNPJ de sócio empresa; ADR-0041); as oportunidades em andamento, do Supabase com a sessão da pessoa.
+- **ficha** (US-0007): `{ modo: 'ficha', cnpj }` → `{ empresa, contato, socios[], oportunidades[] }`. Desde a US-0053, quando a VPS não tem o CNPJ (ME, EPP, filial, órgão público, baixada), a resposta sai do Pulse: a empresa da Prospecção com esse CNPJ (como matriz ou filial), com a consulta da Receita guardada em `receita`, o retrato `base_*`, `so_no_pulse: true`, `socios: []` e a relação; sem empresa no Pulse, 404 como antes. O contato (e-mail e telefones do estabelecimento) vem da visão `pulse.contatos`; os sócios, da visão `pulse.socios` (só nome, qualificação, entrada, tipo e raiz do CNPJ de sócio empresa; ADR-0041); as oportunidades em andamento, do Supabase com a sessão da pessoa.
 
 `busca` (até 100 caracteres): só números, com ou sem pontuação, de 5 a 14, é CNPJ e ignora
 os filtros; 14 procuram `cnpj_basico` (CNPJ de filial acha a matriz), menos que isso procuram

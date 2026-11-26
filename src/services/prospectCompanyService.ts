@@ -1,4 +1,5 @@
 import { todasAsPaginas } from '@/lib/paginacao';
+import type { CamposDaPagina } from '@/types/paginaDaEmpresa';
 import { tabela } from '@/services/prospectingTables';
 import { supabase } from '@/integrations/supabase/client';
 import type { ClientOption } from '@/types/cnpjLookup';
@@ -189,6 +190,16 @@ export const prospectCompanyService = {
   /** Só o tipo de conta (US-0008), sem regravar o resto da empresa. */
   async setTipoDeConta(id: string, tipo: TipoDeConta): Promise<void> {
     const { error } = await tabela('prospect_companies').update({ tipo_conta: tipo }).eq('id', id);
+    if (error) throw error;
+  },
+
+  /**
+   * Site, redes e síntese editados no lugar, na página da empresa (US-0053): grava só o campo
+   * mexido, sem regravar a empresa. Vazio vira nulo.
+   */
+  async setCampos(id: string, campos: CamposDaPagina): Promise<void> {
+    const limpos = Object.fromEntries(Object.entries(campos).map(([k, v]) => [k, typeof v === 'string' ? v.trim() || null : v]));
+    const { error } = await tabela('prospect_companies').update(limpos).eq('id', id);
     if (error) throw error;
   },
 

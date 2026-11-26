@@ -373,6 +373,9 @@ export interface ProspectCompanyDB {
   base_faturamento_estimado?: number | null;
   base_faturamento_base?: string | null;
   base_retrato_em?: string | null;
+  /** US-0053: pasta da empresa no OneDrive do Comercial, criada no primeiro arquivo do estudo. */
+  onedrive_drive_id?: string | null;
+  onedrive_item_id?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

@@ -38,7 +38,9 @@ export function useProspectCompanyByCnpj(cnpj: string) {
   const { employee } = useAuth();
   const digitos = cnpj.replace(/\D/g, '');
   return useQuery<ProspectCompanyDB | null>({
-    queryKey: ['prospect-company-by-cnpj', employee?.tenant_id, digitos],
+    // Debaixo de 'prospect-companies' (26/11/2026): o que recarrega as empresas — mover para
+    // qualificação, faturamento, funcionários — recarrega também a página da empresa.
+    queryKey: ['prospect-companies', 'por-cnpj', employee?.tenant_id, digitos],
     queryFn: async () => (await prospectCompanyService.findByCnpjs([digitos], employee!.tenant_id))[0] ?? null,
     enabled: !!employee?.tenant_id && validateCNPJ(digitos),
   });
@@ -64,7 +66,7 @@ export function useCreateProspectCompany() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['prospect-companies'] });
       qc.invalidateQueries({ queryKey: ['prospect-companies-search'] });
-      qc.invalidateQueries({ queryKey: ['prospect-company-by-cnpj'] });
+      qc.invalidateQueries({ queryKey: ['prospect-companies', 'por-cnpj'] });
     },
     onError: (err: Error) => {
       toast({ title: 'Erro ao salvar a empresa', description: mensagemDeEmpresa(err), variant: 'destructive' });
@@ -142,7 +144,7 @@ export function useSaveCardCompany() {
     },
     onSuccess: (empresa, { card }) => {
       qc.invalidateQueries({ queryKey: ['prospect-companies'] });
-      qc.invalidateQueries({ queryKey: ['prospect-company-by-cnpj'] });
+      qc.invalidateQueries({ queryKey: ['prospect-companies', 'por-cnpj'] });
       qc.invalidateQueries({ queryKey: ['prospects'] });
       qc.invalidateQueries({ queryKey: ['prospect'] });
       qc.invalidateQueries({ queryKey: ['prospect-contacts'] });
@@ -183,7 +185,7 @@ export function useFiliaisDaEmpresa() {
   const recarregar = () => {
     qc.invalidateQueries({ queryKey: ['prospect-companies'] });
     qc.invalidateQueries({ queryKey: ['prospect-companies-search'] });
-    qc.invalidateQueries({ queryKey: ['prospect-company-by-cnpj'] });
+    qc.invalidateQueries({ queryKey: ['prospect-companies', 'por-cnpj'] });
     qc.invalidateQueries({ queryKey: ['prospects'] });
   };
   const salvar = useMutation({

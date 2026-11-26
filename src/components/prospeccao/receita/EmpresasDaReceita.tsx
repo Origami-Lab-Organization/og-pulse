@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { rotaDaEmpresa } from '@/lib/prospecting/faseDaEmpresa.constants';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EstadoVazio, RodapeDaLista } from '@/components/prospeccao/ListaDeCadastro';
@@ -35,7 +36,6 @@ import { useDecidirNaSelecao } from '@/hooks/useDecidirNaSelecao';
 import { CaixaDeBusca } from './CaixaDeBusca';
 import { ColocarParaAbordarDialog } from './ColocarParaAbordarDialog';
 import { EmpresasReceitaTable } from './EmpresasReceitaTable';
-import { FichaDaEmpresaReceita } from './FichaDaEmpresaReceita';
 import { BotaoDeFiltros } from '../filtros/BotaoDeFiltros';
 import { GavetaDeFiltros } from './GavetaDeFiltros';
 import { PainelDeFiltros } from './PainelDeFiltros';
@@ -55,8 +55,10 @@ const ESPERA_DA_DIGITACAO_MS = 300;
 export function EmpresasDaReceita() {
   const [filtros, setFiltros] = useState<FiltrosReceita>(filtrosDoNavegador);
   const painel = usePainelDeFiltros();
-  const [ficha, setFicha] = useState<string | null>(null);
-  useFichaPeloLink(setFicha);
+  // US-0053: a empresa abre na página dela; o "← Empresas" volta para cá na hora.
+  const navigate = useNavigate();
+  const abrirEmpresa = (cnpj: string) => navigate(rotaDaEmpresa(cnpj), { state: { de: 'base' } });
+  useFichaPeloLink();
   const { can } = useAuth();
   const podeColocar = can('prospeccao:editar');
   const marcadas = useSelecaoDeEmpresas();
@@ -101,11 +103,10 @@ export function EmpresasDaReceita() {
           <BarraDeSelecao quantidade={marcadas.empresas.length} onColocar={() => setColocando(true)} onDecidir={decidir.abrir} onLimpar={marcadas.limpar} />
           <AvisosDaBusca busca={busca} ativos={ativos} primeira={consulta.data?.linhas[0]?.cnpj} />
           <AvisoDaRelacao indisponivel={!!consulta.data?.relacaoIndisponivel} comFiltro={filtros.relacoes.length > 0} />
-          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={setFicha} selecao={podeColocar ? marcadas.selecao : undefined} servicoDoFit={filtros.servicoDoFit} />
+          <Conteudo consulta={consulta} busca={busca} ativos={ativos} ordenacao={ordenacao} onOrdenar={ordenar} onLimpar={limpar} onAbrir={abrirEmpresa} selecao={podeColocar ? marcadas.selecao : undefined} servicoDoFit={filtros.servicoDoFit} />
           <Rodape contagem={contagem.data} pagina={pagina} onPagina={setPagina} vazia={!consulta.data?.linhas.length} />
         </div>
       </section>
-      <FichaDaEmpresaReceita cnpj={ficha} onFechar={() => setFicha(null)} />
       <ColocarParaAbordarDialog empresas={marcadas.empresas} aberta={colocando} onAbertaChange={setColocando} onConcluido={marcadas.limpar} />
       <DecisaoNaBaseDialog modo={decidir.modo} empresas={decidir.empresas} onFechar={decidir.fechar} onConcluido={marcadas.limpar} />
       <GavetaDeFiltros aberta={painel.aberto} onAbertaChange={painel.definir} contagem={contagem.data} contando={contagem.isFetching} botao={painel.botao}>
@@ -132,18 +133,22 @@ function useRelacaoPeloLink(filtrar: (filtros: FiltrosReceita) => void) {
   }, [relacao, filtrar, setParams]);
 }
 
-/** `?cnpj=<14 dígitos>`: o aviso "Hora de retomar" do sino abre a ficha da empresa (US-0010). */
-function useFichaPeloLink(abrir: (cnpj: string) => void) {
+/** `?cnpj=<14 dígitos>`: o aviso "Hora de retomar" do sino abre a página da empresa (US-0010, US-0053). */
+function useFichaPeloLink() {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const cnpj = params.get('cnpj');
   useEffect(() => {
     if (!cnpj) return;
-    if (CNPJ_COMPLETO.test(cnpj)) abrir(cnpj);
+    if (CNPJ_COMPLETO.test(cnpj)) {
+      navigate(rotaDaEmpresa(cnpj), { replace: true });
+      return;
+    }
     setParams((atual) => {
       atual.delete('cnpj');
       return atual;
     }, { replace: true });
-  }, [cnpj, abrir, setParams]);
+  }, [cnpj, navigate, setParams]);
 }
 
 function LinhaDoTotal(props: { contagem: TotalReceita | undefined; contando: boolean; carregadaEm: string | null }) {

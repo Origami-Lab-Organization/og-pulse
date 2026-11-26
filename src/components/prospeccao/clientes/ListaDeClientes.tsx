@@ -4,6 +4,9 @@ import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCarteiraDeClientes } from '@/hooks/useClients';
+import { useAuth } from '@/contexts/AuthContext';
+import { rotaDaEmpresa } from '@/lib/prospecting/faseDaEmpresa.constants';
+import { DIGITOS_DO_CNPJ } from '@/lib/prospecting/filiais';
 import { RELACOES_DA_CARTEIRA } from '@/lib/carteira.constants';
 import { clienteNaBusca, relacaoDoCliente } from '@/lib/carteira';
 import { rotuloDaRelacao } from '@/lib/prospecting/relacao';
@@ -43,14 +46,14 @@ function FiltroDeRelacao(props: { valor: Relacao | null; onChange: (valor: Relac
   );
 }
 
-function LinhaDoCliente(props: { cliente: ClienteDaCarteira; onAbrir: (id: string) => void }) {
+function LinhaDoCliente(props: { cliente: ClienteDaCarteira; onAbrir: (cliente: ClienteDaCarteira) => void }) {
   const { cliente, onAbrir } = props;
   const cidade = [cliente.cidade, cliente.estado].filter(Boolean).join('/');
   return (
     <tr
       tabIndex={0}
-      onClick={() => onAbrir(cliente.client_id)}
-      onKeyDown={(e) => e.key === 'Enter' && onAbrir(cliente.client_id)}
+      onClick={() => onAbrir(cliente)}
+      onKeyDown={(e) => e.key === 'Enter' && onAbrir(cliente)}
       className="cursor-pointer border-b last:border-b-0 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
       <td className="px-5 py-2">
@@ -68,7 +71,7 @@ function LinhaDoCliente(props: { cliente: ClienteDaCarteira; onAbrir: (id: strin
   );
 }
 
-function TabelaDeClientes(props: { clientes: ClienteDaCarteira[]; onAbrir: (id: string) => void }) {
+function TabelaDeClientes(props: { clientes: ClienteDaCarteira[]; onAbrir: (cliente: ClienteDaCarteira) => void }) {
   const { clientes, onAbrir } = props;
   return (
     <div className="overflow-x-auto">
@@ -114,7 +117,13 @@ export function ListaDeClientes() {
     [naBusca],
   );
   const visiveis = relacao ? naBusca.filter((c) => c.relacao === relacao) : naBusca;
-  const abrir = (id: string) => navigate(`/clients/${id}`);
+  const { can } = useAuth();
+  // US-0053: com a Prospecção, o cliente abre na página da empresa; só com a carteira, na ficha do cliente.
+  const abrir = (c: ClienteDaCarteira) => {
+    const cnpj = (c.cnpj ?? '').replace(/\D/g, '');
+    if (can('prospeccao:ler') && cnpj.length === DIGITOS_DO_CNPJ) navigate(rotaDaEmpresa(cnpj), { state: { de: 'clientes' } });
+    else navigate(`/clients/${c.client_id}`);
+  };
 
   return (
     <div className="space-y-3">
