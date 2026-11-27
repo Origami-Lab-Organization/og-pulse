@@ -79,7 +79,7 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0009](stories/9-arquivadas/US-0009-comercial-abrir-oportunidades-em-lote.md) | Abrir oportunidades em lote | Pessoa do comercial | Arquivada (na US-0008) | — |
 | [US-0010](stories/5-pronto/US-0010-comercial-nao-agora-e-descartar.md) | Descartar a empresa ou marcar "Não agora" | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0011](stories/9-arquivadas/US-0011-comercial-abas-da-classificacao.md) | Acompanhar a classificação pelas abas e desfazer | Pessoa do comercial | Arquivada (tela sem abas) | — |
-| [US-0012](stories/2-em-refinamento/03-US-0012-comercial-classificar-pelo-teclado.md) | Classificar pelo teclado | Pessoa do comercial | Em refinamento | Pronta |
+| [US-0012](stories/2-em-refinamento/02-US-0012-comercial-classificar-pelo-teclado.md) | Classificar pelo teclado | Pessoa do comercial | Em refinamento | Pronta |
 | [US-0013](stories/1-a-fazer/01-US-0013-comercial-salvar-filtro-para-o-time.md) | Salvar um filtro para o time | Pessoa do comercial | A fazer | Não pronta |
 | [US-0014](stories/5-pronto/US-0014-comercial-fit-com-funcionarios-e-divida.md) | Fit por serviço que separa as contas: tamanho real, dívida, distância e faturamento | Pessoa do comercial | Pronto | Pronta |
 | [US-0015](stories/5-pronto/US-0015-comercial-distancia-de-formiga.md) | Filtrar e ordenar pela distância de Formiga | Pessoa do comercial | Pronto | Pronta |
@@ -307,7 +307,7 @@ membro e permissões por capacidade. Protótipo: `prototipos/portfolio-de-projet
 | [US-0036](stories/5-pronto/US-0036-projetos-metas-e-margem-do-portfolio.md) | Metas de receita e margem bruta do portfólio | Admin | Pronto | Pronta |
 | [US-0037](stories/5-pronto/US-0037-projetos-sino-de-pendencias-no-card.md) | Sino de pendências no card e pendências na Visão Geral | GP | Pronto | Pronta |
 | [US-0039](stories/5-pronto/US-0039-projetos-planejamento-guiado-por-checklist.md) | Planejar o projeto guiado por um checklist que acompanha o preenchimento | GP ou admin | Pronto | Pronta |
-| [US-0043](stories/2-em-refinamento/02-US-0043-projetos-encerramento-com-renovacao.md) | Encerrar o projeto decidindo a renovação e entregando os resultados | GP ou admin | Em refinamento | Pronta com ressalvas |
+| [US-0043](stories/2-em-refinamento/01-US-0043-projetos-encerramento-com-renovacao.md) | Encerrar o projeto decidindo a renovação e entregando os resultados | GP ou admin | Em refinamento | Pronta com ressalvas |
 | [US-0045](stories/5-pronto/US-0045-comercial-empresa-e-cliente-num-cadastro-so.md) | A empresa é o cadastro do cliente (pré-requisito da US-0043; épico 2 abaixo) | Pessoa do comercial ou GP | Pronto | Pronta |
 
 O modo planejamento foi aprovado pelo Victor em 23/11/2026 (protótipo versão 8) e virou a
@@ -347,4 +347,4 @@ matriz e filiais na mesma ficha; regularização caso a caso (Victor Couto, 25/1
 | [US-0053](stories/5-pronto/US-0053-comercial-pagina-da-empresa.md) | Página da empresa | Comercial, GP ou admin | Pronto | Pronta |
 | [US-0054](stories/5-pronto/US-0054-comercial-funcionarios-alem-da-rais.md) | Funcionários além da RAIS: RAIS improvável e faixa do LinkedIn | Pessoa do comercial | Pronto | Pronta |
 | [US-0056](stories/5-pronto/US-0056-comercial-faturamento-estimado-em-faixa.md) | Faturamento estimado em faixa | Pessoa do comercial | Pronto | Pronta |
-| [US-0057](stories/2-em-refinamento/01-US-0057-comercial-insights-de-ia-no-estudo-da-conta.md) | Insights de IA no Estudo da conta | Pessoa do comercial | Em refinamento | Não pronta |
+| [US-0057](stories/3-pronta-para-desenvolver/01-US-0057-comercial-insights-de-ia-no-estudo-da-conta.md) | Insights de IA no Estudo da conta | Admin | Pronta para desenvolver | Pronta |
