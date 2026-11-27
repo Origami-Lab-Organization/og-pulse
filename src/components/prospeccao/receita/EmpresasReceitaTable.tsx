@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils';
 import type { SelecaoDaLista } from '@/types/filtrosReceita';
 import { MotivoDaConfianca } from './SeloDeConfianca';
 import { CelulaDeRelacao } from './SeloDeRelacao';
+import { cidadeEUf } from '@/lib/prospecting/cidade';
 
 interface EmpresasReceitaTableProps {
   /** Abre a ficha da empresa (US-0007): clique na linha, ou Enter com ela em foco. */
@@ -122,7 +123,7 @@ function Linha(props: LinhaProps) {
   const nome = nomeDaEmpresa(empresa);
   const ramo = ramoDaEmpresa(empresa.cnae_principal);
   const anos = anosDeOperacao(empresa.data_inicio_atividade);
-  const local = [emTitulo(empresa.municipio), empresa.uf].filter(Boolean).join(' · ');
+  const local = cidadeEUf(empresa.municipio, empresa.uf);
   const razao = emTitulo(empresa.razao_social);
   const nomeCompleto = razao && razao !== nome ? `${nome} — ${razao}` : nome;
   return (

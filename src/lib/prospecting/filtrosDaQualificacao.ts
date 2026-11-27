@@ -1,5 +1,4 @@
 import { divisaoDoCnae, setorDoCnae } from '@/lib/prospecting/cnae';
-import { emTitulo } from '@/lib/prospecting/empresasReceita';
 import { BASE_PISO } from '@/lib/prospecting/faturamentoEstimado';
 import { companyFit, servicoEmDestaque } from '@/lib/prospecting/fit';
 import { FILTROS_VAZIOS, lerFiltrosSalvos } from '@/lib/prospecting/filtrosReceita';
@@ -16,6 +15,7 @@ import {
   type OrdemDaQualificacao,
 } from '@/types/qualificacao';
 import type { FitFront } from '@/types/receita';
+import { nomeDaCidade } from '@/lib/prospecting/cidade';
 
 /**
  * Filtros e ordem da aba "Em qualificação" (US-0042), na própria tela: a lista é do tenant e
@@ -91,7 +91,7 @@ const enderecoDe = (p: ProspectWithCompany) => p.company?.receita?.endereco ?? {
 
 function regiaoDe(p: ProspectWithCompany): Pick<LinhaDaQualificacao, 'uf' | 'cidade' | 'distanciaKm'> {
   const endereco: { uf?: string | null; municipio?: string | null } = enderecoDe(p);
-  return { uf: endereco.uf ?? null, cidade: emTitulo(endereco.municipio) || null, distanciaKm: p.company?.base_distancia_km ?? null };
+  return { uf: endereco.uf ?? null, cidade: nomeDaCidade(endereco.municipio, endereco.uf) || null, distanciaKm: p.company?.base_distancia_km ?? null };
 }
 
 function bantDe(bant: BantDaOportunidade | undefined): Pick<LinhaDaQualificacao, 'bant' | 'propostas'> {

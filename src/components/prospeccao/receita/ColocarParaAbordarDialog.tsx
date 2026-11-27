@@ -12,12 +12,13 @@ import { useColocarParaAbordar } from '@/hooks/useColocarParaAbordar';
 import { useResponsaveisDaProspeccao } from '@/hooks/useResponsaveisDaProspeccao';
 import { formatCNPJ } from '@/lib/masks';
 import { formatarData } from '@/lib/prospecting/prazos';
-import { emTitulo, nomeDaEmpresa, reaisCurtos, type EmpresaReceita } from '@/lib/prospecting/empresasReceita';
+import { nomeDaEmpresa, reaisCurtos, type EmpresaReceita } from '@/lib/prospecting/empresasReceita';
 import { textoDoFaturamento } from '@/lib/prospecting/faturamentoEstimado';
 import { itemParaAbordar, tipoSugerido, tiposSugeridos } from '@/lib/prospecting/paraAbordar';
 import { motivoSemSugestao } from '@/lib/prospecting/tipoDeConta';
 import { TIPOS_DE_CONTA, type TipoDeConta } from '@/types/prospect';
 import { cn } from '@/lib/utils';
+import { cidadeEUf } from '@/lib/prospecting/cidade';
 
 interface ColocarParaAbordarDialogProps {
   /** As empresas selecionadas (uma, pela ficha; várias, pela lista). */
@@ -108,7 +109,7 @@ function faturamentoParaMostrar(e: EmpresaReceita): string | null {
 
 function Cabecalho({ empresas }: { empresas: EmpresaReceita[] }) {
   const uma = empresas.length === 1 ? empresas[0] : null;
-  const local = uma ? [emTitulo(uma.municipio), uma.uf].filter(Boolean).join(' · ') : '';
+  const local = uma ? cidadeEUf(uma.municipio, uma.uf) : '';
   return (
     <DialogHeader className="space-y-0.5 px-6 pb-5 pt-5 text-left">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mover para qualificação</p>

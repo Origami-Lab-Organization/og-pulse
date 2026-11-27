@@ -1,4 +1,4 @@
-import { emTitulo } from '@/lib/prospecting/empresasReceita';
+import { cidadeEUf } from '@/lib/prospecting/cidade';
 import type { ClienteDaCarteira } from '@/services/clientService';
 import type { Relacao, RelacaoDaEmpresa } from '@/types/relacao';
 
@@ -21,9 +21,8 @@ export function relacaoDoCliente(c: ClienteDaCarteira): RelacaoDaEmpresa | null 
   };
 }
 
-/** Como na Base: "Formiga · MG", qualquer que seja a caixa do cadastro. */
-export const cidadeDoCliente = (c: Pick<ClienteDaCarteira, 'cidade' | 'estado'>): string =>
-  [emTitulo(c.cidade), c.estado?.trim().toUpperCase()].filter(Boolean).join(' · ');
+/** Como na Base: "Formiga · MG", com o nome do IBGE, qualquer que seja a caixa do cadastro. */
+export const cidadeDoCliente = (c: Pick<ClienteDaCarteira, 'cidade' | 'estado'>): string => cidadeEUf(c.cidade, c.estado);
 
 const semAcento = (texto: string) => texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 

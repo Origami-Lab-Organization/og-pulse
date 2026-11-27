@@ -13,6 +13,7 @@ import type { AtalhoDeFaixa, ContatoDaPessoa, EventoDoHistorico, InformadoPeloTi
 import { CONFIANCA_DO_TIME, FAIXAS_DO_LINKEDIN, ORIGEM_DO_TIME, type ConfiancaDoTime, type OrigemDoTime } from '@/lib/prospecting/funcionarios.constants';
 import { valuesAreHidden } from '@/lib/hideValuesStore';
 import { HIDDEN_VALUE_MASK } from '@/lib/formatters';
+import { cidadeEUf } from '@/lib/prospecting/cidade';
 import {
   CAMPO_DA_EMPRESA,
   ETAPA_GANHO,
@@ -323,7 +324,7 @@ export function textoDaUltimaPerda(perda: OportunidadeDaRelacao | null): string 
   return `Perda${quando} · ${motivo}`;
 }
 
-export const textoDaCidade = (empresa: EmpresaDaFicha) => [emTitulo(empresa.municipio), empresa.uf].filter(Boolean).join(' · ') || '—';
+export const textoDaCidade = (empresa: EmpresaDaFicha) => cidadeEUf(empresa.municipio, empresa.uf) || '—';
 export const textoDaDistancia = (km: number | null) => (km != null ? `${km.toLocaleString('pt-BR')} km de distância` : ' ');
 
 /** O faturamento do time como aparece: a faixa informada ou o valor (US-0056). */
