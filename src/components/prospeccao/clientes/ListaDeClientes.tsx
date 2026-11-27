@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { rotaDaEmpresa } from '@/lib/prospecting/faseDaEmpresa.constants';
 import { DIGITOS_DO_CNPJ } from '@/lib/prospecting/filiais';
 import { RELACOES_DA_CARTEIRA } from '@/lib/carteira.constants';
-import { clienteNaBusca, relacaoDoCliente } from '@/lib/carteira';
+import { cidadeDoCliente, clienteNaBusca, relacaoDoCliente } from '@/lib/carteira';
 import { FILTROS_DE_RELACAO, PARCEIRO } from '@/lib/prospecting/relacao';
 import { formatCNPJ } from '@/lib/masks';
 import { cn } from '@/lib/utils';
@@ -56,7 +56,7 @@ function FiltroDeRelacao(props: { valor: FiltroDeRelacao | null; onChange: (valo
 
 function LinhaDoCliente(props: { cliente: ClienteDaCarteira; onAbrir: (cliente: ClienteDaCarteira) => void }) {
   const { cliente, onAbrir } = props;
-  const cidade = [cliente.cidade, cliente.estado].filter(Boolean).join('/');
+  const cidade = cidadeDoCliente(cliente);
   return (
     <tr
       tabIndex={0}
