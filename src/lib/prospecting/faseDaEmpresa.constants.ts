@@ -32,7 +32,6 @@ export const SECAO_DA_EMPRESA = {
   CANAIS: 's-canais',
   RISCOS: 's-riscos',
   HISTORICO: 's-historico',
-  INSIGHTS: 's-insights',
   ESTUDO: 's-estudo',
 } as const;
 export type SecaoDaEmpresa = (typeof SECAO_DA_EMPRESA)[keyof typeof SECAO_DA_EMPRESA];
@@ -44,7 +43,6 @@ export const CAMPO_DA_EMPRESA = {
   INSTAGRAM: 'instagram',
   FATURAMENTO: 'faturamento',
   FUNCIONARIOS: 'funcionarios',
-  SINTESE: 'sintese',
 } as const;
 export type CampoDaEmpresa = (typeof CAMPO_DA_EMPRESA)[keyof typeof CAMPO_DA_EMPRESA];
 
@@ -55,12 +53,9 @@ export const PASSO_DA_QUALIFICACAO = {
   DECISOR: 'decisor',
   FATURAMENTO: 'faturamento',
   TIPO: 'tipo',
-  SINTESE: 'sintese',
+  ESTUDO: 'estudo',
 } as const;
 export type PassoDaQualificacao = (typeof PASSO_DA_QUALIFICACAO)[keyof typeof PASSO_DA_QUALIFICACAO];
-
-/** A síntese conta como escrita a partir deste tamanho: uma frase de verdade, não um rascunho. */
-export const TAMANHO_MINIMO_DA_SINTESE = 40;
 
 /** O "Pronto · passo" fica no widget por este tempo. */
 export const TEMPO_DO_PRONTO_MS = 2200;
@@ -104,7 +99,6 @@ export const SECAO_DO_CAMPO: Partial<Record<CampoDaEmpresa, SecaoDaEmpresa>> = {
   [CAMPO_DA_EMPRESA.SITE]: SECAO_DA_EMPRESA.CANAIS,
   [CAMPO_DA_EMPRESA.LINKEDIN]: SECAO_DA_EMPRESA.CANAIS,
   [CAMPO_DA_EMPRESA.INSTAGRAM]: SECAO_DA_EMPRESA.CANAIS,
-  [CAMPO_DA_EMPRESA.SINTESE]: SECAO_DA_EMPRESA.ESTUDO,
 };
 
 /** Faturamento que a Base calculou e o Pulse guardou ao mover: não é informação do time. */

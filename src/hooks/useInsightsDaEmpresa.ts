@@ -7,13 +7,13 @@ import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import { ORIGEM_DO_TIME } from '@/lib/prospecting/funcionarios.constants';
 import {
   CHAVE_DAS_PROPOSTAS, CHAVE_DO_PEDIDO, CHAVE_DO_RUNNER, CHAVE_DOS_INSIGHTS, ESTADO_DA_PROPOSTA,
-  INTERVALO_DO_PEDIDO_MS, INTERVALO_DO_RUNNER_MS, PEDIDO_ABERTO, STATUS_DO_PEDIDO, TEMA_TODOS, TIPO_DE_PROPOSTA,
+  INTERVALO_DO_PEDIDO_MS, INTERVALO_DO_RUNNER_MS, PEDIDO_ABERTO, STATUS_DO_PEDIDO, TEMA_TODOS, TEMAS_DOS_INSIGHTS, TIPO_DE_PROPOSTA,
   type TemaDoPedido,
 } from '@/lib/prospecting/insights.constants';
 import {
   decidirProposta, pedidosRecentes, pedirInsights, propostasDePorte, runnerDisponivel, versoesDosInsights,
 } from '@/services/insightsService';
-import type { InsightsPorTema, PedidoDeInsights, PropostaDePorte, VersaoDosInsights } from '@/types/insights';
+import type { InsightsPorTema, PedidoDeInsights, PedidoNovo, PropostaDePorte, VersaoDosInsights } from '@/types/insights';
 
 /** Insights de IA da empresa (US-0057): um bloco por tema, o porte e os pedidos de cada um. */
 
@@ -70,7 +70,7 @@ export function usePedirInsights(companyId: string) {
   const { employee } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (tema: TemaDoPedido) => pedirInsights(companyId, employee!.tenant_id, tema),
+    mutationFn: (pedido: PedidoNovo) => pedirInsights(companyId, employee!.tenant_id, pedido),
     onSuccess: () => qc.invalidateQueries({ queryKey: [CHAVE_DO_PEDIDO, companyId] }),
     onError: (erro) => {
       qc.invalidateQueries({ queryKey: [CHAVE_DO_RUNNER] });
@@ -126,6 +126,12 @@ export function useAcaoDoTema(companyId: string, tema: TemaDoPedido) {
     aberto,
     esperando: aberto || fora,
     ocupado: runner.isLoading || pedir.isPending,
-    pedir: () => pedir.mutate(tema),
+    pedir: (orientacao?: string, aoPedir?: () => void) => pedir.mutate({ tema, orientacao }, { onSuccess: aoPedir }),
   };
+}
+
+/** O passo "Estudo da conta gerado" do widget: os quatro blocos têm uma versão. */
+export function useEstudoGerado(companyId: string): boolean {
+  const { versoesDo } = useInsightsDaEmpresa(companyId);
+  return TEMAS_DOS_INSIGHTS.every((t) => versoesDo(t.chave).length > 0);
 }

@@ -6,6 +6,7 @@ import { useUpdateProspectStage } from '@/hooks/useProspects';
 import { useTipoDeContaDaEmpresa } from '@/hooks/usePaginaDaEmpresa';
 import { ETAPA_A_ABORDAR, TEMPO_DO_PRONTO_MS } from '@/lib/prospecting/faseDaEmpresa.constants';
 import { passosDaQualificacao } from '@/lib/prospecting/paginaDaEmpresa';
+import { useEstudoGerado } from '@/hooks/useInsightsDaEmpresa';
 import { cn } from '@/lib/utils';
 import { TIPOS_DE_CONTA, type ProspectCompanyDB, type ProspectWithCompany } from '@/types/prospect';
 import type { PassoDoWidget } from '@/types/paginaDaEmpresa';
@@ -105,7 +106,8 @@ export function WidgetDaQualificacao(props: { empresa: ProspectCompanyDB; oportu
   const { empresa, oportunidade } = props;
   const { widgetAberto, abrirWidget, editar, mostrar } = useEdicaoDaEmpresa();
   const criar = useUpdateProspectStage();
-  const passos = passosDaQualificacao(empresa, oportunidade);
+  const estudoGerado = useEstudoGerado(empresa.id);
+  const passos = passosDaQualificacao(empresa, oportunidade, estudoGerado);
   const feitos = passos.filter((p) => p.feito).length;
   const tudo = feitos === passos.length;
   const recem = useRecemFeito(passos);

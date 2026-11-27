@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,6 +7,7 @@ import { dominioDaFonte, quandoFoiGerado } from '@/lib/prospecting/insights';
 import { PEDIDO_ABERTO, ROTULO_DO_PEDIDO_ABERTO, STATUS_DO_PEDIDO } from '@/lib/prospecting/insights.constants';
 import type { FonteDoInsight, ItemDoInsight, PedidoDeInsights, PropsDaAcaoDoTema, PropsDoSeletorDeVersao } from '@/types/insights';
 import { ETIQUETA } from './PecasDaPagina';
+import { GerarDeNovoDialog } from './GerarDeNovoDialog';
 
 /** Peças dos insights de IA (US-0057), usadas na aba Insights de IA e no cartão Porte. */
 
@@ -92,15 +94,24 @@ function BotaoDeGerar({ destaque, jaTem, disabled, onClick }: { destaque?: boole
  * andamento do último pedido do tema e a falha, se houve; sem o runner ativo, não deixa pedir.
  */
 export function AcaoDoTema(props: PropsDaAcaoDoTema) {
-  const { companyId, tema, jaTem, destaque } = props;
+  const { companyId, tema, jaTem, destaque, rotulo = '' } = props;
   const acao = useAcaoDoTema(companyId, tema);
+  const [perguntando, perguntar] = useState(false);
   if (!acao.podeGerar) return null;
+  const clicar = () => (jaTem ? perguntar(true) : acao.pedir());
   return (
     <span className="inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
       <FalhaDoTema pedido={acao.pedido} />
       {acao.esperando
         ? <SituacaoDoTema pedido={acao.aberto ? acao.pedido : null} />
-        : <BotaoDeGerar destaque={destaque} jaTem={jaTem} disabled={acao.ocupado} onClick={acao.pedir} />}
+        : <BotaoDeGerar destaque={destaque} jaTem={jaTem} disabled={acao.ocupado} onClick={clicar} />}
+      <GerarDeNovoDialog
+        aberto={perguntando}
+        rotulo={rotulo}
+        pendente={acao.ocupado}
+        onFechar={() => perguntar(false)}
+        onGerar={(orientacao) => acao.pedir(orientacao, () => perguntar(false))}
+      />
     </span>
   );
 }

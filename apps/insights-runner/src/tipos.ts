@@ -18,6 +18,8 @@ export interface Pedido {
   id: string;
   company_id: string;
   tema: TemaDoPedido;
+  /** O que quem pediu quer que a IA busque (opcional). */
+  orientacao: string | null;
 }
 
 export interface EmpresaDoPedido {

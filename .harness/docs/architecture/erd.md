@@ -136,6 +136,9 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 27/11/2026: 20261127170000 e 20261127180000 — US-0057: prospect_insights_pedidos ganha tema e
+#  orientacao (o que buscar ao gerar de novo); prospect_company_insights ganha tema (um bloco por
+#  tema; 'todos' para as versões de antes). Um pedido aberto por empresa e tema.
 # 27/11/2026: 20261127160000 — US-0057: novas tabelas prospect_insights_runners (PK user_id, FK
 #  auth.users e tenants: sinal de vida do runner), prospect_insights_pedidos (FK tenants,
 #  prospect_companies e auth.users: a fila), prospect_company_insights (FK tenants, prospect_companies,

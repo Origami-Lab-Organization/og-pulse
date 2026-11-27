@@ -22,7 +22,6 @@ import {
   ORIGEM_DA_PESSOA,
   PASSO_DA_QUALIFICACAO,
   SECAO_DA_EMPRESA,
-  TAMANHO_MINIMO_DA_SINTESE,
   TIPO_DE_EVENTO,
 } from './faseDaEmpresa.constants';
 
@@ -32,10 +31,6 @@ import {
  */
 
 const DECISOR = 'decisor';
-
-export function sinteseEscrita(notas: string | null | undefined): boolean {
-  return (notas ?? '').trim().length >= TAMANHO_MINIMO_DA_SINTESE;
-}
 
 /** O faturamento veio do time (estimado ou apurado), não do cálculo da Base guardado ao mover. */
 export function faturamentoDoTime(base: string | null | undefined): boolean {
@@ -47,7 +42,8 @@ export function emMilhoes(reais: number): string {
   return (reais / MILHAO).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 }
 
-export function passosDaQualificacao(empresa: ProspectCompanyDB, oportunidade: ProspectWithCompany): PassoDoWidget[] {
+/** `estudoGerado`: os quatro blocos do Estudo da conta têm uma versão gerada (US-0057). */
+export function passosDaQualificacao(empresa: ProspectCompanyDB, oportunidade: ProspectWithCompany, estudoGerado: boolean): PassoDoWidget[] {
   const temDecisor = (oportunidade.contacts ?? []).some((c) => c.role === DECISOR);
   return [
     { chave: PASSO_DA_QUALIFICACAO.SITE, rotulo: 'Site informado', feito: !!empresa.website, campo: CAMPO_DA_EMPRESA.SITE, secao: SECAO_DA_EMPRESA.CANAIS },
@@ -55,7 +51,7 @@ export function passosDaQualificacao(empresa: ProspectCompanyDB, oportunidade: P
     { chave: PASSO_DA_QUALIFICACAO.DECISOR, rotulo: 'Decisor mapeado', feito: temDecisor, campo: null, secao: SECAO_DA_EMPRESA.PESSOAS },
     { chave: PASSO_DA_QUALIFICACAO.FATURAMENTO, rotulo: 'Faturamento informado', feito: empresa.faturamento_anual != null && faturamentoDoTime(empresa.faturamento_anual_base), campo: CAMPO_DA_EMPRESA.FATURAMENTO, secao: null },
     { chave: PASSO_DA_QUALIFICACAO.TIPO, rotulo: 'Tipo de conta definido', feito: !!empresa.tipo_conta, campo: null, secao: null },
-    { chave: PASSO_DA_QUALIFICACAO.SINTESE, rotulo: 'Síntese da pesquisa escrita', feito: sinteseEscrita(empresa.notes), campo: CAMPO_DA_EMPRESA.SINTESE, secao: SECAO_DA_EMPRESA.ESTUDO },
+    { chave: PASSO_DA_QUALIFICACAO.ESTUDO, rotulo: 'Estudo da conta gerado', feito: estudoGerado, campo: null, secao: SECAO_DA_EMPRESA.ESTUDO },
   ];
 }
 

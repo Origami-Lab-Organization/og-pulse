@@ -34,14 +34,14 @@ export async function liberarInterrompidos({ pulse, dono }: Conexao): Promise<vo
 
 export async function proximoPedido({ pulse, dono }: Conexao): Promise<Pedido | null> {
   const { data } = await pulse
-    .from(PEDIDOS).select('id, company_id, tema')
+    .from(PEDIDOS).select('id, company_id, tema, orientacao')
     .eq('pedido_por', dono.userId).eq('status', 'na_fila')
     .order('pedido_em', { ascending: true }).limit(1).maybeSingle();
   if (!data) return null;
   const { data: pego } = await pulse
     .from(PEDIDOS).update({ status: 'gerando' })
     .eq('id', (data as Pedido).id).eq('status', 'na_fila')
-    .select('id, company_id, tema').maybeSingle();
+    .select('id, company_id, tema, orientacao').maybeSingle();
   return (pego as Pedido | null) ?? null;
 }
 
@@ -102,7 +102,7 @@ async function marcarFalha({ pulse }: Conexao, pedido: Pedido, motivo: string): 
 export async function processar(con: Conexao, pedido: Pedido): Promise<boolean> {
   try {
     const empresa = await lerEmpresa(con, pedido.company_id);
-    const resposta = (await perguntarAoClaude(pedidoAoClaude(empresa, pedido.tema), formatoDoTema(pedido.tema))) as Resposta;
+    const resposta = (await perguntarAoClaude(pedidoAoClaude(empresa, pedido.tema, pedido.orientacao), formatoDoTema(pedido.tema))) as Resposta;
     await gravar(con, pedido, resposta);
     return true;
   } catch (erro) {

@@ -1,6 +1,6 @@
 import { rpc, tabela } from '@/services/prospectingTables';
-import type { EstadoDaProposta, TemaDoPedido } from '@/lib/prospecting/insights.constants';
-import type { PedidoDeInsights, PropostaDePorte, VersaoDosInsights } from '@/types/insights';
+import type { EstadoDaProposta } from '@/lib/prospecting/insights.constants';
+import type { PedidoDeInsights, PedidoNovo, PropostaDePorte, VersaoDosInsights } from '@/types/insights';
 
 /**
  * Insights de IA da empresa (US-0057, ADR-0057). O botão só grava o pedido; o runner local de quem
@@ -29,7 +29,7 @@ export async function pedidosRecentes(companyId: string): Promise<PedidoDeInsigh
 
 export async function versoesDosInsights(companyId: string): Promise<VersaoDosInsights[]> {
   const { data, error } = await tabela('prospect_company_insights')
-    .select('id, tema, gerado_em, temas')
+    .select('id, tema, gerado_em, temas, pedido:prospect_insights_pedidos(orientacao)')
     .eq('company_id', companyId)
     .order('gerado_em', { ascending: false });
   if (error) throw error;
@@ -46,8 +46,9 @@ export async function propostasDePorte(companyId: string): Promise<PropostaDePor
 }
 
 /** Quem pede e o tenant vêm do banco (gatilho); sem o runner ativo, o banco recusa. */
-export async function pedirInsights(companyId: string, tenantId: string, tema: TemaDoPedido): Promise<void> {
-  const { error } = await tabela('prospect_insights_pedidos').insert({ company_id: companyId, tenant_id: tenantId, tema });
+export async function pedirInsights(companyId: string, tenantId: string, pedido: PedidoNovo): Promise<void> {
+  const { tema, orientacao = null } = pedido;
+  const { error } = await tabela('prospect_insights_pedidos').insert({ company_id: companyId, tenant_id: tenantId, tema, orientacao });
   if (error) throw error;
 }
 

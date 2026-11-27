@@ -19,6 +19,13 @@ export interface VersaoDosInsights {
   tema: TemaDoPedido;
   gerado_em: string;
   temas: Partial<Record<TemaDosInsights, ItemDoInsight[]>>;
+  /** O que quem pediu quis que a IA buscasse nesta geração. */
+  pedido: { orientacao: string | null } | null;
+}
+
+export interface PedidoNovo {
+  tema: TemaDoPedido;
+  orientacao?: string | null;
 }
 
 export interface PedidoDeInsights {
@@ -51,8 +58,18 @@ export interface InsightsPorTema {
 export interface PropsDaAcaoDoTema {
   companyId: string;
   tema: TemaDoPedido;
+  /** Já tem versão: o botão vira "Gerar de novo" e pergunta o que buscar. */
   jaTem: boolean;
   destaque?: boolean;
+  rotulo?: string;
+}
+
+export interface PropsDoGerarDeNovo {
+  aberto: boolean;
+  rotulo: string;
+  pendente: boolean;
+  onFechar: () => void;
+  onGerar: (orientacao: string) => void;
 }
 
 export interface PropsDoBlocoDoTema {
@@ -71,4 +88,11 @@ export interface PropsDoSeletorDeVersao {
 export interface PropsDaPropostaNoPorte {
   companyId: string;
   proposta: PropostaDePorte;
+}
+
+export interface PropsDaVersaoDoTema {
+  companyId: string;
+  tema: TemaDosInsights;
+  rotulo: string;
+  versao: VersaoDosInsights;
 }

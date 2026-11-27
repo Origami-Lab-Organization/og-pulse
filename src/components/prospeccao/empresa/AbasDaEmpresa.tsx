@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Flag, Globe, NotebookPen, ShieldCheck, Sparkles, Target, Users } from 'lucide-react';
+import { Flag, Globe, NotebookPen, ShieldCheck, Target, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SECAO_DA_EMPRESA, type SecaoDaEmpresa } from '@/lib/prospecting/faseDaEmpresa.constants';
 import { useEdicaoDaEmpresa } from './edicaoDaEmpresa';
@@ -11,7 +11,6 @@ const ABAS: ReadonlyArray<{ id: SecaoDaEmpresa; rotulo: string; icone: typeof Ta
   { id: SECAO_DA_EMPRESA.CANAIS, rotulo: 'Canais', icone: Globe },
   { id: SECAO_DA_EMPRESA.RISCOS, rotulo: 'Riscos', icone: ShieldCheck },
   { id: SECAO_DA_EMPRESA.HISTORICO, rotulo: 'Histórico', icone: Flag },
-  { id: SECAO_DA_EMPRESA.INSIGHTS, rotulo: 'Insights de IA', icone: Sparkles },
   { id: SECAO_DA_EMPRESA.ESTUDO, rotulo: 'Estudo da conta', icone: NotebookPen },
 ];
 

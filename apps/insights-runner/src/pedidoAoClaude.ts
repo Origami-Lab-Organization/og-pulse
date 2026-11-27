@@ -78,11 +78,15 @@ function identificacao(e: EmpresaDoPedido): string {
   ].filter(Boolean).join('\n');
 }
 
-export function pedidoAoClaude(empresa: EmpresaDoPedido, tema: TemaDoPedido): string {
+/** O pedido de quem gerou de novo: por que pediu ou o que buscar. Não muda as regras. */
+const doPedido = (orientacao: string | null) =>
+  orientacao ? `\n\nPedido de quem está estudando a empresa (siga dentro das regras acima):\n${orientacao}` : '';
+
+export function pedidoAoClaude(empresa: EmpresaDoPedido, tema: TemaDoPedido, orientacao: string | null): string {
   return `Você é analista comercial da Origami Lab, uma consultoria de inovação, e está estudando uma empresa brasileira antes de abordá-la. Pesquise na web e responda em português do Brasil.
 
 Empresa:
 ${identificacao(empresa)}
 
-${oQuePedir(tema)}`;
+${oQuePedir(tema)}${doPedido(orientacao)}`;
 }
