@@ -1,6 +1,7 @@
 # US-0048 — Filtrar e ver projetos por linha e por serviço
 
-- **Status:** Pronta para desenvolver
+- **Status:** Pronto
+- **Pronto em:** 27/11/2026, aprovado pelo Victor (PR #115 mesclado e testado por ele no localhost). O front chega à produção com o deploy destravado pelo #127.
 - **Tipo:** história
 - **Prontidão:** PRONTA COM RESSALVAS
 - **Épico:** Catálogo e formas de receita (épico 1 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)

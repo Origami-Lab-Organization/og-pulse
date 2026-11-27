@@ -1,6 +1,7 @@
 # US-0031 — O forecast e a curva da aba Financeiro usam todos os meses do projeto
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
+- **Pronto em:** 27/11/2026, aprovado pelo Victor (PR #96 mesclado e testado por ele no localhost).
 - **Tipo:** bug
 - **Prontidão:** PRONTA
 - **Épico:** Custos do projeto

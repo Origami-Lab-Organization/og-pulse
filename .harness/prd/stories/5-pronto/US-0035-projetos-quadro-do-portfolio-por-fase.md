@@ -1,6 +1,7 @@
 # US-0035 — Quadro do portfólio por fase, sem rolagem longa
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
+- **Pronto em:** 27/11/2026, aprovado pelo Victor (PR #102 mesclado e testado por ele no localhost).
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Portfólio de projetos

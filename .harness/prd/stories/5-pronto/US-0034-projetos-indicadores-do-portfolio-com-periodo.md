@@ -1,6 +1,7 @@
 # US-0034 — Indicadores do portfólio com o período e as metas
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
+- **Pronto em:** 27/11/2026, aprovado pelo Victor (PR #102 mesclado e testado por ele no localhost).
 - **Tipo:** bug
 - **Prontidão:** PRONTA
 - **Épico:** Portfólio de projetos

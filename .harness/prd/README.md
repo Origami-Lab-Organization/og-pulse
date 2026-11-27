@@ -258,7 +258,7 @@ os projetos, porque o defeito está no cálculo das telas, não nos dados lança
 | [US-0028](stories/5-pronto/US-0028-projetos-grafico-planejado-x-realizado-so-com-totais.md) | O gráfico Planejado × Realizado mostra só os totais | GP ou admin | Pronto | Pronta com ressalvas |
 | [US-0029](stories/4-em-desenvolvimento/US-0029-projetos-total-dos-custos-lancados.md) | Ver o total dos custos lançados | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0030](stories/4-em-desenvolvimento/US-0030-projetos-lancamento-so-dentro-do-periodo.md) | Lançar horas e custos só dentro do período do projeto | GP ou admin | Em desenvolvimento | Pronta |
-| [US-0031](stories/4-em-desenvolvimento/US-0031-projetos-forecast-usa-todos-os-meses.md) | O forecast e a curva da aba Financeiro usam todos os meses do projeto | GP ou admin | Em desenvolvimento | Pronta |
+| [US-0031](stories/5-pronto/US-0031-projetos-forecast-usa-todos-os-meses.md) | O forecast e a curva da aba Financeiro usam todos os meses do projeto | GP ou admin | Pronto | Pronta |
 | [US-0032](stories/4-em-desenvolvimento/US-0032-projetos-card-de-forecast-claro.md) | O card de forecast diz o que significa | GP ou admin | Em desenvolvimento | Pronta |
 | [US-0033](stories/5-pronto/US-0033-projetos-pl-realizado.md) | Ver o P&L realizado ao lado do projetado | GP ou admin | Pronto | Pronta |
 
@@ -302,11 +302,11 @@ membro e permissões por capacidade. Protótipo: `prototipos/portfolio-de-projet
 
 | ID | História | Persona | Status | Prontidão |
 |---|---|---|---|---|
-| [US-0034](stories/4-em-desenvolvimento/US-0034-projetos-indicadores-do-portfolio-com-periodo.md) | Indicadores do portfólio com o período e as metas | GP ou admin | Em desenvolvimento | Pronta |
-| [US-0035](stories/4-em-desenvolvimento/US-0035-projetos-quadro-do-portfolio-por-fase.md) | Quadro do portfólio por fase, sem rolagem longa | GP ou admin | Em desenvolvimento | Pronta |
-| [US-0036](stories/4-em-desenvolvimento/US-0036-projetos-metas-e-margem-do-portfolio.md) | Metas de receita e margem bruta do portfólio | Admin | Em desenvolvimento | Pronta |
-| [US-0037](stories/4-em-desenvolvimento/US-0037-projetos-sino-de-pendencias-no-card.md) | Sino de pendências no card e pendências na Visão Geral | GP | Em desenvolvimento | Pronta |
-| [US-0039](stories/4-em-desenvolvimento/US-0039-projetos-planejamento-guiado-por-checklist.md) | Planejar o projeto guiado por um checklist que acompanha o preenchimento | GP ou admin | Em desenvolvimento | Pronta |
+| [US-0034](stories/5-pronto/US-0034-projetos-indicadores-do-portfolio-com-periodo.md) | Indicadores do portfólio com o período e as metas | GP ou admin | Pronto | Pronta |
+| [US-0035](stories/5-pronto/US-0035-projetos-quadro-do-portfolio-por-fase.md) | Quadro do portfólio por fase, sem rolagem longa | GP ou admin | Pronto | Pronta |
+| [US-0036](stories/5-pronto/US-0036-projetos-metas-e-margem-do-portfolio.md) | Metas de receita e margem bruta do portfólio | Admin | Pronto | Pronta |
+| [US-0037](stories/5-pronto/US-0037-projetos-sino-de-pendencias-no-card.md) | Sino de pendências no card e pendências na Visão Geral | GP | Pronto | Pronta |
+| [US-0039](stories/5-pronto/US-0039-projetos-planejamento-guiado-por-checklist.md) | Planejar o projeto guiado por um checklist que acompanha o preenchimento | GP ou admin | Pronto | Pronta |
 | [US-0043](stories/2-em-refinamento/02-US-0043-projetos-encerramento-com-renovacao.md) | Encerrar o projeto decidindo a renovação e entregando os resultados | GP ou admin | Em refinamento | Pronta com ressalvas |
 | [US-0045](stories/5-pronto/US-0045-comercial-empresa-e-cliente-num-cadastro-so.md) | A empresa é o cadastro do cliente (pré-requisito da US-0043; épico 2 abaixo) | Pessoa do comercial ou GP | Pronto | Pronta |
 
@@ -328,9 +328,9 @@ US-0045 aguardam os épicos anteriores do roadmap.
 
 | ID | História | Persona | Status | Prontidão |
 |---|---|---|---|---|
-| [US-0046](stories/3-pronta-para-desenvolver/US-0046-catalogo-2027-linhas-servicos-e-formas-de-receita.md) | Catálogo 2027: linhas, serviços e formas de receita | Admin | Pronta para desenvolver | Pronta com ressalvas |
-| [US-0047](stories/3-pronta-para-desenvolver/US-0047-fit-por-servico-segue-o-catalogo.md) | Fit por serviço segue o catálogo | Pessoa do comercial | Pronta para desenvolver | Pronta com ressalvas |
-| [US-0048](stories/3-pronta-para-desenvolver/US-0048-filtro-por-linha-e-servico.md) | Filtrar e ver projetos por linha e por serviço | Admin, GP ou comercial | Pronta para desenvolver | Pronta com ressalvas |
+| [US-0046](stories/5-pronto/US-0046-catalogo-2027-linhas-servicos-e-formas-de-receita.md) | Catálogo 2027: linhas, serviços e formas de receita | Admin | Pronto | Pronta com ressalvas |
+| [US-0047](stories/5-pronto/US-0047-fit-por-servico-segue-o-catalogo.md) | Fit por serviço segue o catálogo | Pessoa do comercial | Pronto | Pronta com ressalvas |
+| [US-0048](stories/5-pronto/US-0048-filtro-por-linha-e-servico.md) | Filtrar e ver projetos por linha e por serviço | Admin, GP ou comercial | Pronto | Pronta com ressalvas |
 
 **Épico 2 — Empresa e cliente**
 

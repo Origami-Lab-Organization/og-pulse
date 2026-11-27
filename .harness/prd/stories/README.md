@@ -27,9 +27,10 @@ Nas pastas `1-a-fazer/` a `4-em-desenvolvimento/`, o nome do arquivo começa pel
 é renomear com `git mv`; o ID não muda. Em `5-pronto/` e `9-arquivadas/` o nome fica sem número.
 A ordem segue o roadmap de `refino-fluxo-comercial-a-projeto.md` e o que o Victor pedir.
 
-Enquanto o Victor não confirmar a situação das histórias de Projetos que já estão no código
-(US-0027, US-0029 a US-0032, US-0034 a US-0037, US-0039, US-0046 a US-0048), elas ficam onde
-estão e sem número.
+Histórias de Projetos que já estão no código (decisão do Victor, 27/11/2026): US-0031, US-0034 a
+US-0037, US-0039 e US-0046 a US-0048 foram para `5-pronto/`. US-0027, US-0029, US-0030 e US-0032
+ficam em `4-em-desenvolvimento/` até ele conferir na tela os cenários marcados como pendentes na
+Implementação de cada uma. A ordem delas fica para a próxima priorização.
 
 Ainda não existe check automático que confira pasta e cabeçalho, como o
 `npm run check:stories` do Origami Buds. Até existir, a conferência é feita no

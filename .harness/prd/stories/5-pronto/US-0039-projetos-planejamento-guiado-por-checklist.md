@@ -1,6 +1,7 @@
 # US-0039 — Planejar o projeto guiado por um checklist que acompanha o preenchimento
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
+- **Pronto em:** 27/11/2026, aprovado pelo Victor (PR #105 mesclado e testado por ele no localhost).
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Portfólio de projetos
