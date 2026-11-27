@@ -50,8 +50,6 @@ export interface ProjetoDaRelacao {
 
 /** Tudo que o tenant sabe de uma empresa (pela raiz do CNPJ). */
 export interface DadosDaRelacao {
-  /** Está no cadastro de clientes (pelo CNPJ ou pela ligação da empresa da Prospecção). */
-  cliente: boolean;
   projetos: ProjetoDaRelacao[];
   oportunidades: OportunidadeDaRelacao[];
   /** Descartada ou "Não agora", ainda valendo (US-0010). */

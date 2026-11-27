@@ -78,11 +78,14 @@ export function relacaoDaEmpresa(dados: DadosDaRelacao, hoje: Date): RelacaoDaEm
   return jaFoiCliente(dados) ?? depoisDoCliente(dados, hoje);
 }
 
-/** Projeto, Ganho, cadastro de cliente ou a marca "Cliente antes do Pulse" (US-0051). */
+/**
+ * Projeto, Ganho ou a marca "Cliente antes do Pulse" (US-0051). Estar no cadastro de clientes
+ * não basta: orçamento não faz cliente (US-0045), e a Base concorda com a carteira (US-0052).
+ */
 function jaFoiCliente(dados: DadosDaRelacao): RelacaoDaEmpresa | null {
-  const { projetos, oportunidades, cliente, antesDoPulse = null } = dados;
+  const { projetos, oportunidades, antesDoPulse = null } = dados;
   const ganho = maisRecente(oportunidades.filter((o) => GANHO.has(o.stage)));
-  if (!projetos.length && !ganho && !cliente && antesDoPulse == null) return null;
+  if (!projetos.length && !ganho && antesDoPulse == null) return null;
   return { relacao: "ja_foi_cliente", pediuParaParar: false, projeto: maisRecente(projetos), oportunidade: ganho, antesDoPulse };
 }
 

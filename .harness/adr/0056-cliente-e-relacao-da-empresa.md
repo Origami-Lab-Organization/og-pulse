@@ -41,6 +41,9 @@ uma migração grande e arriscada, sem ganho para quem usa o Pulse.
 4. **O Ganho e o orçamento não cadastram cliente.** O cadastro de cliente perde endereço e
    contatos: endereço vem da Receita, e contatos são os da empresa (ADR-0045).
 5. **Vale daqui para frente.** Os registros atuais são regularizados caso a caso (US-0052).
+   Aplicada em 27/11/2026 (migration 20261127140000): cada cliente com Ganho ou projeto ficou com
+   uma empresa. Na mesma US, a relação da Base e da página da empresa deixou de contar o cadastro
+   de clientes sozinho (só Ganho, projeto ou "Cliente antes do Pulse"), como a carteira.
 
 ## Consequências
 

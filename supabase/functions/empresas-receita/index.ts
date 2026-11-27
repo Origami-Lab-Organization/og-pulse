@@ -754,14 +754,14 @@ class Agrupador {
   private readonly raizDaOportunidade = new Map<string, string>();
 
   private dados(raiz: string): DadosDaRelacao {
-    const d = this.porRaiz.get(raiz) ?? { cliente: false, projetos: [], oportunidades: [] };
+    const d = this.porRaiz.get(raiz) ?? { projetos: [], oportunidades: [] };
     this.porRaiz.set(raiz, d);
     return d;
   }
 
+  /** Liga o cliente à raiz só para os projetos dele chegarem à empresa (US-0052). */
   private ligarCliente(clienteId: string, raiz: string) {
     this.raizesDoCliente.set(clienteId, (this.raizesDoCliente.get(clienteId) ?? new Set()).add(raiz));
-    this.dados(raiz).cliente = true;
   }
 
   cliente(c: ClienteDoTenant) {
@@ -1015,7 +1015,7 @@ async function oportunidadesDaEmpresa(sessao: SupabaseClient, cnpj: string) {
 /** Relação e histórico da empresa (US-0019, cenário 7); falha aqui não derruba a ficha. */
 async function relacaoDaFicha(sessao: SupabaseClient, cnpj: string) {
   try {
-    const dados = (await dadosDaRelacao(sessao)).get(cnpj.slice(0, 8)) ?? { cliente: false, projetos: [], oportunidades: [] };
+    const dados = (await dadosDaRelacao(sessao)).get(cnpj.slice(0, 8)) ?? { projetos: [], oportunidades: [] };
     return { relacao: relacaoDaEmpresa(dados, new Date()), historico: dados, parceiro: !!dados.parceiro, relacao_indisponivel: false };
   } catch {
     return { relacao: null, historico: null, parceiro: false, relacao_indisponivel: true };
