@@ -1,6 +1,6 @@
 # US-0054 — Funcionários além da RAIS: RAIS improvável e faixa do LinkedIn
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresa e cliente (épico 2 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)
@@ -57,13 +57,15 @@ estimativa. Esta história trata as que têm RAIS, mas baixa demais para o porte
 
 **Cenário 1: RAIS improvável**
 
-- **Dado** uma empresa com RAIS abaixo de 10 funcionários e capital social a partir de R$ 10 mi ou
-  porte "demais" (nem ME nem EPP), ou com RAIS menor que um quinto da estimativa por empresas parecidas;
+- **Dado** uma empresa com RAIS abaixo de 10 funcionários, capital social a partir de R$ 10 mi, fora de
+  holdings e serviços financeiros, atividades imobiliárias, incorporação e sedes de grupo, e com a
+  estimativa por empresas parecidas de pelo menos 50 funcionários;
 - **Quando** abro a página dela;
 - **Então** o cartão Porte mostra a estimativa por empresas parecidas como número de funcionários, com
   a origem "estimado";
 - **E** a RAIS aparece no detalhe, com o número dela;
-- **E** o faturamento estimado usa a estimativa, e não a RAIS.
+- **E** o faturamento estimado usa a estimativa × a receita por pessoa do ramo, sem a correção pelo
+  capital social (decisão 4).
 
 **Cenário 2: RAIS plausível**
 
@@ -99,15 +101,35 @@ estimativa. Esta história trata as que têm RAIS, mas baixa demais para o porte
   na carga da VPS;
 - **E** o título do filtro continua só "Funcionários", sem citar a fonte (US-0042).
 
+**Cenário 7: RAIS incompleta**
+
+- **Dado** uma empresa com pelo menos 3 filiais em que a RAIS achou funcionário em menos da metade dos
+  estabelecimentos, e sem número do time;
+- **Então** o número continua sendo o da RAIS;
+- **E** o cartão Porte mostra em quantos estabelecimentos a RAIS achou gente (ex.: "RAIS em 1 de 23
+  estabelecimentos"), para o time conferir e informar a faixa.
+
 ## Decisões (Victor Couto, 26/11/2026)
 
-1. **Regra da RAIS improvável:** RAIS abaixo de 10 funcionários com capital social a partir de R$ 10 mi
-   ou porte "demais" (nem ME nem EPP), ou RAIS menor que um quinto da estimativa por empresas
-   parecidas.
+1. **Regra da RAIS improvável (V2, revista com a medição):** RAIS abaixo de 10, capital social a partir
+   de R$ 10 mi, fora das divisões 64 e 68 e dos grupos 7020 e 4110, e estimativa de pelo menos 50.
+   A regra aprovada antes (RAIS abaixo de 10 ou menor que um quinto da estimativa) mudaria 461.239 das
+   559.664 empresas com RAIS (82%), porque a Base só tem porte "demais"; a V2 muda 1.448 (0,26%),
+   entre elas a Gecal (RAIS 1, estimativa 411). Medido por `scripts/receita/medir-rais-improvavel.ts`.
 2. **A Base usa o número ajustado** no filtro, na ordem e no fit, para a lista e a página não
    discordarem. O cálculo vai para a carga da VPS (`scripts/receita/sincronizar-base.ts`).
 3. **Faixa do LinkedIn nas contas:** o ponto médio da faixa no faturamento estimado e no fit; a tela
    mostra a faixa inteira.
+4. **Funcionários confiáveis sem a correção do capital** (26/11/2026, depois da primeira carga): quando
+   os funcionários vêm da estimativa ou do time (número exato ou faixa), o faturamento é funcionários ×
+   receita por pessoa × fator do setor, sem combinar com o capital social. A correção pelo capital
+   existe para compensar a RAIS baixa; aplicada de novo, subia o faturamento 3 vezes na mediana e
+   levava 517 das 1.448 empresas a Âncora (Gecal: R$ 1,3 bi com a correção, R$ 311 mi sem ela).
+
+5. **A RAIS continua sendo a fonte geral de funcionários, com aviso** (26/11/2026). Nas 8 Âncoras da
+   região com referência do Econodata ou do time, a RAIS errou 2,2 vezes na mediana e o modelo de empresas
+   parecidas 5,1 vezes (Prumo: 77 contra 4.000 a 5.000). O sinal "muitas filiais sem RAIS" pegaria 15% das
+   empresas de R$ 10 mi a R$ 1 bi; por isso ele vira aviso na página (cenário 7), sem mudar o número.
 
 ## Contexto técnico
 

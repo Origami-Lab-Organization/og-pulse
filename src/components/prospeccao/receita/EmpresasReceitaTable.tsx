@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { rotuloDaFaixa } from '@/lib/prospecting/funcionariosDoTime';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { useHideValues } from '@/contexts/HideValuesContext';
 import { formatCNPJ } from '@/lib/masks';
@@ -96,6 +97,14 @@ export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
   );
 }
 
+/** Funcionários na lista: a faixa ou o número do time (*), a estimativa (≈) ou a RAIS (US-0054). */
+function Funcionarios({ empresa }: { empresa: EmpresaReceita }) {
+  const n = (empresa.funcionarios ?? 0).toLocaleString('pt-BR');
+  if (empresa.funcionarios_do_time) return <span title="Informados pelo time">{rotuloDaFaixa(empresa.funcionarios_faixa) ?? n}*</span>;
+  if (empresa.funcionarios_estimados) return <span title={`Estimado por empresas parecidas; RAIS: ${(empresa.funcionarios_rais ?? 0).toLocaleString('pt-BR')}`}>≈{n}</span>;
+  return <span>{n}</span>;
+}
+
 const TECLA_QUE_ABRE = 'Enter';
 
 interface LinhaProps {
@@ -149,7 +158,7 @@ function Linha(props: LinhaProps) {
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
         {empresa.funcionarios != null
-          ? <span title={empresa.funcionarios_do_time ? 'Confirmados pelo time' : undefined}>{empresa.funcionarios.toLocaleString('pt-BR')}{empresa.funcionarios_do_time && '*'}</span>
+          ? <Funcionarios empresa={empresa} />
           : <span title="Sem dado na RAIS">—</span>}
       </td>
       <td className="px-3 py-2">
@@ -213,7 +222,7 @@ function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
       </TooltipTrigger>
       <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
         <p className="font-medium">Faturamento {ROTULO_DA_BASE[base]}</p>
-        <p className="mt-0.5">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social, empresa.funcionarios_do_time)}</p>
+        <p className="mt-0.5">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social, empresa.funcionarios_do_time, empresa.funcionarios_estimados)}</p>
         <MotivoDaConfianca confianca={confianca} className="mt-1.5" />
         {regime && <p className="mt-1.5">{regime}</p>}
         {lucroReal && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}

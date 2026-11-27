@@ -1,4 +1,5 @@
 import { industrySignal } from '@/lib/prospecting/industria';
+import { funcionariosDoTime } from '@/lib/prospecting/funcionariosDoTime';
 import { isSituacaoAtiva, leiDoBemSignal } from '@/lib/prospecting/receita';
 import { sugerirTipoDeConta } from '@/lib/prospecting/tipoDeConta';
 import type { ProspectCompanyDB, TipoDeConta } from '@/types/prospect';
@@ -46,13 +47,13 @@ function anosDesde(data?: string | null): number | null {
 
 /** Os sinais do tamanho de uma empresa do Pulse: o que o time informou, senão o retrato da Base. */
 export function sinaisDaEmpresa(e: ProspectCompanyDB): SinaisDoTamanho {
-  const doTime = e.funcionarios_informados != null;
+  const doTime = funcionariosDoTime(e);
   const estimado = e.base_faturamento_base && e.base_faturamento_base !== 'piso' ? e.base_faturamento_estimado ?? null : null;
   const faturamento = e.faturamento_anual ?? estimado;
   const pelaFaixa = sugerirTipoDeConta(faturamento == null ? null : Number(faturamento));
   return {
-    funcionarios: doTime ? e.funcionarios_informados ?? null : e.base_funcionarios ?? null,
-    funcionariosDoTime: doTime,
+    funcionarios: doTime ?? e.base_funcionarios ?? null,
+    funcionariosDoTime: doTime != null,
     dividaAjuizada: e.base_divida_ajuizada == null ? null : Number(e.base_divida_ajuizada),
     distanciaKm: e.base_distancia_km ?? null,
     tipoConta: e.tipo_conta ?? pelaFaixa,
@@ -63,13 +64,19 @@ export function sinaisDaEmpresa(e: ProspectCompanyDB): SinaisDoTamanho {
 
 type Faixas = readonly [number, number, number, number];
 
+/** De onde vem o número: o time, a estimativa (RAIS improvável, US-0054) ou a RAIS. */
+function origemDosFuncionarios(s: SinaisDoTamanho): string {
+  if (s.funcionariosDoTime) return 'confirmados pelo time';
+  return s.funcionariosEstimados ? 'estimados' : 'RAIS';
+}
+
 /** Funcionários 50–99 / 100–249 / 250–999 / 1.000+. */
 function funcionariosPontos(s: SinaisDoTamanho, faixas: Faixas): [number, string] {
   const n = s.funcionarios;
   if (n == null || n < 50) return [0, ''];
   const i = n >= 1000 ? 3 : n >= 250 ? 2 : n >= 100 ? 1 : 0;
   const rotulo = ['50 a 99', '100 a 249', '250 a 999', '1.000 ou mais'][i];
-  return [faixas[i], `${rotulo} funcionários (${s.funcionariosDoTime ? 'confirmados pelo time' : 'RAIS'})`];
+  return [faixas[i], `${rotulo} funcionários (${origemDosFuncionarios(s)})`];
 }
 
 const ROTULO_DO_TIPO: Record<TipoDeConta, string> = { satelite: 'Satélite', ponte: 'Ponte', ancora: 'Âncora' };

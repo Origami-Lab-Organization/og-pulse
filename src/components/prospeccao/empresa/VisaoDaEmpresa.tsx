@@ -1,15 +1,18 @@
 import type { ReactNode } from 'react';
 import { Pencil } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useFaturamentoDoTime, useFuncionariosDoTime } from '@/hooks/useEstudoDaConta';
+import { useFaturamentoDoTime } from '@/hooks/useEstudoDaConta';
+import { rotuloDaFaixa } from '@/lib/prospecting/funcionariosDoTime';
+import { coberturaDaRais } from '@/lib/prospecting/raisImprovavel';
 import { divisaoDoCnae, nomeDoRamo, setorDoCnae, SETORES } from '@/lib/prospecting/cnae';
 import { anosDeOperacao, emTitulo, reaisCurtos } from '@/lib/prospecting/empresasReceita';
 import { ROTULO_DO_INFORMADO, textoDoFaturamento, textoDoInformado } from '@/lib/prospecting/faturamentoEstimado';
 import { CAMPO_DA_EMPRESA, SECAO_DA_EMPRESA } from '@/lib/prospecting/faseDaEmpresa.constants';
-import { emMilhoes, faturamentoDoTime, inteiroDoTexto, numerosDoHistorico, reaisDeMilhoes, ultimaPerda } from '@/lib/prospecting/paginaDaEmpresa';
+import { emMilhoes, faturamentoDoTime, numerosDoHistorico, reaisDeMilhoes, ultimaPerda } from '@/lib/prospecting/paginaDaEmpresa';
 import { getDiscardReasonLabel } from '@/types/prospect';
 import type { EmpresaDaFicha } from '@/types/fichaReceita';
 import { EdicaoDoCampo } from './PecasDaPagina';
+import { EdicaoDeFuncionarios } from './EdicaoDeFuncionarios';
 import { useCampoAberto, useEdicaoDaEmpresa } from './edicaoDaEmpresa';
 import type { EmpresaDaPagina } from './useEmpresaDaPagina';
 
@@ -69,29 +72,37 @@ function NumeroDoPorte(props: { nome: string; valor: string; origem: string; aca
   );
 }
 
+/** Origem dos funcionários: faixa do LinkedIn, número do time ou RAIS (US-0054). */
+function funcionariosDaPagina(empresa: EmpresaDaFicha): { valor: string; origem: string } {
+  const faixa = rotuloDaFaixa(empresa.funcionarios_faixa);
+  if (faixa) return { valor: faixa, origem: 'LinkedIn · informado pelo time' };
+  const valor = empresa.funcionarios != null ? empresa.funcionarios.toLocaleString('pt-BR') : '—';
+  if (empresa.funcionarios_do_time) return { valor, origem: 'confirmados pelo time' };
+  if (empresa.funcionarios_estimados) return { valor: `≈ ${valor}`, origem: `estimado · RAIS ${(empresa.funcionarios_rais ?? 0).toLocaleString('pt-BR')}` };
+  return { valor, origem: coberturaDaRais(empresa) ?? 'RAIS' };
+}
+
 function Funcionarios({ pagina, empresa }: { pagina: EmpresaDaPagina; empresa: EmpresaDaFicha }) {
   const { can } = useAuth();
-  const salvar = useFuncionariosDoTime();
   const campo = useCampoAberto(CAMPO_DA_EMPRESA.FUNCIONARIOS);
   const doPulse = pagina.empresaDoPulse;
-  const doTime = !!empresa.funcionarios_do_time;
-  const acao = doPulse && can('prospeccao:editar') && !campo.aberto && (
-    <BotaoDeInformar texto={doTime ? 'Corrigir' : 'Confirmar'} onClick={campo.abrir} />
-  );
-  // Corrigir abre com o número atual; apagar volta a valer a RAIS.
-  const edicao = campo.aberto && doPulse && (
-    <EdicaoDoCampo rotulo="Funcionários confirmados" placeholder="Vazio: vale a RAIS" aceitaVazio valorInicial={doTime && empresa.funcionarios != null ? String(empresa.funcionarios) : ''} onSair={campo.fechar}
-      onSalvar={(v) => salvar.mutate({ companyId: doPulse.id, funcionarios: inteiroDoTexto(v) })} />
+  const { valor, origem } = funcionariosDaPagina(empresa);
+  const acao = doPulse && can('prospeccao:editar') && (
+    <EdicaoDeFuncionarios
+      empresa={doPulse}
+      aberto={campo.aberto}
+      onAbertoChange={(a) => (a ? campo.abrir() : campo.fechar())}
+      textoDoBotao={empresa.funcionarios_do_time ? 'Corrigir' : 'Informar'}
+    />
   );
   return (
     <NumeroDoPorte
       ancora={campo.ancora}
       id={`campo-${CAMPO_DA_EMPRESA.FUNCIONARIOS}`}
       nome="Funcionários"
-      valor={empresa.funcionarios != null ? empresa.funcionarios.toLocaleString('pt-BR') : '—'}
-      origem={doTime ? 'confirmados pelo time' : 'RAIS'}
+      valor={valor}
+      origem={origem}
       acao={acao || undefined}
-      edicao={edicao || undefined}
     />
   );
 }

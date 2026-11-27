@@ -593,6 +593,8 @@ interface DoTimeNaEmpresa {
   faturamento_anual: number | null;
   faturamento_anual_base: string | null;
   funcionarios_informados: number | null;
+  /** US-0054: faixa do LinkedIn informada pelo time ("201-500"); não convive com o número exato. */
+  funcionarios_faixa: string | null;
   regime_tributario: string | null;
   regime_tributario_ano: number | null;
 }
@@ -607,6 +609,7 @@ function comODoTime(l: LinhaDaPagina, t: DoTimeNaEmpresa | undefined, historico:
     ...l,
     ...faturamento,
     funcionarios_informados: t.funcionarios_informados,
+    funcionarios_faixa: t.funcionarios_faixa,
     regime_tributario: t.regime_tributario,
     regime_tributario_ano: t.regime_tributario_ano,
     faturamento_historico: registros,
@@ -625,9 +628,9 @@ async function comFaturamentoDoTime(sessao: SupabaseClient, linhas: LinhaDaPagin
   if (!linhas.length) return linhas;
   const { data, error } = await sessao
     .from("prospect_companies")
-    .select("id, cnpj, faturamento_anual, faturamento_anual_base, funcionarios_informados, regime_tributario, regime_tributario_ano")
+    .select("id, cnpj, faturamento_anual, faturamento_anual_base, funcionarios_informados, funcionarios_faixa, regime_tributario, regime_tributario_ano")
     .in("cnpj", linhas.map((l) => l.cnpj.trim()))
-    .or("faturamento_anual.not.is.null,funcionarios_informados.not.is.null,regime_tributario.not.is.null");
+    .or("faturamento_anual.not.is.null,funcionarios_informados.not.is.null,funcionarios_faixa.not.is.null,regime_tributario.not.is.null");
   if (error || !data) return linhas;
   const empresas = data as DoTimeNaEmpresa[];
   const doTime = new Map(empresas.map((r) => [r.cnpj, r]));
@@ -866,6 +869,7 @@ async function pagina(cliente: Cliente, pedidoOriginal: Extract<Pedido, { modo: 
   const linhas = await cliente.queryObject(
     `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, c.descricao AS cnae_descricao,
           e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.capital_social::float8 AS capital_social, e.distancia_km, e.funcionarios,
+          e.funcionarios_rais, e.funcionarios_estimados,
           e.divida_total::float8 AS divida_total, e.divida_ajuizada::float8 AS divida_ajuizada,
           e.fit_previo, e.fit_frente, e.fit_studio, e.fit_lei_do_bem, e.fit_captacao, e.fit_consultoria, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base, e.pela_secundaria,
           e.natureza_juridica
@@ -929,6 +933,7 @@ const FICHA = `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal,
     e.natureza_juridica, n.descricao AS natureza_descricao,
     e.capital_social::float8 AS capital_social, e.data_inicio_atividade::text AS data_inicio_atividade,
     e.municipio, e.uf, e.distancia_km, e.funcionarios, e.unidades_com_funcionarios, e.filiais_ativas, e.socios,
+    e.funcionarios_rais, e.funcionarios_estimados,
     e.divida_total::float8 AS divida_total, e.divida_em_cobranca::float8 AS divida_em_cobranca,
     e.divida_ajuizada::float8 AS divida_ajuizada, e.inscricoes_divida, e.tem_email, e.tem_telefone,
     e.fit_previo, e.fit_frente, e.fit_studio, e.fit_lei_do_bem, e.fit_captacao, e.fit_consultoria, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base

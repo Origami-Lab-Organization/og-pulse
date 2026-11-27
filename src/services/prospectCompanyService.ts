@@ -1,4 +1,5 @@
 import { todasAsPaginas } from '@/lib/paginacao';
+import type { FaixaDoLinkedin } from '@/lib/prospecting/funcionarios.constants';
 import type { CamposDaPagina } from '@/types/paginaDaEmpresa';
 import { tabela } from '@/services/prospectingTables';
 import { supabase } from '@/integrations/supabase/client';
@@ -220,7 +221,14 @@ export const prospectCompanyService = {
 
   /** Só os funcionários confirmados pelo time (US-0020); nulo volta a valer a RAIS. */
   async setFuncionarios(id: string, funcionarios: number | null): Promise<void> {
-    const { error } = await tabela('prospect_companies').update({ funcionarios_informados: funcionarios }).eq('id', id);
+    // O número exato substitui a faixa do LinkedIn: os dois não convivem (US-0054).
+    const { error } = await tabela('prospect_companies').update({ funcionarios_informados: funcionarios, funcionarios_faixa: null }).eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Faixa do LinkedIn (US-0054); substitui o número exato. Nulo volta a valer a RAIS. */
+  async setFaixaDeFuncionarios(id: string, faixa: FaixaDoLinkedin | null): Promise<void> {
+    const { error } = await tabela('prospect_companies').update({ funcionarios_faixa: faixa, funcionarios_informados: null }).eq('id', id);
     if (error) throw error;
   },
 

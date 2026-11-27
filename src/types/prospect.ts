@@ -339,6 +339,8 @@ export interface ProspectCompanyDB {
   tipo_conta?: TipoDeConta | null;
   /** Funcionários confirmados pelo time; prevalece sobre a RAIS (US-0020). Nulo = não informado. */
   funcionarios_informados?: number | null;
+  /** Faixa do LinkedIn informada pelo time (US-0054): "201-500". Não convive com o número exato. */
+  funcionarios_faixa?: string | null;
   client_id: string | null;
   notes: string | null;
   /** Faturamento anual em reais, informado pelo time (01/10/2026). A Receita não informa. */

@@ -136,6 +136,9 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 26/11/2026: 20261126110000 — US-0054: prospect_companies.funcionarios_faixa (faixa do LinkedIn, com
+#  check das nove faixas; não convive com funcionarios_informados, check exato_ou_faixa). Sem FK nem
+#  relação nova. Conferida contra ProspectCompanyDB (src/types/prospect.ts) e FAIXAS_DO_LINKEDIN.
 # 26/11/2026: 20261126100000 — US-0053: nova tabela prospect_company_estudo (FK tenants,
 #  prospect_companies e employees; links, notas e arquivos do estudo da conta, o arquivo mora no
 #  OneDrive), nova tabela onedrive_do_comercial (FK tenants e employees; uma por tenant) e
@@ -270,6 +273,7 @@ erDiagram
         numeric base_faturamento_estimado "retrato da Base, com base_faturamento_base"
         timestamptz base_retrato_em "quando o retrato foi tirado; NULL = nunca"
         int funcionarios_informados "confirmados pelo time — NULL = vale a RAIS (US-0020)"
+        text funcionarios_faixa "faixa do LinkedIn informada pelo time; não convive com o número exato (US-0054)"
         numeric faturamento_anual "informado pelo time — NULL = não informado"
         text faturamento_anual_base "estimado | apurado | calculado — obrigatória junto com o valor"
         text regime_tributario "ano mais recente — filtro da Lei do Bem; retrato sem regime não apaga"

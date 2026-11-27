@@ -4,6 +4,7 @@ import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import { prospectCompanyService } from '@/services/prospectCompanyService';
 import type { CamposDaPagina } from '@/types/paginaDaEmpresa';
 import type { TipoDeConta } from '@/types/prospect';
+import type { FaixaDoLinkedin } from '@/lib/prospecting/funcionarios.constants';
 
 function useRecarregarEmpresa() {
   const qc = useQueryClient();
@@ -32,5 +33,20 @@ export function useTipoDeContaDaEmpresa() {
     mutationFn: ({ id, tipo }: { id: string; tipo: TipoDeConta }) => prospectCompanyService.setTipoDeConta(id, tipo),
     onSuccess: recarregar,
     onError: (erro) => toast({ title: 'Não deu para salvar o tipo de conta', description: mensagemParaUsuario(erro), variant: 'destructive' }),
+  });
+}
+
+/** Faixa do LinkedIn (US-0054): substitui o número exato e refaz faturamento e fit na tela. */
+export function useFaixaDeFuncionarios() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, faixa }: { id: string; faixa: FaixaDoLinkedin | null }) => prospectCompanyService.setFaixaDeFuncionarios(id, faixa),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['prospect-companies'] });
+      qc.invalidateQueries({ queryKey: ['prospects'] });
+      qc.invalidateQueries({ queryKey: ['receita-ficha'] });
+      qc.invalidateQueries({ queryKey: ['receita-empresas'] });
+    },
+    onError: (erro) => toast({ title: 'Não deu para salvar a faixa', description: mensagemParaUsuario(erro), variant: 'destructive' }),
   });
 }
