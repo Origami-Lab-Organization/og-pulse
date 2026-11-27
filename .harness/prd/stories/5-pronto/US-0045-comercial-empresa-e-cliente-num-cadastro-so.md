@@ -1,6 +1,6 @@
 # US-0045 — A empresa é o cadastro do cliente
 
-- **Status:** Pronta para desenvolver
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresa e cliente (épico 2 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)

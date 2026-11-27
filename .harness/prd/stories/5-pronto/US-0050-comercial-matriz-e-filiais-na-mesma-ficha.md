@@ -1,6 +1,6 @@
 # US-0050 — Matriz e filiais na mesma ficha
 
-- **Status:** Pronta para desenvolver
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresa e cliente (épico 2 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)

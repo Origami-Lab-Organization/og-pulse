@@ -14,6 +14,23 @@ ajustar a linha **Status** do cabeçalho no mesmo commit.
 
 As histórias são citadas pelo ID (`US-0001`), que nunca muda.
 
+## Quando a história vai para Pronto
+
+Quando o Victor aprova a história testada na tela ("ficou bom, pode abrir o PR"), ela vai para
+`5-pronto/` junto com a abertura do PR, sem esperar o merge (decisão do Victor, 27/11/2026). O
+merge pelo tech lead é a implantação.
+
+## Prioridade dentro da pasta
+
+Nas pastas `1-a-fazer/` a `4-em-desenvolvimento/`, o nome do arquivo começa pela posição na fila:
+`01-US-0052-…`, `02-US-0057-…`. O explorador mostra a pasta já na ordem de prioridade. Repriorizar
+é renomear com `git mv`; o ID não muda. Em `5-pronto/` e `9-arquivadas/` o nome fica sem número.
+A ordem segue o roadmap de `refino-fluxo-comercial-a-projeto.md` e o que o Victor pedir.
+
+Enquanto o Victor não confirmar a situação das histórias de Projetos que já estão no código
+(US-0027, US-0029 a US-0032, US-0034 a US-0037, US-0039, US-0046 a US-0048), elas ficam onde
+estão e sem número.
+
 Ainda não existe check automático que confira pasta e cabeçalho, como o
 `npm run check:stories` do Origami Buds. Até existir, a conferência é feita no
 review.

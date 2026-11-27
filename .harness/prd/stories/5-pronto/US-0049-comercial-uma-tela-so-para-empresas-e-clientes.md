@@ -1,6 +1,6 @@
 # US-0049 — Uma tela só para empresas e clientes
 
-- **Status:** Pronta para desenvolver
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresa e cliente (épico 2 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)

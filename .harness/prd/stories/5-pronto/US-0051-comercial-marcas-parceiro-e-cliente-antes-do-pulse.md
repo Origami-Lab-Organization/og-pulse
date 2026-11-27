@@ -1,6 +1,6 @@
 # US-0051 — Marcas Parceiro e Cliente antes do Pulse
 
-- **Status:** Pronta para desenvolver
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresa e cliente (épico 2 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)
@@ -60,8 +60,25 @@ A relação é calculada pelo Pulse (US-0019), mas há dois casos que o cálculo
 - **Restrições:** migration versionada; capacidade para marcar (ADR-0027).
 - **Provas esperadas:** cenários 1 a 3.
 
-## Implementação
+## Implementação (27/11/2026)
+
+- **Onde a marca mora:** `prospect_marcas_da_empresa`, uma linha por raiz do CNPJ e tenant, como as
+  decisões da Base (US-0010): vale para a empresa toda e também para a que só está na Base. Nome,
+  cidade e UF vão junto para a carteira (migration 20261127120000, com rollback).
+- **Quem marca:** Parceiro com `prospeccao:editar`; "Cliente antes do Pulse" com a capacidade nova
+  `cliente:marcar-antes-do-pulse`, que nasce com quem tem `configuracao:editar` (Admin). O gatilho
+  `prospect_marcas_da_empresa_guarda` confere a capacidade de cada marca e grava quem e quando.
+- **Onde se marca:** no "⋮" da página da empresa: "Marcar como Parceiro" / "Tirar marca de Parceiro"
+  e "Cliente antes do Pulse" (modal com o ano, de 1950 a 2026, e "Tirar marca").
+- **Relação:** "Cliente antes do Pulse" entra no cálculo como o cadastro de cliente (US-0019):
+  projeto aberto e Oportunidade em andamento vêm antes; o detalhe do selo mostra "Antes do Pulse ·
+  ano". Parceiro não muda a relação: aparece como selo próprio ao lado dela.
+- **Onde aparece:** lista da Base (coluna Relação), cabeçalho da página da empresa e carteira (aba
+  Clientes), que passa a trazer Parceiros e clientes de antes do Pulse (US-0049, cenário 2). O filtro
+  de relação da Base e o da carteira ganham "Parceiro".
 
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1. Cliente antes do Pulse | Victor no localhost: marcar uma empresa sem Ganho nem projeto e ver "Já foi cliente" com "Antes do Pulse · ano" |
+| 2. O cálculo prevalece | `relacaoDaEmpresa` (supabase/functions/_shared/relacao.ts): projeto aberto e Oportunidade em andamento são conferidos antes da marca |
+| 3. Parceiro | Victor no localhost: marcar, ver o selo na lista e na página, filtrar por "Parceiro" |

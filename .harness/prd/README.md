@@ -79,8 +79,8 @@ conversa. A oportunidade nasce em **A abordar** no Pipeline.
 | [US-0009](stories/9-arquivadas/US-0009-comercial-abrir-oportunidades-em-lote.md) | Abrir oportunidades em lote | Pessoa do comercial | Arquivada (na US-0008) | — |
 | [US-0010](stories/5-pronto/US-0010-comercial-nao-agora-e-descartar.md) | Descartar a empresa ou marcar "Não agora" | Pessoa do comercial | Pronto | Pronta com ressalvas |
 | [US-0011](stories/9-arquivadas/US-0011-comercial-abas-da-classificacao.md) | Acompanhar a classificação pelas abas e desfazer | Pessoa do comercial | Arquivada (tela sem abas) | — |
-| [US-0012](stories/2-em-refinamento/US-0012-comercial-classificar-pelo-teclado.md) | Classificar pelo teclado | Pessoa do comercial | Em refinamento | Pronta |
-| [US-0013](stories/1-a-fazer/US-0013-comercial-salvar-filtro-para-o-time.md) | Salvar um filtro para o time | Pessoa do comercial | A fazer | Não pronta |
+| [US-0012](stories/2-em-refinamento/03-US-0012-comercial-classificar-pelo-teclado.md) | Classificar pelo teclado | Pessoa do comercial | Em refinamento | Pronta |
+| [US-0013](stories/1-a-fazer/01-US-0013-comercial-salvar-filtro-para-o-time.md) | Salvar um filtro para o time | Pessoa do comercial | A fazer | Não pronta |
 | [US-0014](stories/5-pronto/US-0014-comercial-fit-com-funcionarios-e-divida.md) | Fit por serviço que separa as contas: tamanho real, dívida, distância e faturamento | Pessoa do comercial | Pronto | Pronta |
 | [US-0015](stories/5-pronto/US-0015-comercial-distancia-de-formiga.md) | Filtrar e ordenar pela distância de Formiga | Pessoa do comercial | Pronto | Pronta |
 | [US-0016](stories/9-arquivadas/US-0016-comercial-tipo-de-conta.md) | Classificar a conta como Âncora, Ponte ou Satélite | Pessoa do comercial | Arquivada (na US-0008) | — |
@@ -307,8 +307,8 @@ membro e permissões por capacidade. Protótipo: `prototipos/portfolio-de-projet
 | [US-0036](stories/4-em-desenvolvimento/US-0036-projetos-metas-e-margem-do-portfolio.md) | Metas de receita e margem bruta do portfólio | Admin | Em desenvolvimento | Pronta |
 | [US-0037](stories/4-em-desenvolvimento/US-0037-projetos-sino-de-pendencias-no-card.md) | Sino de pendências no card e pendências na Visão Geral | GP | Em desenvolvimento | Pronta |
 | [US-0039](stories/4-em-desenvolvimento/US-0039-projetos-planejamento-guiado-por-checklist.md) | Planejar o projeto guiado por um checklist que acompanha o preenchimento | GP ou admin | Em desenvolvimento | Pronta |
-| [US-0043](stories/2-em-refinamento/US-0043-projetos-encerramento-com-renovacao.md) | Encerrar o projeto decidindo a renovação e entregando os resultados | GP ou admin | Em refinamento | Pronta com ressalvas |
-| [US-0045](stories/3-pronta-para-desenvolver/US-0045-comercial-empresa-e-cliente-num-cadastro-so.md) | A empresa é o cadastro do cliente (pré-requisito da US-0043; épico 2 abaixo) | Pessoa do comercial ou GP | Pronta para desenvolver | Pronta |
+| [US-0043](stories/2-em-refinamento/02-US-0043-projetos-encerramento-com-renovacao.md) | Encerrar o projeto decidindo a renovação e entregando os resultados | GP ou admin | Em refinamento | Pronta com ressalvas |
+| [US-0045](stories/5-pronto/US-0045-comercial-empresa-e-cliente-num-cadastro-so.md) | A empresa é o cadastro do cliente (pré-requisito da US-0043; épico 2 abaixo) | Pessoa do comercial ou GP | Pronto | Pronta |
 
 O modo planejamento foi aprovado pelo Victor em 23/11/2026 (protótipo versão 8) e virou a
 US-0039. O encerramento com renovação virou a US-0043 em 24/11/2026 e está em espera pelo
@@ -339,8 +339,12 @@ matriz e filiais na mesma ficha; regularização caso a caso (Victor Couto, 25/1
 
 | ID | História | Persona | Status | Prontidão |
 |---|---|---|---|---|
-| [US-0045](stories/3-pronta-para-desenvolver/US-0045-comercial-empresa-e-cliente-num-cadastro-so.md) | A empresa é o cadastro do cliente | Pessoa do comercial ou GP | Pronta para desenvolver | Pronta |
-| [US-0049](stories/3-pronta-para-desenvolver/US-0049-comercial-uma-tela-so-para-empresas-e-clientes.md) | Uma tela só para empresas e clientes | Comercial, GP ou admin | Pronta para desenvolver | Pronta |
-| [US-0050](stories/3-pronta-para-desenvolver/US-0050-comercial-matriz-e-filiais-na-mesma-ficha.md) | Matriz e filiais na mesma ficha | Pessoa do comercial | Pronta para desenvolver | Pronta |
-| [US-0051](stories/3-pronta-para-desenvolver/US-0051-comercial-marcas-parceiro-e-cliente-antes-do-pulse.md) | Marcas Parceiro e Cliente antes do Pulse | Admin ou comercial | Pronta para desenvolver | Pronta |
-| [US-0052](stories/3-pronta-para-desenvolver/US-0052-comercial-regularizar-os-clientes-caso-a-caso.md) | Regularizar os clientes atuais, caso a caso | Admin | Pronta para desenvolver | Pronta |
+| [US-0045](stories/5-pronto/US-0045-comercial-empresa-e-cliente-num-cadastro-so.md) | A empresa é o cadastro do cliente | Pessoa do comercial ou GP | Pronto | Pronta |
+| [US-0049](stories/5-pronto/US-0049-comercial-uma-tela-so-para-empresas-e-clientes.md) | Uma tela só para empresas e clientes | Comercial, GP ou admin | Pronto | Pronta |
+| [US-0050](stories/5-pronto/US-0050-comercial-matriz-e-filiais-na-mesma-ficha.md) | Matriz e filiais na mesma ficha | Pessoa do comercial | Pronto | Pronta |
+| [US-0051](stories/5-pronto/US-0051-comercial-marcas-parceiro-e-cliente-antes-do-pulse.md) | Marcas Parceiro e Cliente antes do Pulse | Admin ou comercial | Pronto | Pronta |
+| [US-0052](stories/3-pronta-para-desenvolver/01-US-0052-comercial-regularizar-os-clientes-caso-a-caso.md) | Regularizar os clientes atuais, caso a caso | Admin | Pronta para desenvolver | Pronta |
+| [US-0053](stories/5-pronto/US-0053-comercial-pagina-da-empresa.md) | Página da empresa | Comercial, GP ou admin | Pronto | Pronta |
+| [US-0054](stories/5-pronto/US-0054-comercial-funcionarios-alem-da-rais.md) | Funcionários além da RAIS: RAIS improvável e faixa do LinkedIn | Pessoa do comercial | Pronto | Pronta |
+| [US-0056](stories/5-pronto/US-0056-comercial-faturamento-estimado-em-faixa.md) | Faturamento estimado em faixa | Pessoa do comercial | Pronto | Pronta |
+| [US-0057](stories/2-em-refinamento/01-US-0057-comercial-insights-de-ia-no-estudo-da-conta.md) | Insights de IA no Estudo da conta | Pessoa do comercial | Em refinamento | Não pronta |
