@@ -1,6 +1,6 @@
 # US-0052 — Regularizar os clientes atuais, caso a caso
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresa e cliente (épico 2 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)
@@ -55,6 +55,21 @@ Lab em 25/11/2026 (leitura em produção):
 
 - Tabela aprovada linha a linha, como acima.
 
+## Decisões (Victor Couto, 27/11/2026)
+
+O retrato de 27/11/2026, por nome além da ligação, mostrou empresas que o de 25/11 não via:
+
+1. **Facilita Minas, Integrar e Injetoras NS já tinham empresa**, de mesmo nome, sem CNPJ, solta e
+   com o Ganho delas: liga a existente (com o CNPJ do cadastro, quando há) em vez de criar outra.
+   Só a 99 e a P.IN ganham empresa nova.
+2. **Cópias sem CNPJ fora da tabela são juntadas, como Bry e Syngularid:** LaudoAssist em Laudo
+   Assist, Retífica Formiguense em Retifica Formiguense e Kione (sem CNPJ) em Kione (Cosmex).
+3. **A Base concorda com a carteira:** "Já foi cliente" vem de Ganho, projeto ou "Cliente antes do
+   Pulse"; estar no cadastro de clientes não basta. Sem isso, Gfsis, Rodosafra e Cosmex seguiriam
+   "Já foi cliente" na Base.
+4. **GFSIS e Rodosafra recebem o CNPJ do cadastro** (o da Rodosafra é de filial) e continuam só
+   empresa, fora da carteira.
+
 ## Contexto técnico
 
 - **Comportamento atual:** PROVADO: retrato por consulta de leitura em produção, 25/11/2026.
@@ -65,6 +80,16 @@ Lab em 25/11/2026 (leitura em produção):
 
 ## Implementação
 
+- **Migration** `supabase/migrations/20261127140000_regularizar_os_clientes.sql`, aplicada em
+  produção em 27/11/2026: só o tenant da Origami, por id, idempotente, com rollback em
+  `supabase/rollback/20261127140000_regularizar_os_clientes_rollback.sql` (ensaiado em produção numa
+  transação desfeita). Confere na mesma transação as contagens e "um cliente, uma empresa".
+- **Edge Function** `empresas-receita` (`_shared/relacao.ts`), publicada em 27/11/2026: o cadastro de
+  clientes só liga os projetos à raiz do CNPJ.
+- **Receita** das empresas que ganharam CNPJ (99, P.IN, Facilita Minas, Integrar, UNIFOR-MG, GFSIS,
+  Rodosafra) consultada pela Prospecção depois da migration.
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1. Um cliente, uma empresa | Consulta em produção depois da aplicação: os 21 clientes com Ganho, projeto ou "Cliente antes do Pulse" têm exatamente uma empresa; Gfsis, Rodosafra e Kione (Cosmex) sem Ganho nem projeto, com os orçamentos |
+| 2. Nada se perde | Contagens iguais antes e depois, conferidas na transação: 148 Oportunidades, 366 contatos, 32 projetos, 34 orçamentos; as Oportunidades e os contatos das cópias estão na empresa que ficou |

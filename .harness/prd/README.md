@@ -343,7 +343,7 @@ matriz e filiais na mesma ficha; regularização caso a caso (Victor Couto, 25/1
 | [US-0049](stories/5-pronto/US-0049-comercial-uma-tela-so-para-empresas-e-clientes.md) | Uma tela só para empresas e clientes | Comercial, GP ou admin | Pronto | Pronta |
 | [US-0050](stories/5-pronto/US-0050-comercial-matriz-e-filiais-na-mesma-ficha.md) | Matriz e filiais na mesma ficha | Pessoa do comercial | Pronto | Pronta |
 | [US-0051](stories/5-pronto/US-0051-comercial-marcas-parceiro-e-cliente-antes-do-pulse.md) | Marcas Parceiro e Cliente antes do Pulse | Admin ou comercial | Pronto | Pronta |
-| [US-0052](stories/3-pronta-para-desenvolver/01-US-0052-comercial-regularizar-os-clientes-caso-a-caso.md) | Regularizar os clientes atuais, caso a caso | Admin | Pronta para desenvolver | Pronta |
+| [US-0052](stories/4-em-desenvolvimento/01-US-0052-comercial-regularizar-os-clientes-caso-a-caso.md) | Regularizar os clientes atuais, caso a caso | Admin | Em desenvolvimento | Pronta |
 | [US-0053](stories/5-pronto/US-0053-comercial-pagina-da-empresa.md) | Página da empresa | Comercial, GP ou admin | Pronto | Pronta |
 | [US-0054](stories/5-pronto/US-0054-comercial-funcionarios-alem-da-rais.md) | Funcionários além da RAIS: RAIS improvável e faixa do LinkedIn | Pessoa do comercial | Pronto | Pronta |
 | [US-0056](stories/5-pronto/US-0056-comercial-faturamento-estimado-em-faixa.md) | Faturamento estimado em faixa | Pessoa do comercial | Pronto | Pronta |
