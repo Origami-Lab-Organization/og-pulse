@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -7,14 +7,15 @@ import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import { ORIGEM_DO_TIME } from '@/lib/prospecting/funcionarios.constants';
 import {
   CHAVE_DAS_PROPOSTAS, CHAVE_DO_PEDIDO, CHAVE_DO_RUNNER, CHAVE_DOS_INSIGHTS, ESTADO_DA_PROPOSTA,
-  INTERVALO_DO_PEDIDO_MS, INTERVALO_DO_RUNNER_MS, PEDIDO_ABERTO, STATUS_DO_PEDIDO, TIPO_DE_PROPOSTA,
+  INTERVALO_DO_PEDIDO_MS, INTERVALO_DO_RUNNER_MS, PEDIDO_ABERTO, STATUS_DO_PEDIDO, TEMA_TODOS, TIPO_DE_PROPOSTA,
+  type TemaDoPedido,
 } from '@/lib/prospecting/insights.constants';
 import {
-  decidirProposta, pedirInsights, propostasDePorte, runnerDisponivel, ultimoPedido, versoesDosInsights,
+  decidirProposta, pedidosRecentes, pedirInsights, propostasDePorte, runnerDisponivel, versoesDosInsights,
 } from '@/services/insightsService';
-import type { PedidoDeInsights, PropostaDePorte } from '@/types/insights';
+import type { InsightsPorTema, PedidoDeInsights, PropostaDePorte, VersaoDosInsights } from '@/types/insights';
 
-/** Insights de IA da empresa (US-0057): versões, propostas de porte e o último pedido. */
+/** Insights de IA da empresa (US-0057): um bloco por tema, o porte e os pedidos de cada um. */
 
 /** Só para quem gera: o runner dessa pessoa está dando sinal. */
 export function useRunnerDisponivel(ativo: boolean) {
@@ -26,44 +27,50 @@ export function useRunnerDisponivel(ativo: boolean) {
   });
 }
 
-const aberto = (pedido: PedidoDeInsights | null | undefined) => !!pedido && PEDIDO_ABERTO.has(pedido.status);
+const algumAberto = (pedidos: PedidoDeInsights[] | undefined) => !!pedidos?.some((p) => PEDIDO_ABERTO.has(p.status));
 
-/** Quando o pedido acompanhado termina, recarrega versões e propostas. */
-function useAoTerminar(companyId: string, pedido: PedidoDeInsights | null | undefined) {
+/** Quando um pedido acompanhado termina pronto, recarrega versões e propostas. */
+function useAoTerminar(companyId: string, pedidos: PedidoDeInsights[]) {
   const qc = useQueryClient();
-  const anterior = useRef(pedido?.status);
+  const abertos = useRef(new Set<string>());
   useEffect(() => {
-    const estava = anterior.current;
-    anterior.current = pedido?.status;
-    if (!estava || !PEDIDO_ABERTO.has(estava) || pedido?.status !== STATUS_DO_PEDIDO.PRONTO) return;
+    const terminou = pedidos.some((p) => abertos.current.has(p.id) && p.status === STATUS_DO_PEDIDO.PRONTO);
+    abertos.current = new Set(pedidos.filter((p) => PEDIDO_ABERTO.has(p.status)).map((p) => p.id));
+    if (!terminou) return;
     qc.invalidateQueries({ queryKey: [CHAVE_DOS_INSIGHTS, companyId] });
     qc.invalidateQueries({ queryKey: [CHAVE_DAS_PROPOSTAS, companyId] });
-  }, [companyId, pedido?.status, qc]);
+  }, [companyId, pedidos, qc]);
 }
 
-export function useInsightsDaEmpresa(companyId: string) {
-  const pedido = useQuery({
+/** A versão de "todos" (pedidos de antes do pedido por tema) vale para cada bloco. */
+const doTema = (tema: TemaDoPedido) => (x: { tema: TemaDoPedido }) => x.tema === tema || x.tema === TEMA_TODOS;
+
+function porTema(pedidos: PedidoDeInsights[], versoes: VersaoDosInsights[], propostas: PropostaDePorte[]): InsightsPorTema {
+  return {
+    pedidoDo: (tema) => pedidos.find((p) => p.tema === tema) ?? null,
+    versoesDo: (tema) => versoes.filter(doTema(tema)),
+    propostas,
+  };
+}
+
+export function useInsightsDaEmpresa(companyId: string): InsightsPorTema {
+  const pedidos = useQuery({
     queryKey: [CHAVE_DO_PEDIDO, companyId],
-    queryFn: () => ultimoPedido(companyId),
-    refetchInterval: (q) => (aberto(q.state.data) ? INTERVALO_DO_PEDIDO_MS : false),
+    queryFn: () => pedidosRecentes(companyId),
+    refetchInterval: (q) => (algumAberto(q.state.data) ? INTERVALO_DO_PEDIDO_MS : false),
   });
   const versoes = useQuery({ queryKey: [CHAVE_DOS_INSIGHTS, companyId], queryFn: () => versoesDosInsights(companyId) });
   const propostas = useQuery({ queryKey: [CHAVE_DAS_PROPOSTAS, companyId], queryFn: () => propostasDePorte(companyId) });
-  useAoTerminar(companyId, pedido.data);
-  return {
-    pedido: pedido.data ?? null,
-    pedidoAberto: aberto(pedido.data),
-    versoes: versoes.data ?? [],
-    propostas: propostas.data ?? [],
-    carregando: versoes.isLoading || pedido.isLoading,
-  };
+  const lista = useMemo(() => pedidos.data ?? [], [pedidos.data]);
+  useAoTerminar(companyId, lista);
+  return useMemo(() => porTema(lista, versoes.data ?? [], propostas.data ?? []), [lista, versoes.data, propostas.data]);
 }
 
 export function usePedirInsights(companyId: string) {
   const { employee } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => pedirInsights(companyId, employee!.tenant_id),
+    mutationFn: (tema: TemaDoPedido) => pedirInsights(companyId, employee!.tenant_id, tema),
     onSuccess: () => qc.invalidateQueries({ queryKey: [CHAVE_DO_PEDIDO, companyId] }),
     onError: (erro) => {
       qc.invalidateQueries({ queryKey: [CHAVE_DO_RUNNER] });
@@ -93,4 +100,32 @@ export function useDecidirProposta(companyId: string) {
     onSettled: () => qc.invalidateQueries({ queryKey: [CHAVE_DAS_PROPOSTAS, companyId] }),
     onError: (erro) => toast({ title: 'Não deu para decidir a proposta', description: mensagemParaUsuario(erro), variant: 'destructive' }),
   });
+}
+
+/** A versão mostrada num bloco: a escolhida no seletor ou, sem escolha, a mais recente. */
+export function useVersaoEscolhida(versoes: VersaoDosInsights[]) {
+  const [escolhida, escolher] = useState<string | null>(null);
+  return { versao: versoes.find((v) => v.id === escolhida) ?? versoes[0], escolher };
+}
+
+/**
+ * O "Gerar com IA" de um tema: quem pode, o último pedido do tema, se ele ainda está andando e se o
+ * runner de quem pede está fora do ar (aí não dá para pedir).
+ */
+export function useAcaoDoTema(companyId: string, tema: TemaDoPedido) {
+  const { can } = useAuth();
+  const podeGerar = can('prospeccao:gerar-insights');
+  const runner = useRunnerDisponivel(podeGerar);
+  const pedir = usePedirInsights(companyId);
+  const pedido = useInsightsDaEmpresa(companyId).pedidoDo(tema);
+  const aberto = !!pedido && PEDIDO_ABERTO.has(pedido.status);
+  const fora = !runner.isLoading && !runner.data;
+  return {
+    podeGerar,
+    pedido,
+    aberto,
+    esperando: aberto || fora,
+    ocupado: runner.isLoading || pedir.isPending,
+    pedir: () => pedir.mutate(tema),
+  };
 }

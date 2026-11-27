@@ -1,4 +1,4 @@
-/** Insights de IA no Estudo da conta (US-0057, ADR-0057). */
+/** Insights de IA da página da empresa (US-0057, ADR-0057): um bloco por tema e o porte. */
 
 export const STATUS_DO_PEDIDO = {
   NA_FILA: 'na_fila',
@@ -23,6 +23,11 @@ export const TEMAS_DOS_INSIGHTS = [
   { chave: 'noticias', rotulo: 'Notícias e referências' },
 ] as const;
 export type TemaDosInsights = (typeof TEMAS_DOS_INSIGHTS)[number]['chave'];
+
+/** O porte é pedido no cartão Porte; "todos" são os pedidos de antes do pedido por tema. */
+export const TEMA_DO_PORTE = 'porte';
+export const TEMA_TODOS = 'todos';
+export type TemaDoPedido = TemaDosInsights | typeof TEMA_DO_PORTE | typeof TEMA_TODOS;
 
 export const TIPO_DE_PROPOSTA = {
   FUNCIONARIOS: 'funcionarios',

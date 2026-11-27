@@ -21,6 +21,20 @@ export function Secao(props: { id: SecaoDaEmpresa; titulo: string; selo?: ReactN
   );
 }
 
+/** Cartão com título, no padrão dos cartões Porte, Perfil e Onde e relação; a ação fica à direita. */
+export function Bloco(props: { titulo: string; acao?: ReactNode; className?: string; children: ReactNode }) {
+  const { titulo, acao, className, children } = props;
+  return (
+    <section aria-label={titulo} className={cn('flex min-w-0 flex-col gap-3 rounded-xl border bg-card px-[18px] py-3.5', className)}>
+      <div className="flex min-h-7 items-center gap-2">
+        <h3 className="ui-label">{titulo}</h3>
+        {acao && <span className="ml-auto">{acao}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export function Cartao({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cn('rounded-xl border bg-card p-4', className)}>{children}</div>;
 }

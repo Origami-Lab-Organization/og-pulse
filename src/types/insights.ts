@@ -1,5 +1,5 @@
 import type { ConfiancaDoTime } from '@/lib/prospecting/funcionarios.constants';
-import type { EstadoDaProposta, StatusDoPedido, TemaDosInsights, TipoDeProposta } from '@/lib/prospecting/insights.constants';
+import type { EstadoDaProposta, StatusDoPedido, TemaDoPedido, TemaDosInsights, TipoDeProposta } from '@/lib/prospecting/insights.constants';
 
 /** Insights de IA no Estudo da conta (US-0057, migration 20261127160000). */
 
@@ -16,12 +16,14 @@ export interface ItemDoInsight {
 /** Uma geração: cada tema com os itens que têm fonte (o banco tira os outros). */
 export interface VersaoDosInsights {
   id: string;
+  tema: TemaDoPedido;
   gerado_em: string;
   temas: Partial<Record<TemaDosInsights, ItemDoInsight[]>>;
 }
 
 export interface PedidoDeInsights {
   id: string;
+  tema: TemaDoPedido;
   status: StatusDoPedido;
   erro: string | null;
   pedido_em: string;
@@ -39,17 +41,25 @@ export interface PropostaDePorte {
   decidida_em: string | null;
 }
 
-export interface PropsDaDecisaoDaProposta {
-  proposta: PropostaDePorte;
-  podeDecidir: boolean;
-  companyId: string;
+/** O pedido mais recente de cada tema e as versões de cada tema, da mais nova para a mais antiga. */
+export interface InsightsPorTema {
+  pedidoDo: (tema: TemaDoPedido) => PedidoDeInsights | null;
+  versoesDo: (tema: TemaDoPedido) => VersaoDosInsights[];
+  propostas: PropostaDePorte[];
 }
 
-export interface PropsDaAcaoDeGerar {
+export interface PropsDaAcaoDoTema {
   companyId: string;
-  pedido: PedidoDeInsights | null;
-  pedidoAberto: boolean;
+  tema: TemaDoPedido;
   jaTem: boolean;
+  destaque?: boolean;
+}
+
+export interface PropsDoBlocoDoTema {
+  companyId: string;
+  tema: TemaDosInsights;
+  rotulo: string;
+  insights: InsightsPorTema;
 }
 
 export interface PropsDoSeletorDeVersao {
@@ -58,8 +68,7 @@ export interface PropsDoSeletorDeVersao {
   onTrocar: (id: string) => void;
 }
 
-export interface PropsDoConteudoDaVersao {
-  versao: VersaoDosInsights;
-  propostas: PropostaDePorte[];
+export interface PropsDaPropostaNoPorte {
   companyId: string;
+  proposta: PropostaDePorte;
 }

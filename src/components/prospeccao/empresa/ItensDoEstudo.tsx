@@ -132,14 +132,14 @@ function Item({ item, podeEditar, onTirar }: { item: ItemDoEstudoDaConta; podeEd
 }
 
 /** Os links, notas e arquivos do estudo, do mais novo para o mais antigo. */
-export function ListaDoEstudo(props: { companyId: string; itens: ItemDoEstudoDaConta[]; podeEditar: boolean }) {
-  const { companyId, itens, podeEditar } = props;
+export function ListaDoEstudo(props: { companyId: string; itens: ItemDoEstudoDaConta[]; podeEditar: boolean; embutida?: boolean }) {
+  const { companyId, itens, podeEditar, embutida = false } = props;
   const [tirando, setTirando] = useState<ItemDoEstudoDaConta | null>(null);
   const remover = useRemoverDoEstudo(companyId);
   if (itens.length === 0) return null;
   return (
     <>
-      <ul className="overflow-hidden rounded-xl border bg-card">
+      <ul className={embutida ? '-mx-[18px] -mb-3.5 border-t' : 'overflow-hidden rounded-xl border bg-card'}>
         {itens.map((i) => <Item key={i.id} item={i} podeEditar={podeEditar} onTirar={() => setTirando(i)} />)}
       </ul>
       <ConfirmarRemocao

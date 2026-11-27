@@ -32,6 +32,7 @@ export const SECAO_DA_EMPRESA = {
   CANAIS: 's-canais',
   RISCOS: 's-riscos',
   HISTORICO: 's-historico',
+  INSIGHTS: 's-insights',
   ESTUDO: 's-estudo',
 } as const;
 export type SecaoDaEmpresa = (typeof SECAO_DA_EMPRESA)[keyof typeof SECAO_DA_EMPRESA];

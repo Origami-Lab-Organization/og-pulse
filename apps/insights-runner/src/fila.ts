@@ -5,7 +5,7 @@
  */
 import type { Conexao, EmpresaDoPedido, Pedido } from './tipos.js';
 import { FalhaDaGeracao, perguntarAoClaude } from './claude.js';
-import { FORMATO_DA_RESPOSTA, pedidoAoClaude } from './pedidoAoClaude.js';
+import { formatoDoTema, pedidoAoClaude } from './pedidoAoClaude.js';
 
 const PEDIDOS = 'prospect_insights_pedidos';
 const TEMAS = ['produtos', 'clientes', 'concorrentes', 'noticias'] as const;
@@ -18,7 +18,7 @@ interface Faixa {
   fonte: string;
 }
 
-type Resposta = Record<(typeof TEMAS)[number], unknown[]> & { funcionarios: Faixa | null; faturamento: Faixa | null };
+type Resposta = Partial<Record<(typeof TEMAS)[number], unknown[]>> & { funcionarios?: Faixa | null; faturamento?: Faixa | null };
 
 export async function darSinal({ pulse, dono }: Conexao): Promise<void> {
   const { error } = await pulse
@@ -34,14 +34,14 @@ export async function liberarInterrompidos({ pulse, dono }: Conexao): Promise<vo
 
 export async function proximoPedido({ pulse, dono }: Conexao): Promise<Pedido | null> {
   const { data } = await pulse
-    .from(PEDIDOS).select('id, company_id')
+    .from(PEDIDOS).select('id, company_id, tema')
     .eq('pedido_por', dono.userId).eq('status', 'na_fila')
     .order('pedido_em', { ascending: true }).limit(1).maybeSingle();
   if (!data) return null;
   const { data: pego } = await pulse
     .from(PEDIDOS).update({ status: 'gerando' })
     .eq('id', (data as Pedido).id).eq('status', 'na_fila')
-    .select('id, company_id').maybeSingle();
+    .select('id, company_id, tema').maybeSingle();
   return (pego as Pedido | null) ?? null;
 }
 
@@ -69,7 +69,7 @@ async function lerEmpresa({ pulse }: Conexao, id: string): Promise<EmpresaDoPedi
   return paraOPedido(data as EmpresaGuardada);
 }
 
-const faixaValida = (f: Faixa | null): f is Faixa =>
+const faixaValida = (f: Faixa | null | undefined): f is Faixa =>
   !!f && FONTE.test(f.fonte) && Number.isFinite(f.de) && Number.isFinite(f.ate) && f.de >= 0 && f.ate >= f.de;
 
 function propostas(resposta: Resposta, insightId: string, pedido: Pedido) {
@@ -84,10 +84,10 @@ function propostas(resposta: Resposta, insightId: string, pedido: Pedido) {
 
 async function gravar(con: Conexao, pedido: Pedido, resposta: Resposta): Promise<void> {
   const { pulse, dono } = con;
-  const temas = Object.fromEntries(TEMAS.map((t) => [t, resposta[t] ?? []]));
+  const temas = Object.fromEntries(TEMAS.filter((t) => t in resposta).map((t) => [t, resposta[t] ?? []]));
   const { data, error } = await pulse
     .from('prospect_company_insights')
-    .insert({ company_id: pedido.company_id, tenant_id: dono.tenantId, pedido_id: pedido.id, temas, gerado_por: dono.userId })
+    .insert({ company_id: pedido.company_id, tenant_id: dono.tenantId, pedido_id: pedido.id, tema: pedido.tema, temas, gerado_por: dono.userId })
     .select('id').single();
   if (error || !data) throw new FalhaDaGeracao('Não consegui gravar os insights.');
   const linhas = propostas(resposta, (data as { id: string }).id, pedido).map((p) => ({ ...p, tenant_id: dono.tenantId }));
@@ -102,7 +102,7 @@ async function marcarFalha({ pulse }: Conexao, pedido: Pedido, motivo: string): 
 export async function processar(con: Conexao, pedido: Pedido): Promise<boolean> {
   try {
     const empresa = await lerEmpresa(con, pedido.company_id);
-    const resposta = (await perguntarAoClaude(pedidoAoClaude(empresa), FORMATO_DA_RESPOSTA)) as Resposta;
+    const resposta = (await perguntarAoClaude(pedidoAoClaude(empresa, pedido.tema), formatoDoTema(pedido.tema))) as Resposta;
     await gravar(con, pedido, resposta);
     return true;
   } catch (erro) {

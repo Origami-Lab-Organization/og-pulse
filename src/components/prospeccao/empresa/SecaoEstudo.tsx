@@ -10,9 +10,8 @@ import { useMicrosoftConnection } from '@/hooks/useMicrosoftGraph';
 import { useCamposDaEmpresa } from '@/hooks/usePaginaDaEmpresa';
 import { CAMPO_DA_EMPRESA, SECAO_DA_EMPRESA, TAMANHO_MAXIMO_DO_ARQUIVO, TIPO_DE_ITEM_DO_ESTUDO } from '@/lib/prospecting/faseDaEmpresa.constants';
 import type { ProspectCompanyDB } from '@/types/prospect';
-import { Secao } from './PecasDaPagina';
+import { Bloco, Secao } from './PecasDaPagina';
 import { ListaDoEstudo, NovaNota, NovoLink } from './ItensDoEstudo';
-import { InsightsDaIA } from './InsightsDaIA';
 import { useEdicaoDaEmpresa } from './edicaoDaEmpresa';
 
 type Formulario = typeof TIPO_DE_ITEM_DO_ESTUDO.LINK | typeof TIPO_DE_ITEM_DO_ESTUDO.NOTA | null;
@@ -44,7 +43,6 @@ function Sintese({ empresa, podeEditar }: { empresa: ProspectCompanyDB; podeEdit
       onBlur={gravar}
       disabled={!podeEditar}
       aria-label="Síntese da pesquisa sobre a empresa"
-      placeholder="Síntese da pesquisa sobre a empresa"
       className="min-h-[120px] bg-card text-[13.5px] leading-relaxed"
     />
   );
@@ -101,23 +99,34 @@ function Acoes(props: { empresa: ProspectCompanyDB; onAbrir: (f: Formulario) => 
   );
 }
 
-/**
- * Estudo da conta (US-0053): a síntese e os links, notas e arquivos da pesquisa sobre a empresa.
- * Os arquivos ficam numa pasta da empresa no OneDrive do Comercial.
- */
-export function SecaoEstudo({ empresa }: { empresa: ProspectCompanyDB }) {
-  const { can } = useAuth();
-  const podeEditar = can('prospeccao:editar');
+/** Links, arquivos e notas juntados à mão, com os botões de incluir no cabeçalho do cartão. */
+function Materiais({ empresa, podeEditar }: { empresa: ProspectCompanyDB; podeEditar: boolean }) {
   const [formulario, setFormulario] = useState<Formulario>(null);
   const { data: itens = [] } = useItensDoEstudo(empresa.id);
   const fechar = () => setFormulario(null);
   return (
-    <Secao id={SECAO_DA_EMPRESA.ESTUDO} titulo="Estudo da conta" acao={podeEditar ? <Acoes empresa={empresa} onAbrir={setFormulario} /> : undefined}>
+    <Bloco titulo="Materiais" acao={podeEditar ? <Acoes empresa={empresa} onAbrir={setFormulario} /> : undefined}>
       {formulario === TIPO_DE_ITEM_DO_ESTUDO.LINK && <NovoLink companyId={empresa.id} onFechar={fechar} />}
       {formulario === TIPO_DE_ITEM_DO_ESTUDO.NOTA && <NovaNota companyId={empresa.id} onFechar={fechar} />}
-      <InsightsDaIA companyId={empresa.id} />
-      <Sintese empresa={empresa} podeEditar={podeEditar} />
-      <ListaDoEstudo companyId={empresa.id} itens={itens} podeEditar={podeEditar} />
+      {itens.length ? <ListaDoEstudo companyId={empresa.id} itens={itens} podeEditar={podeEditar} embutida /> : <p className="text-sm text-muted-foreground">—</p>}
+    </Bloco>
+  );
+}
+
+/**
+ * Estudo da conta (US-0053): a síntese e os materiais (links, notas e arquivos) da pesquisa sobre a
+ * empresa, cada um no seu cartão. Os arquivos ficam numa pasta da empresa no OneDrive do Comercial.
+ * Os insights de IA têm aba própria (US-0057).
+ */
+export function SecaoEstudo({ empresa }: { empresa: ProspectCompanyDB }) {
+  const { can } = useAuth();
+  const podeEditar = can('prospeccao:editar');
+  return (
+    <Secao id={SECAO_DA_EMPRESA.ESTUDO} titulo="Estudo da conta">
+      <Bloco titulo="Síntese">
+        <Sintese empresa={empresa} podeEditar={podeEditar} />
+      </Bloco>
+      <Materiais empresa={empresa} podeEditar={podeEditar} />
     </Secao>
   );
 }

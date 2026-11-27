@@ -8,6 +8,7 @@ import { divisaoDoCnae, nomeDoRamo, setorDoCnae, SETORES } from '@/lib/prospecti
 import { BASE_PISO, textoDoFaturamento, textoDoInformado } from '@/lib/prospecting/faturamentoEstimado';
 import { faixaDoFaturamento, faixaDosFuncionarios, faturamentoEmFaixa, faturamentoInformadoPeloTime } from '@/lib/prospecting/faixasDeFaturamento';
 import { CAMPO_DA_EMPRESA, SECAO_DA_EMPRESA } from '@/lib/prospecting/faseDaEmpresa.constants';
+import { TEMA_DO_PORTE, TIPO_DE_PROPOSTA } from '@/lib/prospecting/insights.constants';
 import {
   ATALHOS_DO_LINKEDIN,
   faixaDePessoas,
@@ -31,6 +32,8 @@ import type { EmpresaDaFicha } from '@/types/fichaReceita';
 import type { ProspectCompanyDB } from '@/types/prospect';
 import type { InformadoPeloTime } from '@/types/paginaDaEmpresa';
 import { InformarDoTimeDialog } from './InformarDoTimeDialog';
+import { AcaoDoTema } from './PecasDosInsights';
+import { PropostaNoPorte } from './PropostaNoPorte';
 import { useCampoAberto, useEdicaoDaEmpresa } from './edicaoDaEmpresa';
 import type { EmpresaDaPagina } from './useEmpresaDaPagina';
 
@@ -45,10 +48,13 @@ const FAIXA = 'font-mono text-[1.125rem] font-semibold leading-tight tabular-num
 const DESTAQUE = 'line-clamp-2 text-[17px] font-semibold leading-snug';
 const APOIO = 'text-[12px] text-muted-foreground';
 
-function Grupo({ rotulo, children }: { rotulo: string; children: ReactNode }) {
+function Grupo({ rotulo, acao, children }: { rotulo: string; acao?: ReactNode; children: ReactNode }) {
   return (
     <section aria-label={rotulo} className="flex min-w-0 flex-col gap-2.5 rounded-xl border bg-card px-[18px] py-3.5">
-      <h3 className="ui-label">{rotulo}</h3>
+      <div className="flex items-center gap-2">
+        <h3 className="ui-label">{rotulo}</h3>
+        {acao && <span className="ml-auto">{acao}</span>}
+      </div>
       {children}
     </section>
   );
@@ -78,8 +84,8 @@ function BotaoDeInformar({ texto, onClick }: { texto: string; onClick: () => voi
 }
 
 /** Um número do porte: o nome em cima, o valor e, embaixo, de onde vem e a ação. Os dois números alinham. */
-function NumeroDoPorte(props: { nome: string; valor: string; emFaixa?: boolean; origem: string; acao?: ReactNode; edicao?: ReactNode; ancora: React.Ref<HTMLDivElement>; id: string }) {
-  const { nome, valor, emFaixa = false, origem, acao, edicao, ancora, id } = props;
+function NumeroDoPorte(props: { nome: string; valor: string; emFaixa?: boolean; origem: string; acao?: ReactNode; edicao?: ReactNode; proposta?: ReactNode; ancora: React.Ref<HTMLDivElement>; id: string }) {
+  const { nome, valor, emFaixa = false, origem, acao, edicao, proposta, ancora, id } = props;
   return (
     <div ref={ancora} id={id} className="grid min-w-0 content-start gap-1">
       <span className={APOIO}>{nome}</span>
@@ -88,6 +94,7 @@ function NumeroDoPorte(props: { nome: string; valor: string; emFaixa?: boolean; 
         <span className={APOIO}>{origem}</span>
         {acao}
       </span>
+      {proposta}
     </div>
   );
 }
@@ -164,6 +171,7 @@ function Funcionarios({ pagina, empresa }: { pagina: EmpresaDaPagina; empresa: E
         emFaixa={emFaixa}
         origem={origem}
         acao={doPulse ? <BotaoDeInformar texto={texto} onClick={campo.abrir} /> : undefined}
+        proposta={pagina.empresaDoPulse && <PropostaNoPorte companyId={pagina.empresaDoPulse.id} tipo={TIPO_DE_PROPOSTA.FUNCIONARIOS} />}
       />
       {doPulse && <ModalDeFuncionarios doPulse={doPulse} atual={`${valor} · ${origem}`} aberto={campo.aberto} onAbrir={campo.abrir} onFechar={campo.fechar} />}
     </>
@@ -241,6 +249,7 @@ function Faturamento({ pagina, empresa }: { pagina: EmpresaDaPagina; empresa: Em
         emFaixa={emFaixa}
         origem={origem}
         acao={doPulse ? <BotaoDeInformar texto={texto} onClick={campo.abrir} /> : undefined}
+        proposta={pagina.empresaDoPulse && <PropostaNoPorte companyId={pagina.empresaDoPulse.id} tipo={TIPO_DE_PROPOSTA.FATURAMENTO} />}
       />
       {doPulse && <ModalDeFaturamento doPulse={doPulse} atual={`${valor} · ${origem}`} aberto={campo.aberto} onAbrir={campo.abrir} onFechar={campo.fechar} />}
     </>
@@ -248,8 +257,9 @@ function Faturamento({ pagina, empresa }: { pagina: EmpresaDaPagina; empresa: Em
 }
 
 function Porte({ pagina, empresa }: { pagina: EmpresaDaPagina; empresa: EmpresaDaFicha }) {
+  const doPulse = pagina.empresaDoPulse;
   return (
-    <Grupo rotulo="Porte">
+    <Grupo rotulo="Porte" acao={doPulse && <AcaoDoTema companyId={doPulse.id} tema={TEMA_DO_PORTE} jaTem={false} />}>
       <div className="grid grid-cols-2 gap-4">
         <Faturamento pagina={pagina} empresa={empresa} />
         <Funcionarios pagina={pagina} empresa={empresa} />

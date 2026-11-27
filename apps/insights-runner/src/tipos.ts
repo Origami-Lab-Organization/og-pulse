@@ -11,9 +11,13 @@ export interface Conexao {
   dono: Dono;
 }
 
+/** O bloco pedido (US-0057); todos = os quatro temas e o porte de uma vez (pedidos antigos). */
+export type TemaDoPedido = 'todos' | 'produtos' | 'clientes' | 'concorrentes' | 'noticias' | 'porte';
+
 export interface Pedido {
   id: string;
   company_id: string;
+  tema: TemaDoPedido;
 }
 
 export interface EmpresaDoPedido {

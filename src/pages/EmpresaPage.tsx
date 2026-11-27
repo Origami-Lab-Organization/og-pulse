@@ -13,6 +13,7 @@ import { EdicaoDaEmpresaContext } from '@/components/prospeccao/empresa/edicaoDa
 import { AbasDaEmpresa } from '@/components/prospeccao/empresa/AbasDaEmpresa';
 import { SecaoCanais } from '@/components/prospeccao/empresa/SecaoCanais';
 import { SecaoEstudo } from '@/components/prospeccao/empresa/SecaoEstudo';
+import { SecaoInsights } from '@/components/prospeccao/empresa/SecaoInsights';
 import { SecaoHistorico } from '@/components/prospeccao/empresa/SecaoHistorico';
 import { SecaoPessoas } from '@/components/prospeccao/empresa/SecaoPessoas';
 import { SecaoQualificacao } from '@/components/prospeccao/empresa/SecaoQualificacao';
@@ -73,6 +74,7 @@ function PaginaCarregada({ pagina, ficha }: { pagina: EmpresaDaPagina; ficha: Fi
     [SECAO_DA_EMPRESA.CANAIS]: <SecaoCanais empresa={empresaDoPulse} contato={ficha.contato} />,
     [SECAO_DA_EMPRESA.RISCOS]: <SecaoRiscos ficha={ficha} />,
     [SECAO_DA_EMPRESA.HISTORICO]: <SecaoHistorico ficha={ficha} />,
+    [SECAO_DA_EMPRESA.INSIGHTS]: empresaDoPulse ? <SecaoInsights companyId={empresaDoPulse.id} /> : null,
     [SECAO_DA_EMPRESA.ESTUDO]: empresaDoPulse ? <SecaoEstudo empresa={empresaDoPulse} /> : null,
   };
   return (
