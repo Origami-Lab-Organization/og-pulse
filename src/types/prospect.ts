@@ -341,6 +341,16 @@ export interface ProspectCompanyDB {
   funcionarios_informados?: number | null;
   /** Faixa do LinkedIn informada pelo time (US-0054): "201-500". Não convive com o número exato. */
   funcionarios_faixa?: string | null;
+  /** US-0056: faixa, origem, confiança e fonte do que o time informou (o ponto médio vale nas contas). */
+  faturamento_min?: number | null;
+  faturamento_max?: number | null;
+  faturamento_confianca?: string | null;
+  faturamento_fonte?: string | null;
+  funcionarios_min?: number | null;
+  funcionarios_max?: number | null;
+  funcionarios_base?: string | null;
+  funcionarios_confianca?: string | null;
+  funcionarios_fonte?: string | null;
   client_id: string | null;
   notes: string | null;
   /** Faturamento anual em reais, informado pelo time (01/10/2026). A Receita não informa. */

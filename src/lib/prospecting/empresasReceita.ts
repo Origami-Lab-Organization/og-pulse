@@ -59,6 +59,16 @@ export interface EmpresaReceita {
   funcionarios_informados?: number | null;
   /** Faixa do LinkedIn informada pelo time (US-0054); não convive com o número exato. */
   funcionarios_faixa?: string | null;
+  /** US-0056: faixa, origem, confiança e fonte do que o time informou (o ponto médio vale nas contas). */
+  faturamento_min?: number | null;
+  faturamento_max?: number | null;
+  faturamento_confianca?: string | null;
+  faturamento_fonte?: string | null;
+  funcionarios_min?: number | null;
+  funcionarios_max?: number | null;
+  funcionarios_base?: string | null;
+  funcionarios_confianca?: string | null;
+  funcionarios_fonte?: string | null;
   /** `funcionarios` veio do time, não da RAIS (US-0020). */
   funcionarios_do_time?: boolean;
   /** US-0054: a RAIS como veio, quando ela era improvável e `funcionarios` é a estimativa. */

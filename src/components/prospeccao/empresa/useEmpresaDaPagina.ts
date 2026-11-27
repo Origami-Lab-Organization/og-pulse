@@ -2,6 +2,9 @@ import { useFichaReceita } from '@/hooks/useEmpresasReceita';
 import { useLinhaDaEmpresa } from '@/hooks/useLinhaDaEmpresa';
 import { useProspectCompanyByCnpj } from '@/hooks/useProspectCompanies';
 import { faseDaEmpresa, oportunidadeAtiva } from '@/lib/prospecting/faseDaEmpresa';
+import type { FichaReceita } from '@/types/fichaReceita';
+
+const relacaoDa = (ficha: FichaReceita | undefined) => ficha?.relacao?.relacao ?? null;
 
 /**
  * Tudo que a página da empresa (US-0053) lê: a ficha da Base (relação e histórico inclusos), a
@@ -12,7 +15,7 @@ export function useEmpresaDaPagina(cnpj: string) {
   const { data: empresaDoPulse = null } = useProspectCompanyByCnpj(cnpj);
   const linha = useLinhaDaEmpresa(empresaDoPulse?.id ?? null);
   const oportunidades = linha?.opportunities ?? [];
-  const fase = faseDaEmpresa({ noPulse: !!empresaDoPulse, oportunidades, relacao: ficha.data?.relacao?.relacao ?? null });
+  const fase = faseDaEmpresa({ noPulse: !!empresaDoPulse, oportunidades, relacao: relacaoDa(ficha.data) });
   return { ficha, empresaDoPulse, linha, fase, ativa: oportunidadeAtiva(oportunidades) };
 }
 

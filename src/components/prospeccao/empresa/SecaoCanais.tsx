@@ -92,16 +92,23 @@ function Digital({ empresa, podeEditar }: { empresa: ProspectCompanyDB; podeEdit
   );
 }
 
+function EmailDaReceita({ contato }: { contato: ContatoDaFicha | null }) {
+  const email = contato?.email?.toLowerCase();
+  return <Linha icone={Mail} nome="E-mail">{email ? <a href={`mailto:${email}`} className={LINK}>{email}</a> : VAZIO}</Linha>;
+}
+
+function TelefonesDaReceita({ contato }: { contato: ContatoDaFicha | null }) {
+  const telefones = [contato?.telefone_1, contato?.telefone_2].filter((t): t is string => !!t);
+  const links = telefones.map((t) => <a key={t} href={`tel:+55${t.replace(/\D/g, '')}`} className={cn(LINK, 'mr-2 font-mono tabular-nums')}>{telefoneDaReceita(t)}</a>);
+  return <Linha icone={Phone} nome={telefones.length > 1 ? 'Telefones' : 'Telefone'}>{telefones.length ? links : VAZIO}</Linha>;
+}
+
 function Receita(props: { contato: ContatoDaFicha | null; empresa: ProspectCompanyDB | null; podeEditar: boolean }) {
   const { contato, empresa, podeEditar } = props;
-  const telefones = [contato?.telefone_1, contato?.telefone_2].filter((t): t is string => !!t);
-  const email = contato?.email?.toLowerCase();
   return (
     <Grupo titulo="Receita">
-      <Linha icone={Mail} nome="E-mail">{email ? <a href={`mailto:${email}`} className={LINK}>{email}</a> : VAZIO}</Linha>
-      <Linha icone={Phone} nome={telefones.length > 1 ? 'Telefones' : 'Telefone'}>
-        {telefones.length ? telefones.map((t) => <a key={t} href={`tel:+55${t.replace(/\D/g, '')}`} className={cn(LINK, 'mr-2 font-mono tabular-nums')}>{telefoneDaReceita(t)}</a>) : VAZIO}
-      </Linha>
+      <EmailDaReceita contato={contato} />
+      <TelefonesDaReceita contato={contato} />
       {empresa && <Linha icone={Building2} nome="Filiais"><FiliaisDaEmpresa empresa={empresa} podeEditar={podeEditar} /></Linha>}
     </Grupo>
   );

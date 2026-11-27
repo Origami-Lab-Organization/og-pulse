@@ -162,13 +162,22 @@ function Tabela({ children }: { children: ReactNode }) {
   );
 }
 
+const lista = <T,>(v: T[] | null | undefined): T[] => v ?? [];
+const idDa = (empresa: { id: string } | null) => empresa?.id ?? null;
+
+/** As pessoas da página: contatos da Oportunidade e da empresa, sócios do Pulse ou da Receita. */
+function usePessoasDaPagina(pagina: EmpresaDaPagina) {
+  const { ativa, linha, empresaDoPulse, ficha } = pagina;
+  const { data: parceiros = [] } = useCompanyPartners(idDa(empresaDoPulse));
+  return pessoasDaEmpresa({ vinculos: lista(ativa?.contacts), contatos: lista(linha?.contacts), parceiros, sociosDaFicha: lista(ficha.data?.socios) });
+}
+
 /** Pessoas da empresa (US-0053): origem (Receita Federal ou cadastro), cargo e papel na Oportunidade. */
 export function SecaoPessoas({ pagina }: { pagina: EmpresaDaPagina }) {
   const { can } = useAuth();
   const podeEditar = can('prospeccao:editar');
-  const { ativa, linha, empresaDoPulse, ficha } = pagina;
-  const { data: parceiros = [] } = useCompanyPartners(empresaDoPulse?.id ?? null);
-  const pessoas = pessoasDaEmpresa({ vinculos: ativa?.contacts ?? [], contatos: linha?.contacts ?? [], parceiros, sociosDaFicha: ficha.data?.socios ?? [] });
+  const { ativa } = pagina;
+  const pessoas = usePessoasDaPagina(pagina);
   const acao = ativa && podeEditar ? <NovaPessoa oportunidade={ativa} /> : undefined;
   return (
     <Secao id={SECAO_DA_EMPRESA.PESSOAS} titulo="Pessoas" acao={acao}>

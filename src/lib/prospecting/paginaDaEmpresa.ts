@@ -1,12 +1,18 @@
 import { etapaDaOportunidade, statusDoProjeto } from '@/lib/prospecting/relacao';
-import { emTitulo, reaisCurtos } from '@/lib/prospecting/empresasReceita';
+import { anosDeOperacao, emTitulo, reaisCurtos } from '@/lib/prospecting/empresasReceita';
 import { sociosParaTrazer } from '@/lib/prospecting/estudoDaConta';
 import { cargoNaEmpresa, nomeDaQualificacao } from '@/lib/prospecting/qualificacoesDeSocio';
 import { getDiscardReasonLabel, type ProspectCompanyDB, type ProspectContactDB, type ProspectOpportunityContact, type ProspectWithCompany } from '@/types/prospect';
 import type { ProspectCompanyPartnerDB } from '@/types/receita';
 import type { EmpresaDaFicha, SocioDaFicha } from '@/types/fichaReceita';
+import type { EmpresaReceita } from '@/lib/prospecting/empresasReceita';
+import { textoDoInformado } from '@/lib/prospecting/faturamentoEstimado';
+import { rotuloDaFaixa } from '@/lib/prospecting/funcionariosDoTime';
 import type { DadosDaRelacao, OportunidadeDaRelacao, ProjetoDaRelacao } from '@/types/relacao';
-import type { ContatoDaPessoa, EventoDoHistorico, ItemDeRisco, NumerosDoHistorico, PassoDoWidget, PessoaDaEmpresa } from '@/types/paginaDaEmpresa';
+import type { AtalhoDeFaixa, ContatoDaPessoa, EventoDoHistorico, InformadoPeloTime, ItemDeRisco, NumerosDoHistorico, PassoDoWidget, PessoaDaEmpresa, UnidadeDoCampo } from '@/types/paginaDaEmpresa';
+import { CONFIANCA_DO_TIME, FAIXAS_DO_LINKEDIN, ORIGEM_DO_TIME, type ConfiancaDoTime, type OrigemDoTime } from '@/lib/prospecting/funcionarios.constants';
+import { valuesAreHidden } from '@/lib/hideValuesStore';
+import { HIDDEN_VALUE_MASK } from '@/lib/formatters';
 import {
   CAMPO_DA_EMPRESA,
   ETAPA_GANHO,
@@ -222,4 +228,114 @@ export function tamanhoDoArquivo(bytes: number | null): string | null {
   if (bytes == null) return null;
   if (bytes >= MILHAO) return `${(bytes / (1024 * 1024)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`;
   return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString('pt-BR')} KB`;
+}
+
+// ---------- o que o time informa (US-0056) ----------
+
+const ESCALA_DA_FAIXA: ReadonlyArray<[number, string]> = [[1e9, 'bi'], [1e6, 'mi'], [1e3, 'mil']];
+const naEscala = (v: number) => ESCALA_DA_FAIXA.find(([limite]) => v >= limite) ?? [1, ''];
+const numeroCurto = (v: number, limite: number) => (Math.trunc((v / limite) * 10) / 10).toLocaleString('pt-BR');
+
+/** "R$ 700 a 900 mi"; "R$ 800 mi a 1,2 bi" quando muda a escala. */
+export function faixaEmReais(de: number, ate: number): string {
+  if (valuesAreHidden()) return HIDDEN_VALUE_MASK;
+  const [limiteDe, unidadeDe] = naEscala(de);
+  const [limiteAte, unidadeAte] = naEscala(ate);
+  if (unidadeDe === unidadeAte) return `R$ ${numeroCurto(de, limiteDe)} a ${numeroCurto(ate, limiteAte)} ${unidadeAte}`.trim();
+  return `R$ ${numeroCurto(de, limiteDe)} ${unidadeDe} a ${numeroCurto(ate, limiteAte)} ${unidadeAte}`;
+}
+
+/** "4.000 a 5.000". */
+export const faixaDePessoas = (de: number, ate: number) => `${de.toLocaleString('pt-BR')} a ${ate.toLocaleString('pt-BR')}`;
+
+/** "estimado pelo time · confiança média" ou "apurado pelo time". */
+export function origemDoTime(base: string | null | undefined, confianca: string | null | undefined): string {
+  const quem = base === ORIGEM_DO_TIME.APURADO ? 'apurado pelo time' : 'estimado pelo time';
+  const rotulo = CONFIANCA_DO_TIME.find((c) => c.valor === confianca)?.rotulo.toLowerCase();
+  return rotulo ? `${quem} · confiança ${rotulo}` : quem;
+}
+
+const comoOrigem = (base: string | null | undefined): OrigemDoTime => (base === ORIGEM_DO_TIME.APURADO ? ORIGEM_DO_TIME.APURADO : ORIGEM_DO_TIME.ESTIMADO);
+const comoConfianca = (c: string | null | undefined) => (CONFIANCA_DO_TIME.find((x) => x.valor === c)?.valor ?? null) as ConfiancaDoTime | null;
+
+/** O faturamento que o time já informou, para abrir o modal preenchido; nulo sem valor do time. */
+export function faturamentoInformado(e: ProspectCompanyDB): InformadoPeloTime | null {
+  if (e.faturamento_anual == null || !faturamentoDoTime(e.faturamento_anual_base)) return null;
+  const valor = Number(e.faturamento_anual);
+  return {
+    de: Number(e.faturamento_min ?? valor), ate: Number(e.faturamento_max ?? valor),
+    origem: comoOrigem(e.faturamento_anual_base), confianca: comoConfianca(e.faturamento_confianca), fonte: e.faturamento_fonte ?? null,
+  };
+}
+
+/** Os funcionários que o time já informou, para abrir o modal preenchido. */
+export function funcionariosInformados(e: ProspectCompanyDB): InformadoPeloTime | null {
+  if (e.funcionarios_informados == null) return null;
+  return {
+    de: e.funcionarios_min ?? e.funcionarios_informados, ate: e.funcionarios_max ?? e.funcionarios_informados,
+    origem: comoOrigem(e.funcionarios_base), confianca: comoConfianca(e.funcionarios_confianca), fonte: e.funcionarios_fonte ?? null,
+  };
+}
+
+/** Faturamento no modal: em milhões de reais. */
+export const UNIDADE_EM_MILHOES: UnidadeDoCampo = { prefixo: 'R$', sufixo: 'mi', ler: (t) => reaisDeMilhoes(t), escrever: (v) => emMilhoes(v) };
+
+/** Funcionários no modal: pessoas. */
+export const UNIDADE_EM_PESSOAS: UnidadeDoCampo = { sufixo: 'pessoas', ler: (t) => inteiroDoTexto(t), escrever: (v) => String(v) };
+
+/** As faixas do LinkedIn como atalhos do modal de funcionários. */
+export const ATALHOS_DO_LINKEDIN: ReadonlyArray<AtalhoDeFaixa> = FAIXAS_DO_LINKEDIN.map((f) => ({ rotulo: f.rotulo, de: f.de, ate: f.ate }));
+
+// ---------- textos da visão geral (US-0053), em funções pequenas ----------
+
+const regimeDe = (empresa: EmpresaDaFicha, doPulse: ProspectCompanyDB | null) => empresa.regime_tributario ?? doPulse?.regime_tributario ?? null;
+const anoDoRegimeDe = (empresa: EmpresaDaFicha, doPulse: ProspectCompanyDB | null) => empresa.regime_tributario_ano ?? doPulse?.regime_tributario_ano ?? null;
+
+/** "Lucro Real · 2024", ou "Não consultado". */
+export function textoDoRegime(empresa: EmpresaDaFicha, doPulse: ProspectCompanyDB | null): string {
+  const regime = regimeDe(empresa, doPulse);
+  if (!regime) return 'Não consultado';
+  const ano = anoDoRegimeDe(empresa, doPulse);
+  return [emTitulo(regime), ano && String(ano)].filter(Boolean).join(' · ');
+}
+
+export const textoDoCapital = (empresa: EmpresaDaFicha) => (empresa.capital_social ? reaisCurtos(Number(empresa.capital_social)) : '—');
+
+/** "42 anos · 1984". */
+export function textoDaIdade(abertura: string | null): string {
+  const anos = anosDeOperacao(abertura);
+  if (anos == null) return '—';
+  const desde = abertura ? ` · ${abertura.slice(0, 4)}` : '';
+  return `${anos} ${anos === 1 ? 'ano' : 'anos'}${desde}`;
+}
+
+/** "Nunca", "1 vez", "3 vezes". */
+export function vezesQueFalamos(oportunidades: number): string {
+  if (oportunidades === 0) return 'Nunca';
+  return `${oportunidades} ${oportunidades === 1 ? 'vez' : 'vezes'}`;
+}
+
+/** "Perda em 2025 · Sem orçamento". */
+export function textoDaUltimaPerda(perda: OportunidadeDaRelacao | null): string {
+  if (!perda) return '—';
+  const quando = perda.data ? ` em ${perda.data.slice(0, 4)}` : '';
+  const motivo = perda.discard_reason ? getDiscardReasonLabel(perda.discard_reason) : 'sem motivo';
+  return `Perda${quando} · ${motivo}`;
+}
+
+export const textoDaCidade = (empresa: EmpresaDaFicha) => [emTitulo(empresa.municipio), empresa.uf].filter(Boolean).join(' · ') || '—';
+export const textoDaDistancia = (km: number | null) => (km != null ? `${km.toLocaleString('pt-BR')} km de distância` : ' ');
+
+/** O faturamento do time como aparece: a faixa informada ou o valor (US-0056). */
+export function textoDoFaturamentoDoTime(e: Pick<EmpresaReceita, 'faturamento_informado' | 'faturamento_min' | 'faturamento_max'>): string {
+  const { faturamento_min: de, faturamento_max: ate } = e;
+  if (de != null && ate != null) return faixaEmReais(Number(de), Number(ate));
+  return textoDoInformado(Number(e.faturamento_informado));
+}
+
+/** Os funcionários do time como aparecem: a faixa informada (ou a antiga do LinkedIn) ou o número. */
+export function textoDosFuncionariosDoTime(e: Pick<EmpresaReceita, 'funcionarios' | 'funcionarios_min' | 'funcionarios_max' | 'funcionarios_faixa'>): string {
+  const { funcionarios_min: de, funcionarios_max: ate } = e;
+  if (de != null && ate != null) return faixaDePessoas(de, ate);
+  return rotuloDaFaixa(e.funcionarios_faixa) ?? (e.funcionarios ?? 0).toLocaleString('pt-BR');
 }

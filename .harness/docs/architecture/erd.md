@@ -136,6 +136,11 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 27/11/2026: 20261127100000 — US-0056: prospect_companies ganha faturamento_min/max/confianca/fonte e
+#  funcionarios_min/max/base/confianca/fonte (faixa, origem, confiança e fonte do que o time informa;
+#  o ponto médio fica em faturamento_anual e funcionarios_informados). A faixa do LinkedIn
+#  (funcionarios_faixa) foi migrada para as colunas novas. Sem FK nem relação nova; conferido contra
+#  ProspectCompanyDB (src/types/prospect.ts).
 # 26/11/2026: 20261126110000 — US-0054: prospect_companies.funcionarios_faixa (faixa do LinkedIn, com
 #  check das nove faixas; não convive com funcionarios_informados, check exato_ou_faixa). Sem FK nem
 #  relação nova. Conferida contra ProspectCompanyDB (src/types/prospect.ts) e FAIXAS_DO_LINKEDIN.
@@ -273,7 +278,9 @@ erDiagram
         numeric base_faturamento_estimado "retrato da Base, com base_faturamento_base"
         timestamptz base_retrato_em "quando o retrato foi tirado; NULL = nunca"
         int funcionarios_informados "confirmados pelo time — NULL = vale a RAIS (US-0020)"
-        text funcionarios_faixa "faixa do LinkedIn informada pelo time; não convive com o número exato (US-0054)"
+        text funcionarios_faixa "faixa do LinkedIn (US-0054); vazia desde a US-0056, que usa funcionarios_min/max"
+        int funcionarios_min "faixa informada pelo time, com funcionarios_max, base, confianca e fonte (US-0056)"
+        numeric faturamento_min "faixa informada pelo time, com faturamento_max, confianca e fonte (US-0056)"
         numeric faturamento_anual "informado pelo time — NULL = não informado"
         text faturamento_anual_base "estimado | apurado | calculado — obrigatória junto com o valor"
         text regime_tributario "ano mais recente — filtro da Lei do Bem; retrato sem regime não apaga"

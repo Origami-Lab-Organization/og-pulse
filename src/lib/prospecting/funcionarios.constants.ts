@@ -4,16 +4,16 @@
  * faturamento estimado e fit entra o ponto médio (decisão do Victor, 26/11/2026).
  */
 export const FAIXAS_DO_LINKEDIN = [
-  { valor: '0-1', rotulo: '0 a 1', meio: 1 },
-  { valor: '2-10', rotulo: '2 a 10', meio: 6 },
-  { valor: '11-50', rotulo: '11 a 50', meio: 30 },
-  { valor: '51-200', rotulo: '51 a 200', meio: 125 },
-  { valor: '201-500', rotulo: '201 a 500', meio: 350 },
-  { valor: '501-1000', rotulo: '501 a 1.000', meio: 750 },
-  { valor: '1001-5000', rotulo: '1.001 a 5.000', meio: 3000 },
-  { valor: '5001-10000', rotulo: '5.001 a 10.000', meio: 7500 },
-  // Sem teto: 1,5 vez o começo da faixa, como estimativa conservadora.
-  { valor: '10001+', rotulo: 'mais de 10.000', meio: 15000 },
+  { valor: '0-1', rotulo: '0 a 1', de: 0, ate: 1, meio: 1 },
+  { valor: '2-10', rotulo: '2 a 10', de: 2, ate: 10, meio: 6 },
+  { valor: '11-50', rotulo: '11 a 50', de: 11, ate: 50, meio: 30 },
+  { valor: '51-200', rotulo: '51 a 200', de: 51, ate: 200, meio: 125 },
+  { valor: '201-500', rotulo: '201 a 500', de: 201, ate: 500, meio: 350 },
+  { valor: '501-1000', rotulo: '501 a 1.000', de: 501, ate: 1000, meio: 750 },
+  { valor: '1001-5000', rotulo: '1.001 a 5.000', de: 1001, ate: 5000, meio: 3000 },
+  { valor: '5001-10000', rotulo: '5.001 a 10.000', de: 5001, ate: 10000, meio: 7500 },
+  // Sem teto: até 20 mil, com o meio em 1,5 vez o começo, como estimativa conservadora.
+  { valor: '10001+', rotulo: 'mais de 10.000', de: 10001, ate: 20000, meio: 15000 },
 ] as const;
 
 export type FaixaDoLinkedin = (typeof FAIXAS_DO_LINKEDIN)[number]['valor'];
@@ -39,3 +39,21 @@ export const RAIS_IMPROVAVEL = {
  * quantos estabelecimentos a RAIS achou gente, para o time conferir e informar a faixa.
  */
 export const RAIS_INCOMPLETA = { FILIAIS_A_PARTIR_DE: 3 } as const;
+
+/** Confiança que o time declara no que estimou (US-0056). Só aparece na tela; não muda contas. */
+export const CONFIANCA_DO_TIME = [
+  { valor: 'baixa', rotulo: 'Baixa' },
+  { valor: 'media', rotulo: 'Média' },
+  { valor: 'alta', rotulo: 'Alta' },
+] as const;
+export type ConfiancaDoTime = (typeof CONFIANCA_DO_TIME)[number]['valor'];
+
+/** Como o time sabe: estimou, ou apurou (balanço, a própria empresa). */
+export const ORIGEM_DO_TIME = {
+  ESTIMADO: 'estimado',
+  APURADO: 'apurado',
+} as const;
+export type OrigemDoTime = (typeof ORIGEM_DO_TIME)[keyof typeof ORIGEM_DO_TIME];
+
+/** Fonte gravada quando o time escolhe uma faixa do LinkedIn no modal (US-0056). */
+export const FONTE_DO_LINKEDIN = 'LinkedIn';

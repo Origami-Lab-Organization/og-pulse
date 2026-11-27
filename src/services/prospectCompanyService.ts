@@ -1,6 +1,5 @@
 import { todasAsPaginas } from '@/lib/paginacao';
-import type { FaixaDoLinkedin } from '@/lib/prospecting/funcionarios.constants';
-import type { CamposDaPagina } from '@/types/paginaDaEmpresa';
+import type { CamposDaPagina, InformadoPeloTime } from '@/types/paginaDaEmpresa';
 import { tabela } from '@/services/prospectingTables';
 import { supabase } from '@/integrations/supabase/client';
 import type { ClientOption } from '@/types/cnpjLookup';
@@ -221,20 +220,51 @@ export const prospectCompanyService = {
 
   /** Só os funcionários confirmados pelo time (US-0020); nulo volta a valer a RAIS. */
   async setFuncionarios(id: string, funcionarios: number | null): Promise<void> {
-    // O número exato substitui a faixa do LinkedIn: os dois não convivem (US-0054).
-    const { error } = await tabela('prospect_companies').update({ funcionarios_informados: funcionarios, funcionarios_faixa: null }).eq('id', id);
+    // Substitui faixa, origem e confiança anteriores (US-0054, US-0056); nulo volta a valer a RAIS.
+    const { error } = await tabela('prospect_companies').update({
+      funcionarios_informados: funcionarios, funcionarios_faixa: null, funcionarios_min: null, funcionarios_max: null,
+      funcionarios_base: null, funcionarios_confianca: null, funcionarios_fonte: null,
+    }).eq('id', id);
     if (error) throw error;
   },
 
-  /** Faixa do LinkedIn (US-0054); substitui o número exato. Nulo volta a valer a RAIS. */
-  async setFaixaDeFuncionarios(id: string, faixa: FaixaDoLinkedin | null): Promise<void> {
-    const { error } = await tabela('prospect_companies').update({ funcionarios_faixa: faixa, funcionarios_informados: null }).eq('id', id);
+  /**
+   * Funcionários que o time sabe (US-0056): faixa ou número, com origem, confiança e fonte. O ponto
+   * médio vai para `funcionarios_informados`, que vale nas contas; a faixa só aparece na tela.
+   */
+  async informarFuncionarios(id: string, i: InformadoPeloTime): Promise<void> {
+    const exato = i.de === i.ate;
+    const { error } = await tabela('prospect_companies').update({
+      funcionarios_informados: Math.round((i.de + i.ate) / 2),
+      funcionarios_min: exato ? null : i.de,
+      funcionarios_max: exato ? null : i.ate,
+      funcionarios_base: i.origem,
+      funcionarios_confianca: i.confianca,
+      funcionarios_fonte: i.fonte,
+      funcionarios_faixa: null,
+    }).eq('id', id);
+    if (error) throw error;
+  },
+
+  /** Faturamento que o time sabe (US-0056): faixa ou valor; o ponto médio vale nas contas. */
+  async informarFaturamento(id: string, i: InformadoPeloTime): Promise<void> {
+    const exato = i.de === i.ate;
+    const { error } = await tabela('prospect_companies').update({
+      faturamento_anual: Math.trunc((i.de + i.ate) / 2),
+      faturamento_anual_base: i.origem,
+      faturamento_min: exato ? null : i.de,
+      faturamento_max: exato ? null : i.ate,
+      faturamento_confianca: i.confianca,
+      faturamento_fonte: i.fonte,
+    }).eq('id', id);
     if (error) throw error;
   },
 
   /** Só o faturamento (US-0008): grava o calculado pela base sem regravar o resto da empresa. */
   async setFaturamento(id: string, valor: number, base: FaturamentoBase): Promise<void> {
-    const { error } = await tabela('prospect_companies').update({ faturamento_anual: valor, faturamento_anual_base: base }).eq('id', id);
+    const { error } = await tabela('prospect_companies').update({
+      faturamento_anual: valor, faturamento_anual_base: base, faturamento_min: null, faturamento_max: null, faturamento_confianca: null, faturamento_fonte: null,
+    }).eq('id', id);
     if (error) throw error;
   },
 

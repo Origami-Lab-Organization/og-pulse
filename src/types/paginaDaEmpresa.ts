@@ -1,5 +1,6 @@
 import type { CampoDaEmpresa, OrigemDaPessoa, PassoDaQualificacao, SecaoDaEmpresa, TipoDeEvento, TipoDeItemDoEstudo } from '@/lib/prospecting/faseDaEmpresa.constants';
 import type { ProspectContactDB, ProspectOpportunityContact } from '@/types/prospect';
+import type { ConfiancaDoTime, OrigemDoTime } from '@/lib/prospecting/funcionarios.constants';
 import type { ProspectCompanyPartnerDB } from '@/types/receita';
 
 /** De onde a página da empresa foi aberta: a lista que o "← Empresas" devolve na hora (US-0053). */
@@ -106,4 +107,29 @@ export interface PastaDoComercial {
   caminho: string;
   ligada_por: string | null;
   ligada_em: string;
+}
+
+/** O que o time informa no modal (US-0056): faixa (de–até) ou valor exato (de = até). */
+export interface InformadoPeloTime {
+  de: number;
+  ate: number;
+  origem: OrigemDoTime;
+  /** Só quando estimou. */
+  confianca: ConfiancaDoTime | null;
+  fonte: string | null;
+}
+
+/** Como o número é lido e escrito no modal: "250" (milhões de reais) ou "760" (pessoas). */
+export interface UnidadeDoCampo {
+  prefixo?: string;
+  sufixo: string;
+  ler: (texto: string) => number | null;
+  escrever: (valor: number) => string;
+}
+
+/** Atalho do modal: uma faixa pronta, como as do LinkedIn. */
+export interface AtalhoDeFaixa {
+  rotulo: string;
+  de: number;
+  ate: number;
 }

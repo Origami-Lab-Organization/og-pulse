@@ -13,6 +13,7 @@ import { useEmQualificacao } from '@/hooks/useEmQualificacao';
 import { useEntradasNaQualificacao } from '@/hooks/useEntradasNaQualificacao';
 import { usePainelDeFiltros } from '@/hooks/usePainelDeFiltros';
 import { faturamentoCompacto } from '@/lib/prospecting/faturamento';
+import { faixaDoFaturamento } from '@/lib/prospecting/faixasDeFaturamento';
 import { FIT_QUE_DESTACA } from '@/lib/prospecting/fit';
 import { linhaValida, notasPorLinha, type LinhaDoFit } from '@/lib/prospecting/fitDoCatalogo';
 import { useFitDoCatalogo } from '@/hooks/useFitDoCatalogo';
@@ -296,10 +297,11 @@ const TECLA_QUE_ABRE = 'Enter';
 
 const TRACO = '—';
 
-/** "~R$ 45 mi" quando o valor é o estimado pela Base. */
+/** "R$ 30 a 50 mi" quando o valor é o estimado pela Base (US-0056); o do time, em valor único. */
 function textoDoFaturamento(l: LinhaDaQualificacao): string {
   if (l.faturamento == null) return TRACO;
-  return `${l.faturamentoEstimado ? '~' : ''}${faturamentoCompacto(l.faturamento)}`;
+  // Estimado pela Base: a faixa fixa, como na página da empresa e na lista da Base (US-0056).
+  return l.faturamentoEstimado ? faixaDoFaturamento(l.faturamento) : faturamentoCompacto(l.faturamento);
 }
 
 const textoDaDistancia = (km: number | null) => (km == null ? TRACO : `${km.toLocaleString('pt-BR')} km`);

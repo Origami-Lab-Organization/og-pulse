@@ -1,6 +1,6 @@
 # US-0056 — Faturamento estimado em faixa
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresa e cliente (épico 2 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)
@@ -71,6 +71,19 @@ parece certo ali: ela mostra a incerteza que o número único esconde.
 - **Então** Âncora, Ponte e Satélite, o filtro de Faturamento da Base e o da Qualificação usam o valor
   central, como hoje, nas faixas de `FATURAMENTOS`.
 
+**Cenário 6: o time informa em faixa, num modal**
+
+- **Dado** uma empresa no Pulse e alguém com `prospeccao:editar`;
+- **Quando** clica em "Informar" no faturamento ou nos funcionários;
+- **Então** abre um modal com o que a página mostra hoje, o valor ou a faixa (de–até; com o "até" vazio,
+  vale o valor exato), a confiança numa escala só (baixa, média, alta ou apurado) e, opcional, a fonte;
+- **E** nos funcionários, "Faixa do LinkedIn" preenche o de–até e, com a fonte vazia, grava "LinkedIn"
+  como fonte; "Voltar à RAIS" apaga o que o time informou;
+- **E** o cartão mostra a faixa informada (ex.: "R$ 700 a 900 mi · estimado pelo time · confiança
+  média"; "4.000 a 5.000");
+- **E** nas contas (tipo de conta, fit, filtros) entra o ponto médio; a confiança e a fonte só aparecem
+  na tela.
+
 ## Decisões (Victor Couto, 26/11/2026)
 
 1. Faixa só quando o time não informou o número; com o número do time, valor único.
@@ -86,6 +99,16 @@ parece certo ali: ela mostra a incerteza que o número único esconde.
    em 6 de 8 Âncoras da região (mediana 1,09 vez); com a correção, errava 7 vezes para cima (Thinal 15×,
    Cimento UAU 109×). O custo aceito: empresas cuja RAIS conta pouca gente sem cair na regra da US-0054
    (Arape: R$ 350 mi reais, R$ 6 mi pela conta) ficam baixas até o time informar.
+
+5. **O time informa em faixa, num modal** (27/11/2026): faixa ou valor, estimado ou apurado, confiança
+   quando estimou, fonte opcional; vale para faturamento e funcionários. A faixa do LinkedIn vira atalho
+   do modal e foi migrada para as colunas novas (migration 20261127100000).
+6. Nas contas entra o ponto médio da faixa informada.
+7. A confiança informada só aparece; não muda contas nem filtros.
+8. **Desenho do modal** (27/11/2026, revisto pelo Victor): o número vem primeiro; "estimei ou apurado" e
+   a confiança viraram uma escala só (baixa, média, alta, apurado), gravada como antes (estimado com
+   confiança, ou apurado sem); sai a escolha entre faixa e valor exato (o "até" vazio é o valor exato);
+   rótulos e seleção no padrão dos outros modais do sistema, sem dica nos campos.
 
 ## Contexto técnico
 

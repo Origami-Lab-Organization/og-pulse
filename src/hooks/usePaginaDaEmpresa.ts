@@ -2,9 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 import { mensagemParaUsuario } from '@/lib/errors/userMessage';
 import { prospectCompanyService } from '@/services/prospectCompanyService';
-import type { CamposDaPagina } from '@/types/paginaDaEmpresa';
+import type { CamposDaPagina, InformadoPeloTime } from '@/types/paginaDaEmpresa';
 import type { TipoDeConta } from '@/types/prospect';
-import type { FaixaDoLinkedin } from '@/lib/prospecting/funcionarios.constants';
 
 function useRecarregarEmpresa() {
   const qc = useQueryClient();
@@ -36,17 +35,39 @@ export function useTipoDeContaDaEmpresa() {
   });
 }
 
-/** Faixa do LinkedIn (US-0054): substitui o número exato e refaz faturamento e fit na tela. */
-export function useFaixaDeFuncionarios() {
+function useRecarregarDoTime() {
   const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: ['prospect-companies'] });
+    qc.invalidateQueries({ queryKey: ['prospects'] });
+    qc.invalidateQueries({ queryKey: ['receita-ficha'] });
+    qc.invalidateQueries({ queryKey: ['receita-empresas'] });
+  };
+}
+
+/** Faturamento informado pelo time no modal (US-0056). */
+export function useInformarFaturamento() {
+  const recarregar = useRecarregarDoTime();
   return useMutation({
-    mutationFn: ({ id, faixa }: { id: string; faixa: FaixaDoLinkedin | null }) => prospectCompanyService.setFaixaDeFuncionarios(id, faixa),
+    mutationFn: ({ id, informado }: { id: string; informado: InformadoPeloTime }) => prospectCompanyService.informarFaturamento(id, informado),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['prospect-companies'] });
-      qc.invalidateQueries({ queryKey: ['prospects'] });
-      qc.invalidateQueries({ queryKey: ['receita-ficha'] });
-      qc.invalidateQueries({ queryKey: ['receita-empresas'] });
+      recarregar();
+      toast({ title: 'Faturamento salvo' });
     },
-    onError: (erro) => toast({ title: 'Não deu para salvar a faixa', description: mensagemParaUsuario(erro), variant: 'destructive' }),
+    onError: (erro) => toast({ title: 'Não deu para salvar o faturamento', description: mensagemParaUsuario(erro), variant: 'destructive' }),
+  });
+}
+
+/** Funcionários informados pelo time no modal (US-0056); nulo volta a valer a RAIS. */
+export function useInformarFuncionarios() {
+  const recarregar = useRecarregarDoTime();
+  return useMutation({
+    mutationFn: ({ id, informado }: { id: string; informado: InformadoPeloTime | null }) =>
+      informado ? prospectCompanyService.informarFuncionarios(id, informado) : prospectCompanyService.setFuncionarios(id, null),
+    onSuccess: () => {
+      recarregar();
+      toast({ title: 'Funcionários salvos' });
+    },
+    onError: (erro) => toast({ title: 'Não deu para salvar os funcionários', description: mensagemParaUsuario(erro), variant: 'destructive' }),
   });
 }

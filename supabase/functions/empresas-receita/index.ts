@@ -595,6 +595,16 @@ interface DoTimeNaEmpresa {
   funcionarios_informados: number | null;
   /** US-0054: faixa do LinkedIn informada pelo time ("201-500"); não convive com o número exato. */
   funcionarios_faixa: string | null;
+  /** US-0056: faixa, origem, confiança e fonte do que o time informou (só para a tela). */
+  faturamento_min: number | null;
+  faturamento_max: number | null;
+  faturamento_confianca: string | null;
+  faturamento_fonte: string | null;
+  funcionarios_min: number | null;
+  funcionarios_max: number | null;
+  funcionarios_base: string | null;
+  funcionarios_confianca: string | null;
+  funcionarios_fonte: string | null;
   regime_tributario: string | null;
   regime_tributario_ano: number | null;
 }
@@ -610,6 +620,15 @@ function comODoTime(l: LinhaDaPagina, t: DoTimeNaEmpresa | undefined, historico:
     ...faturamento,
     funcionarios_informados: t.funcionarios_informados,
     funcionarios_faixa: t.funcionarios_faixa,
+    faturamento_min: t.faturamento_min == null ? null : Number(t.faturamento_min),
+    faturamento_max: t.faturamento_max == null ? null : Number(t.faturamento_max),
+    faturamento_confianca: t.faturamento_confianca,
+    faturamento_fonte: t.faturamento_fonte,
+    funcionarios_min: t.funcionarios_min,
+    funcionarios_max: t.funcionarios_max,
+    funcionarios_base: t.funcionarios_base,
+    funcionarios_confianca: t.funcionarios_confianca,
+    funcionarios_fonte: t.funcionarios_fonte,
     regime_tributario: t.regime_tributario,
     regime_tributario_ano: t.regime_tributario_ano,
     faturamento_historico: registros,
@@ -628,7 +647,7 @@ async function comFaturamentoDoTime(sessao: SupabaseClient, linhas: LinhaDaPagin
   if (!linhas.length) return linhas;
   const { data, error } = await sessao
     .from("prospect_companies")
-    .select("id, cnpj, faturamento_anual, faturamento_anual_base, funcionarios_informados, funcionarios_faixa, regime_tributario, regime_tributario_ano")
+    .select("id, cnpj, faturamento_anual, faturamento_anual_base, funcionarios_informados, funcionarios_faixa, faturamento_min, faturamento_max, faturamento_confianca, faturamento_fonte, funcionarios_min, funcionarios_max, funcionarios_base, funcionarios_confianca, funcionarios_fonte, regime_tributario, regime_tributario_ano")
     .in("cnpj", linhas.map((l) => l.cnpj.trim()))
     .or("faturamento_anual.not.is.null,funcionarios_informados.not.is.null,funcionarios_faixa.not.is.null,regime_tributario.not.is.null");
   if (error || !data) return linhas;
