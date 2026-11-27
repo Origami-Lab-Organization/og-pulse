@@ -347,4 +347,4 @@ matriz e filiais na mesma ficha; regularização caso a caso (Victor Couto, 25/1
 | [US-0053](stories/5-pronto/US-0053-comercial-pagina-da-empresa.md) | Página da empresa | Comercial, GP ou admin | Pronto | Pronta |
 | [US-0054](stories/5-pronto/US-0054-comercial-funcionarios-alem-da-rais.md) | Funcionários além da RAIS: RAIS improvável e faixa do LinkedIn | Pessoa do comercial | Pronto | Pronta |
 | [US-0056](stories/5-pronto/US-0056-comercial-faturamento-estimado-em-faixa.md) | Faturamento estimado em faixa | Pessoa do comercial | Pronto | Pronta |
-| [US-0057](stories/3-pronta-para-desenvolver/01-US-0057-comercial-insights-de-ia-no-estudo-da-conta.md) | Insights de IA no Estudo da conta | Admin | Pronta para desenvolver | Pronta |
+| [US-0057](stories/4-em-desenvolvimento/01-US-0057-comercial-insights-de-ia-no-estudo-da-conta.md) | Insights de IA no Estudo da conta | Admin | Em desenvolvimento | Pronta |

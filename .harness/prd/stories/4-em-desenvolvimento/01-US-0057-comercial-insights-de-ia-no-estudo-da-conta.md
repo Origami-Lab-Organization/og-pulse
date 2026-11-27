@@ -1,10 +1,10 @@
 # US-0057 — Insights de IA no Estudo da conta
 
-- **Status:** Pronta para desenvolver
+- **Status:** Em desenvolvimento
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresa e cliente (épico 2 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)
-- **Prioridade:** 01 em `3-pronta-para-desenvolver`
+- **Prioridade:** 01 em `4-em-desenvolvimento`
 - **Pedida por / em:** Victor Couto, 26/11/2026 ("gerar insights de IA igual no Econodata… quando
   colocarmos a empresa para qualificar, o usuário pode pressionar os insights de IA para ajudar na
   qualificação")
@@ -156,6 +156,18 @@ com chave de API (fase 2 do ADR-0054), quando outra pessoa precisar gerar.
 
 ## Implementação
 
+- **Migration** `20261127160000_insights_de_ia.sql`, aplicada em produção em 27/11/2026 e levada ao
+  main pelo PR #128: capacidade só no perfil do Victor, fila, sinal de vida, versões e propostas.
+- **Runner** `apps/insights-runner` (ADR-0057): Claude Code isolado, com `--json-schema`, só
+  `WebSearch` e `WebFetch`, sem MCP nem configurações do usuário; login do Victor no Pulse.
+- **Tela**: bloco "Insights de IA" no topo da aba Estudo da conta (`InsightsDaIA.tsx`).
+
 | Cenário | Prova (teste ou evidência) |
 |---|---|
-| — | — |
+| 1. Pedir os insights | Pendente: conferir no localhost com o runner ligado. |
+| 2. Fonte obrigatória | Ensaio da migration em produção (transação desfeita, 27/11/2026): item sem fonte e tema desconhecido saem. |
+| 3. Proposta de porte | Ensaio: decidida uma vez, com quem decidiu, sem mudar a faixa. Pendente: aceitar no localhost e ver no cartão Porte. |
+| 4. Gerar de novo | Pendente: conferir as versões no localhost. |
+| 5. Runner fora do ar | Ensaio: sem sinal, o banco recusa o pedido com "Runner indisponível.". Pendente: conferir na tela. |
+| 6. Quem pode gerar | Ensaio: pedido de outra pessoa recusado. Pendente: o botão some para quem não tem a capacidade. |
+| 7. A geração falha | Pendente: conferir parando o runner no meio de uma geração. |
