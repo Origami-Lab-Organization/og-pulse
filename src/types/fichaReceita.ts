@@ -60,5 +60,7 @@ export interface FichaReceita {
   /** Relação da Origami com a empresa e o histórico dela (US-0019). */
   relacao?: RelacaoDaEmpresa | null;
   historico?: DadosDaRelacao | null;
+  /** Marca Parceiro (US-0051), ao lado da relação. */
+  parceiro?: boolean;
   relacao_indisponivel?: boolean;
 }

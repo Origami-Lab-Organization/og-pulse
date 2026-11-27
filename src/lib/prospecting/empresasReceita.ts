@@ -84,6 +84,8 @@ export interface EmpresaReceita {
   faturamento_historico?: RegistroDoFaturamento[];
   /** Relação da Origami com a empresa (US-0019); nula sem relação, ausente se não carregou. */
   relacao?: RelacaoDaEmpresa | null;
+  /** Marca Parceiro (US-0051), ao lado da relação. */
+  parceiro?: boolean;
 }
 
 export interface PaginaReceita {

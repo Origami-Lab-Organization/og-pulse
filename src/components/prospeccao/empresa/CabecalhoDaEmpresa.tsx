@@ -7,7 +7,7 @@ import { FASE_DA_EMPRESA } from '@/lib/prospecting/faseDaEmpresa.constants';
 import { formatCNPJ } from '@/lib/masks';
 import { getTipoDeContaLabel } from '@/types/prospect';
 import type { EmpresaDaFicha } from '@/types/fichaReceita';
-import { SeloDeRelacao } from '@/components/prospeccao/receita/SeloDeRelacao';
+import { RelacaoEParceiro } from '@/components/prospeccao/receita/SeloDeRelacao';
 import { AcoesDaEmpresa } from './AcoesDaEmpresa';
 import { useEdicaoDaEmpresa } from './edicaoDaEmpresa';
 import { ICONE_DO_TIPO } from './iconesDoTipo';
@@ -88,7 +88,7 @@ function DonoDaQualificacao({ pagina }: { pagina: EmpresaDaPagina }) {
 export function CabecalhoDaEmpresa(props: { pagina: EmpresaDaPagina; empresa: EmpresaDaFicha }) {
   const { pagina, empresa } = props;
   const nome = nomeDaEmpresa(empresa);
-  const relacao = pagina.ficha.data?.relacao ?? null;
+  const { relacao = null, parceiro = false } = pagina.ficha.data ?? {};
   return (
     <header className="flex items-center justify-between gap-x-6 gap-y-3 max-sm:flex-wrap">
       <div className="flex min-w-0 flex-1 items-center gap-3.5">
@@ -98,7 +98,7 @@ export function CabecalhoDaEmpresa(props: { pagina: EmpresaDaPagina; empresa: Em
         <div className="min-w-0">
           <h1 className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[22px] font-bold leading-tight tracking-tight">
             {nome}
-            {relacao && <SeloDeRelacao relacao={relacao} />}
+            <RelacaoEParceiro relacao={relacao} parceiro={parceiro} />
             <SeloDoTipo pagina={pagina} />
           </h1>
           <LinhaDeIdentificacao pagina={pagina} empresa={empresa} />

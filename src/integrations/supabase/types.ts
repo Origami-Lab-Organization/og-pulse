@@ -8171,14 +8171,14 @@ export type Database = {
       carteira_de_clientes: {
         Args: { p_tenant: string }
         Returns: {
-          client_id: string
+          client_id: string | null
           empresa_id: string | null
           nome: string
           razao_social: string
           cnpj: string | null
           cidade: string | null
           estado: string | null
-          relacao: string
+          relacao: string | null
           projetos_ativos: number
           projetos: number
           projeto_id: string | null
@@ -8189,6 +8189,8 @@ export type Database = {
           ganho_titulo: string | null
           ganho_responsavel: string | null
           ganho_em: string | null
+          parceiro: boolean
+          antes_do_pulse: number | null
         }[]
       }
       can_manage_project: {

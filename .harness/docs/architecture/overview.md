@@ -154,7 +154,7 @@ Fluxo canônico — exemplo real da aba Clientes de Empresas (US-0049), que lê 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant P as Componente<br/>ListaDeClientes.tsx:108-110
+    participant P as Componente<br/>ListaDeClientes.tsx:156-157
     participant H as Hook TanStack Query<br/>useClients.ts:34-42
     participant S as Service<br/>clientService.ts:37-41
     participant C as Cliente Supabase<br/>client.ts:11-17
@@ -165,7 +165,7 @@ sequenceDiagram
     H->>S: clientService.carteira(tenantId)
     S->>C: rpc('carteira_de_clientes', { p_tenant })
     C->>DB: POST /rest/v1/rpc/carteira_de_clientes (JWT do usuário)
-    DB-->>C: linhas da carteira (a função confere a capacidade no tenant)
+    DB-->>C: linhas da carteira, com Parceiros e clientes de antes do Pulse (US-0051)<br/>(a função confere a capacidade no tenant)
     C-->>S: data
     S-->>H: ClienteDaCarteira[]
     H-->>P: { data, isLoading, error }

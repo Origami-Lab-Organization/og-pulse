@@ -19,6 +19,7 @@ export const CAPABILITY_KEYS = [
   'catalogo:editar',
   'catalogo:ler',
   'cliente:ler',
+  'cliente:marcar-antes-do-pulse',
   'conciliacao:pagar',
   'conciliacao:receber',
   'configuracao:editar',

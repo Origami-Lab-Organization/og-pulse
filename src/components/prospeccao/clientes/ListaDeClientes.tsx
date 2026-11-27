@@ -9,20 +9,28 @@ import { rotaDaEmpresa } from '@/lib/prospecting/faseDaEmpresa.constants';
 import { DIGITOS_DO_CNPJ } from '@/lib/prospecting/filiais';
 import { RELACOES_DA_CARTEIRA } from '@/lib/carteira.constants';
 import { clienteNaBusca, relacaoDoCliente } from '@/lib/carteira';
-import { rotuloDaRelacao } from '@/lib/prospecting/relacao';
+import { FILTROS_DE_RELACAO, PARCEIRO } from '@/lib/prospecting/relacao';
 import { formatCNPJ } from '@/lib/masks';
 import { cn } from '@/lib/utils';
 import type { ClienteDaCarteira } from '@/services/clientService';
-import type { Relacao } from '@/types/relacao';
-import { SeloDeRelacao } from '@/components/prospeccao/receita/SeloDeRelacao';
+import type { FiltroDeRelacao } from '@/types/filtrosReceita';
+import { RelacaoEParceiro } from '@/components/prospeccao/receita/SeloDeRelacao';
 import { EstadoVazio } from '@/components/prospeccao/ListaDeCadastro';
 
+/** As opções da carteira: as duas relações de cliente e a marca Parceiro (US-0051). */
+const FILTROS_DA_CARTEIRA: readonly FiltroDeRelacao[] = [...RELACOES_DA_CARTEIRA, PARCEIRO];
+
+const rotuloDoFiltro = (f: FiltroDeRelacao) => FILTROS_DE_RELACAO.find((o) => o.valor === f)?.rotulo ?? f;
+
+/** O cliente entra no filtro: Parceiro pela marca; as relações pela relação. */
+const noFiltro = (c: ClienteDaCarteira, f: FiltroDeRelacao) => (f === PARCEIRO ? c.parceiro : c.relacao === f);
+
 /** Filtro de relação: todas, ou uma delas. */
-function FiltroDeRelacao(props: { valor: Relacao | null; onChange: (valor: Relacao | null) => void; contagem: Record<string, number> }) {
-  const { valor, onChange, contagem } = props;
-  const opcoes: ReadonlyArray<{ valor: Relacao | null; rotulo: string; n: number }> = [
-    { valor: null, rotulo: 'Todas', n: Object.values(contagem).reduce((a, b) => a + b, 0) },
-    ...RELACOES_DA_CARTEIRA.map((r) => ({ valor: r, rotulo: rotuloDaRelacao(r), n: contagem[r] ?? 0 })),
+function FiltroDeRelacao(props: { valor: FiltroDeRelacao | null; onChange: (valor: FiltroDeRelacao | null) => void; total: number; contagem: Record<string, number> }) {
+  const { valor, onChange, total, contagem } = props;
+  const opcoes: ReadonlyArray<{ valor: FiltroDeRelacao | null; rotulo: string; n: number }> = [
+    { valor: null, rotulo: 'Todas', n: total },
+    ...FILTROS_DA_CARTEIRA.map((r) => ({ valor: r, rotulo: rotuloDoFiltro(r), n: contagem[r] ?? 0 })),
   ];
   return (
     <div role="radiogroup" aria-label="Relação com a Origami" className="flex flex-wrap gap-1.5">
@@ -62,7 +70,7 @@ function LinhaDoCliente(props: { cliente: ClienteDaCarteira; onAbrir: (cliente: 
           {cliente.cnpj ? formatCNPJ(cliente.cnpj) : '—'}
         </div>
       </td>
-      <td className="whitespace-nowrap px-3 py-2"><SeloDeRelacao relacao={relacaoDoCliente(cliente)} /></td>
+      <td className="whitespace-nowrap px-3 py-2"><RelacaoEParceiro relacao={relacaoDoCliente(cliente)} parceiro={cliente.parceiro} /></td>
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
         {cliente.projetos_ativos} / {cliente.projetos}
       </td>
@@ -86,7 +94,7 @@ function TabelaDeClientes(props: { clientes: ClienteDaCarteira[]; onAbrir: (clie
           </tr>
         </thead>
         <tbody>
-          {clientes.map((c) => <LinhaDoCliente key={c.client_id} cliente={c} onAbrir={onAbrir} />)}
+          {clientes.map((c) => <LinhaDoCliente key={c.client_id ?? c.cnpj ?? c.nome} cliente={c} onAbrir={onAbrir} />)}
         </tbody>
       </table>
     </div>
@@ -105,25 +113,52 @@ function Carregando() {
  * Aba Clientes da tela Empresas (US-0049): a carteira — empresas com Ganho ou projeto (ADR-0056).
  * Quem só tem `cliente:ler` vê só esta aba. A linha abre a ficha do cliente.
  */
-export function ListaDeClientes() {
-  const navigate = useNavigate();
-  const { data: carteira = [], isLoading } = useCarteiraDeClientes();
-  const [busca, setBusca] = useState('');
-  const [relacao, setRelacao] = useState<Relacao | null>(null);
-
+/** A carteira na busca, a contagem de cada filtro e o que fica visível com o filtro escolhido. */
+function useCarteiraFiltrada(carteira: ClienteDaCarteira[], busca: string, relacao: FiltroDeRelacao | null) {
   const naBusca = useMemo(() => carteira.filter((c) => clienteNaBusca(c, busca)), [carteira, busca]);
   const contagem = useMemo(
-    () => Object.fromEntries(RELACOES_DA_CARTEIRA.map((r) => [r, naBusca.filter((c) => c.relacao === r).length])),
+    () => Object.fromEntries(FILTROS_DA_CARTEIRA.map((r) => [r, naBusca.filter((c) => noFiltro(c, r)).length])),
     [naBusca],
   );
-  const visiveis = relacao ? naBusca.filter((c) => c.relacao === relacao) : naBusca;
+  const visiveis = relacao ? naBusca.filter((c) => noFiltro(c, relacao)) : naBusca;
+  return { naBusca, contagem, visiveis };
+}
+
+/**
+ * US-0053: com a Prospecção, o cliente abre na página da empresa; só com a carteira, na ficha do
+ * cliente. O Parceiro sem cliente cadastrado (US-0051) só abre pela página da empresa.
+ */
+function useAbrirCliente() {
+  const navigate = useNavigate();
   const { can } = useAuth();
-  // US-0053: com a Prospecção, o cliente abre na página da empresa; só com a carteira, na ficha do cliente.
-  const abrir = (c: ClienteDaCarteira) => {
+  return (c: ClienteDaCarteira) => {
     const cnpj = (c.cnpj ?? '').replace(/\D/g, '');
     if (can('prospeccao:ler') && cnpj.length === DIGITOS_DO_CNPJ) navigate(rotaDaEmpresa(cnpj), { state: { de: 'clientes' } });
-    else navigate(`/clients/${c.client_id}`);
+    else if (c.client_id) navigate(`/clients/${c.client_id}`);
   };
+}
+
+interface CorpoProps {
+  carregando: boolean;
+  clientes: ClienteDaCarteira[];
+  /** Há busca ou filtro: o vazio diz que nada bate, não que a carteira está vazia. */
+  filtrada: boolean;
+  onAbrir: (cliente: ClienteDaCarteira) => void;
+}
+
+function CorpoDaCarteira(props: CorpoProps) {
+  const { carregando, clientes, filtrada, onAbrir } = props;
+  if (carregando) return <Carregando />;
+  if (!clientes.length) return <EstadoVazio titulo="Nenhum cliente" texto={filtrada ? 'Nada com esses filtros.' : 'A carteira está vazia.'} />;
+  return <TabelaDeClientes clientes={clientes} onAbrir={onAbrir} />;
+}
+
+export function ListaDeClientes() {
+  const { data: carteira = [], isLoading } = useCarteiraDeClientes();
+  const [busca, setBusca] = useState('');
+  const [relacao, setRelacao] = useState<FiltroDeRelacao | null>(null);
+  const { naBusca, contagem, visiveis } = useCarteiraFiltrada(carteira, busca, relacao);
+  const abrir = useAbrirCliente();
 
   return (
     <div className="space-y-3">
@@ -138,14 +173,10 @@ export function ListaDeClientes() {
             className="h-8 pl-8 text-[13px]"
           />
         </div>
-        <FiltroDeRelacao valor={relacao} onChange={setRelacao} contagem={contagem} />
+        <FiltroDeRelacao valor={relacao} onChange={setRelacao} total={naBusca.length} contagem={contagem} />
       </div>
       <div className="overflow-hidden rounded-xl border bg-card">
-        {isLoading && <Carregando />}
-        {!isLoading && visiveis.length === 0 && (
-          <EstadoVazio titulo="Nenhum cliente" texto={busca || relacao !== null ? 'Nada com esses filtros.' : 'A carteira está vazia.'} />
-        )}
-        {!isLoading && visiveis.length > 0 && <TabelaDeClientes clientes={visiveis} onAbrir={abrir} />}
+        <CorpoDaCarteira carregando={isLoading} clientes={visiveis} filtrada={!!busca || relacao !== null} onAbrir={abrir} />
       </div>
     </div>
   );

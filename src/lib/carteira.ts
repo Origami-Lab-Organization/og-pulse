@@ -1,8 +1,12 @@
 import type { ClienteDaCarteira } from '@/services/clientService';
 import type { Relacao, RelacaoDaEmpresa } from '@/types/relacao';
 
-/** A relação no formato do selo da US-0019: o projeto que a explica, ou o Ganho. */
-export function relacaoDoCliente(c: ClienteDaCarteira): RelacaoDaEmpresa {
+/**
+ * A relação no formato do selo da US-0019: o projeto que a explica, o Ganho ou o ano de antes do
+ * Pulse (US-0051). Nula para o Parceiro que não é cliente.
+ */
+export function relacaoDoCliente(c: ClienteDaCarteira): RelacaoDaEmpresa | null {
+  if (!c.relacao) return null;
   return {
     relacao: c.relacao as Relacao,
     pediuParaParar: false,
@@ -12,6 +16,7 @@ export function relacaoDoCliente(c: ClienteDaCarteira): RelacaoDaEmpresa {
     oportunidade: c.ganho_id
       ? { id: c.ganho_id, title: c.ganho_titulo, stage: 'ganho', owner_id: c.ganho_responsavel, discard_reason: null, data: c.ganho_em }
       : null,
+    antesDoPulse: c.antes_do_pulse,
   };
 }
 

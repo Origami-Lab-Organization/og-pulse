@@ -136,6 +136,11 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 27/11/2026: 20261127120000 — US-0051: nova tabela prospect_marcas_da_empresa (FK tenants e
+#  employees; chave pela raiz do CNPJ, sem FK para a base, que mora na VPS, como as decisões da Base):
+#  marca Parceiro e o ano de "Cliente antes do Pulse". carteira_de_clientes passa a trazer as empresas
+#  marcadas (colunas parceiro e antes_do_pulse). Conferida contra DadosDaRelacao
+#  (supabase/functions/_shared/relacaoTipos.ts) e MarcaDaEmpresa (src/types/marcasDaEmpresa.ts).
 # 27/11/2026: 20261127100000 — US-0056: prospect_companies ganha faturamento_min/max/confianca/fonte e
 #  funcionarios_min/max/base/confianca/fonte (faixa, origem, confiança e fonte do que o time informa;
 #  o ponto médio fica em faturamento_anual e funcionarios_informados). A faixa do LinkedIn
@@ -262,6 +267,8 @@ erDiagram
     employees |o--o{ prospect_company_estudo : "created_by"
     tenants ||--o| onedrive_do_comercial : "pasta do Comercial no OneDrive (US-0053)"
     employees |o--o{ prospect_decisoes_da_base : "decidida_por, desfeita_por"
+    tenants ||--o{ prospect_marcas_da_empresa : "Parceiro e Cliente antes do Pulse, pela raiz do CNPJ (US-0051)"
+    employees |o--o{ prospect_marcas_da_empresa : "atualizada_por"
     prospects |o--o{ projects : "projects.prospect_id (projeto do Ganho)"
 
     prospect_companies {

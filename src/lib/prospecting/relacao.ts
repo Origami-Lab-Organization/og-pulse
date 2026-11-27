@@ -1,8 +1,8 @@
-import { RELACOES } from '../../../supabase/functions/_shared/relacao';
+import { FILTRO_DE_PARCEIRO, RELACOES } from '../../../supabase/functions/_shared/relacao';
 import { formatarData } from '@/lib/prospecting/prazos';
 import { PROJECT_STATUS_LABELS } from '@/types/project';
 import { getDiscardReasonLabel, getProspectStageLabel, type ProspectStage } from '@/types/prospect';
-import type { Opcao } from '@/types/filtrosReceita';
+import type { FiltroDeRelacao, Opcao } from '@/types/filtrosReceita';
 import { rotuloDoMotivoDoDescarte } from '@/lib/prospecting/decisoesDaBase';
 import type { DecisaoDaRelacao, OportunidadeDaRelacao, ProjetoDaRelacao, Relacao, RelacaoDaEmpresa } from '@/types/relacao';
 
@@ -12,6 +12,10 @@ import type { DecisaoDaRelacao, OportunidadeDaRelacao, ProjetoDaRelacao, Relacao
  */
 
 export const RELACOES_DA_ORIGAMI: ReadonlyArray<Opcao<Relacao>> = RELACOES;
+
+/** O filtro de relação: as relações e, no fim, a marca Parceiro (US-0051). */
+export const FILTROS_DE_RELACAO: ReadonlyArray<Opcao<FiltroDeRelacao>> = [...RELACOES, FILTRO_DE_PARCEIRO];
+export const PARCEIRO = FILTRO_DE_PARCEIRO.valor;
 
 export const SEM_SUCESSO: Relacao = 'sem_sucesso';
 
@@ -70,13 +74,16 @@ function textoDoGanho(o: OportunidadeDaRelacao): string {
   return `Ganho${quando ? ` em ${quando}` : ''}.`;
 }
 
+const semOrigem = (r: RelacaoDaEmpresa) => !r.projeto && !r.oportunidade && r.antesDoPulse == null;
+
 const DETALHES: Record<Relacao, (r: RelacaoDaEmpresa, nomeDe: NomeDe) => Array<string | null>> = {
   cliente_ativo: (r, nomeDe) => [r.projeto && textoDoProjeto(r.projeto), r.oportunidade && textoEmAndamento(r.oportunidade, nomeDe)],
   sendo_abordada: (r, nomeDe) => [r.oportunidade && textoEmAndamento(r.oportunidade, nomeDe)],
   ja_foi_cliente: (r) => [
+    r.antesDoPulse != null ? `Antes do Pulse · ${r.antesDoPulse}` : null,
     r.projeto ? textoDoProjeto(r.projeto) : null,
     r.oportunidade ? textoDoGanho(r.oportunidade) : null,
-    !r.projeto && !r.oportunidade ? 'Está no cadastro de clientes.' : null,
+    semOrigem(r) ? 'Está no cadastro de clientes.' : null,
   ],
   retomar: (r, nomeDe) => [r.decisao ? textoDoNaoAgora(r.decisao, nomeDe) : null, 'A data chegou: veja se agora é o momento de qualificar.'],
   nao_agora: (r, nomeDe) => [r.decisao ? textoDoNaoAgora(r.decisao, nomeDe) : null],

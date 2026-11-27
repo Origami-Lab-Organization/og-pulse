@@ -10,10 +10,10 @@
 // Deno — testado em 16/11/2026, estoura o tempo de conexão.
 //
 // Corpo (US-0003, US-0005), por modo:
-//   pagina (padrão): { ordem, crescente, pagina, filtros, busca? } → { carregada_em, total_da_base, linhas[] (com relacao), relacao_indisponivel }
+//   pagina (padrão): { ordem, crescente, pagina, filtros, busca? } → { carregada_em, total_da_base, linhas[] (com relacao e parceiro), relacao_indisponivel }
 //   total:           { modo: 'total', filtros, busca? }            → { total, limitado }  (conta até 100 mil)
 //   cnaes:           { modo: 'cnaes', termo }                      → { cnaes: [{ codigo, descricao }] }
-//   ficha:           { modo: 'ficha', cnpj }                       → { empresa, contato, socios[], oportunidades[], relacao, historico }  (US-0007, US-0019)
+//   ficha:           { modo: 'ficha', cnpj }                       → { empresa, contato, socios[], oportunidades[], relacao, historico, parceiro }  (US-0007, US-0019, US-0051)
 // A página e o total vêm separados: a lista aparece sem esperar a contagem.
 // `busca` (US-0005): só números, a partir de 5, procura o começo do CNPJ e ignora os filtros
 // (os 14 de uma filial acham a matriz); outro texto, a partir de 3 letras, procura no nome e
@@ -21,7 +21,7 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Pool } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
-import { ESCONDIDAS_POR_PADRAO, raizDoCnpj, RELACOES, relacaoDaEmpresa } from "../_shared/relacao.ts";
+import { ESCONDIDAS_POR_PADRAO, PARCEIRO, raizDoCnpj, RELACOES, relacaoDaEmpresa } from "../_shared/relacao.ts";
 import type { DadosDaRelacao, DecisaoDaRelacao, RelacaoDaEmpresa } from "../_shared/relacaoTipos.ts";
 
 const corsHeaders = {
@@ -224,7 +224,7 @@ interface Filtros {
   escondidas: string[] | null;
 }
 
-const RELACAO_VALIDA = new Set<string>(RELACOES.map((r) => r.valor));
+const RELACAO_VALIDA = new Set<string>([...RELACOES.map((r) => r.valor), PARCEIRO]);
 
 function listaDe(valor: unknown, aceito: (v: string) => boolean, nome: string): string[] {
   if (valor === undefined) return [];
@@ -706,11 +706,14 @@ interface ProjetoDoTenant {
 
 interface DecisaoDoTenant extends DecisaoDaRelacao { cnpj_raiz: string }
 
+/** Parceiro e "Cliente antes do Pulse" (US-0051), pela raiz do CNPJ. */
+interface MarcaDoTenant { cnpj_raiz: string; parceiro: boolean; cliente_antes_do_pulse: number | null }
+
 const dia = (valor: string | null | undefined) => (valor ? valor.slice(0, 10) : null);
 
-/** Lê clientes, empresas da Prospecção, oportunidades, projetos e decisões do tenant, com a RLS da pessoa. */
+/** Lê clientes, empresas da Prospecção, oportunidades, projetos, decisões e marcas do tenant, com a RLS da pessoa. */
 async function lerDoTenant(sessao: SupabaseClient) {
-  const [empresas, clientes, oportunidades, projetos, decisoes] = await Promise.all([
+  const [empresas, clientes, oportunidades, projetos, decisoes, marcas] = await Promise.all([
     todas<EmpresaDoTenant>((de, ate) => sessao.from("prospect_companies").select("id, cnpj, client_id").not("cnpj", "is", null).range(de, ate)),
     todas<ClienteDoTenant>((de, ate) => sessao.from("clients").select("id, cnpj").not("cnpj", "is", null).range(de, ate)),
     todas<OportunidadeDoTenant>((de, ate) =>
@@ -725,8 +728,11 @@ async function lerDoTenant(sessao: SupabaseClient) {
         .is("desfeita_em", null)
         .range(de, ate)
     ),
+    todas<MarcaDoTenant>((de, ate) =>
+      sessao.from("prospect_marcas_da_empresa").select("cnpj_raiz, parceiro, cliente_antes_do_pulse").range(de, ate)
+    ),
   ]);
-  return { empresas, clientes, oportunidades, projetos, decisoes };
+  return { empresas, clientes, oportunidades, projetos, decisoes, marcas };
 }
 
 type DoTenant = Awaited<ReturnType<typeof lerDoTenant>>;
@@ -791,6 +797,13 @@ class Agrupador {
     this.dados(cnpj_raiz).decisao = decisao;
   }
 
+  /** Parceiro e "Cliente antes do Pulse" (US-0051). */
+  marca({ cnpj_raiz, parceiro, cliente_antes_do_pulse }: MarcaDoTenant) {
+    const d = this.dados(cnpj_raiz);
+    d.parceiro = parceiro;
+    d.antesDoPulse = cliente_antes_do_pulse;
+  }
+
   private anotarProjeto(raiz: string, projeto: DadosDaRelacao["projetos"][number]) {
     const chave = `${raiz}:${projeto.id}`;
     if (this.projetosVistos.has(chave)) return;
@@ -803,13 +816,14 @@ class Agrupador {
   }
 }
 
-function agrupar({ empresas, clientes, oportunidades, projetos, decisoes }: DoTenant): Map<string, DadosDaRelacao> {
+function agrupar({ empresas, clientes, oportunidades, projetos, decisoes, marcas }: DoTenant): Map<string, DadosDaRelacao> {
   const g = new Agrupador();
   clientes.forEach((c) => g.cliente(c));
   empresas.forEach((e) => g.empresa(e));
   oportunidades.forEach((o) => g.oportunidade(o));
   projetos.forEach((p) => g.projeto(p));
   decisoes.forEach((d) => g.decisao(d));
+  marcas.forEach((m) => g.marca(m));
   return g.resultado();
 }
 
@@ -817,18 +831,26 @@ async function dadosDaRelacao(sessao: SupabaseClient): Promise<Map<string, Dados
   return agrupar(await lerDoTenant(sessao));
 }
 
-function relacoesPorRaiz(dados: Map<string, DadosDaRelacao>): Map<string, RelacaoDaEmpresa> {
+/** A relação calculada de cada raiz e as raízes marcadas como Parceiro (US-0051). */
+interface RelacoesDoTenant {
+  porRaiz: Map<string, RelacaoDaEmpresa>;
+  parceiros: Set<string>;
+}
+
+function relacoesPorRaiz(dados: Map<string, DadosDaRelacao>): RelacoesDoTenant {
   const hoje = new Date();
-  const mapa = new Map<string, RelacaoDaEmpresa>();
+  const porRaiz = new Map<string, RelacaoDaEmpresa>();
+  const parceiros = new Set<string>();
   for (const [raiz, d] of dados) {
     const r = relacaoDaEmpresa(d, hoje);
-    if (r) mapa.set(raiz, r);
+    if (r) porRaiz.set(raiz, r);
+    if (d.parceiro) parceiros.add(raiz);
   }
-  return mapa;
+  return { porRaiz, parceiros };
 }
 
 /** A relação de todas as empresas do tenant; nulo se a leitura falhar (cenário 9). */
-async function relacoesSeguras(sessao: SupabaseClient): Promise<Map<string, RelacaoDaEmpresa> | null> {
+async function relacoesSeguras(sessao: SupabaseClient): Promise<RelacoesDoTenant | null> {
   try {
     return relacoesPorRaiz(await dadosDaRelacao(sessao));
   } catch {
@@ -841,22 +863,28 @@ async function relacoesSeguras(sessao: SupabaseClient): Promise<Map<string, Rela
  * Sem os dados do tenant, o filtro não acha ninguém, e a resposta avisa (cenário 9). Sem filtro
  * de relação, as descartadas e as em "Não agora" saem da lista (US-0010).
  */
-function comRaizes(filtros: Filtros, relacoes: Map<string, RelacaoDaEmpresa> | null): Filtros {
+function comRaizes(filtros: Filtros, relacoes: RelacoesDoTenant | null): Filtros {
   if (!filtros.relacoes.length) return { ...filtros, escondidas: escondidas(relacoes) };
   if (!relacoes) return { ...filtros, raizes: [] };
   const marcadas = new Set(filtros.relacoes);
-  return { ...filtros, raizes: [...relacoes].filter(([, r]) => marcadas.has(r.relacao)).map(([raiz]) => raiz) };
+  const pelaRelacao = [...relacoes.porRaiz].filter(([, r]) => marcadas.has(r.relacao)).map(([raiz]) => raiz);
+  // "Parceiro" (US-0051) soma as empresas marcadas às das relações escolhidas.
+  const parceiros = marcadas.has(PARCEIRO) ? [...relacoes.parceiros] : [];
+  return { ...filtros, raizes: [...new Set([...pelaRelacao, ...parceiros])] };
 }
 
-function escondidas(relacoes: Map<string, RelacaoDaEmpresa> | null): string[] | null {
+function escondidas(relacoes: RelacoesDoTenant | null): string[] | null {
   if (!relacoes) return null;
-  return [...relacoes].filter(([, r]) => ESCONDIDAS_POR_PADRAO.has(r.relacao)).map(([raiz]) => raiz);
+  return [...relacoes.porRaiz].filter(([, r]) => ESCONDIDAS_POR_PADRAO.has(r.relacao)).map(([raiz]) => raiz);
 }
 
-/** A relação de cada linha da página; sem os dados, a lista aparece sem ela. */
-function comRelacao(linhas: LinhaDaPagina[], relacoes: Map<string, RelacaoDaEmpresa> | null): LinhaDaPagina[] {
+/** A relação e a marca Parceiro de cada linha da página; sem os dados, a lista aparece sem elas. */
+function comRelacao(linhas: LinhaDaPagina[], relacoes: RelacoesDoTenant | null): LinhaDaPagina[] {
   if (!relacoes) return linhas;
-  return linhas.map((l) => ({ ...l, relacao: relacoes.get(l.cnpj.slice(0, 8)) ?? null }));
+  return linhas.map((l) => {
+    const raiz = l.cnpj.slice(0, 8);
+    return { ...l, relacao: relacoes.porRaiz.get(raiz) ?? null, parceiro: relacoes.parceiros.has(raiz) };
+  });
 }
 
 // Até aqui, a página separa as empresas filtradas antes de ordenar.
@@ -884,7 +912,7 @@ async function pagina(cliente: Cliente, pedidoOriginal: Extract<Pedido, { modo: 
   const { ordem, pagina, filtros, busca } = pedido;
   const { where, valores, pelaSecundaria } = condicoesDaBusca(filtros, busca, 3);
   const poucas = await saoPoucas(cliente, pedido);
-  const rel = sqlDaRelacao(relacoes, pedido.porRelacao, 3 + valores.length);
+  const rel = sqlDaRelacao(relacoes?.porRaiz ?? null, pedido.porRelacao, 3 + valores.length);
   const linhas = await cliente.queryObject(
     `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, c.descricao AS cnae_descricao,
           e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.capital_social::float8 AS capital_social, e.distancia_km, e.funcionarios,
@@ -988,9 +1016,9 @@ async function oportunidadesDaEmpresa(sessao: SupabaseClient, cnpj: string) {
 async function relacaoDaFicha(sessao: SupabaseClient, cnpj: string) {
   try {
     const dados = (await dadosDaRelacao(sessao)).get(cnpj.slice(0, 8)) ?? { cliente: false, projetos: [], oportunidades: [] };
-    return { relacao: relacaoDaEmpresa(dados, new Date()), historico: dados, relacao_indisponivel: false };
+    return { relacao: relacaoDaEmpresa(dados, new Date()), historico: dados, parceiro: !!dados.parceiro, relacao_indisponivel: false };
   } catch {
-    return { relacao: null, historico: null, relacao_indisponivel: true };
+    return { relacao: null, historico: null, parceiro: false, relacao_indisponivel: true };
   }
 }
 

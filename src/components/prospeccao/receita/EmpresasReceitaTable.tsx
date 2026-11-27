@@ -149,7 +149,7 @@ function Linha(props: LinhaProps) {
           {local && <span>{local}</span>}
         </div>
       </td>
-      <td className="whitespace-nowrap px-3 py-2"><CelulaDeRelacao relacao={empresa.relacao} indisponivel={relacaoIndisponivel} /></td>
+      <td className="whitespace-nowrap px-3 py-2"><CelulaDeRelacao relacao={empresa.relacao} parceiro={empresa.parceiro} indisponivel={relacaoIndisponivel} /></td>
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
         {empresa.distancia_km != null ? `${empresa.distancia_km.toLocaleString('pt-BR')} km` : <span title="Município não reconhecido">—</span>}
       </td>

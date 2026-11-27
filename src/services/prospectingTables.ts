@@ -22,6 +22,7 @@ export type TabelaDeProspeccao =
   | 'prospect_company_partners'
   | 'prospect_bant_evidencias'
   | 'prospect_decisoes_da_base'
+  | 'prospect_marcas_da_empresa'
   | 'prospect_company_estudo'
   | 'onedrive_do_comercial';
 
