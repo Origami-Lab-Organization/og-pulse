@@ -12,6 +12,7 @@ import { CAMPO_DA_EMPRESA, SECAO_DA_EMPRESA, TAMANHO_MAXIMO_DO_ARQUIVO, TIPO_DE_
 import type { ProspectCompanyDB } from '@/types/prospect';
 import { Secao } from './PecasDaPagina';
 import { ListaDoEstudo, NovaNota, NovoLink } from './ItensDoEstudo';
+import { InsightsDaIA } from './InsightsDaIA';
 import { useEdicaoDaEmpresa } from './edicaoDaEmpresa';
 
 type Formulario = typeof TIPO_DE_ITEM_DO_ESTUDO.LINK | typeof TIPO_DE_ITEM_DO_ESTUDO.NOTA | null;
@@ -114,6 +115,7 @@ export function SecaoEstudo({ empresa }: { empresa: ProspectCompanyDB }) {
     <Secao id={SECAO_DA_EMPRESA.ESTUDO} titulo="Estudo da conta" acao={podeEditar ? <Acoes empresa={empresa} onAbrir={setFormulario} /> : undefined}>
       {formulario === TIPO_DE_ITEM_DO_ESTUDO.LINK && <NovoLink companyId={empresa.id} onFechar={fechar} />}
       {formulario === TIPO_DE_ITEM_DO_ESTUDO.NOTA && <NovaNota companyId={empresa.id} onFechar={fechar} />}
+      <InsightsDaIA companyId={empresa.id} />
       <Sintese empresa={empresa} podeEditar={podeEditar} />
       <ListaDoEstudo companyId={empresa.id} itens={itens} podeEditar={podeEditar} />
     </Secao>

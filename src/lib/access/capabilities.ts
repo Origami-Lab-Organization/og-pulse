@@ -72,6 +72,7 @@ export const CAPABILITY_KEYS = [
   'projeto:gerir-qualquer',
   'projeto:ler',
   'prospeccao:editar',
+  'prospeccao:gerar-insights',
   'prospeccao:ler',
   'remuneracao-pessoa:editar',
   'remuneracao-pessoa:ler',

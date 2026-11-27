@@ -24,6 +24,9 @@ export type TabelaDeProspeccao =
   | 'prospect_decisoes_da_base'
   | 'prospect_marcas_da_empresa'
   | 'prospect_company_estudo'
+  | 'prospect_insights_pedidos'
+  | 'prospect_company_insights'
+  | 'prospect_porte_propostas'
   | 'onedrive_do_comercial';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver comentário acima
@@ -34,7 +37,7 @@ export function tabela(nome: TabelaDeProspeccao) {
 }
 
 /** RPCs da prospecção criadas depois da última geração de tipos (20260928160000). */
-export type RpcDeProspeccao = 'set_prospect_stage' | 'mark_prospect_won' | 'save_prospect_company_receita';
+export type RpcDeProspeccao = 'set_prospect_stage' | 'mark_prospect_won' | 'save_prospect_company_receita' | 'insights_runner_disponivel';
 
 export function rpc(nome: RpcDeProspeccao, args: Record<string, unknown>) {
   return clienteSemTipos.rpc(nome, args);

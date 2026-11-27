@@ -1,0 +1,19 @@
+{
+  "name": "@og-pulse/insights-runner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Runner local dos insights de IA da página da empresa (US-0057, ADR-0057)",
+  "type": "module",
+  "scripts": {
+    "start": "tsx --env-file=$HOME/.og-pulse/insights-runner.env src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.2",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

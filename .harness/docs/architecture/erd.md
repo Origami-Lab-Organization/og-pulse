@@ -136,6 +136,12 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 27/11/2026: 20261127160000 — US-0057: novas tabelas prospect_insights_runners (PK user_id, FK
+#  auth.users e tenants: sinal de vida do runner), prospect_insights_pedidos (FK tenants,
+#  prospect_companies e auth.users: a fila), prospect_company_insights (FK tenants, prospect_companies,
+#  pedidos e auth.users: uma versão por geração, temas em jsonb só com itens com fonte) e
+#  prospect_porte_propostas (FK tenants, prospect_companies, insights e employees: faixa proposta,
+#  aceita ou recusada pela pessoa). Conferidas contra src/types/insights.ts.
 # 27/11/2026: 20261127120000 — US-0051: nova tabela prospect_marcas_da_empresa (FK tenants e
 #  employees; chave pela raiz do CNPJ, sem FK para a base, que mora na VPS, como as decisões da Base):
 #  marca Parceiro e o ano de "Cliente antes do Pulse". carteira_de_clientes passa a trazer as empresas
@@ -269,6 +275,12 @@ erDiagram
     employees |o--o{ prospect_decisoes_da_base : "decidida_por, desfeita_por"
     tenants ||--o{ prospect_marcas_da_empresa : "Parceiro e Cliente antes do Pulse, pela raiz do CNPJ (US-0051)"
     employees |o--o{ prospect_marcas_da_empresa : "atualizada_por"
+    tenants ||--o{ prospect_insights_runners : "sinal de vida do runner de insights (US-0057)"
+    prospect_companies ||--o{ prospect_insights_pedidos : "fila de insights de IA (US-0057)"
+    prospect_companies ||--o{ prospect_company_insights : "versões dos insights de IA (US-0057)"
+    prospect_insights_pedidos |o--o{ prospect_company_insights : "pedido_id"
+    prospect_company_insights ||--o{ prospect_porte_propostas : "proposta de porte, aceita ou recusada (US-0057)"
+    employees |o--o{ prospect_porte_propostas : "decidida_por"
     prospects |o--o{ projects : "projects.prospect_id (projeto do Ganho)"
 
     prospect_companies {
