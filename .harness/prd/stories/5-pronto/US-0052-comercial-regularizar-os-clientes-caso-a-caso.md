@@ -1,6 +1,6 @@
 # US-0052 — Regularizar os clientes atuais, caso a caso
 
-- **Status:** Em desenvolvimento
+- **Status:** Pronto
 - **Tipo:** história
 - **Prontidão:** PRONTA
 - **Épico:** Empresa e cliente (épico 2 do roadmap em `prd/refino-fluxo-comercial-a-projeto.md`)
@@ -86,6 +86,9 @@ O retrato de 27/11/2026, por nome além da ligação, mostrou empresas que o de 
   transação desfeita). Confere na mesma transação as contagens e "um cliente, uma empresa".
 - **Edge Function** `empresas-receita` (`_shared/relacao.ts`), publicada em 27/11/2026: o cadastro de
   clientes só liga os projetos à raiz do CNPJ.
+- **Cidade** (pedido do Victor ao conferir, 27/11/2026): na aba Clientes e em toda a Prospecção, a
+  cidade sai como "Cidade · UF" com o nome do IBGE, acentuado (`src/lib/prospecting/cidade.ts`),
+  inclusive os 18 municípios que a Receita grafa pelo nome antigo.
 - **Receita** das empresas que ganharam CNPJ (99, P.IN, Facilita Minas, Integrar, UNIFOR-MG, GFSIS,
   Rodosafra) consultada pela Prospecção depois da migration.
 
