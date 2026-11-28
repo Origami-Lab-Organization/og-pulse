@@ -60,6 +60,8 @@ interface AppLayoutProps {
   title: string;
   description?: string;
   breadcrumbs?: { label: string; href?: string }[];
+  /** Trilha na barra do topo, no lugar do título (US-0053). */
+  trail?: ReactNode;
   actions?: ReactNode;
   hideHeader?: boolean;
   /**
@@ -98,12 +100,12 @@ function pageActions(financialValues: boolean, actions: ReactNode): ReactNode {
  * comporta botões, então as ações descem para a primeira linha do conteúdo.
  */
 function usePageHeader(props: AppLayoutProps) {
-  const { title, description, actions, hideHeader = false, financialValues = false } = props;
+  const { title, description, actions, trail, hideHeader = false, financialValues = false } = props;
   const isMobile = useIsMobile();
   const allActions = pageActions(financialValues, actions);
   if (hideHeader) return { page: undefined, contentActions: null };
   return {
-    page: { title, description, actions: isMobile ? null : allActions },
+    page: { title, description, trail, actions: isMobile ? null : allActions },
     contentActions: isMobile ? allActions : null,
   };
 }

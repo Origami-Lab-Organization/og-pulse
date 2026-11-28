@@ -22,6 +22,25 @@ export const useClients = () => {
   });
 };
 
+/** US-0049: a empresa do cliente; com ela, a identificação do cliente fica travada. */
+export const useEmpresaDoCliente = (clientId: string | undefined) =>
+  useQuery({
+    queryKey: ['empresa-do-cliente', clientId],
+    queryFn: () => clientService.empresaLigada(clientId as string),
+    enabled: !!clientId,
+  });
+
+/** US-0049: a carteira da aba Clientes de Empresas. */
+export const useCarteiraDeClientes = () => {
+  const { employee } = useAuth();
+  const tenantId = employee?.tenant_id;
+  return useQuery({
+    queryKey: ['carteira-de-clientes', tenantId],
+    queryFn: () => clientService.carteira(tenantId as string),
+    enabled: !!tenantId,
+  });
+};
+
 export const useClient = (id: string | undefined) => {
   const { employee } = useAuth();
   const tenantId = employee?.tenant_id;

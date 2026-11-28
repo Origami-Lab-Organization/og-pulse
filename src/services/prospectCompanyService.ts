@@ -1,4 +1,5 @@
 import { todasAsPaginas } from '@/lib/paginacao';
+import type { CamposDaPagina } from '@/types/paginaDaEmpresa';
 import { tabela } from '@/services/prospectingTables';
 import { supabase } from '@/integrations/supabase/client';
 import type { ClientOption } from '@/types/cnpjLookup';
@@ -82,9 +83,34 @@ export const prospectCompanyService = {
     const { data, error } = await tabela('prospect_companies')
       .select('*')
       .eq('tenant_id', tenantId)
-      .in('cnpj', cnpjs);
+      // US-0050: o CNPJ pode ser o da matriz ou o de uma filial.
+      .or(`cnpj.in.(${cnpjs.join(',')}),filiais.ov.{${cnpjs.join(',')}}`);
     if (error) throw error;
     return (data || []) as unknown as ProspectCompanyDB[];
+  },
+
+  /** US-0050: a empresa do tenant com este CNPJ, como matriz ou como filial. */
+  async findByAnyCnpj(cnpj: string, tenantId: string): Promise<ProspectCompanyDB | null> {
+    const { data, error } = await tabela('prospect_companies')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .or(`cnpj.eq.${cnpj},filiais.cs.{${cnpj}}`)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return (data as unknown as ProspectCompanyDB) ?? null;
+  },
+
+  /** US-0050: grava as filiais; o banco confere a raiz e recusa CNPJ de outra empresa. */
+  async setFiliais(id: string, filiais: string[]): Promise<void> {
+    const { error } = await tabela('prospect_companies').update({ filiais }).eq('id', id);
+    if (error) throw error;
+  },
+
+  /** US-0050: junta a empresa `de` na `para` (Oportunidades, contatos, cliente) e apaga `de`. */
+  async juntar(de: string, para: string): Promise<void> {
+    const { error } = await supabase.rpc('juntar_empresas', { p_de: de, p_para: para });
+    if (error) throw error;
   },
 
   async findByClientId(clientId: string, tenantId: string): Promise<ProspectCompanyDB | null> {
@@ -130,7 +156,8 @@ export const prospectCompanyService = {
     const digitos = termo.replace(/\D/g, '');
     // Razão social e nome fantasia: a empresa importada por CNPJ leva o fantasia como nome.
     const filtros = [`name.ilike.%${termo}%`, `razao_social.ilike.%${termo}%`, `nome_fantasia.ilike.%${termo}%`];
-    if (digitos) filtros.push(`cnpj.ilike.%${digitos}%`);
+    // US-0050: cnpj_busca tem a matriz e as filiais.
+    if (digitos) filtros.push(`cnpj_busca.ilike.%${digitos}%`);
 
     const { data, error } = await tabela('prospect_companies')
       .select('*')
@@ -163,6 +190,16 @@ export const prospectCompanyService = {
   /** Só o tipo de conta (US-0008), sem regravar o resto da empresa. */
   async setTipoDeConta(id: string, tipo: TipoDeConta): Promise<void> {
     const { error } = await tabela('prospect_companies').update({ tipo_conta: tipo }).eq('id', id);
+    if (error) throw error;
+  },
+
+  /**
+   * Site, redes e síntese editados no lugar, na página da empresa (US-0053): grava só o campo
+   * mexido, sem regravar a empresa. Vazio vira nulo.
+   */
+  async setCampos(id: string, campos: CamposDaPagina): Promise<void> {
+    const limpos = Object.fromEntries(Object.entries(campos).map(([k, v]) => [k, typeof v === 'string' ? v.trim() || null : v]));
+    const { error } = await tabela('prospect_companies').update(limpos).eq('id', id);
     if (error) throw error;
   },
 

@@ -42,6 +42,7 @@ import {
   useDeleteClient,
 } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/AuthContext';
+import { ROTA_DA_CARTEIRA } from '@/lib/carteira.constants';
 import { Client, ClientContact } from '@/types/client';
 import { getProspectStageLabel, opportunityName } from '@/types/prospect';
 import type { CommercialContactSummary } from '@/types/commercialContact';
@@ -323,11 +324,15 @@ const ClientDetailSkeleton = () => (
   </div>
 );
 
+/** US-0049: a ficha do cliente mora em Comercial › Empresas, aba Clientes. */
+const TRILHA = [{ label: 'Comercial' }, { label: 'Empresas', href: ROTA_DA_CARTEIRA }];
+
 const ClientDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { employee, can } = useAuth();
-  const canManage = employee?.is_gerente ?? false;
+  const { can } = useAuth();
+  // US-0049: só o comercial (prospeccao:editar) e o admin mexem no cliente.
+  const canManage = can('prospeccao:editar');
   const canSeeOpportunities = can('prospeccao:ler');
 
   const { data: client, isLoading } = useClient(id);
@@ -350,7 +355,7 @@ const ClientDetail = () => {
       {
         onSuccess: () => {
           setDeleteDialogOpen(false);
-          navigate('/clients');
+          navigate(ROTA_DA_CARTEIRA);
         },
       },
     );
@@ -358,7 +363,7 @@ const ClientDetail = () => {
 
   if (isLoading) {
     return (
-      <AppLayout title="Cliente" breadcrumbs={[{ label: 'Clientes', href: '/clients' }, { label: 'Carregando…' }]}>
+      <AppLayout title="Cliente" breadcrumbs={[...TRILHA, { label: 'Carregando…' }]}>
         <ClientDetailSkeleton />
       </AppLayout>
     );
@@ -366,15 +371,15 @@ const ClientDetail = () => {
 
   if (!client) {
     return (
-      <AppLayout title="Cliente" breadcrumbs={[{ label: 'Clientes', href: '/clients' }, { label: 'Não encontrado' }]}>
+      <AppLayout title="Cliente" breadcrumbs={[...TRILHA, { label: 'Não encontrado' }]}>
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="mb-4 rounded-full bg-muted p-4">
             <Building2 className="h-8 w-8 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-medium text-foreground">Cliente não encontrado</h3>
           <p className="mt-1 text-muted-foreground">Ele pode ter sido removido ou não pertence ao seu acesso.</p>
-          <Button className="mt-4" onClick={() => navigate('/clients')}>
-            Voltar para Clientes
+          <Button className="mt-4" onClick={() => navigate(ROTA_DA_CARTEIRA)}>
+            Voltar para Empresas
           </Button>
         </div>
       </AppLayout>
@@ -406,7 +411,7 @@ const ClientDetail = () => {
     <AppLayout
       title={client.companyName}
       description={client.tradingName || undefined}
-      breadcrumbs={[{ label: 'Clientes', href: '/clients' }, { label: client.companyName }]}
+      breadcrumbs={[...TRILHA, { label: client.companyName }]}
       actions={actions}
     >
       <Tabs defaultValue="dados" className="w-full">

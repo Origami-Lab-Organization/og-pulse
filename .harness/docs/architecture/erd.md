@@ -59,6 +59,13 @@ sources:
   - src/types/portfolio.ts
 # 25/11/2026: services ganha regra_de_fit (20261125116000, US-0047): a regra de fit que o servico usa
 # na Prospeccao; catalogo fora do diagrama.
+# 25/11/2026: prospect_companies ganha filiais e cnpj_busca (20261125124000, US-0050), mantidos pelo
+# gatilho trg_prospect_companies_filiais; juntar_empresas e cnpjs_do_cliente são funções (sem relação
+# nova). Conferido contra ProspectCompanyDB (src/types/prospect.ts) e ensaiado num Postgres local.
+# 25/11/2026: US-0045 e US-0049 (ADR-0056) não mudam colunas nem relações: o cliente passa a nascer da
+# empresa no Ganho (gatilho trg_prospects_ganho_torna_cliente, 20261125121000), copia dela a identificação
+# (trg_prospect_companies_sincroniza_cliente) e a carteira é lida por carteira_de_clientes (20261125122000);
+# o diagrama só ganha o texto da relação clients -> prospect_companies. Ensaiado num Postgres local.
 # 25/11/2026: projects ganha service_revenue_model_id (20261125113000, US-0046): o modelo de receita do
 # projeto, do serviço em service_line (gatilho trg_projects_modelo_do_servico); ensaiado local.
 # 25/11/2026: services ganha desativado e is_active passa a ser derivado (20261125110000, US-0046):
@@ -129,6 +136,11 @@ sources:
 # 19/11/2026: 20261119120000 — etapa `qualificacao` em prospects_stage_valid; nova tabela
 #  prospect_bant_evidencias (FK prospects e tenants; RLS como prospect_activities), conferida
 #  contra EvidenciaBantDB (src/types/bant.ts).
+# 26/11/2026: 20261126100000 — US-0053: nova tabela prospect_company_estudo (FK tenants,
+#  prospect_companies e employees; links, notas e arquivos do estudo da conta, o arquivo mora no
+#  OneDrive), nova tabela onedrive_do_comercial (FK tenants e employees; uma por tenant) e
+#  prospect_companies.onedrive_drive_id/onedrive_item_id. Conferidas contra ItemDoEstudoDaConta e
+#  PastaDoComercial (src/types/paginaDaEmpresa.ts) e ProspectCompanyDB.
 # 24/11/2026: 20261124160000 — prospect_companies ganha o retrato da Base (base_*, US-0014,
 #  ADR-0055) e a função atualizar_retrato_da_base (só service_role); conferido contra ProspectCompanyDB.
 # 23/11/2026: 20261123200000 — nova tabela prospect_decisoes_da_base (FK tenants, prospects e
@@ -214,7 +226,7 @@ o orçamento e o projeto apontam para ele, e as pessoas entram por
 erDiagram
     tenants ||--o{ prospect_companies : ""
     tenants ||--o{ prospects : ""
-    clients |o--o{ prospect_companies : "client_id (quando já é cliente)"
+    clients |o--o{ prospect_companies : "client_id (o cliente nasce da empresa no Ganho, ADR-0056)"
     prospect_companies ||--o{ prospects : "company_id (conta do negócio)"
     tenants ||--o{ prospect_contacts : ""
     prospect_companies ||--o{ prospect_contacts : "company_id (empresa atual — não propaga)"
@@ -238,12 +250,17 @@ erDiagram
     prospect_companies ||--o{ prospect_company_faturamentos : "histórico do faturamento, pelo gatilho (US-0018)"
     employees |o--o{ prospect_company_faturamentos : "informado_por"
     prospects |o--o{ prospect_decisoes_da_base : "Não agora vindo da Perda (US-0010)"
+    prospect_companies ||--o{ prospect_company_estudo : "estudo da conta: links, notas e arquivos (US-0053)"
+    employees |o--o{ prospect_company_estudo : "created_by"
+    tenants ||--o| onedrive_do_comercial : "pasta do Comercial no OneDrive (US-0053)"
     employees |o--o{ prospect_decisoes_da_base : "decidida_por, desfeita_por"
     prospects |o--o{ projects : "projects.prospect_id (projeto do Ganho)"
 
     prospect_companies {
         text name ""
         text cnpj "único por tenant (índice parcial)"
+        text_array filiais "CNPJs das filiais, mesma raiz; nenhum CNPJ de outra empresa (US-0050)"
+        text cnpj_busca "matriz + filiais, para a busca (gatilho)"
         text linkedin_url "único por tenant (índice parcial)"
         text instagram_url "livre — fora da deduplicação"
         text tipo_conta "ancora | ponte | satelite — NULL = sem tipo (US-0008)"

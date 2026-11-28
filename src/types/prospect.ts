@@ -327,6 +327,10 @@ export interface ProspectCompanyDB {
   tenant_id: string;
   name: string;
   cnpj: string | null;
+  /** US-0050: CNPJs das filiais (só dígitos, mesma raiz da matriz). */
+  filiais?: string[];
+  /** US-0050: matriz e filiais juntas, para a busca por parte do CNPJ. */
+  cnpj_busca?: string | null;
   linkedin_url: string | null;
   instagram_url: string | null;
   website: string | null;
@@ -369,6 +373,9 @@ export interface ProspectCompanyDB {
   base_faturamento_estimado?: number | null;
   base_faturamento_base?: string | null;
   base_retrato_em?: string | null;
+  /** US-0053: pasta da empresa no OneDrive do Comercial, criada no primeiro arquivo do estudo. */
+  onedrive_drive_id?: string | null;
+  onedrive_item_id?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
