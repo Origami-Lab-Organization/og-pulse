@@ -1,6 +1,9 @@
 import type { EmpresaReceita } from '@/lib/prospecting/empresasReceita';
 import type { Relacao } from '@/types/relacao';
 
+/** Uma opção do filtro de relação: as relações e a marca Parceiro (US-0051). */
+export type FiltroDeRelacao = Relacao | 'parceiro';
+
 /**
  * Filtros da base da Receita (US-0003). O mesmo formato vai no corpo da Edge Function
  * `empresas-receita`, que aceita só os valores destas listas fechadas.
@@ -132,8 +135,8 @@ export interface FiltrosReceita {
   divida: FiltroDeDivida;
   comEmail: boolean;
   comTelefone: boolean;
-  /** Relação com a Origami (US-0019). */
-  relacoes: Relacao[];
+  /** Relação com a Origami (US-0019) e, desde a US-0051, a marca Parceiro. */
+  relacoes: FiltroDeRelacao[];
   /** O serviço cujo fit a lista mostra, ordena e filtra (US-0014); nulo = a maior nota. */
   servicoDoFit: import('@/types/receita').FitFront | null;
   /** Nota mínima de fit nesse serviço (ou na maior); 0 = qualquer. */

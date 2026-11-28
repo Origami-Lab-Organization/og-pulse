@@ -50,12 +50,14 @@ export interface ProjetoDaRelacao {
 
 /** Tudo que o tenant sabe de uma empresa (pela raiz do CNPJ). */
 export interface DadosDaRelacao {
-  /** Está no cadastro de clientes (pelo CNPJ ou pela ligação da empresa da Prospecção). */
-  cliente: boolean;
   projetos: ProjetoDaRelacao[];
   oportunidades: OportunidadeDaRelacao[];
   /** Descartada ou "Não agora", ainda valendo (US-0010). */
   decisao?: DecisaoDaRelacao | null;
+  /** Marca Parceiro (US-0051): própria, ao lado da relação; não muda o cálculo. */
+  parceiro?: boolean;
+  /** Cliente antes do Pulse, marcado pelo admin com o ano (US-0051). */
+  antesDoPulse?: number | null;
 }
 
 export interface RelacaoDaEmpresa {
@@ -68,4 +70,6 @@ export interface RelacaoDaEmpresa {
   oportunidade: OportunidadeDaRelacao | null;
   /** Retomar, Não agora ou Descartada: a decisão do time (US-0010). */
   decisao?: DecisaoDaRelacao | null;
+  /** Já foi cliente antes do Pulse: o ano marcado pelo admin (US-0051). */
+  antesDoPulse?: number | null;
 }

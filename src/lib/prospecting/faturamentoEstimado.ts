@@ -103,7 +103,7 @@ function coeficientes(): number[] {
 }
 
 /** Funcionários previstos para uma empresa sem RAIS. */
-function funcionariosPrevistos(e: EmpresaParaModelo, hoje: string): number {
+export function funcionariosPrevistos(e: EmpresaParaModelo, hoje: string): number {
   const beta = coeficientes();
   const x = caracteristicasDoModelo(e, hoje);
   return Math.exp(x.reduce((soma, v, i) => soma + v * beta[i], 0));
@@ -150,6 +150,16 @@ export function estimarPorFuncionarios(
   return comFatorDoSetor ? Math.trunc(conta * fatorDoSetor(cnae)) : conta;
 }
 
+/**
+ * Funcionários confiáveis — do time ou a estimativa da RAIS improvável (US-0054, decisão de
+ * 26/11/2026): funcionários × receita por pessoa × fator do setor, sem a correção pelo capital. A
+ * correção existe para compensar a RAIS baixa; aplicada de novo, inflava (Gecal: R$ 1,3 bi com 411
+ * funcionários, R$ 311 mi sem ela).
+ */
+export function estimarPorFuncionariosConfiaveis(cnae: string, funcionarios: number | null): number | null {
+  return estimarPorFuncionarios(cnae, funcionarios, null, null);
+}
+
 // Sociedade de propósito específico: capital alto para um único empreendimento, sem relação
 // com o faturamento (US-0018).
 const SPE = /\bSPE\b|PROP[OÓ]SITO ESPEC[IÍ]FICO/i;
@@ -167,18 +177,20 @@ function previstoPeloModelo(cnae: string, empresa: EmpresaParaModelo, hoje: stri
 }
 
 /**
- * O faturamento estimado de uma empresa, em reais, truncado. Com RAIS, pela conta (com o
- * capital, quando ele entra); sem RAIS, pelo capital quando ele entra (a previsão do modelo no
- * lugar da RAIS, nunca abaixo do piso); senão pelo modelo quando passa do piso; senão, o piso.
+ * O faturamento estimado de uma empresa, em reais, truncado: funcionários × receita por pessoa do
+ * ramo (IBGE) × fator do setor; sem funcionários, empresas parecidas quando passam do piso; senão,
+ * o piso.
+ *
+ * Sem a correção pelo capital social (US-0056, decisão do Victor de 26/11/2026): com os
+ * funcionários da referência, a conta sem ela acertou a faixa do Econodata ou do time em 6 de 8
+ * Âncoras da região (mediana 1,09 vez); com ela, errava 7 vezes para cima na mediana (Thinal 15×,
+ * Cimento UAU 109×). O custo é a empresa cuja RAIS conta pouca gente sem ser improvável (Arape:
+ * R$ 350 mi reais, R$ 6 mi pela conta), que o time corrige informando funcionários ou faturamento.
  */
 export function estimarFaturamento(cnae: string, funcionarios: number | null, empresa: EmpresaParaModelo, hoje: string): Faturamento {
-  const pelosFuncionarios = estimarPorFuncionarios(cnae, funcionarios, empresa.capital, empresa.natureza);
+  const pelosFuncionarios = estimarPorFuncionarios(cnae, funcionarios, null, null);
   if (pelosFuncionarios != null) return { valor: pelosFuncionarios, base: BASE_RAIS };
   const previsto = previstoPeloModelo(cnae, empresa, hoje);
-  if (usaCapitalSemRais(cnae, empresa)) {
-    const pelaCapital = comCapital(Math.max(previsto, PISO_DO_PORTE), empresa.capital!, empresa.natureza);
-    return { valor: Math.max(pelaCapital, PISO_DO_PORTE), base: BASE_CAPITAL };
-  }
   return previsto > PISO_DO_PORTE ? { valor: previsto, base: BASE_MODELO } : { valor: PISO_DO_PORTE, base: BASE_PISO };
 }
 
@@ -243,6 +255,11 @@ function notaDoSetor(cnae: string): string {
   return ` Ajustado × ${fator} pelos ${s.casos} casos do time no ${s.nome}.`;
 }
 
+function origemDaConta(doTime: boolean, estimados: boolean): string {
+  if (doTime) return 'confirmados pelo time';
+  return estimados ? 'estimados por empresas parecidas; a RAIS veio baixa demais para o porte' : 'RAIS';
+}
+
 /** A explicação do valor, para o tooltip (US-0006, cenário 5). */
 export function contaDoFaturamento(
   cnae: string,
@@ -250,17 +267,14 @@ export function contaDoFaturamento(
   base: BaseDoFaturamento,
   capital: number | null = null,
   doTime = false,
+  estimados = false,
 ): string {
   const semRais = SEM_RAIS[base];
   if (semRais) return semRais(capital);
   const r = receitaPorPessoa(cnae, funcionarios ?? 0);
   if (!r) return PELO_PISO;
   const pessoas = (funcionarios ?? 0).toLocaleString('pt-BR');
-  const origem = doTime ? 'confirmados pelo time' : 'RAIS';
-  const conta = `${pessoas} funcionários (${origem}) × R$ ${r.mil.toLocaleString('pt-BR')} mil por pessoa (${detalhe(r)})`;
-  if (usaCapital(cnae, capital)) {
-    return `${conta} = ${emReais((funcionarios ?? 0) * r.mil * 1000)}, combinado com o capital social de ${emReais(capital!)}: empresas com capital alto costumam faturar acima da média do ramo (calibrado com companhias abertas e casos conhecidos pelo time; erro típico de ${ERRO_DO_CAPITAL} vezes).${notaDoSetor(cnae)}`;
-  }
+  const conta = `${pessoas} funcionários (${origemDaConta(doTime, estimados)}) × R$ ${r.mil.toLocaleString('pt-BR')} mil por pessoa (${detalhe(r)})`;
   return `${conta}. É uma média: empresas do mesmo ramo e porte variam bastante em torno dela.${notaDoSetor(cnae)}`;
 }
 

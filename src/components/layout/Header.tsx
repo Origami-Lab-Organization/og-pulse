@@ -30,10 +30,10 @@ const Header = () => {
           </a>
           {employee?.is_gerente && (
             <a 
-              href="/clients" 
+              href="/comercial/empresas?aba=clientes"
               className="text-sm font-medium text-foreground transition-colors hover:text-primary"
             >
-              Clientes
+              Empresas
             </a>
           )}
           <span className="text-sm text-muted-foreground cursor-not-allowed">

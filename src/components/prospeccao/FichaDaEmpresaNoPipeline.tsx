@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { rotaDaEmpresa } from '@/lib/prospecting/faseDaEmpresa.constants';
 import { useLinhaDaEmpresa } from '@/hooks/useLinhaDaEmpresa';
 import type { ProspectWithCompany } from '@/types/prospect';
 import { CompanyDetailDialog } from './CompanyDetailDialog';
@@ -31,6 +32,16 @@ export function FichaDaEmpresaNoPipeline(props: FichaDaEmpresaNoPipelineProps) {
       return atual;
     }, { replace: true });
   }, [empresaDoLink, onEmpresaId, setParams]);
+
+  // US-0053: empresa com CNPJ abre na página dela; o modal fica só para quem não tem CNPJ.
+  const navigate = useNavigate();
+  const cnpj = linha?.company.cnpj ?? null;
+  useEffect(() => {
+    if (!cnpj) return;
+    onEmpresaId(null);
+    navigate(rotaDaEmpresa(cnpj), { state: { de: 'pipeline' } });
+  }, [cnpj, navigate, onEmpresaId]);
+  if (cnpj) return null;
 
   return (
     <CompanyDetailDialog

@@ -1,3 +1,5 @@
+import { CARGO_NA_EMPRESA } from './faseDaEmpresa.constants';
+
 /**
  * Qualificação do sócio ou responsável na Receita (QSA), pelo código. A tabela da base de
  * origem veio vazia; os nomes foram conferidos na BrasilAPI (que o Pulse já usa, ADR-0041) em
@@ -46,4 +48,22 @@ const NAO_INFORMADA = '00';
 export function nomeDaQualificacao(codigo: string | null): string | null {
   if (!codigo || codigo === NAO_INFORMADA) return null;
   return QUALIFICACOES[codigo] ?? `Qualificação ${codigo}`;
+}
+
+const SOCIO = /s[óo]cio|titular|fundador/i;
+const ADMINISTRA = /administra|gerente|diretor|presidente/i;
+
+/**
+ * Cargo na empresa pela qualificação da Receita (US-0053): "Sócio-Administrador" e "Sócio-Gerente"
+ * são os dois; Diretor e Presidente administram. O que não é nem um nem outro (Procurador,
+ * Liquidante) aparece como a Receita escreve.
+ */
+export function cargoNaEmpresa(qualificacao: string | null): string | null {
+  if (!qualificacao) return null;
+  const socio = SOCIO.test(qualificacao);
+  const administra = ADMINISTRA.test(qualificacao);
+  if (socio && administra) return CARGO_NA_EMPRESA.OS_DOIS;
+  if (administra) return CARGO_NA_EMPRESA.ADMINISTRADOR;
+  if (socio) return CARGO_NA_EMPRESA.SOCIO;
+  return qualificacao;
 }

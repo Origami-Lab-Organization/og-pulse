@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import { origemDoTime, textoDoFaturamentoDoTime, textoDosFuncionariosDoTime } from '@/lib/prospecting/paginaDaEmpresa';
+import type { BaseDoFaturamento } from '@/types/filtrosReceita';
+import { faixaDoFaturamento, faixaDosFuncionarios, faturamentoEmFaixa, faturamentoInformadoPeloTime } from '@/lib/prospecting/faixasDeFaturamento';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { useHideValues } from '@/contexts/HideValuesContext';
 import { formatCNPJ } from '@/lib/masks';
@@ -23,9 +26,7 @@ import {
   lucroRealPeloTime,
   lucroRealProvavel,
   ROTULO_DA_BASE,
-  ROTULO_DO_INFORMADO,
   textoDoFaturamento,
-  textoDoInformado,
 } from '@/lib/prospecting/faturamentoEstimado';
 import { confiancaDoFaturamento, seloDoInformado } from '@/lib/prospecting/confiancaDoFaturamento';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
@@ -36,6 +37,7 @@ import { cn } from '@/lib/utils';
 import type { SelecaoDaLista } from '@/types/filtrosReceita';
 import { MotivoDaConfianca } from './SeloDeConfianca';
 import { CelulaDeRelacao } from './SeloDeRelacao';
+import { cidadeEUf } from '@/lib/prospecting/cidade';
 
 interface EmpresasReceitaTableProps {
   /** Abre a ficha da empresa (US-0007): clique na linha, ou Enter com ela em foco. */
@@ -96,6 +98,14 @@ export function EmpresasReceitaTable(props: EmpresasReceitaTableProps) {
   );
 }
 
+/** Funcionários na lista: a faixa ou o número do time (*), a estimativa (≈) ou a RAIS (US-0054). */
+function Funcionarios({ empresa }: { empresa: EmpresaReceita }) {
+  const n = (empresa.funcionarios ?? 0).toLocaleString('pt-BR');
+  if (empresa.funcionarios_do_time) return <span title="Informados pelo time">{textoDosFuncionariosDoTime(empresa)}*</span>;
+  if (empresa.funcionarios_estimados) return <span title={`Estimado por empresas parecidas: ${n}; RAIS: ${(empresa.funcionarios_rais ?? 0).toLocaleString('pt-BR')}`}>{faixaDosFuncionarios(empresa.funcionarios ?? 0)}</span>;
+  return <span>{n}</span>;
+}
+
 const TECLA_QUE_ABRE = 'Enter';
 
 interface LinhaProps {
@@ -113,7 +123,7 @@ function Linha(props: LinhaProps) {
   const nome = nomeDaEmpresa(empresa);
   const ramo = ramoDaEmpresa(empresa.cnae_principal);
   const anos = anosDeOperacao(empresa.data_inicio_atividade);
-  const local = [emTitulo(empresa.municipio), empresa.uf].filter(Boolean).join(' · ');
+  const local = cidadeEUf(empresa.municipio, empresa.uf);
   const razao = emTitulo(empresa.razao_social);
   const nomeCompleto = razao && razao !== nome ? `${nome} — ${razao}` : nome;
   return (
@@ -140,7 +150,7 @@ function Linha(props: LinhaProps) {
           {local && <span>{local}</span>}
         </div>
       </td>
-      <td className="whitespace-nowrap px-3 py-2"><CelulaDeRelacao relacao={empresa.relacao} indisponivel={relacaoIndisponivel} /></td>
+      <td className="whitespace-nowrap px-3 py-2"><CelulaDeRelacao relacao={empresa.relacao} parceiro={empresa.parceiro} indisponivel={relacaoIndisponivel} /></td>
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
         {empresa.distancia_km != null ? `${empresa.distancia_km.toLocaleString('pt-BR')} km` : <span title="Município não reconhecido">—</span>}
       </td>
@@ -149,7 +159,7 @@ function Linha(props: LinhaProps) {
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-center font-mono tabular-nums">
         {empresa.funcionarios != null
-          ? <span title={empresa.funcionarios_do_time ? 'Confirmados pelo time' : undefined}>{empresa.funcionarios.toLocaleString('pt-BR')}{empresa.funcionarios_do_time && '*'}</span>
+          ? <Funcionarios empresa={empresa} />
           : <span title="Sem dado na RAIS">—</span>}
       </td>
       <td className="px-3 py-2">
@@ -194,57 +204,79 @@ const AVISO_LUCRO_REAL =
  * estimativa da base ("≈ valor" com a base, ou o piso do porte). A conta, o selo de confiança
  * com o porquê (US-0018) e o regime vão no hover, para a coluna ficar limpa.
  */
+/** Faixa fixa quando o time não informou (US-0056); o piso fica "acima de R$ 4,8 mi". */
+function textoDaLista(empresa: EmpresaReceita, valor: number, base: BaseDoFaturamento): string {
+  if (base === BASE_PISO || !faturamentoEmFaixa(empresa)) return textoDoFaturamento(valor, base);
+  return faixaDoFaturamento(valor);
+}
+
+/** A conta por trás do estimado, no tooltip: valor central, como foi feita, confiança e avisos. */
+function ExplicacaoDoEstimado(props: { empresa: EmpresaReceita; valor: number; base: BaseDoFaturamento }) {
+  const { empresa, valor, base } = props;
+  const piso = base === BASE_PISO;
+  const regime = notaDoRegime(empresa);
+  return (
+    <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
+      <p className="font-medium">Faturamento {ROTULO_DA_BASE[base]}{piso ? '' : `: ${textoDoFaturamento(valor, base)}`}</p>
+      <p className="mt-0.5">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social, empresa.funcionarios_do_time, empresa.funcionarios_estimados)}</p>
+      <MotivoDaConfianca confianca={confiancaDoFaturamento(empresa.cnae_principal, base)} className="mt-1.5" />
+      {regime && <p className="mt-1.5">{regime}</p>}
+      {lucroRealProvavel(valor, base) && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}
+    </TooltipContent>
+  );
+}
+
 function FaturamentoEstimado({ empresa }: { empresa: EmpresaReceita }) {
-  if (empresa.faturamento_informado != null) return <FaturamentoDoTime empresa={empresa} />;
+  if (faturamentoInformadoPeloTime(empresa)) return <FaturamentoDoTime empresa={empresa} />;
   const { faturamento_estimado: valor, faturamento_base: base } = empresa;
   if (valor == null || !base) return <span className="text-[12.5px] text-muted-foreground">—</span>;
-  const lucroReal = lucroRealProvavel(Number(valor), base);
   const piso = base === BASE_PISO;
-  const confianca = confiancaDoFaturamento(empresa.cnae_principal, base);
-  const regime = notaDoRegime(empresa);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span tabIndex={0} className={GATILHO}>
           <span className={cn('whitespace-nowrap text-[13px] tabular-nums', piso ? 'text-muted-foreground' : 'font-mono')}>
-            {textoDoFaturamento(Number(valor), base)}
+            {textoDaLista(empresa, Number(valor), base)}
           </span>
         </span>
       </TooltipTrigger>
-      <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
-        <p className="font-medium">Faturamento {ROTULO_DA_BASE[base]}</p>
-        <p className="mt-0.5">{contaDoFaturamento(empresa.cnae_principal, empresa.funcionarios, base, empresa.capital_social, empresa.funcionarios_do_time)}</p>
-        <MotivoDaConfianca confianca={confianca} className="mt-1.5" />
-        {regime && <p className="mt-1.5">{regime}</p>}
-        {lucroReal && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}
-      </TooltipContent>
+      <ExplicacaoDoEstimado empresa={empresa} valor={Number(valor)} base={base} />
     </Tooltip>
   );
 }
 
-function FaturamentoDoTime({ empresa }: { empresa: EmpresaReceita }) {
+/** A estimativa da Base ao lado do valor do time, para comparar. */
+function estimativaAoLado(empresa: EmpresaReceita): string | null {
+  const { faturamento_estimado: valor, faturamento_base: base } = empresa;
+  if (valor == null || !base) return null;
+  return `${textoDoFaturamento(Number(valor), base)} (${ROTULO_DA_BASE[base]})`;
+}
+
+function ExplicacaoDoTime({ empresa }: { empresa: EmpresaReceita }) {
   const { byId } = useEmployeeDirectoryMap();
   const selo = seloDoInformado(empresa, (id) => byId.get(id)?.nome);
-  const valor = Number(empresa.faturamento_informado);
-  const rotulo = empresa.faturamento_informado_base ? ROTULO_DO_INFORMADO[empresa.faturamento_informado_base] : 'informado pelo time';
-  const estimado = empresa.faturamento_estimado != null && empresa.faturamento_base
-    ? `${textoDoFaturamento(Number(empresa.faturamento_estimado), empresa.faturamento_base)} (${ROTULO_DA_BASE[empresa.faturamento_base]})`
-    : null;
-  const lucroReal = lucroRealPeloTime(valor);
+  const estimado = estimativaAoLado(empresa);
+  return (
+    <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
+      <p className="font-medium">Faturamento {origemDoTime(empresa.faturamento_informado_base, empresa.faturamento_confianca)}</p>
+      {empresa.faturamento_fonte && <p className="mt-1">Fonte: {empresa.faturamento_fonte}</p>}
+      {selo.autoria && <p className="mt-1">{selo.autoria}</p>}
+      {estimado && <p className="mt-1.5 text-muted-foreground">A estimativa pela base seria {estimado}.</p>}
+      {lucroRealPeloTime(Number(empresa.faturamento_informado)) && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}
+    </TooltipContent>
+  );
+}
+
+/** O faturamento que o time informou: a faixa ou o valor, com origem, confiança e fonte no tooltip (US-0056). */
+function FaturamentoDoTime({ empresa }: { empresa: EmpresaReceita }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span tabIndex={0} className={GATILHO}>
-          <span className="whitespace-nowrap font-mono text-[13px] tabular-nums">{textoDoInformado(valor)}</span>
+          <span className="whitespace-nowrap font-mono text-[13px] tabular-nums">{textoDoFaturamentoDoTime(empresa)}</span>
         </span>
       </TooltipTrigger>
-      <TooltipContent className="max-w-xs whitespace-normal text-left text-[12.5px] leading-snug">
-        <p className="font-medium">Faturamento {rotulo}</p>
-        {selo.confianca && <MotivoDaConfianca confianca={selo.confianca} className="mt-1" />}
-        {selo.autoria && <p className="mt-1">{selo.autoria}</p>}
-        {estimado && <p className="mt-1.5 text-muted-foreground">A estimativa pela base seria {estimado}.</p>}
-        {lucroReal && <p className="mt-1.5 font-medium text-info-emphasis">{AVISO_LUCRO_REAL}</p>}
-      </TooltipContent>
+      <ExplicacaoDoTime empresa={empresa} />
     </Tooltip>
   );
 }

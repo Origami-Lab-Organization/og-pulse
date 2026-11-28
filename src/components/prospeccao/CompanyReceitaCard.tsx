@@ -16,6 +16,7 @@ import { CompanySiteSection } from './CompanySiteSection';
 import { CompanyFitSection } from './CompanyFitSection';
 import { CompanyFundingSection } from './CompanyFundingSection';
 import { CartaoDaFicha } from './FichaDaOportunidade';
+import { cidadeEUf } from '@/lib/prospecting/cidade';
 
 interface CompanyReceitaCardProps {
   empresa: ProspectCompanyDB;
@@ -268,7 +269,7 @@ const juntarOuNulo = (partes: Array<string | null | undefined>, separador = ' ·
   partes.filter(Boolean).join(separador) || null;
 
 function enderecoDe(e: ReceitaDetails['endereco']): string | null {
-  const cidade = e.municipio && e.uf ? `${e.municipio}/${e.uf}` : e.municipio;
+  const cidade = cidadeEUf(e.municipio, e.uf);
   return juntarOuNulo([e.logradouro, e.numero, e.complemento, e.bairro, cidade], ', ');
 }
 

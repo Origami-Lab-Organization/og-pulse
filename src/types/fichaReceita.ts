@@ -21,6 +21,10 @@ export interface EmpresaDaFicha extends EmpresaReceita {
   inscricoes_divida: number | null;
   tem_email: boolean;
   tem_telefone: boolean;
+  /** US-0053: a Base não tem a empresa; a ficha veio do que o Pulse guarda. */
+  so_no_pulse?: boolean;
+  /** US-0053: situação da Receita, só na ficha que veio do Pulse (na Base é sempre matriz ativa). */
+  situacao_cadastral?: string | null;
 }
 
 /** Sócio da empresa, com minimização (ADR-0041): sem CPF nem faixa etária. */
@@ -56,5 +60,7 @@ export interface FichaReceita {
   /** Relação da Origami com a empresa e o histórico dela (US-0019). */
   relacao?: RelacaoDaEmpresa | null;
   historico?: DadosDaRelacao | null;
+  /** Marca Parceiro (US-0051), ao lado da relação. */
+  parceiro?: boolean;
   relacao_indisponivel?: boolean;
 }

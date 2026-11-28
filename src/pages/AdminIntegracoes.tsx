@@ -1,6 +1,7 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ContaAzulCard } from '@/components/integrations/ContaAzulCard';
 import { ContaAzulCostCentersCard } from '@/components/integrations/ContaAzulCostCentersCard';
+import { OneDriveDoComercialCard } from '@/components/integrations/OneDriveDoComercialCard';
 
 export default function AdminIntegracoes() {
   return (
@@ -12,6 +13,7 @@ export default function AdminIntegracoes() {
       <div className="max-w-3xl space-y-6">
         <ContaAzulCard />
         <ContaAzulCostCentersCard />
+        <OneDriveDoComercialCard />
       </div>
     </AppLayout>
   );

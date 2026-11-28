@@ -8164,6 +8164,35 @@ export type Database = {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
+      juntar_empresas: {
+        Args: { p_de: string; p_para: string }
+        Returns: string
+      }
+      carteira_de_clientes: {
+        Args: { p_tenant: string }
+        Returns: {
+          client_id: string | null
+          empresa_id: string | null
+          nome: string
+          razao_social: string
+          cnpj: string | null
+          cidade: string | null
+          estado: string | null
+          relacao: string | null
+          projetos_ativos: number
+          projetos: number
+          projeto_id: string | null
+          projeto_nome: string | null
+          projeto_status: string | null
+          projeto_data: string | null
+          ganho_id: string | null
+          ganho_titulo: string | null
+          ganho_responsavel: string | null
+          ganho_em: string | null
+          parceiro: boolean
+          antes_do_pulse: number | null
+        }[]
+      }
       can_manage_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean

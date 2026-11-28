@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { rotaDaEmpresa } from '@/lib/prospecting/faseDaEmpresa.constants';
 import { ArrowDown, ArrowUp, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import { useEmQualificacao } from '@/hooks/useEmQualificacao';
 import { useEntradasNaQualificacao } from '@/hooks/useEntradasNaQualificacao';
 import { usePainelDeFiltros } from '@/hooks/usePainelDeFiltros';
 import { faturamentoCompacto } from '@/lib/prospecting/faturamento';
+import { faixaDoFaturamento } from '@/lib/prospecting/faixasDeFaturamento';
 import { FIT_QUE_DESTACA } from '@/lib/prospecting/fit';
 import { linhaValida, notasPorLinha, type LinhaDoFit } from '@/lib/prospecting/fitDoCatalogo';
 import { useFitDoCatalogo } from '@/hooks/useFitDoCatalogo';
@@ -61,6 +63,13 @@ export function EmQualificacao() {
   const [motivoSugerido, setMotivoSugerido] = useState<string | null>(null);
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
   const [empresaAberta, setEmpresaAberta] = useState<string | null>(null);
+  // US-0053: a empresa em qualificação abre na página dela (BANT, estudo e "Criar Oportunidade").
+  const navigate = useNavigate();
+  const abrir = (p: ProspectWithCompany) => {
+    const cnpj = p.company?.cnpj;
+    if (cnpj) navigate(rotaDaEmpresa(cnpj), { state: { de: 'qualificacao' } });
+    else setAberta(p);
+  };
   useAbrirPeloLink(todas, isLoading, setAberta);
 
   // A ficha acompanha a versão atual (depois de mover, ela some da lista mas segue aberta).
@@ -109,7 +118,7 @@ export function EmQualificacao() {
           nomeDe={nomeDe}
           onOrdenar={(coluna) => mudar({ ordem: alternarOrdem(estado.ordem, coluna) })}
           onLimpar={limpar}
-          onAbrir={setAberta}
+          onAbrir={abrir}
         />
       </div>
 
@@ -288,10 +297,11 @@ const TECLA_QUE_ABRE = 'Enter';
 
 const TRACO = '—';
 
-/** "~R$ 45 mi" quando o valor é o estimado pela Base. */
+/** "R$ 30 a 50 mi" quando o valor é o estimado pela Base (US-0056); o do time, em valor único. */
 function textoDoFaturamento(l: LinhaDaQualificacao): string {
   if (l.faturamento == null) return TRACO;
-  return `${l.faturamentoEstimado ? '~' : ''}${faturamentoCompacto(l.faturamento)}`;
+  // Estimado pela Base: a faixa fixa, como na página da empresa e na lista da Base (US-0056).
+  return l.faturamentoEstimado ? faixaDoFaturamento(l.faturamento) : faturamentoCompacto(l.faturamento);
 }
 
 const textoDaDistancia = (km: number | null) => (km == null ? TRACO : `${km.toLocaleString('pt-BR')} km`);

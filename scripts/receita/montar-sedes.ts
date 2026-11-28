@@ -13,31 +13,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { chaveDoMunicipio } from './distancia';
+import { NOMES_ANTIGOS } from './nomesAntigos';
 
 const DESTINO = new URL('./sedes-municipais.json', import.meta.url);
 const LOCALIDADES = 'https://geoftp.ibge.gov.br/organizacao_do_territorio/estrutura_territorial/localidades/Localidades_do_Brasil/2022/Localidades_Brasil_gpkg.zip';
 
-/** Grafia da Receita (UF + nome) → código do IBGE. */
-const NOMES_ANTIGOS: Record<string, string> = {
-  'RS|SANTANA DO LIVRAMENTO': '4317103',
-  'SC|BALNEARIO DE PICARRAS': '4212809',
-  'RJ|PARATI': '3303807',
-  'PA|SANTA ISABEL DO PARA': '1506500',
-  'MT|SANTO ANTONIO DO LEVERGER': '5107800',
-  'MG|BRASOPOLIS': '3108909',
-  'PA|ELDORADO DOS CARAJAS': '1502954',
-  'BA|MUQUEM DE SAO FRANCISCO': '2922250',
-  'BA|SANTA TERESINHA': '2928505',
-  'TO|COUTO DE MAGALHAES': '1706001',
-  'RR|SAO LUIZ': '1400605',
-  'RN|ARES': '2401206',
-  'TO|SAO VALERIO DA NATIVIDADE': '1720499',
-  'RN|BOA SAUDE': '2405306',
-  'TO|FORTALEZA DO TABOCAO': '1708254',
-  'MG|AMPARO DA SERRA': '3102506',
-  'SE|AMPARO DE SAO FRANCISCO': '2800100',
-  'GO|BOM JESUS DE GOIAS': '5203500',
-};
 
 const SEDE = `SELECT CD_MUN AS codigo, SIGLA_UF AS uf, NM_MUN AS nome, LAT_LOCALIDADE AS lat, LONG_LOCALIDADE AS lon
   FROM BR_localidades_2022

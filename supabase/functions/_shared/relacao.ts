@@ -20,6 +20,13 @@ export const RELACOES: ReadonlyArray<{ valor: Relacao; rotulo: string }> = [
   { valor: "sem_sucesso", rotulo: "Abordada sem sucesso" },
 ];
 
+/**
+ * Parceiro (US-0051) é marca própria, ao lado da relação, mas entra no mesmo filtro: "Parceiro"
+ * mostra as empresas marcadas, junto com as relações escolhidas.
+ */
+export const PARCEIRO = "parceiro";
+export const FILTRO_DE_PARCEIRO = { valor: PARCEIRO, rotulo: "Parceiro" } as const;
+
 /** Marcas que saem da lista por padrão e voltam pelo filtro de relação (US-0010). */
 export const ESCONDIDAS_POR_PADRAO: ReadonlySet<Relacao> = new Set(["nao_agora", "descartada"]);
 
@@ -68,12 +75,23 @@ export function relacaoDaEmpresa(dados: DadosDaRelacao, hoje: Date): RelacaoDaEm
   const aberto = projetos.find((p) => PROJETO_ABERTO.has(p.status));
   if (aberto) return { relacao: "cliente_ativo", pediuParaParar: false, projeto: aberto, oportunidade: emAndamento };
   if (emAndamento) return { relacao: "sendo_abordada", pediuParaParar: false, projeto: null, oportunidade: emAndamento };
+  return jaFoiCliente(dados) ?? depoisDoCliente(dados, hoje);
+}
+
+/**
+ * Projeto, Ganho ou a marca "Cliente antes do Pulse" (US-0051). Estar no cadastro de clientes
+ * não basta: orçamento não faz cliente (US-0045), e a Base concorda com a carteira (US-0052).
+ */
+function jaFoiCliente(dados: DadosDaRelacao): RelacaoDaEmpresa | null {
+  const { projetos, oportunidades, antesDoPulse = null } = dados;
   const ganho = maisRecente(oportunidades.filter((o) => GANHO.has(o.stage)));
-  if (projetos.length || ganho || dados.cliente) {
-    return { relacao: "ja_foi_cliente", pediuParaParar: false, projeto: maisRecente(projetos), oportunidade: ganho };
-  }
+  if (!projetos.length && !ganho && antesDoPulse == null) return null;
+  return { relacao: "ja_foi_cliente", pediuParaParar: false, projeto: maisRecente(projetos), oportunidade: ganho, antesDoPulse };
+}
+
+function depoisDoCliente(dados: DadosDaRelacao, hoje: Date): RelacaoDaEmpresa | null {
   if (dados.decisao) return pelaDecisao(dados.decisao, hoje);
-  return semSucesso(oportunidades, hoje);
+  return semSucesso(dados.oportunidades, hoje);
 }
 
 /** Raiz do CNPJ (8 dígitos), com ou sem máscara; nulo se não der. */
