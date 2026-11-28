@@ -57,8 +57,14 @@ export interface EmpresaReceita {
   natureza_juridica?: string | null;
   /** Funcionários confirmados pelo time na Prospecção (US-0020); nulo = vale a RAIS. */
   funcionarios_informados?: number | null;
+  /** Faixa do LinkedIn informada pelo time (US-0054); não convive com o número exato. */
+  funcionarios_faixa?: string | null;
   /** `funcionarios` veio do time, não da RAIS (US-0020). */
   funcionarios_do_time?: boolean;
+  /** US-0054: a RAIS como veio, quando ela era improvável e `funcionarios` é a estimativa. */
+  funcionarios_rais?: number | null;
+  /** US-0054: `funcionarios` é a estimativa por empresas parecidas, não a RAIS. */
+  funcionarios_estimados?: boolean;
   /** Regime tributário mais recente, da BrasilAPI, quando a empresa já está no Pulse (US-0018). */
   regime_tributario?: string | null;
   regime_tributario_ano?: number | null;

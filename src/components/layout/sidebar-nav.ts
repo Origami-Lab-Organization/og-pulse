@@ -1,6 +1,6 @@
+import { CARTEIRA_OU_PROSPECCAO } from '@/lib/carteira.constants';
 import {
   BarChart3,
-  Building2,
   CircleHelp,
   FolderKanban,
   FolderOpen,
@@ -91,7 +91,7 @@ export const NAV_ITEMS: SidebarNavItem[] = [
     children: [
       // Empresas antes de Oportunidades (19/11/2026): é a ordem do fluxo — achar e qualificar a
       // conta, depois conduzir a conversa.
-      { title: 'Empresas', url: '/comercial/empresas', requiresCapability: 'prospeccao:ler' },
+      { title: 'Empresas', url: '/comercial/empresas', requiresCapability: CARTEIRA_OU_PROSPECCAO },
       { title: 'Oportunidades', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
       { title: 'Contatos', url: '/comercial/contatos', requiresCapability: 'prospeccao:ler' },
       { title: 'Métricas', url: '/comercial/metricas', requiresCapability: 'prospeccao:ler' },
@@ -130,7 +130,6 @@ export const NAV_ITEMS: SidebarNavItem[] = [
       { title: 'Conciliação', url: '/financeiro/conciliacao', requiresCapability: ['conciliacao:receber', 'conciliacao:pagar'] },
     ],
   },
-  { kind: 'link', title: 'Clientes', url: '/clients', icon: Building2, requiresCapability: 'cliente:ler' },
   {
     kind: 'group',
     title: 'Pessoas',

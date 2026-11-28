@@ -80,9 +80,9 @@ export const TOUR_STEPS: readonly TourStep[] = [
   {
     id: 'catalog',
     title: 'Clientes e o que você vende',
-    body: 'Clientes tem entrada própria no menu; o catálogo de serviços fica em Configurações. O serviço é o que liga o projeto ao centro de custo.',
-    selectors: ['[data-tour="nav-/clients"]', '[data-tour="nav-/admin/servicos"]'],
-    fallback: 'Clientes, no menu lateral; o catálogo de serviços fica em Configurações.',
+    body: 'Os clientes ficam em Empresas, na aba Clientes; o catálogo de serviços fica em Configurações. O serviço é o que liga o projeto ao centro de custo.',
+    selectors: ['[data-tour="nav-/comercial/empresas"]', '[data-tour="nav-/admin/servicos"]'],
+    fallback: 'Empresas, no menu lateral, tem a aba Clientes; o catálogo de serviços fica em Configurações.',
     requiresCapability: ['cliente:ler', 'catalogo:editar'],
   },
   {

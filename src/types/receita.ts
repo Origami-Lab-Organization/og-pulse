@@ -79,6 +79,8 @@ export interface SinaisDoTamanho {
   funcionarios: number | null;
   /** Funcionários vieram do time (US-0020), não da RAIS. */
   funcionariosDoTime: boolean;
+  /** A RAIS era improvável e vale a estimativa por empresas parecidas (US-0054). */
+  funcionariosEstimados?: boolean;
   dividaAjuizada: number | null;
   distanciaKm: number | null;
   tipoConta: import('@/types/prospect').TipoDeConta | null;
@@ -102,6 +104,8 @@ export interface LinhaDaBaseParaFit {
   funcionarios: number | null;
   /** Funcionários confirmados pelo time (US-0020), na ficha. */
   funcionariosDoTime?: boolean;
+  /** A RAIS era improvável e vale a estimativa (US-0054). */
+  funcionariosEstimados?: boolean;
   dividaAjuizada: number | null;
   distanciaKm: number | null;
   /** O faturamento que vale (o do time, senão o estimado sem o piso); nulo sem nenhum. */

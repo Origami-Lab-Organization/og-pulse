@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { rotaDaEmpresa } from '@/lib/prospecting/faseDaEmpresa.constants';
 import { ArrowDown, ArrowUp, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,6 +62,13 @@ export function EmQualificacao() {
   const [motivoSugerido, setMotivoSugerido] = useState<string | null>(null);
   const [ganhando, setGanhando] = useState<ProspectWithCompany | null>(null);
   const [empresaAberta, setEmpresaAberta] = useState<string | null>(null);
+  // US-0053: a empresa em qualificação abre na página dela (BANT, estudo e "Criar Oportunidade").
+  const navigate = useNavigate();
+  const abrir = (p: ProspectWithCompany) => {
+    const cnpj = p.company?.cnpj;
+    if (cnpj) navigate(rotaDaEmpresa(cnpj), { state: { de: 'qualificacao' } });
+    else setAberta(p);
+  };
   useAbrirPeloLink(todas, isLoading, setAberta);
 
   // A ficha acompanha a versão atual (depois de mover, ela some da lista mas segue aberta).
@@ -109,7 +117,7 @@ export function EmQualificacao() {
           nomeDe={nomeDe}
           onOrdenar={(coluna) => mudar({ ordem: alternarOrdem(estado.ordem, coluna) })}
           onLimpar={limpar}
-          onAbrir={setAberta}
+          onAbrir={abrir}
         />
       </div>
 

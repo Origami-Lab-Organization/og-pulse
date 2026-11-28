@@ -9,6 +9,8 @@ interface AppHeaderPage {
   title: string;
   description?: string;
   actions?: ReactNode;
+  /** No lugar do título, uma trilha de navegação (ex.: a página da empresa, US-0053). */
+  trail?: ReactNode;
 }
 
 interface AppHeaderProps {
@@ -17,6 +19,7 @@ interface AppHeaderProps {
 }
 
 function PageTitle({ page }: { page: AppHeaderPage }) {
+  if (page.trail) return <div className="flex min-w-0 items-center">{page.trail}</div>;
   return (
     <div className="flex min-w-0 items-baseline gap-3">
       <h1 className="shrink-0 font-semibold text-foreground">{page.title}</h1>

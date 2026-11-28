@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Loader2, Save, Plus, Info } from 'lucide-react';
+import { Loader2, Save, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BudgetRolesEditor } from '@/components/budgets/BudgetRolesEditor';
@@ -28,7 +28,7 @@ import { formatCurrency, truncateToCents } from '@/lib/formatters';
 import { CreateBudgetInput, BudgetRoleInput, BudgetMaterialInput, BudgetSupplierInput, BudgetCalculation, RecurringCalculation, SuccessFeeCalculation, calculateBudgetTotals, calculateRecurringTotals, calculateSuccessFeeTotals } from '@/types/budget';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useClients, useCreateClient } from '@/hooks/useClients';
+import { useClients } from '@/hooks/useClients';
 import { useActiveRoleRates } from '@/hooks/useRoleRates';
 import { useFinancialSettings } from '@/hooks/useFinancialSettings';
 import { useBudget, useCreateBudget, useUpdateBudget } from '@/hooks/useBudgets';
@@ -42,7 +42,6 @@ import { serviceService } from '@/services/serviceService';
 import { supabase } from '@/integrations/supabase/client';
 import { BillingType, BILLING_TYPE_LABELS } from '@/types/service';
 import { cn } from '@/lib/utils';
-import ClientFormDialog from '@/components/clients/ClientFormDialog';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
@@ -102,7 +101,6 @@ export default function BudgetForm() {
   const templateForServiceId = searchParams.get('templateForServiceId');
   const isEditing = !!id;
   const isTemplateMode = !!templateForServiceId && !isEditing;
-  const createClientMutation = useCreateClient();
   const { toast } = useToast();
   const { employee } = useAuth();
 
@@ -167,7 +165,6 @@ export default function BudgetForm() {
   const maxCommissionPercent = financialSettings?.commission_percent || 0;
   const minNetMarginPercent = financialSettings?.net_margin_percent || 0;
 
-  const [showClientDialog, setShowClientDialog] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -457,12 +454,8 @@ export default function BudgetForm() {
         isMonthlyMode
           ? ['title', 'clientId', 'durationMonths']
           : ['title', 'clientId', 'startDate', 'durationMonths'];
-      const result = await form.trigger(fields);
-      if (result && !form.getValues('clientId')) {
-        form.setError('clientId', { message: 'Selecione ou cadastre um cliente' });
-        return false;
-      }
-      return result;
+      // US-0045: orçamento não cria nem exige cliente; o cliente nasce da empresa no Ganho.
+      return form.trigger(fields);
     }
     return true;
   };
@@ -649,8 +642,9 @@ export default function BudgetForm() {
 
               {/* Client + duration layout */}
               {isMonthlyMode ? (
-                <div className={isTemplateMode ? '' : 'grid grid-cols-2 gap-4'}>
-                  {!isTemplateMode && (
+                <div className={isTemplateMode || isFromProspect ? '' : 'grid grid-cols-2 gap-4'}>
+                  {/* Orçamento da Oportunidade é da empresa dela: sem escolher cliente (US-0045). */}
+                  {!isTemplateMode && !isFromProspect && (
                     <FormField control={form.control} name="clientId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Cliente</FormLabel>
@@ -662,10 +656,6 @@ export default function BudgetForm() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <button type="button" className="text-xs text-primary hover:underline flex items-center gap-0.5 mt-0.5" onClick={() => setShowClientDialog(true)}>
-                          <Plus className="h-3 w-3" />
-                          Novo cliente
-                        </button>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -685,7 +675,7 @@ export default function BudgetForm() {
                 </div>
               ) : (
                 <>
-                  {!isTemplateMode && (
+                  {!isTemplateMode && !isFromProspect && (
                     <FormField control={form.control} name="clientId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Cliente</FormLabel>
@@ -697,10 +687,6 @@ export default function BudgetForm() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <button type="button" className="text-xs text-primary hover:underline flex items-center gap-0.5 mt-0.5" onClick={() => setShowClientDialog(true)}>
-                          <Plus className="h-3 w-3" />
-                          Novo cliente
-                        </button>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -1371,19 +1357,6 @@ export default function BudgetForm() {
         </form>
       </Form>
 
-      <ClientFormDialog
-        open={showClientDialog}
-        onOpenChange={setShowClientDialog}
-        onSubmit={(data) => {
-          createClientMutation.mutate(data, {
-            onSuccess: (newClient) => {
-              form.setValue('clientId', newClient.id);
-              setShowClientDialog(false);
-            },
-          });
-        }}
-        isLoading={createClientMutation.isPending}
-      />
     </AppLayout>
   );
 }
