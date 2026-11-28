@@ -14,7 +14,7 @@ import {
   UFS,
 } from '@/lib/prospecting/filtrosReceita';
 import type { FiltrosReceita, Opcao } from '@/types/filtrosReceita';
-import { RELACOES_DA_ORIGAMI } from '@/lib/prospecting/relacao';
+import { FILTROS_DE_RELACAO } from '@/lib/prospecting/relacao';
 import { cn } from '@/lib/utils';
 import { resumo, resumoDoCnae, resumoDoRamo, resumoDoSetor, rotulosDe } from '@/lib/prospecting/resumoDosFiltros';
 import { Caixa, Chips, EscolhaUnica, Grupo, Lista } from '../filtros/BlocosDeFiltro';
@@ -71,8 +71,8 @@ export function PainelDeFiltros(props: PainelDeFiltrosProps) {
       </div>
 
       <GrupoDoFitPorServico servicoDoFit={f.servicoDoFit} fitMinimo={f.fitMinimo} onChange={mudar} />
-      <Grupo titulo="Relação com a Origami" resumo={resumo(rotulosDe(RELACOES_DA_ORIGAMI, f.relacoes))}>
-        <Lista rotulo="Relação com a Origami" opcoes={RELACOES_DA_ORIGAMI} marcados={f.relacoes} onAlternar={(v) => mudar({ relacoes: alternar(f.relacoes, v) })} />
+      <Grupo titulo="Relação com a Origami" resumo={resumo(rotulosDe(FILTROS_DE_RELACAO, f.relacoes))}>
+        <Lista rotulo="Relação com a Origami" opcoes={FILTROS_DE_RELACAO} marcados={f.relacoes} onAlternar={(v) => mudar({ relacoes: alternar(f.relacoes, v) })} />
       </Grupo>
       {/* US-0041: incluir ou tirar, dentro de cada grupo; tirar vale só pela atividade principal. */}
       <Grupo titulo="Setor" resumo={resumoDoSetor(f)}>

@@ -18,6 +18,7 @@ sources:
   - src/components/auth/RoleProtectedRoute.tsx
   - src/hooks/useClients.ts
   - src/services/clientService.ts
+  - src/components/prospeccao/clientes/ListaDeClientes.tsx
   - supabase/functions/microsoft-sso/index.ts
   - vite.config.ts
   - package.json
@@ -96,10 +97,10 @@ e `RoleProtectedRoute` com flags `requireManager` / `requireAdmin` / `requireRH`
 | Jornada (ponto) | `/jornada`, `/jornada/configuracoes`, `/jornada/aprovacoes`, `/jornada/relatorios`, `/jornada/auditoria` | Protected / Admin / RH | 176, 184, 192, 200, 208 |
 | GPO | `/gpo`, `/gpo/:id`, `/gpo/:id/apresentar` | Manager | sem rota `path` correspondente no App.tsx atual (busca por "gpo": —); ver Divergências |
 | Pessoas / RH | `/employees*`, `/rh/desligamentos`, `/rh/candidatos`, `/rh/vagas`, `/rh/ferias`, `/rh/ferramentas-beneficios` | Manager (benefícios: Admin) | 217, 225, 233, 435, 443, 453-454, 458-459 |
-| Clientes / Fornecedores | `/clients*`, `/suppliers` | Manager | 241, 249, 257, 265, 273 |
+| Clientes / Fornecedores | Carteira na aba Clientes de `/comercial/empresas` (US-0049, ADR-0056; `cliente:ler` ou `prospeccao:ler`); `/clients` e `/clients/new` redirecionam para ela; ficha `/clients/:id` (`cliente:ler` ou `prospeccao:ler`) e edição `/clients/:id/edit` (`prospeccao:editar`); `/suppliers` | Capacidade | 269-286, 434, 288 |
 | Projetos | `/projetos` (Portfolio), `/projetos/produtos` (Produtos internos, `produto:ler` — ADR-0049), `/projects/:id` (aba E-mails com `?tab=emails`, `email-projeto:ler` — ADR-0047) | Manager / **apenas Protected** | 282, 290, 307, 315, 323 |
 | Análises | `/analises/meu-time`, `/analises/alocacoes*`, `/analises/financeiro`, `/analises/folha-pagamento`, `/analises/custo-hora` | Manager (folha e custo-hora: Admin) | 299, 331, 339, 347, 355, 395-397 |
-| Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/comercial/empresas` (Empresas da prospecção, situação por conta — `prospeccao:ler`, 24/09/2026), `/comercial/contatos` (Contatos, a pessoa separada do card — `prospeccao:ler`, 01/10/2026, ADR-0045), `/comercial/metricas` (`prospeccao:ler`), `/comercial/servicos*` (redirect para `/admin/servicos`), `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 422, 430, 438, 446, 453-454, 468, 476, 484 |
+| Comercial | `/comercial/prospeccao` (Prospecção, pipeline frio — `prospeccao:ler`), `/comercial/empresas` (Empresas: Base, Em qualificação e Clientes — `prospeccao:ler` ou `cliente:ler`, US-0049), `/comercial/empresas/:cnpj` (página da empresa, que substitui a gaveta da Base, o modal da empresa no Pipeline e a abertura pela Qualificação — `prospeccao:ler`, US-0053), `/comercial/contatos` (Contatos, a pessoa separada do card — `prospeccao:ler`, 01/10/2026, ADR-0045), `/comercial/metricas` (`prospeccao:ler`), `/comercial/servicos*` (redirect para `/admin/servicos`), `/budgets/new`, `/budgets/:id*` | Capacidade (`RoleProtectedRoute requireCapability`) | 422, 430, 435, 444, 453-454, 468, 476, 484 |
 | Estratégia | `/estrategia` | Manager | 457 |
 | Financeiro | `/financeiro/conciliacao` (Conciliação com o Conta Azul — ADR-0044, parte 3); `/financeiro` redireciona | Capacidade (`conciliacao:receber` ou `conciliacao:pagar`; hoje só Admin) | — |
 | Admin | `/admin`; `/admin/integracoes` e `/admin/integracoes/conta-azul/retorno` (URL de retorno do OAuth do Conta Azul — ADR-0044) | Admin; integrações por `integracoes:gerir` | 143, 427 |
@@ -148,25 +149,25 @@ fora do repositório). Decisões e tarefas: PUL-223, PUL-230 a PUL-241.
 
 ## Fluxo de um request (leitura de dados)
 
-Fluxo canônico — exemplo real da tela de Clientes:
+Fluxo canônico — exemplo real da aba Clientes de Empresas (US-0049), que lê por uma função RPC:
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant P as Página<br/>Clients.tsx:23
-    participant H as Hook TanStack Query<br/>useClients.ts:10-18
-    participant S as Service<br/>clientService.ts:32-45
+    participant P as Componente<br/>ListaDeClientes.tsx:156-157
+    participant H as Hook TanStack Query<br/>useClients.ts:34-42
+    participant S as Service<br/>clientService.ts:37-41
     participant C as Cliente Supabase<br/>client.ts:11-17
     participant DB as Supabase Postgres<br/>(RLS por tenant/role)
 
-    P->>H: useClients()
-    H->>H: queryKey ['clients', tenantId]<br/>(tenantId do AuthContext)
-    H->>S: clientService.getAll(tenantId)
-    S->>C: from('clients').select('*')<br/>.eq('tenant_id', tenantId)
-    C->>DB: GET /rest/v1/clients (JWT do usuário)
-    DB-->>C: linhas filtradas pelas policies RLS
+    P->>H: useCarteiraDeClientes()
+    H->>H: queryKey ['carteira-de-clientes', tenantId]<br/>(tenantId do AuthContext)
+    H->>S: clientService.carteira(tenantId)
+    S->>C: rpc('carteira_de_clientes', { p_tenant })
+    C->>DB: POST /rest/v1/rpc/carteira_de_clientes (JWT do usuário)
+    DB-->>C: linhas da carteira, com Parceiros e clientes de antes do Pulse (US-0051)<br/>(a função confere a capacidade no tenant)
     C-->>S: data
-    S-->>H: Client[]
+    S-->>H: ClienteDaCarteira[]
     H-->>P: { data, isLoading, error }
 ```
 

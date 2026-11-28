@@ -14,7 +14,7 @@ import type {
   Opcao,
 } from '@/types/filtrosReceita';
 import { ramosDosSetores, SETORES } from './cnae';
-import { RELACOES_DA_ORIGAMI } from './relacao';
+import { FILTROS_DE_RELACAO } from './relacao';
 
 /**
  * Filtros da base da Receita (US-0003): opções, padrão, contagem e o que fica guardado no
@@ -274,7 +274,7 @@ export function lerFiltrosSalvos(texto: string | null): FiltrosReceita {
     divida,
     comEmail: salvo.comEmail === true,
     comTelefone: salvo.comTelefone === true,
-    relacoes: lista(salvo.relacoes, conjunto(RELACOES_DA_ORIGAMI)),
+    relacoes: lista(salvo.relacoes, conjunto(FILTROS_DE_RELACAO)),
   };
 }
 

@@ -38,7 +38,9 @@ export function useProspectCompanyByCnpj(cnpj: string) {
   const { employee } = useAuth();
   const digitos = cnpj.replace(/\D/g, '');
   return useQuery<ProspectCompanyDB | null>({
-    queryKey: ['prospect-company-by-cnpj', employee?.tenant_id, digitos],
+    // Debaixo de 'prospect-companies' (26/11/2026): o que recarrega as empresas — mover para
+    // qualificação, faturamento, funcionários — recarrega também a página da empresa.
+    queryKey: ['prospect-companies', 'por-cnpj', employee?.tenant_id, digitos],
     queryFn: async () => (await prospectCompanyService.findByCnpjs([digitos], employee!.tenant_id))[0] ?? null,
     enabled: !!employee?.tenant_id && validateCNPJ(digitos),
   });
@@ -64,7 +66,7 @@ export function useCreateProspectCompany() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['prospect-companies'] });
       qc.invalidateQueries({ queryKey: ['prospect-companies-search'] });
-      qc.invalidateQueries({ queryKey: ['prospect-company-by-cnpj'] });
+      qc.invalidateQueries({ queryKey: ['prospect-companies', 'por-cnpj'] });
     },
     onError: (err: Error) => {
       toast({ title: 'Erro ao salvar a empresa', description: mensagemDeEmpresa(err), variant: 'destructive' });
@@ -142,7 +144,7 @@ export function useSaveCardCompany() {
     },
     onSuccess: (empresa, { card }) => {
       qc.invalidateQueries({ queryKey: ['prospect-companies'] });
-      qc.invalidateQueries({ queryKey: ['prospect-company-by-cnpj'] });
+      qc.invalidateQueries({ queryKey: ['prospect-companies', 'por-cnpj'] });
       qc.invalidateQueries({ queryKey: ['prospects'] });
       qc.invalidateQueries({ queryKey: ['prospect'] });
       qc.invalidateQueries({ queryKey: ['prospect-contacts'] });
@@ -175,4 +177,24 @@ function mensagemDeEmpresa(err: Error): string {
     return 'CNPJ inválido: informe os 14 dígitos.';
   }
   return mensagemParaUsuario(err);
+}
+
+/** US-0050: grava as filiais da empresa ou junta a empresa de uma filial na matriz. */
+export function useFiliaisDaEmpresa() {
+  const qc = useQueryClient();
+  const recarregar = () => {
+    qc.invalidateQueries({ queryKey: ['prospect-companies'] });
+    qc.invalidateQueries({ queryKey: ['prospect-companies-search'] });
+    qc.invalidateQueries({ queryKey: ['prospect-companies', 'por-cnpj'] });
+    qc.invalidateQueries({ queryKey: ['prospects'] });
+  };
+  const salvar = useMutation({
+    mutationFn: ({ id, filiais }: { id: string; filiais: string[] }) => prospectCompanyService.setFiliais(id, filiais),
+    onSuccess: recarregar,
+  });
+  const juntar = useMutation({
+    mutationFn: ({ de, para }: { de: string; para: string }) => prospectCompanyService.juntar(de, para),
+    onSuccess: recarregar,
+  });
+  return { salvar, juntar };
 }

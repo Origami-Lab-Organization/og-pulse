@@ -1,3 +1,4 @@
+import { Handshake } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEmployeeDirectoryMap } from '@/hooks/useEmployeeDirectory';
 import { detalheDaRelacao, rotuloDaRelacao, rotuloDoSelo } from '@/lib/prospecting/relacao';
@@ -47,9 +48,38 @@ export function SeloDeRelacao({ relacao }: { relacao: RelacaoDaEmpresa }) {
   );
 }
 
-/** A célula da coluna: o selo, "—" sem relação, ou o aviso de que a relação não carregou. */
-export function CelulaDeRelacao({ relacao, indisponivel }: { relacao: RelacaoDaEmpresa | null | undefined; indisponivel: boolean }) {
-  if (relacao) return <SeloDeRelacao relacao={relacao} />;
+/** A marca Parceiro (US-0051): própria, ao lado da relação. */
+export function SeloDeParceiro() {
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-accent-subtle px-2.5 py-0.5 text-xs font-medium text-primary">
+      <Handshake className="h-3 w-3" aria-hidden="true" />
+      Parceiro
+    </span>
+  );
+}
+
+/** A relação e a marca Parceiro lado a lado; nada quando não há nenhuma das duas. */
+export function RelacaoEParceiro(props: { relacao: RelacaoDaEmpresa | null | undefined; parceiro?: boolean }) {
+  const { relacao, parceiro = false } = props;
+  if (!relacao && !parceiro) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {relacao && <SeloDeRelacao relacao={relacao} />}
+      {parceiro && <SeloDeParceiro />}
+    </span>
+  );
+}
+
+interface CelulaDeRelacaoProps {
+  relacao: RelacaoDaEmpresa | null | undefined;
+  parceiro?: boolean;
+  indisponivel: boolean;
+}
+
+/** A célula da coluna: o selo (e o Parceiro), "—" sem relação, ou o aviso de que a relação não carregou. */
+export function CelulaDeRelacao(props: CelulaDeRelacaoProps) {
+  const { relacao, parceiro = false, indisponivel } = props;
+  if (relacao || parceiro) return <RelacaoEParceiro relacao={relacao} parceiro={parceiro} />;
   if (indisponivel) return <span className="text-[12.5px] text-muted-foreground" title="A relação com a Origami não carregou agora">?</span>;
   return <span className="text-[12.5px] text-muted-foreground" title="Sem relação com a Origami">—</span>;
 }

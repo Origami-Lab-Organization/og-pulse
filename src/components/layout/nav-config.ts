@@ -1,4 +1,5 @@
 import { hasAnyCapability, type CapabilityRequirement } from '@/lib/access/capabilities';
+import { CARTEIRA_OU_PROSPECCAO } from '@/lib/carteira.constants';
 
 export interface NavTab {
   title: string;
@@ -33,7 +34,7 @@ export const NAV_SECTIONS: NavSection[] = [
     tabs: [
       // Empresas antes de Oportunidades (19/11/2026): é a ordem do fluxo — achar e qualificar a
       // conta, depois conduzir a conversa.
-      { title: 'Empresas', url: '/comercial/empresas', requiresCapability: 'prospeccao:ler' },
+      { title: 'Empresas', url: '/comercial/empresas', requiresCapability: CARTEIRA_OU_PROSPECCAO },
       { title: 'Oportunidades', url: '/comercial/prospeccao', requiresCapability: 'prospeccao:ler' },
       { title: 'Contatos', url: '/comercial/contatos', requiresCapability: 'prospeccao:ler' },
       { title: 'Métricas', url: '/comercial/metricas', requiresCapability: 'prospeccao:ler' },
@@ -68,7 +69,6 @@ export const NAV_SECTIONS: NavSection[] = [
     tabs: [
       { title: 'Funcionários', url: '/employees', requiresCapability: 'pessoa:ler-ficha-completa' },
       { title: 'Serviços', url: '/comercial/servicos', requiresCapability: 'catalogo:editar' },
-      { title: 'Clientes', url: '/clients', requiresCapability: 'cliente:ler' },
     ],
   },
 ];

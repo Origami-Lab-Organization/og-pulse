@@ -219,13 +219,13 @@ export const HELP_GROUPS: HelpGroup[] = [
       {
         id: 'clientes',
         title: 'Clientes',
-        route: '/clients',
-        requiresCapability: 'cliente:ler',
-        what: 'Cadastro dos clientes, com os dados que orçamento, projeto e nota fiscal consomem.',
+        route: '/comercial/empresas?aba=clientes',
+        requiresCapability: ['cliente:ler', 'prospeccao:ler'],
+        what: 'A carteira: as empresas com Ganho ou projeto, na aba Clientes de Empresas.',
         how: [
-          'Busque pelo nome antes de criar — cliente duplicado divide o histórico em dois.',
+          'A empresa vira cliente sozinha quando a Oportunidade chega a Ganho; não há cadastro de cliente.',
           'Abra o cliente para ver os projetos e as oportunidades ligadas a ele.',
-          'Editar exige a capacidade de editar cliente; ler não.',
+          'Nome, CNPJ e site vêm da empresa; quem tem a Prospecção edita.',
         ],
         mcp: {
           server: null,

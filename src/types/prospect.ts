@@ -327,6 +327,10 @@ export interface ProspectCompanyDB {
   tenant_id: string;
   name: string;
   cnpj: string | null;
+  /** US-0050: CNPJs das filiais (só dígitos, mesma raiz da matriz). */
+  filiais?: string[];
+  /** US-0050: matriz e filiais juntas, para a busca por parte do CNPJ. */
+  cnpj_busca?: string | null;
   linkedin_url: string | null;
   instagram_url: string | null;
   website: string | null;
@@ -335,6 +339,18 @@ export interface ProspectCompanyDB {
   tipo_conta?: TipoDeConta | null;
   /** Funcionários confirmados pelo time; prevalece sobre a RAIS (US-0020). Nulo = não informado. */
   funcionarios_informados?: number | null;
+  /** Faixa do LinkedIn informada pelo time (US-0054): "201-500". Não convive com o número exato. */
+  funcionarios_faixa?: string | null;
+  /** US-0056: faixa, origem, confiança e fonte do que o time informou (o ponto médio vale nas contas). */
+  faturamento_min?: number | null;
+  faturamento_max?: number | null;
+  faturamento_confianca?: string | null;
+  faturamento_fonte?: string | null;
+  funcionarios_min?: number | null;
+  funcionarios_max?: number | null;
+  funcionarios_base?: string | null;
+  funcionarios_confianca?: string | null;
+  funcionarios_fonte?: string | null;
   client_id: string | null;
   notes: string | null;
   /** Faturamento anual em reais, informado pelo time (01/10/2026). A Receita não informa. */
@@ -369,6 +385,9 @@ export interface ProspectCompanyDB {
   base_faturamento_estimado?: number | null;
   base_faturamento_base?: string | null;
   base_retrato_em?: string | null;
+  /** US-0053: pasta da empresa no OneDrive do Comercial, criada no primeiro arquivo do estudo. */
+  onedrive_drive_id?: string | null;
+  onedrive_item_id?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
