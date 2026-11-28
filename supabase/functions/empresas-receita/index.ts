@@ -593,6 +593,18 @@ interface DoTimeNaEmpresa {
   faturamento_anual: number | null;
   faturamento_anual_base: string | null;
   funcionarios_informados: number | null;
+  /** US-0054: faixa do LinkedIn informada pelo time ("201-500"); não convive com o número exato. */
+  funcionarios_faixa: string | null;
+  /** US-0056: faixa, origem, confiança e fonte do que o time informou (só para a tela). */
+  faturamento_min: number | null;
+  faturamento_max: number | null;
+  faturamento_confianca: string | null;
+  faturamento_fonte: string | null;
+  funcionarios_min: number | null;
+  funcionarios_max: number | null;
+  funcionarios_base: string | null;
+  funcionarios_confianca: string | null;
+  funcionarios_fonte: string | null;
   regime_tributario: string | null;
   regime_tributario_ano: number | null;
 }
@@ -607,6 +619,16 @@ function comODoTime(l: LinhaDaPagina, t: DoTimeNaEmpresa | undefined, historico:
     ...l,
     ...faturamento,
     funcionarios_informados: t.funcionarios_informados,
+    funcionarios_faixa: t.funcionarios_faixa,
+    faturamento_min: t.faturamento_min == null ? null : Number(t.faturamento_min),
+    faturamento_max: t.faturamento_max == null ? null : Number(t.faturamento_max),
+    faturamento_confianca: t.faturamento_confianca,
+    faturamento_fonte: t.faturamento_fonte,
+    funcionarios_min: t.funcionarios_min,
+    funcionarios_max: t.funcionarios_max,
+    funcionarios_base: t.funcionarios_base,
+    funcionarios_confianca: t.funcionarios_confianca,
+    funcionarios_fonte: t.funcionarios_fonte,
     regime_tributario: t.regime_tributario,
     regime_tributario_ano: t.regime_tributario_ano,
     faturamento_historico: registros,
@@ -625,9 +647,9 @@ async function comFaturamentoDoTime(sessao: SupabaseClient, linhas: LinhaDaPagin
   if (!linhas.length) return linhas;
   const { data, error } = await sessao
     .from("prospect_companies")
-    .select("id, cnpj, faturamento_anual, faturamento_anual_base, funcionarios_informados, regime_tributario, regime_tributario_ano")
+    .select("id, cnpj, faturamento_anual, faturamento_anual_base, funcionarios_informados, funcionarios_faixa, faturamento_min, faturamento_max, faturamento_confianca, faturamento_fonte, funcionarios_min, funcionarios_max, funcionarios_base, funcionarios_confianca, funcionarios_fonte, regime_tributario, regime_tributario_ano")
     .in("cnpj", linhas.map((l) => l.cnpj.trim()))
-    .or("faturamento_anual.not.is.null,funcionarios_informados.not.is.null,regime_tributario.not.is.null");
+    .or("faturamento_anual.not.is.null,funcionarios_informados.not.is.null,funcionarios_faixa.not.is.null,regime_tributario.not.is.null");
   if (error || !data) return linhas;
   const empresas = data as DoTimeNaEmpresa[];
   const doTime = new Map(empresas.map((r) => [r.cnpj, r]));
@@ -866,6 +888,7 @@ async function pagina(cliente: Cliente, pedidoOriginal: Extract<Pedido, { modo: 
   const linhas = await cliente.queryObject(
     `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, c.descricao AS cnae_descricao,
           e.municipio, e.uf, e.data_inicio_atividade::text AS data_inicio_atividade, e.capital_social::float8 AS capital_social, e.distancia_km, e.funcionarios,
+          e.funcionarios_rais, e.funcionarios_estimados,
           e.divida_total::float8 AS divida_total, e.divida_ajuizada::float8 AS divida_ajuizada,
           e.fit_previo, e.fit_frente, e.fit_studio, e.fit_lei_do_bem, e.fit_captacao, e.fit_consultoria, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base, e.pela_secundaria,
           e.natureza_juridica
@@ -929,6 +952,7 @@ const FICHA = `SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal,
     e.natureza_juridica, n.descricao AS natureza_descricao,
     e.capital_social::float8 AS capital_social, e.data_inicio_atividade::text AS data_inicio_atividade,
     e.municipio, e.uf, e.distancia_km, e.funcionarios, e.unidades_com_funcionarios, e.filiais_ativas, e.socios,
+    e.funcionarios_rais, e.funcionarios_estimados,
     e.divida_total::float8 AS divida_total, e.divida_em_cobranca::float8 AS divida_em_cobranca,
     e.divida_ajuizada::float8 AS divida_ajuizada, e.inscricoes_divida, e.tem_email, e.tem_telefone,
     e.fit_previo, e.fit_frente, e.fit_studio, e.fit_lei_do_bem, e.fit_captacao, e.fit_consultoria, e.faturamento_estimado::float8 AS faturamento_estimado, e.faturamento_base
@@ -970,9 +994,83 @@ async function relacaoDaFicha(sessao: SupabaseClient, cnpj: string) {
   }
 }
 
+// US-0053: empresa do Pulse que a Base não tem (ME, EPP, filial, órgão público, baixada): a ficha
+// sai do que o Pulse guarda — a consulta da Receita (`receita`), o retrato da Base (`base_*`) e a
+// relação, que já é calculada com dados do Pulse.
+const COLUNAS_DO_PULSE =
+  "cnpj, name, razao_social, nome_fantasia, capital_social, data_abertura, situacao_cadastral, receita, filiais, " +
+  "base_funcionarios, base_divida_ajuizada, base_distancia_km, base_faturamento_estimado, base_faturamento_base";
+
+type Cnae = { codigo: string; descricao: string | null };
+type ReceitaGuardada = {
+  cnaePrincipal?: Cnae | null;
+  cnaesSecundarios?: Cnae[];
+  naturezaJuridica?: string | null;
+  endereco?: { municipio?: string | null; uf?: string | null };
+  email?: string | null;
+  telefones?: string[];
+};
+
+function empresaDoPulse(e: Record<string, unknown>, cnpj: string): LinhaDaPagina {
+  const r = (e.receita ?? {}) as ReceitaGuardada;
+  const secundarias = r.cnaesSecundarios ?? [];
+  return {
+    cnpj,
+    razao_social: e.razao_social ?? e.name,
+    nome_fantasia: e.nome_fantasia ?? e.name,
+    cnae_principal: r.cnaePrincipal?.codigo ?? null,
+    cnae_descricao: r.cnaePrincipal?.descricao ?? null,
+    cnaes_secundarios: secundarias.map((c) => c.codigo),
+    secundarias,
+    natureza_juridica: null,
+    natureza_descricao: r.naturezaJuridica ?? null,
+    capital_social: e.capital_social ?? null,
+    data_inicio_atividade: e.data_abertura ?? null,
+    municipio: r.endereco?.municipio ?? null,
+    uf: r.endereco?.uf ?? null,
+    distancia_km: e.base_distancia_km ?? null,
+    funcionarios: e.base_funcionarios ?? null,
+    unidades_com_funcionarios: null,
+    filiais_ativas: Array.isArray(e.filiais) ? e.filiais.length : 0,
+    socios: 0,
+    divida_total: null,
+    divida_em_cobranca: null,
+    divida_ajuizada: e.base_divida_ajuizada ?? null,
+    inscricoes_divida: null,
+    tem_email: !!r.email,
+    tem_telefone: (r.telefones ?? []).length > 0,
+    faturamento_estimado: e.base_faturamento_estimado ?? null,
+    faturamento_base: e.base_faturamento_base ?? null,
+    situacao_cadastral: e.situacao_cadastral ?? null,
+    so_no_pulse: true,
+  };
+}
+
+async function fichaDoPulse(sessao: SupabaseClient, cnpj: string) {
+  const { data, error } = await sessao
+    .from("prospect_companies")
+    .select(COLUNAS_DO_PULSE)
+    .or(`cnpj.eq.${cnpj},filiais.cs.{${cnpj}}`)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) throw new Recusa("Empresa não encontrada na base.", 404);
+  const e = data as Record<string, unknown>;
+  const r = (e.receita ?? {}) as ReceitaGuardada;
+  const [empresa] = await comFaturamentoDoTime(sessao, [empresaDoPulse(e, cnpj)]);
+  const telefones = r.telefones ?? [];
+  const temContato = !!r.email || telefones.length > 0;
+  return {
+    empresa,
+    contato: temContato ? { email: r.email ?? null, telefone_1: telefones[0] ?? null, telefone_2: telefones[1] ?? null } : null,
+    socios: [],
+    oportunidades: await oportunidadesDaEmpresa(sessao, cnpj),
+    ...(await relacaoDaFicha(sessao, cnpj)),
+  };
+}
+
 async function ficha(cliente: Cliente, { cnpj }: Extract<Pedido, { modo: "ficha" }>, sessao: SupabaseClient) {
   const r = await cliente.queryObject<LinhaDaPagina>(FICHA, [cnpj]);
-  if (!r.rows.length) throw new Recusa("Empresa não encontrada na base.", 404);
+  if (!r.rows.length) return await fichaDoPulse(sessao, cnpj);
   const [empresa] = await comFaturamentoDoTime(sessao, r.rows);
   const socios = await cliente.queryObject(SOCIOS, [cnpj.slice(0, 8), ADMINISTRAM]);
   const contato = await cliente.queryObject("SELECT email, telefone_1, telefone_2 FROM pulse.contatos WHERE cnpj = $1", [cnpj]);

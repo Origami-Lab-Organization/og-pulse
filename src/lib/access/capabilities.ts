@@ -18,7 +18,6 @@ export const CAPABILITY_KEYS = [
   'candidatura:ler',
   'catalogo:editar',
   'catalogo:ler',
-  'cliente:editar',
   'cliente:ler',
   'conciliacao:pagar',
   'conciliacao:receber',

@@ -33,7 +33,10 @@ export function psql(ambiente: Ambiente, args: string[]): ChildProcess {
     return spawn('psql', comuns, { env: { ...process.env, ...ambiente, PGHOST: host }, stdio: ['pipe', 'pipe', 'inherit'] });
   }
   const envs = Object.keys(ambiente).flatMap((k) => ['-e', k]);
-  const docker = ['run', '--rm', '-i', ...envs, '--add-host=host.docker.internal:host-gateway', IMAGEM_PSQL, 'psql', ...comuns];
+  // Rodando na própria VPS (RECEITA_NA_VPS=1), o container usa a rede do servidor: sem túnel, a
+  // carga não depende da conexão de quem a dispara (26/11/2026: o túnel caiu quatro vezes seguidas).
+  const rede = process.env.RECEITA_NA_VPS ? '--network=host' : '--add-host=host.docker.internal:host-gateway';
+  const docker = ['run', '--rm', '-i', ...envs, rede, IMAGEM_PSQL, 'psql', ...comuns];
   return spawn('docker', docker, { env: { ...process.env, ...ambiente }, stdio: ['pipe', 'pipe', 'inherit'] });
 }
 

@@ -29,6 +29,7 @@ export function fitDaBase(linha: LinhaDaBaseParaFit, hoje: string): CompanyFit[]
   const sinais: SinaisDoTamanho = {
     funcionarios: linha.funcionarios,
     funcionariosDoTime: linha.funcionariosDoTime ?? false,
+    funcionariosEstimados: linha.funcionariosEstimados ?? false,
     dividaAjuizada: linha.dividaAjuizada,
     distanciaKm: linha.distanciaKm,
     tipoConta: tipo,
@@ -48,6 +49,7 @@ export function linhaParaFit(e: EmpresaReceita & { cnaes_secundarios?: readonly 
     uf: e.uf,
     funcionarios: e.funcionarios,
     funcionariosDoTime: e.funcionarios_do_time ?? false,
+    funcionariosEstimados: !e.funcionarios_do_time && !!e.funcionarios_estimados,
     dividaAjuizada: e.divida_ajuizada == null ? null : Number(e.divida_ajuizada),
     distanciaKm: e.distancia_km,
     faturamento: faturamentoDaSugestao(e),

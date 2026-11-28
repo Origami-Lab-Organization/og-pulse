@@ -131,3 +131,9 @@ CREATE INDEX IF NOT EXISTS empresas_fit_studio_idx ON pulse.empresas (fit_studio
 CREATE INDEX IF NOT EXISTS empresas_fit_lei_do_bem_idx ON pulse.empresas (fit_lei_do_bem DESC, funcionarios DESC NULLS LAST, cnpj DESC);
 CREATE INDEX IF NOT EXISTS empresas_fit_captacao_idx ON pulse.empresas (fit_captacao DESC, funcionarios DESC NULLS LAST, cnpj DESC);
 CREATE INDEX IF NOT EXISTS empresas_fit_consultoria_idx ON pulse.empresas (fit_consultoria DESC, funcionarios DESC NULLS LAST, cnpj DESC);
+
+-- US-0054: RAIS improvável. Quando a RAIS é baixa demais para o porte, `funcionarios` passa a ser a
+-- estimativa por empresas parecidas (src/lib/prospecting/raisImprovavel.ts), e a RAIS original
+-- fica aqui, para a tela mostrar no detalhe. Filtro, ordem e fit usam `funcionarios`.
+ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS funcionarios_rais integer;
+ALTER TABLE pulse.empresas ADD COLUMN IF NOT EXISTS funcionarios_estimados boolean NOT NULL DEFAULT false;

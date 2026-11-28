@@ -44,11 +44,11 @@ export const OWNER_GUIDE_STEPS: readonly OwnerGuideStep[] = [
   {
     id: OwnerGuideStepId.CLIENTS,
     title: 'Para quem você entrega',
-    why: 'Projeto vendido nasce de um cliente. É por ele que a receita e a margem se agrupam.',
-    cta: 'Cadastrar o primeiro cliente',
-    route: '/clients',
-    selectors: ['[data-tour="nav-/clients"]'],
-    fallback: 'Abra Clientes no menu lateral para cadastrar o primeiro.',
+    why: 'Cliente é a empresa que fechou negócio. É por ele que a receita e a margem se agrupam.',
+    cta: 'Achar a primeira empresa',
+    route: '/comercial/empresas',
+    selectors: ['[data-tour="nav-/comercial/empresas"]'],
+    fallback: 'Abra Empresas no menu lateral.',
     isDone: (c) => c.clients > 0,
   },
   {

@@ -15,11 +15,13 @@
 import { readFileSync } from 'node:fs';
 import { Transform, type TransformCallback } from 'node:stream';
 import { divisaoDoCnae, setorDoCnae, setoresERamos } from '@/lib/prospecting/cnae';
-import { BASE_PISO, estimarFaturamento } from '@/lib/prospecting/faturamentoEstimado';
+import { BASE_PISO, BASE_RAIS, estimarFaturamento, estimarPorFuncionariosConfiaveis } from '@/lib/prospecting/faturamentoEstimado';
 import { bestFit, FRENTES_DO_FIT } from '@/lib/prospecting/fit';
 import type { Faturamento } from '@/types/filtrosReceita';
 import type { CompanyFit, FitFront } from '@/types/receita';
 import { fitDaBase } from '@/lib/prospecting/fitDaBase';
+import { funcionariosDaBase, type FuncionariosDaBase } from '@/lib/prospecting/raisImprovavel';
+import type { EmpresaParaModelo } from '@/types/filtrosReceita';
 import { ARQUIVO_DESTINO, ARQUIVO_ORIGEM, lerAmbiente, psql, terminou, type Ambiente } from './psql';
 import { chaveDoMunicipio, kmEntre } from './distancia';
 import SEDES from './sedes-municipais.json';
@@ -97,6 +99,7 @@ const COLUNAS_DESTINO = [
   'divida_em_cobranca', 'divida_ajuizada', 'inscricoes_divida', 'tem_email', 'tem_telefone',
   'fit_previo', 'fit_frente', 'secao', 'divisao', 'secoes_sec', 'divisoes_sec', 'faturamento_estimado',
   'faturamento_base', 'distancia_km', 'fit_studio', 'fit_lei_do_bem', 'fit_captacao', 'fit_consultoria',
+  'funcionarios_rais', 'funcionarios_estimados',
 ].join(', ');
 
 const COL = {
@@ -113,6 +116,8 @@ interface Resumo {
   porFaixaDeFit: Record<string, number>;
   porFaixaDeFaturamento: Record<string, number>;
   semDistancia: number;
+  /** US-0054: empresas com a RAIS trocada pela estimativa. */
+  raisImprovavel: number;
 }
 
 const FAIXAS_DE_FATURAMENTO: ReadonlyArray<[number, string]> = [[300e6, 'âncora'], [100e6, 'ponte'], [10e6, 'satélite'], [0, 'abaixo de 10 mi']];
@@ -137,12 +142,11 @@ function distanciaDe(campos: string[], resumo: Resumo): number | null {
   return kmEntre(FORMIGA, sede);
 }
 
-/** Faturamento estimado e a base dele (US-0006). */
-function estimativaDe(campos: string[], hoje: string, resumo: Resumo): Faturamento {
-  const cnae = campos[COL.cnaePrincipal];
-  const { valor, base } = estimarFaturamento(cnae, numero(campos[COL.funcionarios]), {
+/** O que o modelo de empresas parecidas e o faturamento sem RAIS leem da linha. */
+function empresaParaModelo(campos: string[]): EmpresaParaModelo {
+  return {
     nome: texto(campos[COL.razao]),
-    secao: setorDoCnae(cnae) ?? null,
+    secao: setorDoCnae(campos[COL.cnaePrincipal]) ?? null,
     natureza: texto(campos[COL.natureza]),
     capital: numero(campos[COL.capital]),
     abertura: texto(campos[COL.abertura]),
@@ -152,7 +156,20 @@ function estimativaDe(campos: string[], hoje: string, resumo: Resumo): Faturamen
     divida: numero(campos[COL.divida]),
     email: campos[COL.email] === VERDADEIRO,
     telefone: campos[COL.telefone] === VERDADEIRO,
-  }, hoje);
+  };
+}
+
+/** Com a RAIS improvável (US-0054): a estimativa × receita por pessoa, sem a correção do capital. */
+function faturamentoDe(cnae: string, func: FuncionariosDaBase, campos: string[], hoje: string): Faturamento {
+  const confiavel = func.estimados ? estimarPorFuncionariosConfiaveis(cnae, func.funcionarios) : null;
+  if (confiavel != null) return { valor: confiavel, base: BASE_RAIS };
+  return estimarFaturamento(cnae, func.estimados ? null : func.rais, empresaParaModelo(campos), hoje);
+}
+
+/** Faturamento estimado e a base dele (US-0006, US-0054). */
+function estimativaDe(campos: string[], func: FuncionariosDaBase, hoje: string, resumo: Resumo): Faturamento {
+  const cnae = campos[COL.cnaePrincipal];
+  const { valor, base } = faturamentoDe(cnae, func, campos, hoje);
   const faixa = `${base}: ${FAIXAS_DE_FATURAMENTO.find(([piso]) => valor >= piso)![1]}`;
   resumo.porFaixaDeFaturamento[faixa] = (resumo.porFaixaDeFaturamento[faixa] ?? 0) + 1;
   return { valor, base };
@@ -180,7 +197,12 @@ const notaDe = (fits: CompanyFit[], frente: FitFront) => fits.find((f) => f.fren
 function linhaComFit(linha: string, hoje: string, resumo: Resumo): string {
   const campos = linha.split('\t');
   const secundarios = campos[COL.cnaesSecundarios].replace(/[{}]/g, '').split(',').filter(Boolean);
-  const fat = estimativaDe(campos, hoje, resumo);
+  const func = funcionariosDaBase(campos[COL.cnaePrincipal], numero(campos[COL.funcionarios]), empresaParaModelo(campos), hoje);
+  if (func.estimados) {
+    campos[COL.funcionarios] = String(func.funcionarios);
+    resumo.raisImprovavel += 1;
+  }
+  const fat = estimativaDe(campos, func, hoje, resumo);
   const km = distanciaDe(campos, resumo);
   const fits = fitsDaLinha(campos, secundarios, hoje, fat, km);
   const fit = bestFit(fits.length ? fits : null);
@@ -192,7 +214,8 @@ function linhaComFit(linha: string, hoje: string, resumo: Resumo): string {
   resumo.porFaixaDeFit[faixa] = (resumo.porFaixaDeFit[faixa] ?? 0) + 1;
   const atividade = colunasDeAtividade(campos[COL.cnaePrincipal], secundarios);
   const porServico = FRENTES_DO_FIT.map((f) => notaDe(fits, f)).join('\t');
-  return `${linha}\t${nota}\t${frente}\t${atividade}\t${fat.valor}\t${fat.base}\t${km ?? NULO}\t${porServico}\n`;
+  const rais = func.rais == null ? NULO : String(func.rais);
+  return `${campos.join('\t')}\t${nota}\t${frente}\t${atividade}\t${fat.valor}\t${fat.base}\t${km ?? NULO}\t${porServico}\t${rais}\t${func.estimados ? 't' : 'f'}\n`;
 }
 
 /** Setor e ramo do principal e dos secundários (US-0003), no formato do COPY em texto. */
@@ -261,6 +284,7 @@ function imprimirResumo(resumo: Resumo, segundos: number) {
   console.log('Por faixa de fit prévio:', resumo.porFaixaDeFit);
   console.log('Por faixa de faturamento estimado:', resumo.porFaixaDeFaturamento);
   console.log('Sem distância (município não reconhecido):', resumo.semDistancia);
+  console.log('RAIS improvável, trocada pela estimativa (US-0054):', resumo.raisImprovavel);
 }
 
 /** O nome de cada natureza fora do recorte, lido da base: um código errado aparece aqui. */
@@ -279,7 +303,7 @@ async function main() {
   await conferirNaturezas(origem);
   const destino = aplicar ? lerAmbiente(ARQUIVO_DESTINO) : null;
   const inicio = Date.now();
-  const resumo: Resumo = { linhas: 0, porFrente: {}, porFaixaDeFit: {}, porFaixaDeFaturamento: {}, semDistancia: 0 };
+  const resumo: Resumo = { linhas: 0, porFrente: {}, porFaixaDeFit: {}, porFaixaDeFaturamento: {}, semDistancia: 0, raisImprovavel: 0 };
   await carregarEmpresas(origem, destino, resumo);
   imprimirResumo(resumo, Math.round((Date.now() - inicio) / 1000));
 }

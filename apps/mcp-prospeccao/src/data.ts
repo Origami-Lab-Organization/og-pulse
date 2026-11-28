@@ -116,7 +116,8 @@ export async function buscarEmpresas(termo: string, limite: number): Promise<Pro
   if (seguro) {
     const filtros = [`name.ilike.*${seguro}*`];
     const digitos = seguro.replace(/\D/g, '');
-    if (digitos.length >= 3) filtros.push(`cnpj.ilike.*${digitos}*`);
+    // US-0050: cnpj_busca tem o CNPJ da matriz e os das filiais.
+    if (digitos.length >= 3) filtros.push(`cnpj_busca.ilike.*${digitos}*`);
     query = query.or(filtros.join(','));
   }
   const { data, error } = await query.order('name').limit(limite);
@@ -605,7 +606,9 @@ export async function empresaPorCnpj(cnpj: string): Promise<ProspectCompanyDB | 
     .from('prospect_companies')
     .select('*')
     .eq('tenant_id', eu.tenantId)
-    .eq('cnpj', digitos)
+    // US-0050: o CNPJ pode ser o da matriz ou o de uma filial.
+    .or(`cnpj.eq.${digitos},filiais.cs.{${digitos}}`)
+    .limit(1)
     .maybeSingle();
   if (error) throw explicar(error);
   return (data as ProspectCompanyDB) ?? null;
