@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Instagram, Linkedin, Mail, Phone, Plus, X } from 'lucide-react';
+import { Instagram, Linkedin, Mail, Pencil, Phone, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProspectContacts } from '@/hooks/useProspectContacts';
 import {
   useAddOpportunityContact,
-  useRemoveOpportunityContact,
   useUpdateOpportunityContactRole,
 } from '@/hooks/useProspects';
 import { iniciaisDe } from '@/lib/prospecting/iniciais';
@@ -19,6 +18,7 @@ import {
   type ProspectOpportunityContact,
   type ProspectWithCompany,
 } from '@/types/prospect';
+import { OpportunityContactEditForm } from './OpportunityContactEditForm';
 import { NovoContatoDaOportunidade } from './OpportunityNewContactForm';
 import { OpportunityContactRoleSelect } from './OpportunityContactRoleSelect';
 import { ProspectContactSelect } from './ProspectContactSelect';
@@ -89,26 +89,36 @@ function ListaDeContatos(props: {
  * Um perfil por pessoa (16/11/2026, no desenho de ficha de contato do HubSpot): avatar, nome e
  * cargo no topo; uma fileira de ações rápidas (ligar, e-mail, redes) e, embaixo, os dados com
  * o rótulo sobre o valor. Ação sem dado cadastrado fica apagada, para mostrar o que falta.
+ *
+ * Desde 26/11/2026 o lápis abre a edição da pessoa no lugar do perfil, e retirar da
+ * oportunidade só aparece lá — o X solto no canto tirava gente por engano.
  */
 function LinhaDoContato(props: { prospectId: string; vinculo: ProspectOpportunityContact; podeEditar: boolean }) {
   const { prospectId, vinculo, podeEditar } = props;
-  const retirar = useRemoveOpportunityContact();
+  const [editando, setEditando] = useState(false);
   const pessoa = vinculo.contact;
   const nome = pessoa?.name ?? 'Contato';
 
+  if (editando && pessoa) {
+    return (
+      <div className="py-5">
+        <OpportunityContactEditForm prospectId={prospectId} pessoa={pessoa} onFechar={() => setEditando(false)} />
+      </div>
+    );
+  }
+
   return (
     <article aria-label={nome} className="relative space-y-5 py-5">
-      {podeEditar && (
+      {podeEditar && pessoa && (
         <Button
           variant="ghost"
           size="icon"
-          className="absolute -right-2 top-4 h-8 w-8 text-muted-foreground hover:text-destructive"
-          aria-label={`Retirar ${nome} da oportunidade`}
-          title="Retirar da oportunidade"
-          disabled={retirar.isPending}
-          onClick={() => retirar.mutate({ prospectId, contactId: vinculo.contact_id })}
+          className="absolute -right-2 top-4 h-8 w-8 text-muted-foreground hover:text-foreground"
+          aria-label={`Editar ${nome}`}
+          title="Editar contato"
+          onClick={() => setEditando(true)}
         >
-          <X className="h-4 w-4" aria-hidden="true" />
+          <Pencil className="h-4 w-4" aria-hidden="true" />
         </Button>
       )}
       <div className="flex items-center gap-3 pr-8">
